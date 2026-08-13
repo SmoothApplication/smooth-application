@@ -1,0 +1,28 @@
+name: Compute SRI hashes
+
+# One-off diagnostic workflow, not part of the regular test pipeline. Run manually (Actions tab ->
+# "Compute SRI hashes" -> "Run workflow") whenever the pinned CDN library versions in index.html
+# change, to get real integrity="sha384-..." values for the loadScript() calls. GitHub's own
+# runners have normal internet access (unlike the sandbox this was originally written in), so this
+# can reach cdnjs.cloudflare.com directly and print copy-paste-ready hashes in the log.
+on:
+  workflow_dispatch:
+
+jobs:
+  compute:
+    runs-on: ubuntu-latest
+    steps:
+      - name: pdf.js (pdf.min.js)
+        run: |
+          curl -fsSL https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js -o pdf.min.js
+          echo "integrity=\"sha384-$(openssl dgst -sha384 -binary pdf.min.js | openssl base64 -A)\""
+
+      - name: Tesseract.js (tesseract.min.js)
+        run: |
+          curl -fsSL https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js -o tesseract.min.js
+          echo "integrity=\"sha384-$(openssl dgst -sha384 -binary tesseract.min.js | openssl base64 -A)\""
+
+      - name: SheetJS / xlsx (xlsx.full.min.js)
+        run: |
+          curl -fsSL https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js -o xlsx.full.min.js
+          echo "integrity=\"sha384-$(openssl dgst -sha384 -binary xlsx.full.min.js | openssl base64 -A)\""
