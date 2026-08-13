@@ -3935,7 +3935,13 @@
               return;
             }
             setScanMsg(id,'info','This looks like a scanned/image PDF — reading it as a photo instead (OCR). This can take up to a minute if the scan is sideways or upside down, since that\'s checked automatically…');
-            return pdfPageToCanvas(pageResults[0].page, 2).then(function(canvas){
+            // Scale 3 (not 2): many phone "scan to PDF" apps (CamScanner, Adobe Scan, etc.) place the
+            // photographed document on a full A4/Letter page with wide white margins rather than filling
+            // the frame, so the actual passport content ends up rendered at a noticeably lower effective
+            // resolution than the source photo. A higher render scale gives the OCR step more real pixels
+            // of margin on the small, dense MRZ text — pure upside for accuracy at the cost of a bit more
+            // OCR time (this already only runs once, as the no-text-layer fallback).
+            return pdfPageToCanvas(pageResults[0].page, 3).then(function(canvas){
               return smartRecognize(canvas);
             }).then(function(best){
               var ocrText = best ? best.text : '';

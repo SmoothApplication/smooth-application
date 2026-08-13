@@ -3,6 +3,21 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Passport OCR: higher render resolution for scanned PDFs
+A client's passport PDF (a CamScanner export) came back "Limited read" — expiry and MRZ checksum
+both not detected — even though the passport was clearly legible to the eye. Tested the exact
+file through the exact OCR engine/model version this app uses (Tesseract.js 5.0.4, same language
+data) outside the browser: it read the passport perfectly, 4/4 MRZ checksums, correct expiry. So
+the detection logic itself is sound — this wasn't the same class of bug as the pdf.js CDN issue.
+The likely gap: phone "scan to PDF" apps (CamScanner, Adobe Scan, etc.) commonly place the
+photographed page on a full A4/Letter canvas with wide white margins rather than filling the
+frame, so the actual document content renders at a lower effective resolution than the source
+photo once this app draws the PDF page to a canvas for OCR. Bumped the render scale for that
+scanned-PDF fallback path from 2 to 3 (50% more pixels on the passport content, including the
+small MRZ text) — cheap, safe change, more headroom for exactly this kind of scan. Verified: the
+existing 7-test regression suite still passes; the MRZ-parsing logic itself was independently
+re-verified against a real Tesseract.js run using the app's actual bundled language model.
+
 ## Root cause found: cdnjs serving inconsistent bytes for pdf.js, self-hosted it
 The "PDF scanning tool failed to load" reports (a client, then the app's own owner reproducing it
 on two different desktop browsers) turned out to have a real, confirmable cause — not a network
