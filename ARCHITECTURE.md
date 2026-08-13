@@ -103,15 +103,31 @@ in the same place in the DOM, sessions just toggle which one is currently visibl
 
 ## OCR / PDF / spreadsheet pipeline
 
-Three open-source libraries are loaded from cdnjs **only when first needed**, not on page load:
+Three open-source libraries are loaded **only when first needed**, not on page load. pdf.js is
+self-hosted (`vendor/pdf.min.js`, `vendor/pdf.worker.min.js`); Tesseract.js and SheetJS/xlsx still
+load from cdnjs — see CHANGELOG "cdnjs serving inconsistent bytes" for why pdf.js specifically
+moved off cdnjs and the other two haven't (yet).
 
-- `loadScript(src, integrity)` (~3086) — injects a `<script>` tag, returns a Promise. Always sets
-  `crossOrigin = 'anonymous'`; accepts an optional `integrity` (SRI hash) that's intentionally
-  unset today — see the comment directly above this function for why, and the exact commands to
-  compute real hashes.
-- `ensureLibs()` (~3098) — `Promise.allSettled`s pdf.js 3.11.174, Tesseract.js 5.0.4, and
-  SheetJS/xlsx 0.18.5 (all pinned versions, all loaded as `<script>` tags from
-  `cdnjs.cloudflare.com`). **Tesseract.js itself then pulls in two more origins at runtime that we
+- `wasmSupported()` / `WASM_SUPPORTED` (~3119) — synchronously feature/CSP-detects WebAssembly via
+  `WebAssembly.validate()` on a trivial module, computed once at load. Catches two failure modes as
+  one: no `WebAssembly` global at all, and (the one that actually matters for real users) Safari
+  older than 15.4, which doesn't understand the `'wasm-unsafe-eval'` CSP keyword `_headers` uses to
+  allow Tesseract.js's WASM OCR engine to compile, so WASM silently stays blocked. `ensureLibs()`
+  skips even requesting `tesseract.min.js` when this is false, and `ocrUnavailableReason()` gives
+  the two "OCR unavailable" user messages an accurate reason instead of a generic one.
+- `loadScriptOnce(src, integrity)` / `loadScript(src, integrity)` (~3086) — `loadScriptOnce`
+  injects a single `<script>` tag and returns a Promise; `loadScript` wraps it with exactly one
+  automatic retry (after a 1.5s pause) before giving up, since a real client hit a one-off
+  connectivity drop on this path the same day it shipped (see CHANGELOG "First real client
+  report"). Always sets `crossOrigin = 'anonymous'`; the three call sites in `ensureLibs()` pass
+  real SHA-384 `integrity` hashes, computed via `.github/workflows/compute-sri.yml` (see the
+  comment directly above these functions, and that workflow's own header comment, for how to
+  re-derive them if the pinned CDN versions below are ever bumped). `onerror` rejects with a real
+  `Error`, not the bare `Event` browsers pass by default, so downstream `.catch()` blocks can
+  actually log/show `err.message` instead of always falling back to "unknown error".
+- `ensureLibs()` (~3098) — `Promise.allSettled`s pdf.js 3.11.174 (from `/vendor/`, same-origin, no
+  `integrity` needed), Tesseract.js 5.0.4, and SheetJS/xlsx 0.18.5 (both still pinned versions
+  loaded as `<script>` tags from `cdnjs.cloudflare.com`). **Tesseract.js itself then pulls in two more origins at runtime that we
   don't control** — its WASM core (`tesseract.js-core`, default host `cdn.jsdelivr.net`) and its
   OCR language data (a `.traineddata` file, default host `cdn.jsdelivr.net` and/or
   `tessdata.projectnaptha.com` depending on version). This isn't optional or configurable away
@@ -146,9 +162,11 @@ Three open-source libraries are loaded from cdnjs **only when first needed**, no
   `Referrer-Policy`, `Permissions-Policy`, `Cross-Origin-Opener-Policy`. `script-src`/`style-src`
   necessarily include `'unsafe-inline'` since there's no build step to move CSS/JS out of the page
   — the CSP's real value here is the external-origin allowlist, not inline-script blocking.
-- **SRI**: `loadScript()` is wired for it (`integrity` param, `crossOrigin: 'anonymous'`) but no
-  real hashes are set yet — see the comment above `loadScript()` for the exact commands to compute
-  them from a machine with normal network access.
+- **SRI**: `loadScript()`'s three call sites in `ensureLibs()` now pass real SHA-384 `integrity`
+  hashes (`crossOrigin: 'anonymous'` is always set, required for SRI to apply cross-origin) —
+  browsers refuse to execute pdf.min.js/tesseract.min.js/xlsx.full.min.js if a tampered or
+  compromised CDN response doesn't match. See the comment above `loadScript()` for how to
+  re-compute these if the pinned versions change.
 - **XSS**: `escapeHtml()` (~1179) is the app's one HTML-escaping helper. All 62 `.innerHTML =`
   assignment sites in the file have been audited; every one that interpolates document/user-derived
   text (bank narration, OCR'd names, typed explanations, filenames) escapes it first. See

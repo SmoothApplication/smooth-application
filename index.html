@@ -3118,6 +3118,41 @@
   /* ---------------- Best-effort local document scan ---------------- */
   var libsLoaded = { pdf: false, tesseract: false, xlsx: false, loading: false };
 
+  // wasmSupported(): synchronously checks whether this browser will actually let us compile
+  // WebAssembly right now — which covers TWO separate failure modes in one check: (1) genuinely
+  // old browsers with no WebAssembly global at all, and (2) browsers that DO have WebAssembly but
+  // whose Content-Security-Policy blocks it, which is exactly what happens on Safari older than
+  // 15.4 (released March 2022) — that's the first Safari version to understand the
+  // 'wasm-unsafe-eval' CSP keyword this app's _headers file relies on to allow Tesseract.js's OCR
+  // engine to compile. Older Safari doesn't recognize that keyword, so WASM compilation stays
+  // blocked, and WebAssembly.validate() below throws synchronously — the standard, spec-defined
+  // way to feature/CSP-detect this without ever triggering a real uncaught error. Given a
+  // meaningful share of this app's actual users are likely on older/hand-me-down iPhones that
+  // haven't been updated, this isn't a rare edge case — worth checking up front rather than
+  // discovering it mid-scan.
+  function wasmSupported(){
+    try {
+      if (typeof WebAssembly !== 'object' || typeof WebAssembly.validate !== 'function') return false;
+      // Smallest possible valid WASM module (just the magic number + version, no body) — enough
+      // to exercise real compilation/CSP checks without the cost of a real module.
+      var tinyModule = new Uint8Array([0x00,0x61,0x73,0x6d,0x01,0x00,0x00,0x00]);
+      return !!WebAssembly.validate(tinyModule);
+    } catch (e) { return false; }
+  }
+  // Computed once — this is a fixed property of the current browser/CSP combination, not
+  // something that changes between calls, so there's no reason to re-run the check per scan.
+  var WASM_SUPPORTED = wasmSupported();
+
+  // Shared wording for the two "OCR isn't available" messages below — tells apart the two
+  // distinct reasons libsLoaded.tesseract can be false, so someone on an old Safari sees
+  // something they can actually act on instead of a generic "offline or blocked" that isn't true
+  // for them (they may have a perfectly normal connection).
+  function ocrUnavailableReason(){
+    return WASM_SUPPORTED
+      ? 'failed to load (offline or blocked)'
+      : "isn't supported on this browser version (try updating your browser, or use a different one)";
+  }
+
   // loadScript: dynamically injects a <script> tag for a pinned, versioned CDN URL.
   //
   // SRI (Subresource Integrity): `crossOrigin` is always set to 'anonymous' so that, once real
@@ -3135,36 +3170,65 @@
   // (unlike the sandbox this file was originally developed in, which cannot reach
   // cdnjs.cloudflare.com at all), so that workflow is the way to re-derive these values if the
   // pinned versions below are ever bumped: Actions tab -> "Compute SRI hashes" -> "Run workflow".
-  function loadScript(src, integrity){
+  function loadScriptOnce(src, integrity){
     return new Promise(function(resolve, reject){
       var s = document.createElement('script');
       s.src = src;
       s.crossOrigin = 'anonymous';
       if (integrity) s.integrity = integrity;
       s.onload = resolve;
-      s.onerror = reject;
+      // Reject with a real Error (not the bare Event browsers pass to onerror) — several catch
+      // blocks downstream read err.message to log/display something more useful than "unknown
+      // error"; an Event object has no .message at all, so this was silently defeating those.
+      s.onerror = function(){ s.remove(); reject(new Error('Failed to load script from ' + src)); };
       document.head.appendChild(s);
+    });
+  }
+  // One automatic retry, after a short pause, before giving up. Real users of this app are
+  // disproportionately likely to be on mobile data with the occasional brief drop — a single
+  // failed request to the CDN shouldn't be the difference between OCR working and a real client
+  // seeing "failed to load (offline or blocked)" while trying to prep an actual visa application.
+  // If the retry also fails (a real outage, a genuinely wrong SRI hash, a hard network block),
+  // this still fails the same way it always did — just one attempt later.
+  function loadScript(src, integrity){
+    return loadScriptOnce(src, integrity).catch(function(){
+      return new Promise(function(res){ setTimeout(res, 1500); }).then(function(){
+        return loadScriptOnce(src, integrity);
+      });
     });
   }
 
   function ensureLibs(){
     if (libsLoaded.loading) return libsLoaded.loading;
     libsLoaded.loading = Promise.allSettled([
-      loadScript(
-        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
-        'sha384-/1qUCSGwTur9vjf/z91mu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e'
-      ).then(function(){
+      // pdf.js is self-hosted (vendor/pdf.min.js + vendor/pdf.worker.min.js) rather than loaded from
+      // cdnjs. Real users started hitting "PDF scanning tool failed to load" — traced it to cdnjs
+      // itself serving genuinely different bytes for this exact pinned version URL across different
+      // requests (confirmed directly: re-fetching it produced a different SHA-384 digest than the one
+      // computed minutes earlier from the same URL), which made the browser's own SRI check correctly
+      // refuse to run the mismatched script. Same-origin files can't have this problem — there's only
+      // one copy, on our own domain, no CDN edge variance possible. No `integrity` needed here since
+      // SRI only matters for cross-origin resources; a same-origin script is already covered by this
+      // page's own HTTPS delivery.
+      loadScript('/vendor/pdf.min.js').then(function(){
         if (window['pdfjsLib']){
-          window['pdfjsLib'].GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+          window['pdfjsLib'].GlobalWorkerOptions.workerSrc = '/vendor/pdf.worker.min.js';
           libsLoaded.pdf = true;
         }
       }),
-      loadScript(
-        'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js',
-        'sha384-Ptw8HCYAWF6vIop6WuGxfSCiDCIzUWqjrHYfx8Vd0S4CMBaicAdBh2y+Ufle664A'
-      ).then(function(){
-        if (window['Tesseract']) libsLoaded.tesseract = true;
-      }),
+      // Skip even attempting to load Tesseract.js when WASM isn't usable — no point paying for a
+      // CDN request just to have OCR fail later, inside a worker, with an opaque/uncaught error
+      // that's hard to attribute to anything. libsLoaded.tesseract simply stays false, same as any
+      // other load failure, but the messages below can now tell the two apart.
+      (WASM_SUPPORTED
+        ? loadScript(
+            'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js',
+            'sha384-Ptw8HCYAWF6vIop6WuGxfSCiDCIzUWqjrHYfx8Vd0S4CMBaicAdBh2y+Ufle664A'
+          ).then(function(){
+            if (window['Tesseract']) libsLoaded.tesseract = true;
+          })
+        : Promise.resolve()
+      ),
       loadScript(
         'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
         'sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw'
@@ -3867,7 +3931,7 @@
             // to reading the first page as an image instead — same on-device OCR used for direct image
             // uploads below, including the automatic sideways/upside-down retry.
             if (!libsLoaded.tesseract){
-              setScanMsg(id,'info','This looks like a scanned/image PDF with no selectable text, and the on-device OCR fallback failed to load (offline or blocked) — you can still mark this item as ready manually.');
+              setScanMsg(id,'info','This looks like a scanned/image PDF with no selectable text, and the on-device OCR fallback ' + ocrUnavailableReason() + ' — you can still mark this item as ready manually.');
               return;
             }
             setScanMsg(id,'info','This looks like a scanned/image PDF — reading it as a photo instead (OCR). This can take up to a minute if the scan is sideways or upside down, since that\'s checked automatically…');
@@ -3893,7 +3957,7 @@
         });
       } else if (file.type.indexOf('image/') === 0){
         if (!libsLoaded.tesseract){
-          setScanMsg(id,'err','Image scanning tool failed to load (offline or blocked). You can still mark this item as ready manually.');
+          setScanMsg(id,'err','Image scanning tool ' + ocrUnavailableReason() + '. You can still mark this item as ready manually.');
           return;
         }
         setScanMsg(id,'info','Reading image… this can take up to 30 seconds (longer if it\'s sideways or upside down, since that\'s checked automatically).');

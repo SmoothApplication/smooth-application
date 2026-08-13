@@ -3,6 +3,106 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Root cause found: cdnjs serving inconsistent bytes for pdf.js, self-hosted it
+The "PDF scanning tool failed to load" reports (a client, then the app's own owner reproducing it
+on two different desktop browsers) turned out to have a real, confirmable cause — not a network
+block, and not something wrong with our deploy. Re-fetched `pdf.min.js` from the exact same pinned
+cdnjs URL used to compute the SRI hash shipped earlier that same day, via a fresh GitHub Actions
+run, and diffed the two SHA-384 digests programmatically: they didn't match. Same URL, same pinned
+version, different bytes, minutes apart. That's exactly the condition SRI is designed to catch —
+the browser correctly refused to execute a script whose bytes didn't match what was pinned, which
+surfaces to the user as a load failure with no useful detail. cdnjs serves from many edge
+locations; something about the redundancy/propagation there let this pinned file drift.
+
+Fixed by removing the cdnjs dependency for pdf.js entirely: `vendor/pdf.min.js` and
+`vendor/pdf.worker.min.js` are now committed into the repo and served from this app's own domain.
+A same-origin file can't have this failure mode — there's exactly one copy, on one server, nothing
+else claiming to serve "the same" bytes. No `integrity` attribute needed either, since SRI only
+applies to cross-origin loads. Added `.github/workflows/fetch-pdfjs-vendor.yml` (GitHub's runners
+have the network access this sandbox doesn't) to re-fetch these two files if the pinned pdf.js
+version is ever bumped.
+
+Tesseract.js and SheetJS/xlsx are NOT self-hosted yet — nothing reported has implicated them
+specifically, and Tesseract.js's own runtime dependency chain (WASM core + language data from
+jsdelivr/tessdata.projectnaptha.com, outside our control either way) makes fully self-hosting it a
+bigger job than this one was. Worth revisiting if a similar pattern shows up for either of them.
+
+Verified: downloaded both vendor files via the new workflow, confirmed `pdf.min.js` is valid,
+parseable JS that defines `pdfjsLib` (`node -c`, then loaded it in a real headless Chromium and
+confirmed `window.pdfjsLib` becomes defined with zero failed network requests), served the whole
+app over real HTTP locally and confirmed `/vendor/pdf.min.js` and `/vendor/pdf.worker.min.js` both
+resolve with HTTP 200 at the exact same paths the deployed app will use. Full regression suite
+still 7/7.
+
+Also added one automatic retry to `loadScript()` earlier the same day, before this root cause was
+found — kept, since it still helps with genuine transient network drops on the two libraries that
+remain on cdnjs.
+
+## First real-traffic finding: OCR silently unavailable on older Safari
+Once analytics started picking up a handful of real visits, one showed a `error:global:Unknown`
+crash-report event — the deliberately minimal client-side crash reporting added during the
+engineering hardening pass, catching an uncaught error with no further detail by design. Cross-
+referencing GoatCounter's Browsers/Systems breakdown for that same week showed exactly one visit
+on Safari/iOS against six on Chrome/Windows — the same count as the one error, a plausible (not
+certain — the crash report intentionally can't say more) match with a real, documented gap: Safari
+only understands the `'wasm-unsafe-eval'` CSP keyword (which `_headers` relies on to let
+Tesseract.js compile its WASM OCR engine) from Safari 15.4 onward. Older/un-updated iPhones —
+plausibly a meaningful share of this app's actual users — would have OCR fail silently or
+confusingly instead of with a clear reason.
+
+Fixed by adding `wasmSupported()`, a synchronous feature/CSP-detection check run once via
+`WebAssembly.validate()`. `ensureLibs()` now skips even requesting `tesseract.min.js` when it's
+false, and the two "OCR unavailable" messages a user can see now say "isn't supported on this
+browser version" instead of the generic (and, for these users, inaccurate) "offline or blocked".
+Also fixed `loadScript()`'s `onerror` to reject with a real `Error` instead of a bare `Event` —
+existing `.catch()` blocks were reading `err.message` for diagnostics and always getting nothing
+useful back on a real load failure.
+
+Verified: full regression suite still passes 7/7; confirmed the WASM feature-detection logic
+evaluates correctly (reports "supported") in a real Chromium browser. Cross-browser/Safari testing
+on a real device is still the one item this can't fully close from here — this fix targets the one
+concrete, named mechanism found by reasoning through the CSP spec, not a confirmed root cause,
+since the crash reporter deliberately never sends enough detail to be fully certain.
+
+## First real client report: PDF scan failed to load
+Within the same day this went live, a client trying to actually prep an application hit "PDF
+scanning tool failed to load (offline or blocked)" while uploading a passport bio page — a
+different failure path than the Safari/WASM one above (this is pdf.js itself failing to load, not
+Tesseract). Two possible causes: a stale/wrong SRI hash (would break this for every visitor,
+regardless of browser or network), or a one-off connectivity blip (affects only that person, that
+moment). Re-ran `.github/workflows/compute-sri.yml` and diffed the freshly computed pdf.js hash
+against the one pinned in `index.html` programmatically (not by eye) — byte-identical. Rules out a
+stale hash; a transient network drop is the far more likely explanation, and mobile data (which a
+lot of this app's real users are likely on) makes brief drops fairly ordinary.
+
+Added one automatic retry to `loadScript()`: on failure, wait 1.5s and try once more before giving
+up. A single dropped request no longer means OCR/PDF/spreadsheet features come up simply because
+someone's connection blipped for a moment during a real, high-stakes task. Verified the retry
+control flow directly against the actual extracted function (not a re-implementation) against three
+cases — first attempt succeeds (no delay), first fails/second succeeds (resolves after ~1.5s), and
+both fail (rejects with a real error after ~1.5s) — all behaved as intended. Full regression suite
+still 7/7.
+
+## Scaling foundations, part 2: GitHub remote, real CI, real SRI hashes
+Three items had been sitting on the "still open" list below for a while, all blocked on the same
+root cause: the development sandbox this app was originally built in has no route to GitHub or to
+any CDN (cdnjs, jsdelivr, etc.) — confirmed repeatedly via curl, node fetch, and browser navigation
+all failing identically. Closed out by:
+- **GitHub remote**: created `github.com/SmoothApplication/smooth-application` and pushed the full
+  project (the sandbox's own git-over-HTTPS access to GitHub is also blocked, so this went through
+  GitHub's web upload UI instead of a normal `git push`).
+- **Real CI**: the `.github/workflows/ci.yml` written during the engineering hardening pass had
+  never actually run — there was nowhere for it to trigger from. It now runs automatically on every
+  push, and passed on its first real run.
+- **Real SRI hashes**: `loadScript()` has accepted a real `integrity` hash since the hardening pass,
+  but the three CDN library loads (`pdf.min.js`, `tesseract.min.js`, `xlsx.full.min.js`) were still
+  unpinned because the hashes could never be computed from this sandbox. Added
+  `.github/workflows/compute-sri.yml` — a manually-triggered workflow that uses GitHub's own
+  runners (which do have normal internet access) to fetch each pinned file and print its SHA-384
+  hash. Ran it once, plugged the three real hashes into `loadScript()`. Browsers will now refuse to
+  execute any of those three files if a compromised or tampered CDN response doesn't match the
+  hash computed here — closes the supply-chain gap the "SRI groundwork" item below left open.
+
 ## Incident: OCR broke in production after the CSP shipped
 Shortly after the security-headers CSP went live, passport/document OCR started failing on the
 real deployed site with "Couldn't read this PDF automatically (unknown error)" — even though it
@@ -69,9 +169,8 @@ lapses; every item below fixes one of that review's findings.
   X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, and
   Cross-Origin-Opener-Policy. Verified zero CSP violations against real app usage.
 - **SRI groundwork**: `loadScript()` now accepts a real integrity hash and always sets
-  `crossOrigin: 'anonymous'`; hashes aren't set yet because this dev environment can't reach
-  cdnjs.cloudflare.com to compute them — see `ARCHITECTURE.md` for the exact commands to run
-  from a machine that can.
+  `crossOrigin: 'anonymous'`. (Real hashes were computed and wired in shortly after — see
+  "Scaling foundations, part 2" above.)
 - **XSS audit**: reviewed all 62 `.innerHTML =` sites in the app; 61 already escaped
   document/user-derived text correctly, fixed the one defense-in-depth gap found (an
   accommodation-rate detector message).
@@ -91,7 +190,8 @@ lapses; every item below fixes one of that review's findings.
 - **ARCHITECTURE.md**: added, mapping the single-file structure, session-wizard engine,
   checklist data model, financial calculator, and OCR/PDF/XLSX pipeline with a line-range guide.
 
-Still open, and requiring the site owner's own action (not something a future engineering pass
-can complete alone): turning on analytics needs a GoatCounter account + site code; CI needs a
-GitHub remote pushed and configured; real SRI hashes need to be computed from a network that can
-reach cdnjs.cloudflare.com; and cross-browser (non-Chromium) manual testing hasn't been done.
+Analytics, the GitHub remote + CI, and real SRI hashes are now all done (see "Scaling foundations,
+part 2" above). One concrete Safari/WASM gap has since been found from real analytics data and
+fixed (see "First real-traffic finding" above) — but that was reasoned from indirect signals, not
+a confirmed root cause, so real-device manual testing on Safari/iOS is still the one item that
+would actually confirm OCR now behaves correctly there, and remains open.
