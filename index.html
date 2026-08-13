@@ -3130,22 +3130,11 @@
   // real user. Do not fill these in with guessed values — only with hashes computed from the
   // actual bytes cdnjs serves.
   //
-  // To compute the real hashes (this sandbox cannot reach cdnjs.cloudflare.com — confirmed via
-  // curl, node fetch, and browser navigation, all blocked/failing), run from a machine with
-  // normal network access:
-  //   for u in \
-  //     https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js \
-  //     https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js \
-  //     https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js \
-  //     https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js ; do \
-  //     echo "$u"; curl -s "$u" | openssl dgst -sha384 -binary | openssl base64 -A; done
-  // Prefix each resulting base64 string with "sha384-" and pass it as the second argument to
-  // the matching loadScript(...) call below (3 call sites: pdf.min.js, tesseract.min.js,
-  // xlsx.full.min.js). pdf.worker.min.js is fetched internally by pdf.js itself via the Worker
-  // constructor (workerSrc), not through our loadScript — it isn't a candidate for SRI here;
-  // its hash is included above only so it can be spot-checked as part of the same audit.
-  // Cross-check every hash against the one cdnjs publishes on each library's own page
-  // (e.g. cdnjs.com/libraries/pdf.js) before shipping.
+  // Computed via .github/workflows/compute-sri.yml — a one-off manual GitHub Actions workflow
+  // that curls each pinned URL and hashes it. GitHub's own runners have normal internet access
+  // (unlike the sandbox this file was originally developed in, which cannot reach
+  // cdnjs.cloudflare.com at all), so that workflow is the way to re-derive these values if the
+  // pinned versions below are ever bumped: Actions tab -> "Compute SRI hashes" -> "Run workflow".
   function loadScript(src, integrity){
     return new Promise(function(resolve, reject){
       var s = document.createElement('script');
@@ -3161,19 +3150,25 @@
   function ensureLibs(){
     if (libsLoaded.loading) return libsLoaded.loading;
     libsLoaded.loading = Promise.allSettled([
-      // TODO(SRI): pass real sha384- hash as 2nd arg once computed — see loadScript() comment above.
-      loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js').then(function(){
+      loadScript(
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
+        'sha384-/1qUCSGwTur9vjf/z91mu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e'
+      ).then(function(){
         if (window['pdfjsLib']){
           window['pdfjsLib'].GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
           libsLoaded.pdf = true;
         }
       }),
-      // TODO(SRI): pass real sha384- hash as 2nd arg once computed — see loadScript() comment above.
-      loadScript('https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js').then(function(){
+      loadScript(
+        'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js',
+        'sha384-Ptw8HCYAWF6vIop6WuGxfSCiDCIzUWqjrHYfx8Vd0S4CMBaicAdBh2y+Ufle664A'
+      ).then(function(){
         if (window['Tesseract']) libsLoaded.tesseract = true;
       }),
-      // TODO(SRI): pass real sha384- hash as 2nd arg once computed — see loadScript() comment above.
-      loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js').then(function(){
+      loadScript(
+        'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+        'sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw'
+      ).then(function(){
         if (window['XLSX']) libsLoaded.xlsx = true;
       })
     ]);
