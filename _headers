@@ -3,19 +3,14 @@
 #
 # Built from the actual external origins this app talks to (grep-verified against index.html,
 # see ARCHITECTURE.md "External dependencies"):
-#   - https://cdnjs.cloudflare.com  — pdf.js, Tesseract.js (+ its cdnjs-hosted worker.min.js),
-#                                      SheetJS/xlsx (loaded on demand, pinned versions)
-#   - https://cdn.jsdelivr.net      — Tesseract.js's OWN default CDN for its WASM core
-#                                      (tesseract.js-core) and, on some versions, its OCR language
-#                                      data. Not something we chose — this is Tesseract.js's own
-#                                      undocumented-until-you-hit-it dependency chain when no
-#                                      corePath/langPath override is given. Missing this origin is
-#                                      exactly what broke on-device OCR after the CSP first shipped
-#                                      (see CHANGELOG).
-#   - https://tessdata.projectnaptha.com — Tesseract.js's default OCR language-data ("traineddata")
-#                                      host on some versions; kept alongside jsdelivr since which
-#                                      one v5.0.4 actually uses at runtime isn't worth guessing wrong
-#                                      about while this is a live break-fix.
+#   - https://cdnjs.cloudflare.com  — SheetJS/xlsx only now (loaded on demand, pinned version +
+#                                      SRI hash). pdf.js and all of Tesseract.js's files (main
+#                                      library, worker, WASM core, OCR language data) are
+#                                      self-hosted from /vendor/ instead — see CHANGELOG for why
+#                                      (both cdnjs and jsdelivr were traced to intermittently
+#                                      serving inconsistent bytes for the exact same pinned URL,
+#                                      which either hard-broke SRI-checked script loads or, worse,
+#                                      silently degraded OCR quality with no error at all).
 #   - https://open.er-api.com       — live exchange-rate lookups (optional, user-triggered)
 #   - https://gc.zgo.at / *.goatcounter.com — analytics, OFF by default (see ANALYTICS_SITE_CODE in index.html)
 #
@@ -32,7 +27,7 @@
 # This is the narrow, WASM-only CSP keyword for that — NOT the same as 'unsafe-eval', which would
 # also allow arbitrary eval()/Function() and is deliberately NOT included here.
 /*
-  Content-Security-Policy: default-src 'none'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://gc.zgo.at; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://open.er-api.com https://cdn.jsdelivr.net https://tessdata.projectnaptha.com https://*.goatcounter.com; worker-src 'self' blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; manifest-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'none'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdnjs.cloudflare.com https://gc.zgo.at; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://open.er-api.com https://*.goatcounter.com; worker-src 'self' blob:; manifest-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin

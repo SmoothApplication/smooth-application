@@ -3,6 +3,40 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Actual root cause of the "Limited read" passport scans found: a scanner watermark was tricking the text-layer check
+The self-hosted OCR engine and the higher render resolution below were both real, worthwhile
+improvements — but neither was the actual cause of a client's passport PDF (a CamScanner export)
+consistently coming back "Limited read," expiry/MRZ both "not detected," reproduced reliably in
+an automated end-to-end test against this exact file. Instrumented the real scan pipeline
+directly (not a simulation) and found it: CamScanner embeds the photographed passport page as a
+pure image with NO real text layer, but adds one short text caption to the page — "Scanned with
+CamScanner" — as actual selectable text. The PDF-scanning code's check for "does this PDF already
+have a usable text layer" was `if (text.trim())`, i.e. any non-empty text at all. That one-line
+watermark satisfied it, so the app treated the PDF as already having real text, fed just that
+24-character watermark into the passport reader, and never ran OCR at all — even though the
+document itself would have read perfectly (confirmed: once OCR was forced to actually run against
+this exact file, it correctly found all 4 MRZ checksums and the right expiry date). Fixed by
+requiring a substantial amount of text (>200 chars) before trusting a PDF's embedded text layer
+over OCR — the same threshold the bank-statement reader below already used for the identical
+"real text layer vs. scanned image" decision, just not applied consistently to the passport path
+until now. Verified end-to-end against the client's actual file: badge changed from "Limited
+read" to "Checks passed," 4/4 MRZ digits matched, correct expiry detected. This is likely the
+single most impactful fix among today's OCR-related work, since CamScanner and several other
+popular phone scanning apps commonly add similar short caption/watermark text to otherwise
+image-only PDFs.
+
+## Self-hosted Tesseract.js (OCR engine) — removes another CDN dependency
+Independent of the root-cause fix above, this is real defense-in-depth: Tesseract.js's own
+default configuration silently pulls its WASM core and OCR language data from cdn.jsdelivr.net,
+with no integrity check on either — unlike a `<script integrity="...">` tag, a corrupted or
+inconsistent fetch here wouldn't fail loudly, it would just quietly feed Tesseract bad data. This
+is the same class of risk already confirmed real for pdf.js and cdnjs (see below). All of
+Tesseract's files — the main library, worker script, both WASM core variants (SIMD and non-SIMD,
+since which one a browser needs is feature-detected at runtime), and the English language data —
+now ship from our own `/vendor/` directory instead of cdnjs or jsdelivr. Tightened `_headers`
+accordingly: cdnjs is now only referenced for SheetJS/xlsx, and jsdelivr/tessdata.projectnaptha.com
+are no longer in the CSP allowlist at all.
+
 ## Passport OCR: higher render resolution for scanned PDFs
 A client's passport PDF (a CamScanner export) came back "Limited read" — expiry and MRZ checksum
 both not detected — even though the passport was clearly legible to the eye. Tested the exact

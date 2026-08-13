@@ -3220,11 +3220,11 @@
       // CDN request just to have OCR fail later, inside a worker, with an opaque/uncaught error
       // that's hard to attribute to anything. libsLoaded.tesseract simply stays false, same as any
       // other load failure, but the messages below can now tell the two apart.
+      // tesseract.min.js is self-hosted too (see TESSERACT_OPTS below for why all of Tesseract's
+      // files moved off cdnjs/jsdelivr) — no `integrity` needed for the same reason pdf.min.js
+      // above doesn't need one: this is a same-origin file now, not a third-party CDN fetch.
       (WASM_SUPPORTED
-        ? loadScript(
-            'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js',
-            'sha384-Ptw8HCYAWF6vIop6WuGxfSCiDCIzUWqjrHYfx8Vd0S4CMBaicAdBh2y+Ufle664A'
-          ).then(function(){
+        ? loadScript('/vendor/tesseract.min.js').then(function(){
             if (window['Tesseract']) libsLoaded.tesseract = true;
           })
         : Promise.resolve()
@@ -3239,15 +3239,25 @@
     return libsLoaded.loading;
   }
 
-  // Tesseract.js pulls in TWO more dependencies beyond the tesseract.min.js file loaded above,
-  // neither of which we chose or control: a WASM "core" (tesseract.js-core, default host
-  // cdn.jsdelivr.net) and OCR language data (a .traineddata file, default host varies by version
-  // between cdn.jsdelivr.net and tessdata.projectnaptha.com). Both are covered in the CSP
-  // (_headers) alongside cdnjs — see the comment there for why. workerPath IS something we
-  // control, so it's pinned here to the same cdnjs version as tesseract.min.js above (cdnjs hosts
-  // worker.min.js too), keeping one of the three dependencies on the CDN we already trust instead
-  // of adding a third reliance on jsdelivr.
-  var TESSERACT_OPTS = { workerPath: 'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/worker.min.js' };
+  // Tesseract.js pulls in TWO more dependencies beyond the tesseract.min.js file loaded above: a
+  // WASM "core" (tesseract.js-core) and OCR language data (a .traineddata file). By default BOTH
+  // are fetched from cdn.jsdelivr.net, silently, with no integrity check — unlike a <script
+  // integrity="..."> tag, a corrupted/inconsistent fetch here doesn't fail loudly, it just feeds
+  // Tesseract bad data and OCR quality quietly degrades. That's exactly what a real client's scan
+  // showed: expiry and MRZ both "not detected" on a passport that read perfectly when the same
+  // file went through the same OCR engine/model version outside the browser (see CHANGELOG). All
+  // three files (core, lang data, and workerPath, previously pinned to cdnjs) now come from our
+  // own domain instead — same fix as pdf.js, applied to the other library with the same class of
+  // silent-CDN-inconsistency risk. Both the SIMD and non-SIMD "lstm" core variants are hosted
+  // (Tesseract feature-detects which one a given browser needs), and the compiled .wasm binaries
+  // are duplicated alongside the worker script itself as well as under tesseract-core/, since the
+  // core loader can resolve the binary's path relative to either one depending on how it's
+  // invoked — cheap to host twice, not worth the risk of guessing wrong.
+  var TESSERACT_OPTS = {
+    workerPath: '/vendor/tesseract-worker.min.js',
+    corePath: '/vendor/tesseract-core',
+    langPath: '/vendor/tesseract-lang'
+  };
 
   // Accepts (id, cls, text) for a single message, (id, {cls,text}) for one result object,
   // or (id, arrayOfResults) to stack several messages.
@@ -3922,14 +3932,26 @@
           }
           return Promise.all(pagePromises).then(function(pageResults){
             var text = pageResults.map(function(r){ return r.text; }).join('\n');
-            if (text.trim()){
+            // A real text layer for a passport bio page (all the field labels/values, or an actual MRZ
+            // as selectable text) easily runs into the hundreds of characters — so require a real amount
+            // of text, not just "any text at all", before trusting it over OCR. Many phone "scan to PDF"
+            // apps (CamScanner is the one that surfaced this — see CHANGELOG) embed the photographed
+            // page as a pure image but ALSO add a short text watermark/caption like "Scanned with
+            // CamScanner". That watermark alone used to satisfy this check and got treated as "this PDF
+            // already has selectable text", which skipped OCR entirely and fed just the watermark string
+            // into the passport reader — a passport that should have read perfectly instead came back
+            // "Limited read" with expiry/MRZ both "not detected", because there was never any real text
+            // to find. 200 chars mirrors the same real-text-layer threshold already used for bank
+            // statements below (getLinesFromPdf) — same reasoning applies here.
+            if (text.trim().length > 200){
               applyScanResult(it, id, text, answers, file.name);
               return;
             }
-            // No selectable text at all — very common for a passport photo saved straight to PDF by a
-            // phone's "scan" feature (the PDF is really just an embedded photo, no text layer). Fall back
-            // to reading the first page as an image instead — same on-device OCR used for direct image
-            // uploads below, including the automatic sideways/upside-down retry.
+            // No SUBSTANTIAL selectable text — very common for a passport photo saved straight to PDF by
+            // a phone's "scan" feature (the PDF is really just an embedded photo, sometimes with a short
+            // watermark caption, but no real text layer). Fall back to reading the first page as an image
+            // instead — same on-device OCR used for direct image uploads below, including the automatic
+            // sideways/upside-down retry.
             if (!libsLoaded.tesseract){
               setScanMsg(id,'info','This looks like a scanned/image PDF with no selectable text, and the on-device OCR fallback ' + ocrUnavailableReason() + ' — you can still mark this item as ready manually.');
               return;
