@@ -1,0 +1,40 @@
+# Netlify custom headers — applies to every response from this site.
+# See https://docs.netlify.com/routing/headers/ for syntax.
+#
+# Built from the actual external origins this app talks to (grep-verified against index.html,
+# see ARCHITECTURE.md "External dependencies"):
+#   - https://cdnjs.cloudflare.com  — pdf.js, Tesseract.js (+ its cdnjs-hosted worker.min.js),
+#                                      SheetJS/xlsx (loaded on demand, pinned versions)
+#   - https://cdn.jsdelivr.net      — Tesseract.js's OWN default CDN for its WASM core
+#                                      (tesseract.js-core) and, on some versions, its OCR language
+#                                      data. Not something we chose — this is Tesseract.js's own
+#                                      undocumented-until-you-hit-it dependency chain when no
+#                                      corePath/langPath override is given. Missing this origin is
+#                                      exactly what broke on-device OCR after the CSP first shipped
+#                                      (see CHANGELOG).
+#   - https://tessdata.projectnaptha.com — Tesseract.js's default OCR language-data ("traineddata")
+#                                      host on some versions; kept alongside jsdelivr since which
+#                                      one v5.0.4 actually uses at runtime isn't worth guessing wrong
+#                                      about while this is a live break-fix.
+#   - https://open.er-api.com       — live exchange-rate lookups (optional, user-triggered)
+#   - https://gc.zgo.at / *.goatcounter.com — analytics, OFF by default (see ANALYTICS_SITE_CODE in index.html)
+#
+# NOTE on 'unsafe-inline': this is a single self-contained HTML file by design (no build step, no
+# server) — all CSS and all JS live inline in the page itself, so script-src/style-src can't be
+# locked down to 'self'-only without breaking the app. This CSP still does real work: it stops the
+# page from loading scripts or sending data to any origin NOT in this explicit allowlist, which is
+# exactly the failure mode that would silently break the "nothing leaves your device" privacy
+# promise (a compromised dependency, or an accidental future fetch() to a new endpoint). XSS
+# protection instead relies on consistent output-escaping (see escapeHtml() usage) — audited
+# separately, not on CSP alone.
+#
+# NOTE on 'wasm-unsafe-eval': Tesseract.js compiles a WebAssembly module for the actual OCR engine.
+# This is the narrow, WASM-only CSP keyword for that — NOT the same as 'unsafe-eval', which would
+# also allow arbitrary eval()/Function() and is deliberately NOT included here.
+/*
+  Content-Security-Policy: default-src 'none'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://gc.zgo.at; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://open.er-api.com https://cdn.jsdelivr.net https://tessdata.projectnaptha.com https://*.goatcounter.com; worker-src 'self' blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; manifest-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(), microphone=(), camera=(), payment=(), usb=()
+  Cross-Origin-Opener-Policy: same-origin

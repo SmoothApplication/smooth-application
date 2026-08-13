@@ -1,0 +1,15 @@
+{
+  "name": "Smooth Application — UK & Canada Visitor Visa Checklist",
+  "short_name": "Smooth Application",
+  "description": "Free, private, on-device document-readiness checklist for UK Standard Visitor and Canada visitor visa applicants. Nothing you enter or upload leaves your device.",
+  "start_url": "/",
+  "id": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f7f5f0",
+  "theme_color": "#1b6fa8",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

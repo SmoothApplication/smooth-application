@@ -1,0 +1,12 @@
+{
+  "name": "smooth-application",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Free, client-side visa document-readiness checklist for UK Standard Visitor and Canada visitor visa applicants. No build step for the app itself — this package.json exists only to run the Playwright regression test suite.",
+  "scripts": {
+    "test": "node tests/run-all.js"
+  },
+  "devDependencies": {
+    "playwright": "^1.56.0"
+  }
+}
