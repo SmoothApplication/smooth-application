@@ -1,0 +1,21 @@
+name: Fetch pdf.js for self-hosting
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download pdf.js 3.11.174 (pdf.min.js + pdf.worker.min.js)
+        run: |
+          mkdir -p vendor
+          curl -fsSL https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js -o vendor/pdf.min.js
+          curl -fsSL https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js -o vendor/pdf.worker.min.js
+          ls -la vendor
+
+      - name: Upload as a downloadable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pdf-vendor-files
+          path: vendor/
