@@ -10,11 +10,15 @@
 //
 // Bump CACHE_NAME whenever the app-shell file list below changes so old caches get cleaned up.
 var CACHE_NAME = 'smooth-app-shell-v1';
+// SCOPE_BASE: the folder this worker itself lives in ("/" on Netlify/Cloudflare, "/<repo>/" on a
+// GitHub Pages project site) — computed instead of hardcoded so the exact same file works on
+// either kind of host without edits.
+var SCOPE_BASE = self.location.pathname.replace(/[^/]*$/, '');
 var APP_SHELL = [
-  '/',
-  '/manifest.json',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png'
+  SCOPE_BASE,
+  SCOPE_BASE + 'manifest.json',
+  SCOPE_BASE + 'icons/icon-192.png',
+  SCOPE_BASE + 'icons/icon-512.png'
 ];
 
 self.addEventListener('install', function(event){
@@ -52,10 +56,10 @@ self.addEventListener('fetch', function(event){
     event.respondWith(
       fetch(req).then(function(res){
         var copy = res.clone();
-        caches.open(CACHE_NAME).then(function(cache){ cache.put('/', copy); });
+        caches.open(CACHE_NAME).then(function(cache){ cache.put(SCOPE_BASE, copy); });
         return res;
       }).catch(function(){
-        return caches.match('/');
+        return caches.match(SCOPE_BASE);
       })
     );
     return;

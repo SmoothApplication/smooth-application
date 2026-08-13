@@ -3,6 +3,120 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Made the app host-portable (found while evaluating GitHub Pages as a free Netlify alternative)
+Every asset reference — `/vendor/pdf.min.js`, `/vendor/tesseract-*`, `/sw.js`, `/manifest.json`,
+`/icons/*` — was hardcoded as an absolute path starting from the domain root. That's harmless on
+Netlify/Cloudflare Pages, which serve this site from the root, but it would have silently broken
+on GitHub Pages: a project repo like this one is served from a subfolder
+(`username.github.io/repo-name/`), not the root, so every one of those paths would have 404'd —
+OCR, PDF parsing, icons, and offline support all dark, with no visible error explaining why.
+Replaced the hardcoded paths with a small `ASSET_BASE` computed from the page's own URL at
+runtime, so the same file works unmodified on either kind of host. Extra care was needed for the
+Tesseract OCR worker specifically: its core/language-data paths are read from inside a Web Worker,
+where a plain relative path resolves against the *worker's* location rather than the page's —
+that would have silently doubled the "vendor/" segment. Using an absolute (domain-rooted) path
+sidesteps that ambiguity entirely, whether it's evaluated on the main thread or inside the worker.
+`sw.js` (the offline-support service worker) had the same issue in its own cached-file list and
+was fixed the same way. Verified by serving the whole app from a simulated subpath and confirming
+zero failed asset requests, plus a real passport-photo OCR scan completing with an identical
+result to the existing root-hosted deployment (no regression).
+
+## Mobile usability pass: fixed the iOS zoom-on-focus bug, bigger tap targets
+General "make it user-friendly and responsive" pass, prioritized by actual impact given GoatCounter
+shows the large majority of traffic is iOS Safari:
+- Every text/date input, select, and textarea was rendering at 13px, below the 16px threshold iOS
+  Safari uses to decide whether to auto-zoom the page when a field is focused — so tapping into
+  practically any field on the site zoomed the whole page in, and the person had to manually zoom
+  back out to keep going. Bumped to 16px across the board.
+- The 9-dot session-progress pills used to shrink to 25px on mobile — smaller than their own 28px
+  desktop size, in exactly the place finger-tap accuracy matters most and a mouse pointer isn't
+  available. Bumped to 32px; the pill row already wraps to a second line if they don't all fit, so
+  there was no overflow risk in sizing up.
+- Every button's tap height increased slightly (padding 6px 12px → 8px 14px) without changing font
+  size, so wording/wrapping across the many differently-labeled buttons in different sections didn't
+  need re-checking one by one.
+Checked at 375/390/768/1200px — no overflow or wrapping regressions at any of them.
+
+## Compressed the landing/consent screen — real feedback: "too busy"
+Before doing anything, a first-time visitor had to scroll past: trust badges, a credit/contact
+line, the visa picker, a collapsed "what to gather" toggle, a disclaimer headline PLUS 3
+always-visible bullet points, a SEPARATE "read the full disclaimer" toggle for even more detail,
+the checkbox, and finally Continue. The 3 disclaimer bullets were the single biggest, most
+duplicated block — the short version already said "not immigration advice", and the bullets
+under it were repeating/expanding on that same point right before an even-longer version behind
+its own toggle. Collapsed the bullets into the same toggle as the full disclaimer, so the default
+view is just the one-line headline + "Read the full disclaimer". On a 390px-wide phone screen this
+alone brings the whole card (including the Continue button) into view without scrolling.
+
+## Mobile layout: checklist now comes before the summary sidebar, not after
+Real user feedback on an Android phone: the page felt like it opened into a bare summary
+("Document readiness score", "Financial readiness", "Still missing") with nothing to actually do,
+and the real starting point — "Your trip details" — was easy to miss below the fold ("I almost got
+lost until I scrolled down"). Root cause was a deliberate but, per this feedback, backwards mobile
+CSS rule (`.sidebar { order: -1 }`) that flipped the summary above the checklist specifically on
+narrow screens, even though the underlying HTML already has the checklist first. Removed the
+override — mobile now uses the same natural reading order as desktop (checklist, then summary).
+
+## Third real client passport photo tested — found and fixed two more MRZ/date-reading gaps
+A different client's own passport photo (two facing pages in one shot, heavier background
+texture/noise than earlier test files) came back "Limited read" with nothing detected at all,
+despite the MRZ and printed dates both being legible in the source photo. Reproduced against the
+real file and found two separate, real gaps:
+
+1. `findMrzLinesWithIndex` only ever kept the *last* line on the page that matched the strict
+   `^P<COUNTRY...` pattern, and required that match to start at position 0 with no tolerance for a
+   stray leading character. On this file, an unrelated garbled OCR line from the signature area
+   happened to also match the pattern (shadowing the real MRZ line further down), and separately, a
+   stray leading character (a misread border rule) made the real MRZ line fail the strict `^P`
+   anchor even though the rest of it read perfectly. Fixed to tolerate a couple of leading junk
+   characters, and to try every matching candidate line in order rather than trusting whichever
+   matched last — normalizeMrzLine's existing length check is what actually tells a real ~44-char
+   MRZ line apart from a coincidental shorter match.
+2. The bilingual date fix from the entry below only covered the "10 JUL / JUIL 34" shape (slash
+   between the two languages, day and month space-separated). This file's OCR came back as "5OCT
+   OCT 27" instead — day and month glued together with no space, no "/" between the two language
+   words, and a "0" digit standing in for the letter "O" (classic OCR confusion). Loosened the same
+   regex further to tolerate all three at once.
+
+Net result on this file: badge went from "Limited read" (nothing detected) to "Needs attention",
+with expiry, passport number, and full name now correctly read and cross-checked against the
+printed page — only the date of birth still had one genuinely misread digit, which is exactly the
+kind of thing "Needs attention" is supposed to flag for a manual double-check, not something to
+paper over.
+
+## Fixed a second, different passport-scan false negative: 2-digit-year printed dates weren't matched at all
+A direct JPEG upload of an otherwise clearly legible passport photo came back "Limited read" with
+"Expires: not detected" — a different bug from the CamScanner one above, on a different upload path
+(direct image, not PDF). Root cause: this passport (like most Nigerian and other ICAO-format
+passports) prints its dates bilingually with only a 2-digit year, e.g. "10 JUL / JUIL 34" — and the
+free-text date fallback (`extractDates`, used when the MRZ itself doesn't fully read) required a
+4-digit year and no interrupting second-language word, so it silently never matched this date at
+all, despite OCR having read it correctly.
+
+Fixed `extractDates` to accept a 2-digit year and tolerate the bilingual "/ OTHERLANG" word in
+between. That alone introduced a real regression caught during testing: blindly treating every
+2-digit year as 20xx turned a misread birth year ("88") into a bogus expiry of 2088, which (being
+even further in the future) silently overrode the correct 2034 expiry. Fixed by only accepting the
+2000s reading when it lands in a plausible near-present/near-future window (passports are valid at
+most ~10 years) or when the text nearby explicitly says "expiry" — otherwise it falls back to the
+1900s, which is what a birth year needs.
+
+The deeper MRZ line itself (the two-line strip at the very bottom) still doesn't reliably read on
+this specific photo — Tesseract's general English model consistently mis-recognizes the long "<"
+filler run in the name field, even after testing multiple resolutions, contrast/grayscale
+preprocessing, character whitelisting, and disabling its dictionary bias. That's a genuine OCR
+accuracy limit, not a bug in this app's code, and is left as a known limitation — "MRZ checksum"
+correctly shows "not detected" (not a false pass) when this happens, and no longer blocks the
+overall badge from reaching "Checks passed" when the expiry and any typed name are otherwise
+consistent.
+
+## Added a "Send feedback" link in the footer
+A plain `mailto:` link next to Privacy/Terms, pre-filled with a subject and a short prompt
+(what worked, what was confusing, what's missing). Deliberately not a form service or any kind
+of network call — nothing is sent unless the person actually presses send in their own mail app,
+which keeps it consistent with the app's "nothing leaves your device" privacy stance. No CSP
+changes needed since it's a plain link, not a fetch/XHR.
+
 ## Actual root cause of the "Limited read" passport scans found: a scanner watermark was tricking the text-layer check
 The self-hosted OCR engine and the higher render resolution below were both real, worthwhile
 improvements — but neither was the actual cause of a client's passport PDF (a CamScanner export)

@@ -6,9 +6,9 @@
 <title>Smooth Application — UK Visitor Visa Checklist for Nigeria</title>
 <meta name="description" content="Free, private, on-device document-readiness checklist for UK Standard Visitor and Canada visitor visa applicants. Nothing you enter or upload leaves your device.">
 <meta name="theme-color" content="#1b6fa8">
-<link rel="manifest" href="/manifest.json">
-<link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
-<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
 <style>
   /* ---------------- Ocean & Coastal palette ----------------
      A minimalist travel palette built around one deep ocean-blue accent and a small, deliberately
@@ -233,7 +233,14 @@
      wider than the viewport on narrow phones. minmax(0, 1fr) lets the column actually shrink to the
      viewport and text wrap normally instead. */
   .layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; align-items: start; }
-  @media (max-width: 800px) { .layout { grid-template-columns: minmax(0, 1fr); } .sidebar { order: -1; position: static !important; } }
+  /* No "order: -1" on .sidebar here (there used to be one) — that forced the readiness-score/
+     "still missing" summary to jump above the actual checklist on narrow screens, which is exactly
+     backwards from the DOM order (main content, i.e. "Your trip details" first, sidebar second).
+     Real user feedback: on mobile that made the page feel like it opened straight into a bare
+     summary with nothing to do, and the actual starting point was easy to miss below the fold ("I
+     almost got lost until I scrolled down"). Removing the override lets mobile fall back to natural
+     reading order — checklist first, summary after — same priority as desktop already has. */
+  @media (max-width: 800px) { .layout { grid-template-columns: minmax(0, 1fr); } .sidebar { position: static !important; } }
 
   .card {
     background: var(--card); border: 1px solid var(--border); border-radius: 12px;
@@ -295,7 +302,11 @@
   .session-pill.active.done, .session-pill.active.partial { background: var(--accent); border-color: var(--accent); color: #fff; }
   .session-nav-btns { display: flex; gap: 10px; }
   .session-nav-btns .btn { flex: 1; }
-  @media (max-width: 560px) { .session-pills { gap: 5px; } .session-pill { width: 25px; height: 25px; font-size: 11px; } }
+  /* Bigger, not smaller, on mobile — this used to shrink to 25px (below even the 28px desktop size)
+     right where finger-tap accuracy matters most and a mouse cursor isn't available. .session-pills
+     already wraps to a second row if 9 of them don't fit a narrow screen, so there's no overflow risk
+     in sizing up. */
+  @media (max-width: 560px) { .session-pills { gap: 6px; } .session-pill { width: 32px; height: 32px; font-size: 12px; } }
   @media print { .session-nav { display: none !important; } }
   /* Print must show every session's card regardless of which one is currently on screen. */
   @media print { [data-session-key], #checklistRoot > [data-cat] { display: block !important; } }
@@ -318,8 +329,12 @@
   .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
   @media (max-width: 560px) { .row { grid-template-columns: 1fr; } }
   input[type=text], input[type=date], select, textarea {
+    /* font-size 16px, not 13px — anything smaller than 16px on a text input/select/textarea makes
+       iOS Safari auto-zoom the whole page in when the field is focused (a long-standing iOS quirk,
+       not a bug in this app), forcing the person to manually zoom back out after every field. Real
+       cost here: GoatCounter shows the large majority of this app's traffic is iOS Safari. */
     width: 100%; padding: 9px 11px; border-radius: 8px; border: 1px solid var(--border);
-    background: var(--surface-1); color: var(--text-primary); font-size: 13px; font-family: inherit;
+    background: var(--surface-1); color: var(--text-primary); font-size: 16px; font-family: inherit;
     transition: border-color .15s ease, box-shadow .15s ease;
   }
   input[type=text]:focus, input[type=date]:focus, select:focus, textarea:focus,
@@ -406,8 +421,11 @@
      pixels past the viewport; scaling the cap down on narrow screens avoids that. */
   .upload-row input[type=file] { font-size: 11px; max-width: min(230px, 60vw); color: var(--text-secondary); }
   .btn {
+    /* padding bumped from 6px 12px — a bit more tap height on every button across the app, closer to
+       a comfortable finger target, without touching font-size (which would reflow/wrap the many
+       differently-worded buttons in ways that would all need individually re-checking). */
     border: 1px solid var(--border); background: var(--card); color: var(--text-primary);
-    border-radius: 8px; padding: 6px 12px; font-size: 11.5px; cursor: pointer; font-family: inherit;
+    border-radius: 8px; padding: 8px 14px; font-size: 11.5px; cursor: pointer; font-family: inherit;
     transition: border-color .15s ease, color .15s ease, background .15s ease;
   }
   .btn:hover { border-color: var(--accent); color: var(--accent); }
@@ -568,7 +586,7 @@
     border-radius: 8px; padding: 8px 10px; margin-bottom: 12px;
   }
   .footer-legal-links { margin-top: 6px; }
-  .footer-legal-links button {
+  .footer-legal-links button, .footer-legal-links a {
     background: none; border: none; padding: 0; font: inherit; color: var(--text-muted);
     text-decoration: underline; cursor: pointer;
   }
@@ -1125,7 +1143,13 @@
     <span id="footerAnalyticsNote"></span>
     <div class="footer-legal-links">
       <button type="button" id="footerPrivacyLink">Privacy</button> ·
-      <button type="button" id="footerTermsLink">Terms</button>
+      <button type="button" id="footerTermsLink">Terms</button> ·
+      <!-- Plain mailto: / wa.me links, on purpose — no form service, no third-party endpoint,
+           nothing sent unless the person actually presses send in their own mail/WhatsApp app.
+           Keeps this consistent with the "nothing leaves your device" privacy stance the rest
+           of the app follows. -->
+      <a id="footerFeedbackLink" href="mailto:lalasionline@gmail.com?subject=Smooth%20Application%20feedback&amp;body=Hi%20%E2%80%94%20sharing%20some%20feedback%20on%20the%20visa%20checklist%20tool%3A%0A%0AWhat%20worked%20well%3A%0A%0AWhat%20was%20confusing%20or%20didn't%20work%3A%0A%0AWhat%20I'd%20want%20added%3A%0A">Email feedback</a> ·
+      <a id="footerFeedbackWhatsAppLink" href="https://wa.me/2349081389969?text=Hi%21%20Sharing%20some%20feedback%20on%20the%20Smooth%20Application%20visa%20checklist%20tool%3A%0A%0AWhat%20worked%20well%3A%0A%0AWhat%20was%20confusing%20or%20didn't%20work%3A%0A%0AWhat%20I'd%20want%20added%3A%0A" target="_blank" rel="noopener">WhatsApp feedback</a>
     </div>
   </footer>
 
@@ -1149,6 +1173,18 @@
 <script>
 (function(){
   "use strict";
+
+  // ASSET_BASE: the folder this page itself lives in, as an absolute (domain-rooted) path.
+  // On Netlify/Cloudflare Pages this is just "/" (site served from the domain root). On a
+  // GitHub Pages *project* repo it's "/<repo-name>/" instead (project pages are served from a
+  // subfolder, not the root). Every asset path below is built from this instead of hardcoded
+  // as "/vendor/..." so the exact same file works unmodified on either kind of host. Using an
+  // absolute (leading "/") path here — rather than a plain relative "vendor/..." one — matters
+  // specifically for the Tesseract OCR worker: its corePath/langPath are read from *inside* the
+  // worker thread, where a relative path resolves against the worker script's own location, not
+  // this page's — that would silently double up the "vendor/" segment. An absolute path resolves
+  // identically from the main thread or a worker, so this sidesteps that entirely.
+  var ASSET_BASE = location.pathname.replace(/[^/]*$/, '');
 
   /* ---------------- Analytics (OFF by default; anonymous + aggregate only) ----------------
      This tool's core promise is that documents and personal data never leave the device — that
@@ -3210,9 +3246,9 @@
       // one copy, on our own domain, no CDN edge variance possible. No `integrity` needed here since
       // SRI only matters for cross-origin resources; a same-origin script is already covered by this
       // page's own HTTPS delivery.
-      loadScript('/vendor/pdf.min.js').then(function(){
+      loadScript(ASSET_BASE + 'vendor/pdf.min.js').then(function(){
         if (window['pdfjsLib']){
-          window['pdfjsLib'].GlobalWorkerOptions.workerSrc = '/vendor/pdf.worker.min.js';
+          window['pdfjsLib'].GlobalWorkerOptions.workerSrc = ASSET_BASE + 'vendor/pdf.worker.min.js';
           libsLoaded.pdf = true;
         }
       }),
@@ -3224,7 +3260,7 @@
       // files moved off cdnjs/jsdelivr) — no `integrity` needed for the same reason pdf.min.js
       // above doesn't need one: this is a same-origin file now, not a third-party CDN fetch.
       (WASM_SUPPORTED
-        ? loadScript('/vendor/tesseract.min.js').then(function(){
+        ? loadScript(ASSET_BASE + 'vendor/tesseract.min.js').then(function(){
             if (window['Tesseract']) libsLoaded.tesseract = true;
           })
         : Promise.resolve()
@@ -3254,9 +3290,9 @@
   // core loader can resolve the binary's path relative to either one depending on how it's
   // invoked — cheap to host twice, not worth the risk of guessing wrong.
   var TESSERACT_OPTS = {
-    workerPath: '/vendor/tesseract-worker.min.js',
-    corePath: '/vendor/tesseract-core',
-    langPath: '/vendor/tesseract-lang'
+    workerPath: ASSET_BASE + 'vendor/tesseract-worker.min.js',
+    corePath: ASSET_BASE + 'vendor/tesseract-core',
+    langPath: ASSET_BASE + 'vendor/tesseract-lang'
   };
 
   // Accepts (id, cls, text) for a single message, (id, {cls,text}) for one result object,
@@ -3321,17 +3357,29 @@
   // it won't false-match unrelated prose, and only the line directly below it is even considered.
   function findMrzLinesWithIndex(text){
     var rawLines = text.split('\n').map(function(l){ return l.replace(/\s+/g,'').toUpperCase(); });
-    var line1Idx = -1, line1 = null;
+    // Tries EVERY candidate line on the page, not just the first/last one that happens to match —
+    // real OCR text can contain more than one line starting with something that looks like "P<XXX"
+    // (an unrelated garbled line from elsewhere on the page can coincidentally match too), and can
+    // also drop a stray leading character right before the real MRZ's "P" (a misread border rule, a
+    // stray "|", etc. — the ".{0,2}?" below tolerates up to 2 such junk characters). Both failure
+    // modes were seen on real client passport photos: one where an unrelated "Holder's Signature"
+    // OCR line spuriously matched the strict pattern, and one where a leading "|" made an otherwise
+    // perfectly-read MRZ line fail a strict ^P anchor. normalizeMrzLine's length check is what
+    // actually tells a real MRZ line apart from a coincidental one — a real line is always close to
+    // 44 characters; the "Holder's Signature" garbage line above was only 30, well outside the
+    // tolerance, so it's naturally skipped in favor of trying the next candidate instead of being
+    // trusted just because it matched first.
+    var re = /^.{0,2}?(P[A-Z<][A-Z]{3}[A-Z0-9<]{20,})$/;
     for (var i=0;i<rawLines.length;i++){
-      if (/^P[A-Z<][A-Z]{3}[A-Z0-9<]{20,}$/.test(rawLines[i])){
-        line1Idx = i; line1 = normalizeMrzLine(rawLines[i], 44);
+      var m = re.exec(rawLines[i]);
+      if (!m) continue;
+      var line1 = normalizeMrzLine(m[1], 44);
+      if (!line1) continue;
+      for (var j=i+1; j<Math.min(i+4, rawLines.length); j++){
+        if (rawLines[j].length < 30) continue; // skip a stray short/blank OCR line between the two
+        var line2 = normalizeMrzLine(rawLines[j], 44);
+        if (line2) return { lines: [line1, line2], indices: [i, j] };
       }
-    }
-    if (line1Idx === -1 || !line1) return null;
-    for (var j=line1Idx+1; j<Math.min(line1Idx+4, rawLines.length); j++){
-      if (rawLines[j].length < 30) continue; // skip a stray short/blank OCR line between the two
-      var line2 = normalizeMrzLine(rawLines[j], 44);
-      if (line2) return { lines: [line1, line2], indices: [line1Idx, j] };
     }
     return null;
   }
@@ -3567,7 +3615,18 @@
     var out = [];
     var patterns = [
       /\b(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})\b/g,
-      /\b(\d{1,2})\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+(\d{4})\b/gi,
+      // "DD MON YY(YY)" — tolerant of the messier real-world OCR shapes a bilingual passport date
+      // comes back as. Two client photos surfaced two different variants of the same underlying
+      // "English / French" printed date (e.g. "10 JUL / JUIL 34" or, once the "/" itself got
+      // dropped and the two day-digits got merged/misread, "5OCT OCT 27"): the optional
+      // "(?:\s*\/?\s*[a-z]{3,4}\.?)?" tolerates the second-language word whether or not a "/"
+      // survives between the two, "\s*" (not "\s+") between day and month tolerates them running
+      // together with no space, and "0ct" alongside "oct" tolerates a leading zero digit standing
+      // in for the letter "O" (classic OCR confusion). Year accepts 2 or 4 digits too — these
+      // printed passport dates are routinely just 2 digits ("34", not "2034"), which the old
+      // 4-digit-only requirement silently failed to match at all, even though the date was sitting
+      // right there correctly OCR'd in the text.
+      /\b(\d{1,2})\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|0ct|oct|nov|dec)[a-z]*\.?(?:\s*\/?\s*[a-z]{3,4}\.?)?\s+(\d{2,4})\b/gi,
       /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+(\d{1,2}),?\s+(\d{4})\b/gi
     ];
     var months = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
@@ -3581,7 +3640,26 @@
             if (yy < 100) yy += 2000;
             d = new Date(yy, mm, dd);
           } else if (idx === 1){
-            d = new Date(parseInt(m[3],10), months[m[2].toLowerCase().slice(0,3)], parseInt(m[1],10));
+            var yy1 = parseInt(m[3],10);
+            if (yy1 < 100){
+              // A bare 2-digit year is genuinely ambiguous (1934 vs. 2034 read the same either way).
+              // Two independent signals help pick the century, and either one is enough:
+              //  1) the text right before the match calls it out as an expiry (e.g. "Date of Expiry
+              //     / Date d'Expiration ... 10 JUL / JUIL 34") — but real-world OCR doesn't reliably
+              //     preserve that label (it garbled completely on one test run of an otherwise-clean
+              //     photo), so this alone isn't something to depend on;
+              //  2) reading it as 20xx lands in a plausible near-present/near-future window. Passports
+              //     are valid at most ~10 years, so if 2000+yy is wildly far out (e.g. a birth year
+              //     like "88" naively read as 2088, 60+ years from now) it's almost certainly actually
+              //     a 19xx date instead — this is what actually caught a real bug during testing here,
+              //     where a misread birth year nearly overrode the correct expiry date as "more future".
+              var precedingCtx = text.slice(Math.max(0, m.index-150), m.index).toLowerCase();
+              var nowYear = new Date().getFullYear();
+              var cand2000 = 2000 + yy1;
+              var plausibleNearFuture = cand2000 >= nowYear - 5 && cand2000 <= nowYear + 20;
+              yy1 = (/expir/.test(precedingCtx) || plausibleNearFuture) ? cand2000 : (1900 + yy1);
+            }
+            d = new Date(yy1, months[m[2].toLowerCase().replace(/^0/,'o').slice(0,3)], parseInt(m[1],10));
           } else {
             d = new Date(parseInt(m[3],10), months[m[1].toLowerCase().slice(0,3)], parseInt(m[2],10));
           }
@@ -5658,9 +5736,20 @@
     var code = sel.value;
     var box = document.getElementById('gateDisclaimer');
     if (COUNTRIES[code] && COUNTRIES[code].ready){
-      box.innerHTML = COUNTRIES[code].disclaimerShortHtml +
+      // disclaimerShortHtml is "<b>headline sentence</b> ... <ul>3 bullet points</ul>" — only the
+      // headline sentence stays always-visible here now; the 3 bullets move inside the same
+      // "Read the full disclaimer" toggle as the fuller legal text below them, instead of showing
+      // twice (short bullets AND a separate "read more" for even more detail). First-time visitors
+      // land on a page with a LOT going on before they've done anything yet (trust badges, credit
+      // line, visa picker, prep checklist, disclaimer, checkbox) — collapsing this by default cuts
+      // it down to one line unless they actually want the detail. (Real feedback: "too busy".)
+      var shortHtml = COUNTRIES[code].disclaimerShortHtml;
+      var ulIdx = shortHtml.indexOf('<ul');
+      var headline = ulIdx === -1 ? shortHtml : shortHtml.slice(0, ulIdx);
+      var bullets = ulIdx === -1 ? '' : shortHtml.slice(ulIdx);
+      box.innerHTML = headline +
         '<details class="disclaimer-details"><summary>Read the full disclaimer</summary><div class="disclaimer-full">' +
-        COUNTRIES[code].disclaimerHtml + '</div></details>';
+        bullets + COUNTRIES[code].disclaimerHtml + '</div></details>';
     } else {
       box.innerHTML = '<b>Coming soon.</b> A full checklist for this country isn\'t built yet — pick United Kingdom or Canada for now, or check back later.';
     }
@@ -5735,7 +5824,7 @@
   if ('serviceWorker' in navigator){
     window.addEventListener('load', function(){
       try {
-        navigator.serviceWorker.register('/sw.js').catch(function(){ /* offline support is best-effort */ });
+        navigator.serviceWorker.register(ASSET_BASE + 'sw.js').catch(function(){ /* offline support is best-effort */ });
       } catch (e) { /* never let this break the app */ }
     });
   }
