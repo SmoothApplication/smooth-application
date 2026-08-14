@@ -3,6 +3,79 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fixed a real bug: a sideways/upside-down passport photo could silently give up on the wrong rotation
+A user reported a passport photo that scanned as "Expires: not detected / MRZ checksum: not
+detected" — a genuine failure, not a caching issue. Root cause: the automatic photo-orientation
+retry (tries 0°/90°/180°/270° until it finds a readable machine-readable zone) had a shortcut that
+stopped after the very first (straight-up, 0°) attempt as soon as it produced more than 150
+characters of OCR text — on the assumption that a decent amount of extracted text meant the photo
+was already the right way up. That assumption breaks for a passport bio page specifically: even
+badly misread, upside-down glyphs still produce plenty of OCR "text" (742 characters, in the
+reported case) — enough to trip the 150-character shortcut and skip the 90°/180°/270° retries that
+would have actually found the real MRZ. Fixed by only trusting that early-stop shortcut for
+non-passport documents (bank/business statements, employment letters — which have no MRZ to check
+against anyway, and where the shortcut has been fine); a passport now only stops early once a
+rotation produces a genuine, checksummed MRZ, or after all four rotations have been tried, and
+falls back to the straight-up (0°) read (not "whichever rotation had the most raw characters") if
+none of them find one. That second part mattered: an earlier version of this fix picked whichever
+rotation had the longest OCR text when no rotation found an MRZ at all, which briefly regressed a
+correctly-oriented passport in the regression check (a wrong rotation's garbled text happened to
+be longer than the correct orientation's clean-but-MRZ-shy read) — caught by that same OCR
+regression check before shipping, and fixed by defaulting to the 0° read instead. Verified against
+the reported photo (now correctly reads expiry, name, and a 4/4 MRZ checksum match instead of
+"not detected" across the board) and against the two known-good real passport photos already used
+for regression testing (both still read "Checks passed", confirming no slowdown or regression for
+the common, already-correctly-oriented case). Full test suite (8/8) also passed.
+
+## Stopped asking for a passport that's already attached
+Feedback: "Valid passport uploaded in session 1 why is it needed again at this junction.
+Repetition kills user attention" — referring to the "Valid passport" item under Identity &
+application still showing a raw, always-empty "Choose File" input and Scan button even after the
+passport had already been attached via the "Attach & check expiry" quick-scan on Your trip
+details. Investigated first: the underlying attachment state (filename, checked, scan result) was
+already fully shared between the two spots — this was never actually asking for the document
+twice — but a native file input can never show a previously-selected file, so it looked that way.
+Fixed by collapsing the raw upload row behind a small "🔄 Replace file" toggle button whenever a
+checklist item already has a file attached, mirroring the same collapse-after-use pattern already
+used by the transport/sightseeing/currency helper panels. Clicking "Replace file" brings the
+upload control back if the applicant genuinely needs to swap the file. Added a dedicated
+Playwright test (`tests/passport-repetition-collapse.test.js`) exercising the full flow: attach
+via the quick-scan → checklist item collapses → "Replace file" reopens it. Full test suite (8/8)
+and the real-passport-photo OCR regression check both pass with no regressions.
+
+## Made "how many people are travelling" a dropdown instead of three always-visible fields
+Feedback: "Let this page be a drop down menu. Let it be called how many people are travelling,
+then you choose the amount of adult, adolescents and children. This would make the page more
+user friendly." Replaced the always-visible Adults/Adolescents/Children row with a single "How
+many people are travelling on this application?" dropdown (1 through "8+"). Choosing "Just me"
+keeps the breakdown fields hidden entirely; choosing anything else reveals the existing
+Adults/Adolescents/Children fields (unchanged IDs, so nothing downstream — cost calculations,
+progress tracking — needed to change) pre-filled with a sensible starting split that the applicant
+can then adjust. The two stay in sync in both directions: editing the breakdown updates the
+dropdown's count, and a breakdown that doesn't add up shows an inline note rather than silently
+guessing. Also wired into reset, autosave/restore, and manual import so the dropdown always
+reflects whatever's actually in the breakdown. Verified in a real browser: show/hide, auto-fill,
+two-way sync, and reset all behave correctly; full test suite passes with no regressions.
+
+## Reordered the session flow: bank statement analysis before the cost calculator
+Feedback: "Let Session 3: Income & bank statement analysis become Session 2, while session 2 move
+to Session 3. This would enable the user to stay and get immediate response." Applicants now see
+real feedback on an uploaded bank statement (Income & bank statement analysis) right after Your
+trip details, instead of first working through the full manual financial-readiness calculator.
+Session order, labels, and pill numbering are all computed from one array
+(`getVisibleSessionKeys()`), so this was a one-line change with no hidden dependencies. Three
+existing tests hardcoded the calculator's old position and were updated accordingly. Verified
+against the live-rendered session order in a real browser; full test suite (7/7 at the time) and
+the OCR regression check both passed.
+
+## Changed the builder credit from "AfeniyeS" to "SafeNetwork"
+From one of the outstanding voice notes. Updated both places the name appears — the consent-gate
+credit line ("Built by...") and the "Hi, I'm..." personal note further down — keeping the same
+"free personal project, not a company" framing and contact links unchanged. The consent-gate
+subtitle the same voice note quoted ("A personal document-readiness checklist for Nigerian visa
+applicants. Pick which visa you're preparing for to get started.") was already exactly this
+wording, so no change was needed there.
+
 ## Added a rough worst-case cost estimate right in the trip session
 Previously the only way to see an estimated trip cost was to navigate to the financial calculator
 and fill in every figure by hand. Added a quick, auto-computed "rough worst-case cost estimate"
