@@ -3,6 +3,79 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Made GitHub Pages the documented primary deploy, and fixed a second stale-analytics-status spot
+`README.md` still named Netlify as the live link and described analytics as shipping disabled —
+both wrong (GitHub Pages is live and preferred given Netlify's limited free-tier build minutes;
+analytics has been on for a while, see the earlier fix in this changelog). Updated the README to
+name GitHub Pages as the primary/authoritative link, describe Netlify as a manually-updated
+backup, and correctly describe analytics as on, including the newer `session_view:<step>` funnel
+events. No app code changed in this entry — documentation only.
+
+## Added per-session funnel analytics (to actually answer "is the form too long?")
+Real GoatCounter data this week showed 13 sessions scanned a passport and 0 reached the review
+step — a real signal, but too coarse to act on: it couldn't say whether people were dropping at
+trip details, work status, the financial calculator, or a document category checklist. Analytics
+previously only had two funnel checkpoints (session start, and the final review step). Added a
+`session_view:<key>` event that fires once per session per visit the first time each session
+(trip, finance, finance2, each document category, review) becomes visible — de-duplicated so
+clicking back and forth doesn't inflate the numbers. Within a week or two of real usage this will
+show exactly where in the multi-step form people are giving up, instead of only start-vs-finish.
+Verified in a real browser with a stubbed analytics endpoint (this sandbox can't reach the real
+GoatCounter script) that events fire once per session and don't double-count on revisit, plus the
+full existing test suite with no regressions.
+
+## Fixed the in-app privacy disclosure falsely claiming analytics was off
+Analytics (GoatCounter) was switched on some time ago and has been working correctly — real visits,
+page views, and the `doc_scanned:passport` event have all been recording. But the in-app "Privacy
+Policy" panel (the one users can read before uploading a passport or bank statement) still had
+hardcoded text saying analytics was "currently OFF" and "switched off site-wide," left over from
+before it was turned on. The footer's own analytics note was already correct — only this one panel
+had drifted. Rewrote both the analytics line and the crash-reporting line to be computed from the
+same `ANALYTICS_SITE_CODE` setting that actually controls whether analytics runs, so this text
+can't silently go stale again if the toggle is ever flipped in either direction. Verified in a real
+browser (not just by reading the source) that the modal now shows "currently ON" and none of the
+old "OFF" wording remains.
+
+## New process-flow batch: work status, employer cross-check, passport renewal link, trip length
+Implemented from a detailed process spec, after first checking it against what already existed —
+several described behaviors (the 2× buffer rule, Top 10 inflows, unexplained-narration flagging)
+turned out to already be built, so only the genuinely new pieces below were added:
+- **Work status**: the "employed"/"self-employed" checkboxes now reveal a required company/business
+  name field each. Ticking both requires both names, with an inline note explaining why.
+- **Employer/business name cross-check**: personal bank statement uploads are now searched for the
+  typed employer or business name. If neither name turns up anywhere in the statement text, a
+  prominent high-visibility warning explains this is a real risk factor for denial — not a soft
+  advisory tip like most other checks here, since this one's specifically meant to be hard to miss.
+  Word-based matching (not exact-string) so bank-truncated narrations still match correctly; generic
+  words ("Bank", "Limited", "Store"...) are excluded from matching to avoid false positives.
+- **Passport renewal link**: when a scanned passport's validity is too short for the trip, the advice
+  now links directly to the official Nigeria Immigration Service renewal page (immigration.gov.ng),
+  not just text advice.
+- **Trip length**: the old manual "under 6 weeks / 6 weeks-6 months / 6+ months" dropdown is gone —
+  it's now deduced automatically from the departure/return dates already being entered, shown as a
+  read-only line where the dropdown used to be.
+- **Opening balance**: added as its own explicit field alongside closing balance, with the same
+  automatic detection-and-cross-check against uploaded statements that closing balance already had.
+
+All four verified with real end-to-end tests (a synthetic bank statement was generated to exercise
+the analysis pipeline directly, not just spot-checked by eye), plus the full existing test suite and
+a regression check against both real client passport photos on file — no regressions found.
+
+## Fixed a false "Needs attention" on genuinely valid passports (real client photo, again)
+Even after the earlier MRZ/date-parsing fixes, a real client's passport photo (correctly read
+everywhere else — passport number and expiry date both matched their own check digits, name matched)
+still came back "Needs attention" instead of "Checks passed." Root cause was a scoring bug, not a
+new OCR misread: the MRZ's "composite" check digit is mathematically *computed from* the passport
+number, birth date, and expiry date fields — it isn't a 5th independent signal. A single OCR misread
+in the birth-date field (which this app never uses for anything beyond an FYI display row) broke
+both the birth-date check AND the composite check as a mathematical side effect, so one harmless
+misread was being double-counted as "2 of 4 checks failed" and blocking the whole badge — even
+though the two fields this tool actually relies on (passport number, expiry date) were both read
+and checksummed perfectly. The badge now gates on those two fields only; birth date and composite
+still show in the detail row for transparency, they just don't block the pass/fail verdict anymore.
+Verified against both real client passport photos on file — both now correctly read "Checks passed"
+consistently, and the full test suite still passes with no regressions.
+
 ## Made the app host-portable (found while evaluating GitHub Pages as a free Netlify alternative)
 Every asset reference — `/vendor/pdf.min.js`, `/vendor/tesseract-*`, `/sw.js`, `/manifest.json`,
 `/icons/*` — was hardcoded as an absolute path starting from the domain root. That's harmless on

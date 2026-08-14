@@ -710,12 +710,8 @@
         </div>
         <div class="row">
           <div>
-            <label class="field">Planned length of stay</label>
-            <select id="f_length">
-              <option value="short">Under 6 weeks</option>
-              <option value="medium">6 weeks – 6 months</option>
-              <option value="long">More than 6 months (academic visit only)</option>
-            </select>
+            <label class="field">Trip length</label>
+            <div class="item-tip" id="f_lengthDisplay" style="margin-top:9px; font-weight:600; color:var(--text-primary);">Enter your travel and return dates above to see this.</div>
           </div>
           <div>
             <label class="field">Planned application/submission date</label>
@@ -743,7 +739,13 @@
             <div class="item-tip" id="travellerFlightNote" style="margin-top:6px;">Flights for adolescents and children are usually discounted — the calculator below applies a typical estimate (90% of the adult fare for adolescents, 75% for children). Adjust the flight cost per traveller if your actual quote differs.</div>
           </div>
         </div>
+        <label class="field" style="margin-top:6px;">Work status</label>
         <div class="checkrow"><input type="checkbox" id="f_employed"><label for="f_employed">I'm currently employed in Nigeria</label></div>
+        <div id="employerNameRow" style="display:none; padding-left:24px; margin:-2px 0 8px;">
+          <label class="field">Employer / company name <span style="color:var(--danger, #c0392b);">*</span></label>
+          <input type="text" id="f_employerName" placeholder="e.g. Zenith Bank Plc" style="max-width:340px;">
+          <div class="item-tip" style="margin-top:4px;">Used below to check this name actually turns up on your bank statement — a strong, expected signal to a reviewer.</div>
+        </div>
         <div id="employedUploadRow" style="display:none; padding-left:24px; margin:-2px 0 8px;">
           <div class="upload-row no-print" style="margin:4px 0;">
             <input type="file" id="file_employedInline" accept="image/*,application/pdf">
@@ -752,6 +754,12 @@
           <div id="employedInlineMsg" class="item-tip no-print" style="margin:2px 0 0;">Optional — attach it now, or later under "Ties to Nigeria" below.</div>
         </div>
         <div class="checkrow"><input type="checkbox" id="f_selfEmployed"><label for="f_selfEmployed">I'm self-employed / run a business in Nigeria</label></div>
+        <div id="businessNameRow" style="display:none; padding-left:24px; margin:-2px 0 8px;">
+          <label class="field">Business name <span style="color:var(--danger, #c0392b);">*</span></label>
+          <input type="text" id="f_businessName" placeholder="e.g. Okafor Fashion House" style="max-width:340px;">
+          <div class="item-tip" style="margin-top:4px;">Used below to check this name actually turns up on your bank statement — a strong, expected signal to a reviewer.</div>
+        </div>
+        <div id="workStatusBothNote" class="item-tip" style="display:none; padding-left:24px; margin:-2px 0 8px;">Both employed and self-employed are ticked — please fill in both names above; a reviewer will expect to see evidence of both.</div>
         <div class="doc-reminder" id="selfEmployedNote" style="display:none;">
           Please also add:
           <ul>
@@ -898,6 +906,11 @@
             <div id="sight_result"></div>
           </div>
         </details>
+        <div style="margin-bottom:14px;">
+          <label class="field">Opening balance at the start of your statement(s) (₦)</label>
+          <input type="text" inputmode="numeric" id="fc_opening" placeholder="e.g. 1,200,000" style="max-width:340px;">
+          <div class="item-tip" style="margin-top:4px;">The balance shown on the very first line of your earliest statement — shows a reviewer the trajectory of your funds, not just the final number. If you upload statements below, this is checked against what's detected automatically.</div>
+        </div>
         <div style="margin-bottom:14px;">
           <label class="field">Current closing balance on your statement(s) (₦)</label>
           <input type="text" inputmode="numeric" id="fc_closing" placeholder="e.g. 3,000,000" style="max-width:340px;">
@@ -1271,6 +1284,17 @@
      constant strings (not built from any variable), so — same as the COUNTRIES disclaimer HTML
      elsewhere in this file — they're safe to assign via innerHTML without escapeHtml(). If the
      app's data practices change, update this block (and the source docs) together. */
+  // Analytics disclosure text is driven off ANALYTICS_SITE_CODE (declared above) rather than a
+  // hardcoded "OFF" string, so this legal copy can never silently drift out of sync with reality
+  // again the way it did once before (the toggle was flipped on, but this text kept claiming
+  // analytics was off site-wide). ANALYTICS_SITE_CODE is a developer-set boolean-ish constant,
+  // never user input, so it's still safe to splice into HTML assigned via innerHTML.
+  var ANALYTICS_DISCLOSURE_HTML = ANALYTICS_SITE_CODE
+    ? '<li><b>Optional, aggregate analytics — currently ON.</b> This app reports anonymous, aggregate usage counts (e.g. "a session reached the review step") via GoatCounter, a privacy-focused analytics service with no cookies and no personal-data collection. No document content, filename, name, date, or answer is ever included in these events — only anonymous event names, page paths, and standard aggregate visit info (browser type, rough referrer, country-level location) that GoatCounter records for any site using it. If this is ever turned off, this notice — and the note in the footer — will say so.</li>'
+    : '<li><b>Optional, aggregate analytics — currently OFF.</b> This app can optionally report anonymous, aggregate usage counts (e.g. "a session reached the review step") via GoatCounter, a privacy-focused analytics service with no cookies and no personal-data collection. As of today this is switched off site-wide. If it\'s ever turned on, this notice — and a note in the footer — will say so, and no document content, filename, name, date, or answer is ever included in these events, only anonymous event names and counts.</li>';
+  var ANALYTICS_CRASH_DISCLOSURE_HTML = ANALYTICS_SITE_CODE
+    ? '<li><b>Anonymous crash reports — also part of the analytics above, currently ON.</b> If an unexpected error occurs, this app may report that it happened, as just an error type (e.g. "TypeError") and a fixed category label — never the error\'s message text, never a stack trace, never a filename.</li>'
+    : '<li><b>Anonymous crash reports — also gated behind the same OFF-by-default analytics toggle above.</b> If analytics is ever turned on, this app may also report that an error occurred, as just an error type (e.g. "TypeError") and a fixed category label — never the error\'s message text, never a stack trace, never a filename.</li>';
   var LEGAL_PRIVACY_HTML =
     '<h3>Summary</h3>' +
     '<p>Smooth Application is designed so that almost nothing about you ever leaves your device. This page explains the few exceptions.</p>' +
@@ -1286,8 +1310,8 @@
       '<li><b>Local save.</b> Your answers (trip dates, checklist ticks, etc.) are saved automatically in your browser\'s local storage, on your device only, so you can close the tab and come back later on the same device and browser. This is never transmitted anywhere. Clear it anytime via your browser\'s site data settings, or the in-app "Reset everything" button.</li>' +
       '<li><b>Third-party libraries loaded from a CDN.</b> To read documents and generate spreadsheet exports, this page loads three open-source JavaScript libraries — Tesseract.js (OCR), PDF.js (PDF parsing), and SheetJS (spreadsheet export) — from cdnjs.cloudflare.com, only when you use those features. Loading a library involves a request to that CDN for the library code itself (standard for any site using third-party scripts) — it does not involve sending your documents anywhere; the libraries then run entirely inside your browser.</li>' +
       '<li><b>Live exchange-rate lookups.</b> If you use a currency-conversion helper, your browser fetches the current rate from open.er-api.com. Only the currency code and amount you\'re converting are sent — never your documents or personal answers.</li>' +
-      '<li><b>Optional, aggregate analytics — currently OFF.</b> This app can optionally report anonymous, aggregate usage counts (e.g. "a session reached the review step") via GoatCounter, a privacy-focused analytics service with no cookies and no personal-data collection. As of today this is switched off site-wide. If it\'s ever turned on, this notice — and a note in the footer — will say so, and no document content, filename, name, date, or answer is ever included in these events, only anonymous event names and counts.</li>' +
-      '<li><b>Anonymous crash reports — also gated behind the same OFF-by-default analytics toggle above.</b> If analytics is ever turned on, this app may also report that an error occurred, as just an error type (e.g. "TypeError") and a fixed category label — never the error\'s message text, never a stack trace, never a filename.</li>' +
+      ANALYTICS_DISCLOSURE_HTML +
+      ANALYTICS_CRASH_DISCLOSURE_HTML +
     '</ul>' +
     '<h3>Documents you attach</h3>' +
     '<p>Any file you attach (passport, bank statement, refusal letter, etc.) is read directly in your browser\'s memory to extract text and images for the on-screen check, and isn\'t retained by this app after your session ends (subject to whatever your own browser/OS does with temporary files, which is outside our control). It is never uploaded to a server we operate.</p>' +
@@ -1699,11 +1723,12 @@
       adolescents: document.getElementById('f_adolescents').value,
       children: document.getElementById('f_children').value,
       appDate: document.getElementById('f_appdate').value,
-      length: document.getElementById('f_length').value,
       hasHost: document.getElementById('f_hasHost').checked,
       hostFunding: document.getElementById('f_hostFunding').checked,
       employed: document.getElementById('f_employed').checked,
+      employerName: document.getElementById('f_employerName').value.trim(),
       selfEmployed: document.getElementById('f_selfEmployed').checked,
+      businessName: document.getElementById('f_businessName').value.trim(),
       student: document.getElementById('f_student').checked,
       studentSponsor: document.getElementById('f_studentSponsor').checked,
       sponsorRelationship: document.getElementById('f_sponsorRelationship').value.trim(),
@@ -1759,6 +1784,10 @@
   // of sessions is recomputed on every render() since which categories even apply (and so how many
   // sessions there are) shifts as the applicant fills in trip details.
   var currentSessionIndex = 0;
+  // Tracks which session keys have already fired a 'session_view:<key>' analytics event THIS
+  // page load, so revisiting a session (clicking back and forth) doesn't inflate the funnel —
+  // each key counts once per visit, giving a clean "how many visits reached this step" number.
+  var sessionViewsTracked = {};
   function getVisibleSessionKeys(){
     var keys = ['trip', 'finance', 'finance2'];
     var a = getAnswers();
@@ -1846,6 +1875,14 @@
     if (currentSessionIndex > keys.length - 1) currentSessionIndex = keys.length - 1;
     if (currentSessionIndex < 0) currentSessionIndex = 0;
     var currentKey = keys[currentSessionIndex];
+    // Funnel instrumentation: one anonymous event the first time a given session becomes visible
+    // in this visit, so drop-off between specific sessions (trip vs. finance vs. category checklists
+    // vs. review) is actually visible in analytics, not just start-vs-review. Session keys are fixed
+    // topic labels (e.g. 'trip', 'finance', 'cat:documents') — never anything typed by the user.
+    if (currentKey && !sessionViewsTracked[currentKey]){
+      sessionViewsTracked[currentKey] = true;
+      trackEvent('session_view:' + currentKey);
+    }
 
     document.querySelectorAll('[data-session-key]').forEach(function(el){
       var match = el.getAttribute('data-session-key') === currentKey;
@@ -1944,6 +1981,9 @@
     document.getElementById('hostFinanceReminder').style.display = (a.hasHost && a.hostFunding) ? 'list-item' : 'none';
     document.getElementById('employedUploadRow').style.display = a.employed ? 'block' : 'none';
     document.getElementById('selfEmployedNote').style.display = a.selfEmployed ? 'block' : 'none';
+    document.getElementById('employerNameRow').style.display = a.employed ? 'block' : 'none';
+    document.getElementById('businessNameRow').style.display = a.selfEmployed ? 'block' : 'none';
+    document.getElementById('workStatusBothNote').style.display = (a.employed && a.selfEmployed) ? 'block' : 'none';
     document.getElementById('refusalRow').style.display = a.hasRefusal ? 'block' : 'none';
     document.getElementById('studentSponsorBlock').style.display = a.student ? 'block' : 'none';
     document.getElementById('sponsorRelationshipRow').style.display = (a.student && a.studentSponsor) ? 'block' : 'none';
@@ -2191,7 +2231,7 @@
   wireEmailSummaryButton('btnEmailSummaryFinal');
   wireEmailSummaryButton('btnEmailSummarySidebar');
 
-  ['f_name','f_purpose','f_traveldate','f_returndate','f_appdate','f_adults','f_adolescents','f_children','f_length','f_hasHost','f_hostFunding','f_employed','f_selfEmployed','f_student','f_studentSponsor','f_sponsorRelationship','f_hasChild','f_translation','f_readyToSubmit','f_hasRefusal','f_refusalCount','f_refusalDetails']
+  ['f_name','f_purpose','f_traveldate','f_returndate','f_appdate','f_adults','f_adolescents','f_children','f_hasHost','f_hostFunding','f_employed','f_employerName','f_selfEmployed','f_businessName','f_student','f_studentSponsor','f_sponsorRelationship','f_hasChild','f_translation','f_readyToSubmit','f_hasRefusal','f_refusalCount','f_refusalDetails']
     .forEach(function(id){
       var el = document.getElementById(id);
       el.addEventListener('change', render);
@@ -2364,6 +2404,7 @@
     // still type over it manually if no return date is entered yet.
     var nightsInput = document.getElementById('fc_nights');
     var tripLengthNoteEl = document.getElementById('tripLengthNote');
+    var lengthDisplayEl = document.getElementById('f_lengthDisplay');
     var nightsFromDates = null;
     if (travelDateStr && returnDateStr){
       var diffDays = Math.round((new Date(returnDateStr) - new Date(travelDateStr)) / 86400000);
@@ -2373,9 +2414,22 @@
       nightsInput.value = nightsFromDates;
     }
     if (tripLengthNoteEl){
-      if (nightsFromDates !== null) tripLengthNoteEl.textContent = nightsFromDates+' night(s) — auto-filled into the trip length field below.';
+      if (nightsFromDates !== null) tripLengthNoteEl.textContent = nightsFromDates+' night(s) — auto-filled into the financial calculator below.';
       else if (travelDateStr && returnDateStr) tripLengthNoteEl.textContent = 'Return date should be after your travel date.';
       else tripLengthNoteEl.textContent = '';
+    }
+    // Replaces the old manual "Planned length of stay" (short/6wk-6mo/6mo+) dropdown — deduced straight
+    // from the two dates above instead of asking the applicant to also categorize it by hand.
+    if (lengthDisplayEl){
+      if (nightsFromDates !== null){
+        var lengthWeeks = nightsFromDates / 7;
+        var lengthBand = lengthWeeks < 6 ? 'Under 6 weeks' : (nightsFromDates < 183 ? '6 weeks – 6 months' : 'More than 6 months (academic visit only)');
+        lengthDisplayEl.textContent = nightsFromDates + ' night(s) — ' + lengthBand;
+      } else if (travelDateStr && returnDateStr){
+        lengthDisplayEl.textContent = 'Return date should be after your travel date.';
+      } else {
+        lengthDisplayEl.textContent = 'Enter your travel and return dates above to see this.';
+      }
     }
 
     // Auto-fill the flight departure/return dates below from the trip-details dates above, the same way —
@@ -2706,7 +2760,7 @@
     applySessionVisibility();
   }
 
-  ['fc_nights','fc_flight','fc_accom','fc_transport','fc_shopping','fc_shoppingPlace','fc_sightseeing','fc_closing','fc_forexSavings','fc_airline','fc_depDate','fc_arrDate','fc_accomAddress'].forEach(function(id){
+  ['fc_nights','fc_flight','fc_accom','fc_transport','fc_shopping','fc_shoppingPlace','fc_sightseeing','fc_opening','fc_closing','fc_forexSavings','fc_airline','fc_depDate','fc_arrDate','fc_accomAddress'].forEach(function(id){
     document.getElementById(id).addEventListener('input', computeFinancials);
   });
   document.getElementById('f_traveldate').addEventListener('input', computeFinancials);
@@ -3526,12 +3580,27 @@
 
     var mrz = fields ? fields.mrz : validateMrz(text);
     var mrzStatus = !mrz ? null : (mrz.totalCount === 0 ? null : (mrz.passedCount === mrz.totalCount ? 'ok' : 'partial'));
+    // The overall badge below is gated on mrzCoreStatus, NOT the flat mrzStatus above — deliberately.
+    // The MRZ's "composite" check digit is mathematically computed FROM the passport number, birth
+    // date, and expiry date fields (plus an optional personal-number field this app never uses) — it
+    // is not an independent 5th signal. That means a single OCR misread in just the birth-date field
+    // (which nothing else in this app cross-checks or displays as pass/fail) breaks BOTH the birth-date
+    // check AND the composite check as a mathematical side effect, double-counting one harmless error
+    // as "2 of 4 checks failed" and blocking the badge — even when passport number and expiry date,
+    // the two fields this tool actually relies on, both read and checksummed perfectly and the name
+    // matched. A real client passport hit exactly this: name matched, passport-number and expiry-date
+    // check digits both passed, yet the badge still said "Needs attention" purely because of a
+    // birth-date misread irrelevant to visa-readiness. mrzCoreStatus only looks at the two fields this
+    // app actually uses; birth date and composite still show in the detail row below for transparency,
+    // just without gating the pass/fail verdict.
+    var mrzCoreStatus = (!mrz || (mrz.checks.passportNumber === null && mrz.checks.expiryDate === null)) ? null
+      : ((mrz.checks.passportNumber !== false && mrz.checks.expiryDate !== false) ? 'ok' : 'partial');
 
     var overall = 'info', badgeText = 'Limited read';
-    if (expiryDate !== null && nameStatus !== 'fail' && mrzStatus !== 'partial'){
+    if (expiryDate !== null && nameStatus !== 'fail' && mrzCoreStatus !== 'partial'){
       overall = (expiryOk !== false && nameStatus !== 'partial') ? 'ok' : 'warn';
       badgeText = overall === 'ok' ? 'Checks passed' : 'Needs attention';
-    } else if (nameStatus === 'fail' || expiryOk === false || mrzStatus === 'partial'){
+    } else if (nameStatus === 'fail' || expiryOk === false || mrzCoreStatus === 'partial'){
       overall = 'warn'; badgeText = 'Needs attention';
     }
 
@@ -3552,8 +3621,12 @@
     if (fields && fields.passportNumber) rows += row('Doc No.', fields.passportNumber, null);
     if (fields && fields.birthDate) rows += row('DOB', fields.birthDate.toLocaleDateString(), null);
     if (fields && fields.nationality) rows += row('Nationality', fields.nationality, null);
+    // Icon reflects mrzCoreStatus (passport number + expiry only — see note above), not the flat 4-way
+    // count, so this row doesn't show an alarming ⚠️ over a birth-date/composite mismatch that has no
+    // bearing on the overall verdict. The text from mrzCheckSummary() still names the exact field that
+    // didn't match, so nothing is hidden — a curious user (or the applicant's helper) can still see it.
     rows += row('MRZ checksum', mrz ? mrzCheckSummary(mrz) : 'not detected',
-      mrzStatus === 'ok' ? true : (mrzStatus === 'partial' ? false : null));
+      mrzCoreStatus === 'ok' ? true : (mrzCoreStatus === 'partial' ? false : null));
 
     // Free, on-device "does this also appear printed elsewhere on the page" cross-check — genuine passports
     // print the document number and expiry both in the visual zone and the MRZ, so a match here is a small
@@ -3583,9 +3656,10 @@
     } else if (overall === 'warn'){
       footer = 'One or more checks above need your attention before you rely on this passport for the application — see the flagged row(s), and remember this is a best-effort read, not an official check.';
       if (expiryIsProblem){
+        var renewalLink = ' <a href="https://immigration.gov.ng/info-center/renewal-of-passport/" target="_blank" rel="noopener">Start your renewal on the official Nigeria Immigration Service site ↗</a>';
         footer += (Math.round((expiryDate - new Date())/86400000) < 0)
-          ? ' Your passport looks expired — that\'s a real blocker for a visa application, so renewing it should be your next step. But it\'s not a reason to stop here: keep going with the rest of your documents (bank statements, trip details, etc.) below while you sort renewal out in parallel — none of that work goes to waste.'
-          : ' Your passport looks like it won\'t have enough validity left for this trip (visas usually need 6+ months beyond your return date) — worth checking on renewal. That said, it\'s not a reason to stop here: carry on with the rest of your documents below while you look into renewing — none of that work goes to waste.';
+          ? ' Your passport looks expired — that\'s a real blocker for a visa application, so renewing it should be your next step.'+renewalLink+' But it\'s not a reason to stop here: keep going with the rest of your documents (bank statements, trip details, etc.) below while you sort renewal out in parallel — none of that work goes to waste.'
+          : ' Your passport looks like it won\'t have enough validity left for this trip (visas usually need 6+ months beyond your return date) — worth checking on renewal.'+renewalLink+' That said, it\'s not a reason to stop here: carry on with the rest of your documents below while you look into renewing — none of that work goes to waste.';
       }
     } else {
       footer = "Couldn't read enough of this page automatically (often a blurry photo, glare, or a non-standard layout) — check the details above by eye, and try a flatter, well-lit shot if you'd like another automated pass.";
@@ -4496,6 +4570,34 @@
     return /\brvsl\b|\breversal\b/i.test(narration || '');
   }
 
+  // Checks whether a typed employer/business name plausibly shows up anywhere in a bank statement's raw
+  // extracted text — used for the Work status cross-check. Deliberately word-based rather than an exact
+  // full-string match: real narrations are commonly truncated or abbreviated by the bank's own system
+  // ("SALARY-XYZ TECHNOLOGIES" instead of the full registered name), so requiring the whole name intact
+  // would produce false "not found" warnings on statements where the name genuinely is there. Common
+  // company-suffix words are ignored so a match has to land on something actually distinctive to the
+  // name, not just a generic word like "LIMITED" that would trivially appear all over any statement.
+  // "BANK", "STORE(S)" etc are deliberately included even though they're part of many real company
+  // names — they're common enough in generic narration text (any bank statement mentions "bank"
+  // somewhere) that keeping them would cause false positive matches, exactly like "Zenith Bank Plc"
+  // wrongly matching a Fidelity Bank narration purely on the shared word "BANK".
+  var WORK_NAME_STOPWORDS = ['LTD','LIMITED','PLC','NIGERIA','NIG','ENTERPRISES','ENTERPRISE','COMPANY',
+    'CO','INC','INTERNATIONAL','GROUP','GLOBAL','VENTURES','VENTURE','AND','OF','THE','SERVICES','SERVICE',
+    'BANK','STORE','STORES','HOLDINGS','INDUSTRIES'];
+  function nameAppearsInStatementText(name, text){
+    if (!name || !text) return false;
+    var upperText = text.toUpperCase();
+    var words = name.toUpperCase().replace(/[^A-Z0-9\s]/g, ' ').split(/\s+/).filter(function(w){
+      return w.length >= 3 && WORK_NAME_STOPWORDS.indexOf(w) === -1;
+    });
+    // A short name (e.g. "GTB" or a two-word personal name with nothing left after stopwords) falls back
+    // to a looser 2-character-minimum pass rather than being unmatchable by construction.
+    if (!words.length){
+      words = name.toUpperCase().replace(/[^A-Z0-9\s]/g, ' ').split(/\s+/).filter(function(w){ return w.length >= 2; });
+    }
+    return words.some(function(w){ return upperText.indexOf(w) !== -1; });
+  }
+
   function classifySourceType(narration){
     var upper = (narration || '').toUpperCase();
     var isCompany = COMPANY_KEYWORDS.some(function(k){
@@ -5208,6 +5310,7 @@
       onMessage('info','Reading '+files.length+' file(s)… this can take a while for scanned documents or statements with many pages.');
       var allLines = [];
       var perFileClosing = [];
+      var perFileOpening = [];
       var truncatedFiles = [];
       var chain = Promise.resolve();
       files.forEach(function(file){
@@ -5218,6 +5321,7 @@
             var fileTxns = parseStatementLines(lines);
             if (fileTxns.length){
               perFileClosing.push({name: file.name, balance: fileTxns[fileTxns.length-1].balance});
+              perFileOpening.push({name: file.name, balance: fileTxns[0].balance});
             }
           }).catch(function(err){
             console.warn('Could not read', file.name, err);
@@ -5261,6 +5365,25 @@
         computeFinancials();
 
         var results = [{cls:'ok', text:'Detected '+txns.length+' transaction(s) across '+months.length+' month(s). The cash-flow table has been auto-filled from the '+recent.length+' most recent month(s) — double-check these figures (especially the debit/credit split) against your real statement before relying on them.'}];
+
+        // Cross-check the employer/business name typed under "Work status" against this statement's own
+        // text — a reviewer expects the name you say pays you to actually show up in your account's
+        // narrations. Deliberately a hard, high-visibility warning (not a soft advisory tip like most
+        // other checks here) since a name that's genuinely nowhere in the statement is a real red flag,
+        // not just a formatting quirk — worth surfacing prominently rather than burying it.
+        var workAnswers = getAnswers();
+        var namesToCheck = [];
+        if (workAnswers.employed && workAnswers.employerName) namesToCheck.push({label:'employer', name: workAnswers.employerName});
+        if (workAnswers.selfEmployed && workAnswers.businessName) namesToCheck.push({label:'business', name: workAnswers.businessName});
+        if (namesToCheck.length){
+          var fullStatementText = allLines.map(function(l){ return l.text || ''; }).join(' ');
+          var foundNames = namesToCheck.filter(function(n){ return nameAppearsInStatementText(n.name, fullStatementText); });
+          if (!foundNames.length){
+            results.push({cls:'err', text:'⚠️ "'+escapeHtml(namesToCheck.map(function(n){ return n.name; }).join('" and "'))+'" — the name(s) you entered under "Work status" — could not be found anywhere in this bank statement. Reviewers expect your stated employer or business to actually show up in your account\'s transaction narrations; if it genuinely doesn\'t appear here, this application faces a high risk of denial. Double-check you\'ve uploaded the statement your income is actually paid into, or that the name matches exactly.'});
+          } else {
+            results.push({cls:'ok', text:'Found "'+escapeHtml(foundNames.map(function(n){ return n.name; }).join('", "'))+'" referenced in this bank statement — matches what you entered under "Work status," a good consistency signal for a reviewer.'});
+          }
+        }
         if (truncatedFiles.length){
           results.push({cls:'warn', text:truncatedFiles.map(function(f){ return '"'+escapeHtml(f.name)+'" has '+f.info.total+' pages — only the first '+f.info.processed+' were read'; }).join('; ')+'. A busy account can run to many pages for 6 months; if your statement covers more than that, the earliest month(s) may be missing from this analysis. Consider splitting it into shorter date ranges and uploading each separately.'});
         }
@@ -5331,6 +5454,15 @@
             results.push({cls:'warn', text:'Detected closing balance across your '+perFileClosing.length+' statement(s) totals '+fmtN(totalDetected)+', which doesn\'t match the '+fmtN(declaredClosing)+' you typed in the calculator. Per statement: '+perFileClosing.map(function(f){ return escapeHtml(f.name)+': '+fmtN(f.balance); }).join('; ')+'. Double-check the figure you typed, or that every statement was uploaded.'});
           }
         }
+        var declaredOpening = parseNum(document.getElementById('fc_opening').value);
+        if (perFileOpening.length && declaredOpening){
+          var totalOpeningDetected = perFileOpening.reduce(function(s,f){ return s + (f.balance||0); }, 0);
+          if (Math.abs(totalOpeningDetected - declaredOpening) < 1000){
+            results.push({cls:'ok', text:'Detected opening balance across your '+perFileOpening.length+' statement(s) totals '+fmtN(totalOpeningDetected)+' — matches the '+fmtN(declaredOpening)+' you entered in the calculator.'});
+          } else {
+            results.push({cls:'warn', text:'Detected opening balance across your '+perFileOpening.length+' statement(s) totals '+fmtN(totalOpeningDetected)+', which doesn\'t match the '+fmtN(declaredOpening)+' you typed in the calculator. Per statement: '+perFileOpening.map(function(f){ return escapeHtml(f.name)+': '+fmtN(f.balance); }).join('; ')+'. Double-check the figure you typed, or that this is genuinely the earliest transaction on the statement.'});
+          }
+        }
         computeFinancials();
 
         var incomeSourcesEl = document.getElementById('incomeSourcePersonal');
@@ -5390,7 +5522,7 @@
 
   function getFinancials(){
     var fin = {};
-    ['fc_nights','fc_flight','fc_accom','fc_transport','fc_shopping','fc_shoppingPlace','fc_sightseeing','fc_closing','fc_forexSavings','fc_airline','fc_depDate','fc_arrDate','fc_accomAddress'].forEach(function(id){
+    ['fc_nights','fc_flight','fc_accom','fc_transport','fc_shopping','fc_shoppingPlace','fc_sightseeing','fc_opening','fc_closing','fc_forexSavings','fc_airline','fc_depDate','fc_arrDate','fc_accomAddress'].forEach(function(id){
       fin[id] = document.getElementById(id).value;
     });
     var cf = [];
@@ -5439,11 +5571,12 @@
       document.getElementById('f_adults').value = payload.answers.adults || '1';
       document.getElementById('f_adolescents').value = payload.answers.adolescents || '';
       document.getElementById('f_children').value = payload.answers.children || '';
-      document.getElementById('f_length').value = payload.answers.length || 'short';
       document.getElementById('f_hasHost').checked = !!payload.answers.hasHost;
       document.getElementById('f_hostFunding').checked = !!payload.answers.hostFunding;
       document.getElementById('f_employed').checked = !!payload.answers.employed;
+      document.getElementById('f_employerName').value = payload.answers.employerName || '';
       document.getElementById('f_selfEmployed').checked = !!payload.answers.selfEmployed;
+      document.getElementById('f_businessName').value = payload.answers.businessName || '';
       document.getElementById('f_student').checked = !!payload.answers.student;
       document.getElementById('f_studentSponsor').checked = !!payload.answers.studentSponsor;
       document.getElementById('f_sponsorRelationship').value = payload.answers.sponsorRelationship || '';
@@ -5474,7 +5607,7 @@
       sourceExplanations = normalized;
     }
     if (payload.financials){
-      ['fc_nights','fc_flight','fc_accom','fc_transport','fc_shopping','fc_shoppingPlace','fc_sightseeing','fc_closing','fc_forexSavings','fc_airline','fc_depDate','fc_arrDate','fc_accomAddress'].forEach(function(id){
+      ['fc_nights','fc_flight','fc_accom','fc_transport','fc_shopping','fc_shoppingPlace','fc_sightseeing','fc_opening','fc_closing','fc_forexSavings','fc_airline','fc_depDate','fc_arrDate','fc_accomAddress'].forEach(function(id){
         if (payload.financials[id] !== undefined) document.getElementById(id).value = payload.financials[id];
       });
       if (Array.isArray(payload.financials.cashFlow)){
@@ -5568,14 +5701,16 @@
     document.getElementById('f_adolescents').value = '';
     document.getElementById('f_children').value = '';
     document.getElementById('tripLengthNote').textContent = '';
-    document.getElementById('f_length').value = 'short';
+    document.getElementById('f_lengthDisplay').textContent = 'Enter your travel and return dates above to see this.';
     ['f_hasHost','f_hostFunding','f_employed','f_selfEmployed','f_student','f_studentSponsor','f_hasChild','f_translation','f_readyToSubmit','f_hasRefusal'].forEach(function(id){
       document.getElementById(id).checked = false;
     });
+    document.getElementById('f_employerName').value = '';
+    document.getElementById('f_businessName').value = '';
     document.getElementById('f_sponsorRelationship').value = '';
     document.getElementById('f_refusalCount').value = '';
     document.getElementById('f_refusalDetails').value = '';
-    ['fc_nights','fc_flight','fc_accom','fc_transport','fc_shopping','fc_shoppingPlace','fc_sightseeing','fc_closing','fc_forexSavings','fc_airline','fc_depDate','fc_arrDate','fc_accomAddress'].forEach(function(id){
+    ['fc_nights','fc_flight','fc_accom','fc_transport','fc_shopping','fc_shoppingPlace','fc_sightseeing','fc_opening','fc_closing','fc_forexSavings','fc_airline','fc_depDate','fc_arrDate','fc_accomAddress'].forEach(function(id){
       document.getElementById(id).value = '';
     });
     document.getElementById('unexplainedInflowsBox').innerHTML = '';

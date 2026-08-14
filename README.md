@@ -2,7 +2,9 @@
 
 A free, private, single-file visa document-readiness checklist for Nigerian applicants preparing a **UK Standard Visitor visa** or a **Canada visitor visa (TRV)**.
 
-Live: https://smooth-application-visa.netlify.app
+Live: https://smoothapplication.github.io/smooth-application/ (primary — this is the link to share)
+
+Also mirrored at https://smooth-application-visa.netlify.app (secondary/backup — deployed manually, kept in sync less often since Netlify's free-tier build minutes are limited; don't rely on this one being current)
 
 ## What this is
 
@@ -29,24 +31,38 @@ python3 -m http.server 8000
 
 ## Deploying
 
-Currently deployed by dragging `index.html` onto [Netlify Drop](https://app.netlify.com/drop).
-Because it's a single static file, any static host works (Netlify, Vercel, GitHub Pages, Cloudflare Pages).
+**Primary: GitHub Pages.** Auto-deploys from this repo's `main` branch — push (or upload via
+GitHub's web UI) and the live site at https://smoothapplication.github.io/smooth-application/
+updates within a minute or two. No build step, no manual redeploy needed. This is the link to
+treat as authoritative.
 
-## Analytics (off by default)
+**Secondary/backup: Netlify.** Deployed manually by dragging the built folder onto Netlify's
+Deploys tab. Kept around as a fallback, but updated less often (Netlify's free-tier build minutes
+are limited, so routine updates are pushed to GitHub Pages only unless there's a specific reason
+to also update Netlify).
 
-The app can optionally report **anonymous, aggregate** usage counts (e.g. "a session reached the
-review step") via [GoatCounter](https://www.goatcounter.com) — a privacy-first analytics service
-with no cookies and no personal data collection. It ships **disabled**.
+Because it's a single static file, any static host works (Netlify, Vercel, GitHub Pages, Cloudflare Pages) —
+GitHub Pages was chosen as primary since it has no bandwidth/build ceiling to worry about at
+current or expected traffic levels.
 
-To turn it on:
-1. Create a free GoatCounter account (no credit card needed).
-2. Open `index.html`, find `var ANALYTICS_SITE_CODE = '';` near the top of the `<script>` block,
-   and put your site code between the quotes.
-3. Redeploy.
+## Analytics (currently ON)
+
+The app reports **anonymous, aggregate** usage counts (e.g. "a session reached the review step")
+via [GoatCounter](https://www.goatcounter.com) — a privacy-first analytics service with no cookies
+and no personal data collection. Currently **enabled**, reporting to the `smoothapplication`
+GoatCounter site.
+
+To turn it off: open `index.html`, find `var ANALYTICS_SITE_CODE = 'smoothapplication';` near the
+top of the `<script>` block, and set it to `''`. Redeploy. (To point it at a different GoatCounter
+account instead, put that account's site code between the quotes.)
 
 No document content, filenames, names, or answers are ever sent — only event names like
-`reached_review` or `doc_scanned:passport`. See the comment block above `ANALYTICS_SITE_CODE` in
-`index.html` for the full list of tracked events.
+`reached_review`, `session_view:<step>` (fires once per session per visit, so drop-off between
+specific steps of the form is visible), or `doc_scanned:passport`. See the comment block above
+`ANALYTICS_SITE_CODE` in `index.html` for the full list of tracked events. The in-app "Privacy"
+disclosure (footer link) and this README should both be updated together if this setting ever
+changes — a previous version of the in-app disclosure text drifted out of sync with this setting
+for a while before being caught and fixed to compute itself from `ANALYTICS_SITE_CODE` instead.
 
 ## Project documents
 
