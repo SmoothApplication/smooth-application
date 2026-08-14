@@ -719,6 +719,9 @@
             <div class="item-tip" id="appDateCountdown" style="margin-top:4px;"></div>
           </div>
         </div>
+        <div class="fin-breakdown no-print" id="quickTripCostBox" style="display:none; margin:10px 0;">
+          <div id="quickTripCostContent"></div>
+        </div>
         <div class="row">
           <div>
             <label class="field">Adults (18+) on this application</label>
@@ -2429,6 +2432,42 @@
         lengthDisplayEl.textContent = 'Return date should be after your travel date.';
       } else {
         lengthDisplayEl.textContent = 'Enter your travel and return dates above to see this.';
+      }
+    }
+
+    // Quick, rough worst-case cost estimate shown right in the trip session, as soon as dates are
+    // entered — before the applicant has filled in anything in the financial calculator below.
+    // Deliberately reuses the SAME rates already established elsewhere in this file (bus fare from
+    // TRANSPORT_MODES, the ₦50,000/night hotel floor, the £100 shopping figure, DEFAULT_GBP_NGN) so
+    // there's exactly one place each number lives, not two that could drift apart. The flight figure
+    // is a static, clearly-labeled ballpark (no live fare source exists here) — NOT a real quote.
+    var quickBox = document.getElementById('quickTripCostBox');
+    var quickContent = document.getElementById('quickTripCostContent');
+    if (quickBox && quickContent){
+      if (nightsFromDates !== null && nightsFromDates > 0){
+        var qNights = nightsFromDates;
+        var qHotel = 50000 * qNights;
+        var qBusRate = (TRANSPORT_MODES && TRANSPORT_MODES.bus) ? TRANSPORT_MODES.bus.rate : 6;
+        var qTransportGbp = qBusRate * qNights;
+        var qShoppingGbp = 100;
+        var qRate = (typeof DEFAULT_GBP_NGN === 'number' && DEFAULT_GBP_NGN) ? DEFAULT_GBP_NGN : 1840.60;
+        var qTransportNgn = qTransportGbp * qRate;
+        var qShoppingNgn = qShoppingGbp * qRate;
+        var qFlightNgn = 1500000; // low end of the existing flight placeholder range (₦1.5M–2.5M) elsewhere in this file
+        var qTotal = qHotel + qTransportNgn + qShoppingNgn + qFlightNgn;
+        var qRecommended = qTotal * 2; // same 2× buffer rule used throughout the financial calculator
+        quickBox.style.display = 'block';
+        quickContent.innerHTML =
+          '<p class="fin-note" style="margin-top:0;"><b>Rough worst-case cost estimate for ' + qNights + ' night(s)</b> — a quick, conservative ballpark so you have a number to aim for right away. This is <b>not a quote</b>: flight cost especially varies a lot by date and how far ahead you book. Fill in the financial calculator below with your own real figures for an accurate, personalized breakdown.</p>'
+          + '<div class="fb-row"><span>Flight (cheapest route, e.g. Kenya Airways/RwandAir — indicative only)</span><span>' + fmtN(qFlightNgn) + '</span></div>'
+          + '<div class="fb-row"><span>Hotel (₦50,000/night × ' + qNights + ')</span><span>' + fmtN(qHotel) + '</span></div>'
+          + '<div class="fb-row"><span>Local transport (cheapest option, bus, £' + qBusRate + '/day × ' + qNights + ')</span><span>' + fmtN(qTransportNgn) + '</span></div>'
+          + '<div class="fb-row"><span>Shopping (£100 minimum)</span><span>' + fmtN(qShoppingNgn) + '</span></div>'
+          + '<div class="fb-row" style="font-weight:600; border-top:1px solid var(--border); margin-top:4px; padding-top:6px;"><span>Rough total</span><span>' + fmtN(qTotal) + '</span></div>'
+          + '<div class="fb-row" style="font-weight:600;"><span>Recommended funds to show (2× buffer)</span><span>' + fmtN(qRecommended) + '</span></div>';
+      } else {
+        quickBox.style.display = 'none';
+        quickContent.innerHTML = '';
       }
     }
 

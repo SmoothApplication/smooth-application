@@ -3,6 +3,27 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Added a rough worst-case cost estimate right in the trip session
+Previously the only way to see an estimated trip cost was to navigate to the financial calculator
+and fill in every figure by hand. Added a quick, auto-computed "rough worst-case cost estimate"
+that appears as soon as travel and return dates are both entered, right where the trip-length line
+already shows — covering hotel (₦50,000/night), local transport (cheapest option, bus, reusing the
+same £6/day rate as the financial calculator's transport helper), shopping (£100 minimum), and a
+static, clearly-labeled flight ballpark (₦1,500,000 — the low end of the existing flight-cost
+placeholder range elsewhere in this file; there's no live fare source, so this is explicitly framed
+as indicative only, not a quote). Totals and the recommended 2× buffer figure are shown together.
+Deliberately reuses the exact same rates already established elsewhere in the file rather than
+introducing a second set of numbers that could drift out of sync. Verified in a real browser: shows
+the correct numbers once both dates are entered, hides again if dates are cleared or incomplete.
+
+## Investigated a "missing features" report — root cause was GitHub Pages/browser caching, not a bug
+The founder reported the old "Planned length of stay" dropdown and the newer employer/business
+name field both appeared to be missing on the live site right after a deploy. Checked the actual
+shipped code — both were already correctly implemented and present. The likely cause was GitHub
+Pages' CDN needing a minute or two to propagate a fresh deploy, combined with normal browser
+caching; a hard refresh after the deploy settles resolves it. No code changes were needed for this
+one — noted here so a future "it's missing" report is checked against the deployed source first.
+
 ## Made GitHub Pages the documented primary deploy, and fixed a second stale-analytics-status spot
 `README.md` still named Netlify as the live link and described analytics as shipping disabled —
 both wrong (GitHub Pages is live and preferred given Netlify's limited free-tier build minutes;
