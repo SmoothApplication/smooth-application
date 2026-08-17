@@ -3749,13 +3749,23 @@
     var d = new Date(century+yy, mm, dd);
     return isNaN(d.getTime()) ? null : d;
   }
+  // ICAO Doc 9303's MRZ alphabet technically includes digits 0-9, but the NAME portion of line 1 is
+  // letters-and-"<" filler only — a real passport holder's name is never spelled with digits. Reported
+  // real-world case: "OLUWAFUNMILAYO" OCR'd with one of its "O"s read as digit "0". Any digit found here
+  // is therefore always an OCR misread of a similar-looking letter, never a genuine value — safe to
+  // "correct" on sight. Deliberately NOT applied anywhere else (passport number, dates, etc. are real
+  // digits and must be left alone).
+  var MRZ_NAME_DIGIT_FIX = {'0':'O','1':'I','2':'Z','5':'S','6':'G','8':'B'};
+  function fixMrzNameDigits(str){
+    return str.replace(/[0-9]/g, function(d){ return MRZ_NAME_DIGIT_FIX[d] || d; });
+  }
   function parseMrzFields(text){
     var lines = findMrzLines(text);
     if (!lines) return null;
     var line1 = lines[0], line2 = lines[1];
     if (line1.length < 44 || line2.length !== 44 || !/^P/.test(line1)) return null;
 
-    var namePart = line1.slice(5);
+    var namePart = fixMrzNameDigits(line1.slice(5));
     var segments = namePart.split('<<');
     var surname = (segments[0] || '').replace(/</g,' ').trim();
     var given = (segments[1] || '').replace(/</g,' ').trim();
@@ -4535,8 +4545,8 @@
   // word and still be exact for bare 2-3 letter abbreviations (so "dr"/"cr"/"bal" don't false-match inside
   // an unrelated word like "address").
   var COL_LABELS = {
-    debit:   ['debit','withdrawal','withdrawals','amount debited','dr'],
-    credit:  ['credit','deposit','deposits','lodgement','lodgements','amount credited','cr'],
+    debit:   ['debit','withdrawal','withdrawals','amount debited','money out','dr'],
+    credit:  ['credit','deposit','deposits','lodgement','lodgements','amount credited','money in','cr'],
     balance: ['balance','closing balance','running balance','ledger balance','bal']
   };
 
@@ -4592,10 +4602,17 @@
   function getLinesFromPdf(pdf){
     var maxPages = Math.min(pdf.numPages, MAX_TEXT_PAGES);
     var pagePromises = [];
+    var _makePagePromise = function(pageNum){
+      return pdf.getPage(pageNum).then(function(page){
+        return page.getTextContent().then(function(tc){
+          var lines = linesFromTextContent(tc);
+          lines.forEach(function(l){ l.__page = pageNum; });
+          return lines;
+        });
+      });
+    };
     for (var p=1; p<=maxPages; p++){
-      pagePromises.push(pdf.getPage(p).then(function(page){
-        return page.getTextContent().then(function(tc){ return linesFromTextContent(tc); });
-      }));
+      pagePromises.push(_makePagePromise(p));
     }
     return Promise.all(pagePromises).then(function(pagesLines){
       var allLines = [].concat.apply([], pagesLines);
@@ -4680,7 +4697,7 @@
       var d = new Date(yy, mm, dd);
       if (!isNaN(d.getTime()) && d.getFullYear()>2000 && d.getFullYear()<2100) return {date:d, rest: line.slice(m[0].length)};
     }
-    m = line.match(/^\D{0,6}(\d{1,2})[\s\-](jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\s\-,]?\s*(\d{4})\b/i);
+    m = line.match(/^\D{0,6}(\d{1,2})[\s\-\/](jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\s\-,\/]?\s*(\d{4})\b/i);
     if (m){
       var months={jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
       var d2 = new Date(+m[3], months[m[2].toLowerCase().slice(0,3)], +m[1]);
@@ -4789,6 +4806,127 @@
       runningBalance = balance;
       txns.push({date: parsed.date, credit: credit, debit: debit, balance: balance, narration: line.text});
     });
+    return txns;
+  }
+
+  // Turns a single amount-shaped token into a number, or null. Used by the column-major fallback below,
+  // where we need to test whether a token IS ENTIRELY an amount (not just contains one, like AMOUNT_RE
+  // already does via its ^...$ anchors).
+  function amountTokensStrict(text){
+    return text.split(/\s+/).filter(function(t){ return AMOUNT_RE.test(t); }).map(function(t){ return parseFloat(t.replace(/,/g,'')); });
+  }
+
+  function parseDateToken(tok){
+    var m = tok.match(/^(\d{1,2})[\-\/](jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\-\/,]?(\d{4})$/i);
+    if (m){
+      var months={jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+      var d = new Date(+m[3], months[m[2].toLowerCase().slice(0,3)], +m[1]);
+      return isNaN(d.getTime()) ? null : d;
+    }
+    m = tok.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+    if (m){
+      var yy = +m[3]; if (yy<100) yy+=2000;
+      var d2 = new Date(yy, +m[2]-1, +m[1]);
+      return isNaN(d2.getTime()) ? null : d2;
+    }
+    return null;
+  }
+
+  // Per page, find the "date list" line (almost entirely individual dates — the Trans./Value. Date column,
+  // stacked as one string down the page) and a same-length "list" line elsewhere on the page (the Balance
+  // column). Only the FIRST date-list line found is used — Trans. Date and Value. Date are usually identical
+  // lists, and using both would double-count every row.
+  function tryColumnMajorParsePage(pageLines){
+    var found = null;
+    for (var li=0; li<pageLines.length; li++){
+      var line = pageLines[li];
+      var tokens = line.text.split(/\s+/);
+      var dates = [];
+      tokens.forEach(function(t){ var d = parseDateToken(t); if (d) dates.push(d); });
+      if (dates.length < 3) continue;               // not a "date list" line
+      if (dates.length < tokens.length - 3) continue; // allow only a short leading label, e.g. "Trans. Date"
+      found = { line: line, dates: dates };
+      break;
+    }
+    if (!found) return [];
+    var N = found.dates.length;
+    var candidates = pageLines.filter(function(l){
+      if (l === found.line) return false;
+      return amountTokensStrict(l.text).length === N;
+    });
+    if (!candidates.length) return [];
+    var chosen = null;
+    for (var ci=0; ci<candidates.length; ci++){
+      if (/^bal(ance)?\.?$/i.test(candidates[ci].text.split(/\s+/)[0])) { chosen = candidates[ci]; break; }
+    }
+    if (!chosen) chosen = candidates[0];
+    var balances = amountTokensStrict(chosen.text);
+    var out = [];
+    for (var i=0;i<N;i++) out.push({date: found.dates[i], balance: balances[i]});
+    return out;
+  }
+
+  // This layout's info box prints its field LABELS as one phrase ("...Total Debit Total Credit Closing
+  // Balance Usable Balance Opening Balance...") separately from its VALUES (a sibling line ending in the
+  // matching amounts, in the same left-to-right order, alongside the account currency name) — so "Opening
+  // Balance" as a value is simply the LAST amount on whichever line carries that value row, once we've
+  // confirmed the label phrase exists at all (guards against ever misreading an unrelated statement layout).
+  function findOpeningBalanceForColumnMajor(pagesArr, fullText){
+    if (!/total\s*debit.{0,20}total\s*credit.{0,30}closing\s*balance.{0,30}usable\s*balance.{0,20}opening\s*balance/i.test(fullText)) return null;
+    var best = null;
+    pagesArr.forEach(function(pageLines){
+      pageLines.forEach(function(l){
+        var amt = amountTokensStrict(l.text);
+        if (amt.length >= 5 && /naira|ngn/i.test(l.text)) best = amt[amt.length-1];
+      });
+    });
+    return best;
+  }
+
+  // Fallback for statements whose PDF renders each table COLUMN as its own vertically-stacked block of
+  // text (all sharing one Y position down the whole page) rather than a normal row grid — a real-world
+  // pathology seen from at least one major Nigerian bank's statement export. The normal row-based parser
+  // above sees this as a handful of garbled "lines" and finds ~0-1 real transactions. Here we instead look,
+  // per page, for a date-list line and a same-length balance-list line, and reconstruct each row's
+  // debit/credit from the balance-to-balance DELTA rather than also trying to disentangle separate
+  // Debit/Credit column lists (which, without header text after page 1, can't be told apart from Balance
+  // by shape alone). Narration is deliberately left blank for these reconstructed rows — the Remarks
+  // column's text is one long run per page with no reliable per-row boundary to split it on.
+  function tryColumnMajorStatementParse(allLines){
+    var byPage = {};
+    var pageOrder = [];
+    allLines.forEach(function(l){
+      var p = l.__page || 0;
+      if (!byPage[p]){ byPage[p] = []; pageOrder.push(p); }
+      byPage[p].push(l);
+    });
+    var pagesArr = pageOrder.map(function(p){ return byPage[p]; });
+    var fullText = allLines.map(function(l){ return l.text || ''; }).join(' ');
+    var runningBalance = findOpeningBalanceForColumnMajor(pagesArr, fullText);
+    var txns = [];
+    pagesArr.forEach(function(pageLines){
+      var rows = tryColumnMajorParsePage(pageLines);
+      rows.forEach(function(r){
+        var credit = 0, debit = 0;
+        if (runningBalance !== null){
+          var delta = r.balance - runningBalance;
+          if (delta >= 0) credit = delta; else debit = -delta;
+        }
+        runningBalance = r.balance;
+        txns.push({date: r.date, credit: credit, debit: debit, balance: r.balance, narration: ''});
+      });
+    });
+    return txns;
+  }
+
+  // The row-based parser above covers the vast majority of statement formats; this only reaches for the
+  // column-major reconstruction when the normal parser essentially found nothing, so normal (working)
+  // statement formats are never affected by it.
+  function parseStatementLinesWithFallback(lines){
+    var txns = parseStatementLines(lines);
+    if (txns.length >= 2) return txns;
+    var fallback = tryColumnMajorStatementParse(lines);
+    if (fallback.length > txns.length){ fallback.__usedColumnMajorFallback = true; return fallback; }
     return txns;
   }
 
@@ -5214,7 +5352,7 @@
         });
       });
       chain.then(function(){
-        var txns = parseStatementLines(allLines);
+        var txns = parseStatementLinesWithFallback(allLines);
         if (!txns.length){
           onMessage('err','Couldn\'t automatically detect transaction rows in this business statement — the format may be unusual. Review it yourself for a recurring personal salary/drawing to you.');
           return;
@@ -5222,6 +5360,9 @@
         var months = aggregateTransactions(txns);
         var match = findRecurringPaymentToPerson(txns, answers);
         var results = [{cls:'ok', text:'Detected '+txns.length+' transaction(s) across '+months.length+' month(s) in this business account.'}];
+        if (txns.__usedColumnMajorFallback){
+          results.push({cls:'warn', text:"This statement's layout is unusual, so dates/amounts were reconstructed a different way — the individual payment descriptions couldn't be read, only the amounts and running balance. Double-check the figures above against your real statement, and be ready to point a reviewer to specific payments by eye if needed."});
+        }
         if (truncatedFiles.length){
           results.push({cls:'warn', text:truncatedFiles.map(function(f){ return '"'+escapeHtml(f.name)+'" has '+f.info.total+' pages — only the first '+f.info.processed+' were read'; }).join('; ')+'. If your statement covers more than that, earlier month(s) may be missing from this analysis.'});
         }
@@ -5775,7 +5916,7 @@
           return getLinesFromFile(file).then(function(lines){
             if (lines.__truncated) truncatedFiles.push({name: file.name, info: lines.__truncated});
             allLines = allLines.concat(lines);
-            var fileTxns = parseStatementLines(lines);
+            var fileTxns = parseStatementLinesWithFallback(lines);
             if (fileTxns.length){
               perFileClosing.push({name: file.name, balance: fileTxns[fileTxns.length-1].balance});
               perFileOpening.push({name: file.name, balance: fileTxns[0].balance});
@@ -5786,7 +5927,7 @@
         });
       });
       chain.then(function(){
-        var txns = parseStatementLines(allLines);
+        var txns = parseStatementLinesWithFallback(allLines);
         if (!txns.length){
           onMessage('err','Couldn\'t automatically detect transaction rows in these file(s) — the format may be unusual, or the scan quality too low. Please fill in the cash-flow table manually using your own statement.');
           return;
@@ -5822,6 +5963,9 @@
         computeFinancials();
 
         var results = [{cls:'ok', text:'Detected '+txns.length+' transaction(s) across '+months.length+' month(s). The cash-flow table has been auto-filled from the '+recent.length+' most recent month(s) — double-check these figures (especially the debit/credit split) against your real statement before relying on them.'}];
+        if (txns.__usedColumnMajorFallback){
+          results.push({cls:'warn', text:"This statement's layout is unusual, so dates/amounts were reconstructed a different way — the individual payment descriptions couldn't be read, only the amounts and running balance. That also means the employer/business name check below can only confirm the name is mentioned somewhere in the statement, not which specific inflow(s) it's the sender on. Double-check the figures above against your real statement."});
+        }
         var workAnswers = getAnswers();
         var fullStatementText = allLines.map(function(l){ return l.text || ''; }).join(' ');
 

@@ -3,6 +3,50 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fixed three real-user bugs: a misread passport name, and two bank statements that wouldn't read
+
+A real applicant hit three separate problems in the same session, reported together: "After the name
+is generated from the passport, the o in Oluwafunmilayo read as zero '0'. Also, Her GTB bank statement
+showed [an] error message. She tried her sterling bank account but it did not read." All three are
+fixed.
+
+**Passport name — "O" misread as "0":** the MRZ's name field is letters and "<" filler only per spec —
+a digit can never legitimately appear there, so any digit found is always a misread, never a genuine
+value. `parseMrzFields` now runs the name segment through a small letter-lookalike correction
+(0→O, 1→I, 2→Z, 5→S, 6→G, 8→B) before splitting it into surname/given name. Deliberately scoped to only
+the name field — passport numbers, dates, and every other MRZ field are left untouched, since digits
+there are real.
+
+**GTB bank statement — "Detected 1 transaction(s)" with a false employer-not-found error:** this
+bank's PDF export renders each table COLUMN as its own text run sharing one Y position down the whole
+page (e.g. one run literally reads "Balance 1,765.79 11,765.79 3,707.79" — the header word plus every
+row's value in that column), instead of a normal row grid. The existing row-based parser's Y-proximity
+line grouping saw this as a handful of garbled lines and ended up parsing the statement's own header
+summary box (Print Date, Total Debit/Credit, Closing/Usable/Opening Balance) as one fake transaction —
+which is exactly the "1 transaction" bug reported, and why the employer/business name check then failed
+(no real transaction narrations were ever scanned). A new fallback — used only when the normal parser
+finds fewer than 2 transactions, so ordinary statement formats are completely unaffected — looks per
+page for a date-list line and a same-length balance-list line, and reconstructs each row from the
+balance-to-balance delta (seeded by an "Opening Balance" figure read from the statement's own summary
+box). Verified against the real, full 17-page statement: 159 transactions reconstructed, with total
+credit (₦350,951.00), total debit (₦353,706.34), and closing balance (₦642.45) all matching the
+statement's own printed totals exactly. Narration is deliberately left blank for these reconstructed
+rows (this layout's Remarks column is one long unsplittable run per page) — a new on-screen note
+explains this honestly, including that the employer/business name check can then only confirm the name
+appears somewhere in the statement, not which specific inflow(s) it's the sender on.
+
+**Sterling bank statement — nothing detected at all:** this statement uses `DD/Mon/YYYY` dates with
+slash separators (e.g. "14/Feb/2026"), which neither existing date pattern matched (one required an
+all-digit month, the other only allowed a space or hyphen around a month name — never a slash) — so
+every single row failed date matching, meaning zero transactions were ever found. Also labels its
+credit/debit columns "Money In"/"Money Out", which weren't in the recognized header-keyword list. Both
+fixed: the date pattern now also accepts a slash separator, and "money in"/"money out" were added
+alongside the existing debit/credit column labels.
+
+Full test suite (18/18, including three new regression tests using synthetic fixtures that reproduce
+each real-world pattern) passed. The two real statements and the real passport photo were also
+re-verified end to end after the fix.
+
 ## Reordered "Your trip details" — traveler count now comes before the cost estimate
 User request: move "How many people are travelling on this application?" (and its adults/adolescents/
 children breakdown) to immediately after "Planned application/submission date", and move the "Rough
