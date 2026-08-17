@@ -5980,6 +5980,13 @@
     {value:'bonus', label:'Bonus'},
     {value:'sales', label:'Sales'},
     {value:'gift', label:'Gift'},
+    // User request, straight off a real statement's own inflow list: a transfer from the applicant's
+    // own other account ("Self") and a reversed/bounced-back payment ("Reversal") are both common,
+    // legitimate reasons an inflow shows up with a large amount but no clear description — same as
+    // every other category here, picking either is enough on its own; no extra detail is required
+    // (see inflowExplanationIsFilled below, which only "Others" needs).
+    {value:'self', label:'Self (transfer from my own other account)'},
+    {value:'reversal', label:'Reversal (a reversed/bounced-back payment)'},
     {value:'others', label:'Others'}
   ];
   function sourceCategoryLabel(value){

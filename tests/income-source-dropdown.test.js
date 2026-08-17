@@ -26,7 +26,8 @@ exports.run = async function(ctx){
     var optionTexts = await page.$$eval('#explain_cat_0 option', function(opts){ return opts.map(function(o){ return o.textContent; }); });
     assert.deepStrictEqual(
       optionTexts,
-      ['Choose a reason…', 'Salary', 'Business', 'Family', 'Contribution', 'Work', 'Bonus', 'Sales', 'Gift', 'Others'],
+      ['Choose a reason…', 'Salary', 'Business', 'Family', 'Contribution', 'Work', 'Bonus', 'Sales', 'Gift',
+        'Self (transfer from my own other account)', 'Reversal (a reversed/bounced-back payment)', 'Others'],
       'Dropdown options should match the requested list and order, got: ' + JSON.stringify(optionTexts)
     );
 

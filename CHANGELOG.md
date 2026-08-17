@@ -3,6 +3,16 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Added "Self" and "Reversal" to the unexplained-inflow reason dropdown
+
+User request, made straight off a real statement's own flagged inflow list: two common, legitimate
+reasons a large inflow shows up with no clear description were missing from the "What was this
+payment for, and from whom?" dropdown — a transfer from the applicant's own other account ("Self"),
+and a reversed or bounced-back payment ("Reversal"). Both added alongside the existing options
+(Salary, Business, Family, Contribution, Work, Bonus, Sales, Gift, Others) — picking either is
+enough on its own, same as every other category, with no extra detail required. Full test suite
+(22/22, including an updated regression test covering the full option list) passed.
+
 ## "Next →" now points out exactly which field(s) are still missing before you move on
 
 User feedback: "Can the system point out where I have not filled before proceeding." Clicking
