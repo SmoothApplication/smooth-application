@@ -3,6 +3,41 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## "Next →" now points out exactly which field(s) are still missing before you move on
+
+User feedback: "Can the system point out where I have not filled before proceeding." Clicking
+"Next →" on an incomplete session already showed a soft "you're only X% done" nudge, but never said
+which field was actually still empty, so the applicant had to hunt for it themselves. That nudge now
+names the specific missing field(s) or checklist item(s) by name (e.g. "Main purpose of visit,
+Planned travel date"), and outlines each one in red directly on the page — reusing the same red-
+outline treatment already used for an invalid return date — with an automatic scroll to the first
+one, so it's visible the moment "Next" is clicked, whether or not the applicant goes on to leave the
+section incomplete anyway. Covers every guided session: trip details, the cost calculator, cash-flow/
+income, and every document-checklist category. Jumping around freely via the numbered session pills
+is unaffected — this only applies to the guided "Next →" buttons. Full test suite (22/22, including
+one new regression test) passed.
+
+## Fixed a passport date-of-birth misread: "3/9/1938" instead of "3/9/1988"
+
+Real user report: a passport's date of birth read from the machine-readable zone as "3/9/1938"
+instead of the true "3/9/1988" — an "8" OCR'd as a "3". Unlike the name-field digit misread fixed
+earlier ("O" read as "0"), a birth-date field legitimately contains real digits, so it can't be
+"corrected" on sight — it needs evidence. The MRZ's own check digit is normally strong enough
+evidence on its own (a swap is only trusted if it's the ONE AND ONLY one that restores a passing
+checksum and lands on a real calendar day), but "3" and "8" happen to differ by exactly 5, and
+every MRZ check-digit weight is odd — so swapping either digit at any position in a field shifts
+the checksum by the same amount no matter where, meaning a field with more than one 3-or-8 in it
+(like this one: both digits of the misread year, plus the leading digit of the month) has several
+equally "valid" corrections and no way to tell them apart mathematically. Rather than guess, this
+now falls back to the plain "Date of birth" text most passport bio pages also print — a second,
+independent OCR read, in a different font, of a different part of the page — and uses that
+instead, with a plain on-screen note explaining the swap rather than silently showing a corrected
+value as if nothing needed fixing. A genuinely unique checksum-only correction (most digit-pair
+mixups, and any field where the mixed-up digit only occurs once) is still fixed directly via the
+checksum, no printed text needed. Full test suite (21/21, including two new regression tests: one
+for the printed-text fallback, one confirming the unique-checksum path still works on its own)
+passed.
+
 ## "Work status" is now a single dropdown, and three items moved into "Identity & application"
 
 User feedback: "WORK STATUS should have a collapsible drop-down menu with the following; I'm

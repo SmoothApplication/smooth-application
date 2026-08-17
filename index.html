@@ -422,10 +422,15 @@
   /* !important since #f_lengthDisplay carries its own inline color (higher specificity) that this
      needs to override whenever the dates it's describing are actually invalid. */
   .item-tip.error { color: var(--critical) !important; font-weight: 600; }
-  /* Applied to a date/text input whenever its current value fails a same-page check (e.g. a return
-     date that isn't after the travel date) — a clear, hard-to-miss visual stop alongside the native
-     browser validation message, since this app has no traditional "Next" button to block instead. */
-  input.field-invalid { border-color: var(--critical) !important; background: var(--critical-wash); }
+  /* Applied to a date/text/select input whenever its current value fails a same-page check (e.g. a
+     return date that isn't after the travel date), or is simply still required-but-empty when the
+     applicant tries to move on to the next session — a clear, hard-to-miss visual stop alongside the
+     native browser validation message. */
+  input.field-invalid, select.field-invalid { border-color: var(--critical) !important; background: var(--critical-wash); }
+  /* Same treatment applied to a whole checklist item card (rather than a single input) when it's the
+     thing flagged as still missing before moving on — a div has no meaningful "border-color", so an
+     outline instead of a border keeps this visible without disturbing the card's own inner layout. */
+  .item.field-invalid { outline: 2px solid var(--critical); outline-offset: -1px; border-radius: 8px; }
 
   .upload-row { display: flex; align-items: center; gap: 10px; margin-top: 9px; flex-wrap: wrap; }
   /* min(230px, 60vw) instead of a flat 230px — native file inputs don't reliably shrink below their
@@ -1880,14 +1885,28 @@
   // items (one point each, per the "let each thing you filled have a point" request); the trip,
   // financial-calculator, and bank-statement sessions count how many of their key fields are filled
   // in. Used both for the pill progress display and for the "finish this before moving on" nudge.
+  // Friendly names for the trip/finance session's own fields — used to name exactly what's still
+  // missing (see attemptAdvanceSession below), not just report a bare percentage.
+  var TRIP_FIELD_LABELS = {
+    f_name: 'Your full name (as on passport)', f_purpose: 'Main purpose of visit',
+    f_traveldate: 'Planned travel date', f_returndate: 'Planned return date',
+    f_appdate: 'Planned application/submission date',
+    f_employerName: 'Employer / company name', f_businessName: 'Business name'
+  };
+  var FINANCE_FIELD_LABELS = {
+    fc_flight: 'Flight cost estimate', fc_accom: 'Accommodation cost estimate',
+    fc_transport: 'Local transport cost estimate', fc_closing: 'Closing balance'
+  };
   function sessionProgress(key){
     var a = getAnswers();
     if (key.indexOf('cat:') === 0){
       var cat = key.slice(4);
       var items = CHECKLIST.filter(function(it){ return it.cat === cat && itemApplies(it, a); });
-      if (!items.length) return {percent:0, points:0, total:0};
+      if (!items.length) return {percent:0, points:0, total:0, missing:[]};
       var checked = items.filter(function(it){ return state[it.id] && state[it.id].checked; }).length;
-      return {percent: Math.round(checked/items.length*100), points: checked, total: items.length};
+      var missingItems = items.filter(function(it){ return !(state[it.id] && state[it.id].checked); })
+        .map(function(it){ return {id: 'item_'+it.id, label: it.label}; });
+      return {percent: Math.round(checked/items.length*100), points: checked, total: items.length, missing: missingItems};
     }
     if (key === 'trip'){
       var tripFields = ['f_name','f_purpose','f_traveldate','f_returndate','f_appdate'];
@@ -1903,24 +1922,38 @@
       // that's still true.
       var returnDateBeforeTravel = a.travelDate && a.returnDate &&
         (new Date(a.returnDate) - new Date(a.travelDate)) <= 0;
+      var tripMissing = [];
       var tripFilled = tripFields.filter(function(id){
         var el = document.getElementById(id);
-        if (!el || !String(el.value||'').trim()) return false;
-        if (id === 'f_returndate' && returnDateBeforeTravel) return false;
+        var invalidReturnDate = id === 'f_returndate' && returnDateBeforeTravel;
+        if ((!el || !String(el.value||'').trim()) || invalidReturnDate){
+          var label = TRIP_FIELD_LABELS[id] || id;
+          if (invalidReturnDate && el && String(el.value||'').trim()) label += ' (must be after your travel date)';
+          tripMissing.push({id: id, label: label});
+          return false;
+        }
         return true;
       }).length;
-      return {percent: Math.round(tripFilled/tripFields.length*100), points: tripFilled, total: tripFields.length};
+      return {percent: Math.round(tripFilled/tripFields.length*100), points: tripFilled, total: tripFields.length, missing: tripMissing};
     }
     if (key === 'finance'){
       var finFields = ['fc_flight','fc_accom','fc_transport','fc_closing'];
-      var finFilled = finFields.filter(function(id){ var el = document.getElementById(id); return el && parseNum(el.value) > 0; }).length;
-      return {percent: Math.round(finFilled/finFields.length*100), points: finFilled, total: finFields.length};
+      var finMissing = [];
+      var finFilled = finFields.filter(function(id){
+        var el = document.getElementById(id);
+        if (el && parseNum(el.value) > 0) return true;
+        finMissing.push({id: id, label: FINANCE_FIELD_LABELS[id] || id});
+        return false;
+      }).length;
+      return {percent: Math.round(finFilled/finFields.length*100), points: finFilled, total: finFields.length, missing: finMissing};
     }
     if (key === 'finance2'){
       var cfFilled = 0;
+      var firstEmptyCfId = null;
       for (var i = 1; i <= CF_MONTHS; i++){
         var inEl = document.getElementById('cf_in_'+i);
         if (inEl && parseNum(inEl.value) > 0) cfFilled++;
+        else if (!firstEmptyCfId && inEl) firstEmptyCfId = 'cf_in_'+i;
       }
       var cfTarget = 2; // matches the "at least 2 months" threshold used elsewhere (hasCashFlowData)
       var cfPoints = Math.min(cfFilled, cfTarget);
@@ -1931,16 +1964,28 @@
       // entry that calls for a note (personal / other / company), now counts as its own point too.
       var flaggedInflows = window.__lastUnexplainedInflows || [];
       var explainedInflows = flaggedInflows.filter(function(t){ return inflowExplanationIsFilled(inflowExplanations[inflowKey(t)]); }).length;
+      var unexplainedInflowCount = flaggedInflows.length - explainedInflows;
 
       var breakdownGroups = window.__lastIncomeBreakdown || [];
       var groupsNeedingNote = breakdownGroups.filter(function(g){ return sourceNeedsNote(g.type); });
       var explainedGroups = groupsNeedingNote.filter(function(g){ return sourceExplanationIsFilled(sourceExplanations[sourceKey(g)]); }).length;
+      var unexplainedGroupCount = groupsNeedingNote.length - explainedGroups;
 
       var f2Total = cfTarget + flaggedInflows.length + groupsNeedingNote.length;
       var f2Points = cfPoints + explainedInflows + explainedGroups;
-      return {percent: Math.round(f2Points/f2Total*100), points: f2Points, total: f2Total};
+      var f2Missing = [];
+      if (cfPoints < cfTarget){
+        f2Missing.push({id: firstEmptyCfId, label: (cfTarget - cfPoints) + ' more month(s) of cash flow (at least ' + cfTarget + ' needed)'});
+      }
+      if (unexplainedInflowCount > 0){
+        f2Missing.push({id: null, label: unexplainedInflowCount + ' unexplained inflow(s) below still need a reason'});
+      }
+      if (unexplainedGroupCount > 0){
+        f2Missing.push({id: null, label: unexplainedGroupCount + ' income source(s) below still need a note'});
+      }
+      return {percent: Math.round(f2Points/f2Total*100), points: f2Points, total: f2Total, missing: f2Missing};
     }
-    return {percent:0, points:0, total:0}; // 'review' isn't a fill-in section
+    return {percent:0, points:0, total:0, missing:[]}; // 'review' isn't a fill-in section
   }
   // A session's pill shows "done" once every item that currently applies within it is checked — a
   // quick at-a-glance progress map across sessions, not just within whichever one is on screen.
@@ -2018,6 +2063,31 @@
     if (backBtn) backBtn.addEventListener('click', function(){ goToSession(currentSessionIndex - 1); });
     if (nextBtn) nextBtn.addEventListener('click', function(){ attemptAdvanceSession(currentSessionIndex + 1); });
   }
+  // User feedback: "Can the system point out where I have not filled before proceeding." A bare
+  // percentage ("86% filled") doesn't say WHICH field is still empty — the applicant has to hunt for
+  // it themselves. This puts a red outline on every still-missing field/checklist item right on the
+  // page (reusing the same .field-invalid treatment already used for an invalid return date) and
+  // scrolls straight to the first one, so it's visible the moment "Next" is clicked — whether or not
+  // they end up going through with leaving the section incomplete.
+  function highlightMissingFields(missing){
+    document.querySelectorAll('.field-invalid[data-missing-flag]').forEach(function(el){
+      el.classList.remove('field-invalid');
+      el.removeAttribute('data-missing-flag');
+    });
+    var firstEl = null;
+    (missing || []).forEach(function(m){
+      if (!m.id) return;
+      var el = document.getElementById(m.id);
+      if (!el) return;
+      el.classList.add('field-invalid');
+      el.setAttribute('data-missing-flag', '1');
+      if (!firstEl) firstEl = el;
+    });
+    if (firstEl && firstEl.scrollIntoView){
+      firstEl.scrollIntoView({behavior:'smooth', block:'center'});
+      if (firstEl.focus) try { firstEl.focus({preventScroll:true}); } catch(e){ firstEl.focus(); }
+    }
+  }
   // A soft nudge, not a hard block — jumping around via the numbered pills stays completely free.
   // Only the guided "Next →" buttons pause to check whether the section being left still has
   // unfilled items, since skipping ahead with a section half-done is exactly what led to the
@@ -2027,7 +2097,14 @@
     if (targetIdx > currentSessionIndex && targetIdx < keys.length){
       var cur = sessionProgress(keys[currentSessionIndex]);
       if (cur.total > 0 && cur.points < cur.total){
-        var proceed = window.confirm('You\'re only '+cur.percent+'% done with "'+sessionLabel(keys[currentSessionIndex])+'". It\'s worth finishing this section first so later scores (like financial readiness) are accurate.\n\nGo to the next section anyway?');
+        highlightMissingFields(cur.missing);
+        var missingLabels = (cur.missing || []).map(function(m){ return m.label; });
+        var shownLabels = missingLabels.slice(0, 5);
+        var moreCount = missingLabels.length - shownLabels.length;
+        var missingList = shownLabels.length
+          ? ('\n\nStill needed:\n• ' + shownLabels.join('\n• ') + (moreCount > 0 ? '\n…and ' + moreCount + ' more' : ''))
+          : '';
+        var proceed = window.confirm('You\'re only '+cur.percent+'% done with "'+sessionLabel(keys[currentSessionIndex])+'".'+missingList+'\n\nThe field(s) above are now outlined in red on the page. Go to the next section anyway?');
         if (!proceed) return;
       }
     }
@@ -3760,6 +3837,41 @@
     for (var i=0;i<str.length;i++) sum += mrzCharValue(str[i]) * weights[i % 3];
     return sum % 10;
   }
+  // Real-world report: a passport's date of birth read as "3/9/1938" instead of the true "3/9/1988" —
+  // an "8" OCR'd as a "3", the same kind of look-alike-glyph misread already handled for letters in the
+  // name field (see MRZ_NAME_DIGIT_FIX above), but this time inside a field that legitimately contains
+  // digits, so it can't just be blindly "corrected" on sight. Instead this uses the MRZ's own check
+  // digit as a mathematical witness: only a handful of digit pairs commonly get confused by OCR, so
+  // trying a swap at each position — for confusable pairs only, not all 10 digits — and requiring the
+  // swap to be the ONE AND ONLY one that both restores a passing checksum and (for a date) still lands
+  // on a real calendar day, is strong enough evidence to trust. If two or more different swaps would
+  // each also pass, or none would, this deliberately backs off and leaves the field exactly as read.
+  var MRZ_CONFUSABLE_DIGITS = { '0':['8','6'], '1':['7'], '2':['7'], '3':['8'], '5':['6','8'], '6':['5','8','0'], '7':['1','2'], '8':['0','3','5','6','9'], '9':['8'] };
+  function mrzDateDigitsPlausible(raw){
+    if (!/^\d{6}$/.test(raw || '')) return false;
+    var mm = parseInt(raw.slice(2,4),10), dd = parseInt(raw.slice(4,6),10);
+    return mm >= 1 && mm <= 12 && dd >= 1 && dd <= 31;
+  }
+  // Returns EVERY confusable-swap candidate that restores a passing checksum (and, where given, passes
+  // `validator` too) — not just a unique one. A single field's own check digit alone sometimes isn't
+  // selective enough on its own (swapping either of the two year digits can each coincidentally produce
+  // a still-plausible date whose checksum happens to also pass), so validateMrz() below uses the MRZ's
+  // separate composite check digit as a second, independent witness to break that kind of tie before
+  // deciding whether a correction is trustworthy enough to apply.
+  function findMrzFieldCorrectionCandidates(raw, checkDigit, validator){
+    if (!/^\d$/.test(checkDigit || '') || mrzCheckDigit(raw) === +checkDigit) return [];
+    var candidates = [];
+    for (var i = 0; i < raw.length; i++){
+      var alts = MRZ_CONFUSABLE_DIGITS[raw[i]] || [];
+      for (var j = 0; j < alts.length; j++){
+        var corrected = raw.slice(0, i) + alts[j] + raw.slice(i + 1);
+        if (mrzCheckDigit(corrected) === +checkDigit && (!validator || validator(corrected)) && candidates.indexOf(corrected) === -1){
+          candidates.push(corrected);
+        }
+      }
+    }
+    return candidates;
+  }
   // Pads/truncates a near-enough-length OCR line to exactly `targetLen` characters and swaps any
   // character outside the MRZ alphabet (A-Z, 0-9, <) for the filler character "<" — real-world OCR very
   // commonly mangles the run of "<" padding at the end of an MRZ line (misreading both which characters
@@ -3824,6 +3936,26 @@
     var expiry = line2.slice(21,27), expiryCheck = line2[27];
     var personalNum = line2.slice(28,42), personalCheck = line2[42];
     var compositeCheck = line2[43];
+
+    // Attempt a checksum-verified single-digit OCR correction on the two purely-numeric date fields
+    // before computing the checks below — see findMrzFieldCorrectionCandidates above. Not attempted on
+    // the passport number, since that field can legitimately contain letters as well as digits and this
+    // confusable-swap approach is scoped to digit-only fields. When a field's own check digit leaves
+    // more than one plausible candidate (e.g. either year digit could each independently restore a
+    // passing checksum), the composite check digit — which is itself computed from this same field —
+    // is used as a second, independent witness to narrow it down to one before trusting it.
+    function compositeCheckPasses(b, e){
+      return /^\d$/.test(compositeCheck) && mrzCheckDigit(passportNum + pnCheck + b + birthCheck + e + expiryCheck + personalNum + personalCheck) === +compositeCheck;
+    }
+    var birthCandidates = findMrzFieldCorrectionCandidates(birth, birthCheck, mrzDateDigitsPlausible);
+    var birthCorrected = birthCandidates.length === 1 ? birthCandidates[0]
+      : (birthCandidates.length > 1 ? (function(){ var f = birthCandidates.filter(function(b){ return compositeCheckPasses(b, expiry); }); return f.length === 1 ? f[0] : null; })() : null);
+    if (birthCorrected) birth = birthCorrected;
+    var expiryCandidates = findMrzFieldCorrectionCandidates(expiry, expiryCheck, mrzDateDigitsPlausible);
+    var expiryCorrected = expiryCandidates.length === 1 ? expiryCandidates[0]
+      : (expiryCandidates.length > 1 ? (function(){ var f = expiryCandidates.filter(function(e){ return compositeCheckPasses(birth, e); }); return f.length === 1 ? f[0] : null; })() : null);
+    if (expiryCorrected) expiry = expiryCorrected;
+
     var compositeInput = passportNum + pnCheck + birth + birthCheck + expiry + expiryCheck + personalNum + personalCheck;
 
     var checks = {
@@ -3834,7 +3966,9 @@
     };
     var relevant = Object.keys(checks).filter(function(k){ return checks[k] !== null; });
     var passed = relevant.filter(function(k){ return checks[k]; });
-    return { checks: checks, passedCount: passed.length, totalCount: relevant.length };
+    return { checks: checks, passedCount: passed.length, totalCount: relevant.length,
+      birth: birth, expiry: expiry,
+      corrections: { birthDate: !!birthCorrected, expiryDate: !!expiryCorrected } };
   }
 
   // Full structured read of the TD3 (passport) MRZ — document type, issuing country, name, passport number,
@@ -3869,6 +4003,26 @@
     var surname = (segments[0] || '').replace(/</g,' ').trim();
     var given = (segments[1] || '').replace(/</g,' ').trim();
 
+    // validateMrz() applies the same checksum-verified digit correction described above to the birth/
+    // expiry date fields — reuse its (possibly corrected) values here rather than the raw, uncorrected
+    // slice, so a misread digit fixed there is reflected in the actual date shown to the applicant too.
+    var mrz = validateMrz(text);
+    var birthRaw = (mrz && mrz.birth) ? mrz.birth : line2.slice(13,19);
+    var expiryRaw = (mrz && mrz.expiry) ? mrz.expiry : line2.slice(21,27);
+    var birthDate = mrzDateToDate(birthRaw, false);
+    var birthDateSource = 'mrz';
+
+    // The MRZ check digit alone can't always tell which digit was misread (see findMrzFieldCorrectionCandidates
+    // above — some confusable pairs, like "3"/"8", are mathematically indistinguishable once a field has
+    // more than one of them). When the birth-date check digit still doesn't match after that attempt, fall
+    // back to the plain printed "Date of birth" text most bio pages also carry — a second, independent OCR
+    // read of a different part of the page. Real case this fixes: DOB misread as "3/9/1938" instead of the
+    // true "3/9/1988".
+    if (mrz && mrz.checks && mrz.checks.birthDate === false){
+      var printedBirth = extractPrintedBirthDate(text);
+      if (printedBirth){ birthDate = printedBirth; birthDateSource = 'printed'; }
+    }
+
     return {
       docType: line1[0],
       issuingCountry: line1.slice(2,5).replace(/</g,''),
@@ -3876,10 +4030,11 @@
       fullName: (given ? given + ' ' : '') + surname,
       passportNumber: line2.slice(0,9).replace(/</g,''),
       nationality: line2.slice(10,13).replace(/</g,''),
-      birthDate: mrzDateToDate(line2.slice(13,19), false),
+      birthDate: birthDate,
+      birthDateSource: birthDateSource,
       sex: line2[20],
-      expiryDate: mrzDateToDate(line2.slice(21,27), true),
-      mrz: validateMrz(text)
+      expiryDate: mrzDateToDate(expiryRaw, true),
+      mrz: mrz
     };
   }
 
@@ -4010,6 +4165,29 @@
     rows += row('MRZ checksum', mrz ? mrzCheckSummary(mrz) : 'not detected',
       mrzCoreStatus === 'ok' ? true : (mrzCoreStatus === 'partial' ? false : null));
 
+    // Real case: DOB read as "3/9/1938" instead of the true "3/9/1988" — an "8" OCR'd as a "3". When
+    // attemptMrzFieldCorrection() (see above) found and applied a checksum-verified fix, say so plainly
+    // rather than silently showing the corrected date as if it had simply been read correctly — this is
+    // still a best-effort read, and the applicant (or whoever is helping them) should double-check it
+    // against the physical document rather than take it on faith.
+    var correctedFieldNames = [];
+    if (mrz && mrz.corrections && mrz.corrections.birthDate) correctedFieldNames.push('date of birth');
+    if (mrz && mrz.corrections && mrz.corrections.expiryDate) correctedFieldNames.push('expiry date');
+    if (correctedFieldNames.length){
+      rows += row('Auto-corrected', 'One digit in the ' + correctedFieldNames.join(' and ') + ' looked like a common OCR misread (e.g. an "8" read as a "3") and was corrected using the passport\'s own check digit as a mathematical check — still worth confirming against the physical document.', true);
+    }
+    // Some confusable digit pairs (like "3"/"8") mathematically CAN'T be told apart by the check digit
+    // alone once a field has more than one of them — swapping any one of several positions restores an
+    // equally valid checksum, so there's no single trustworthy answer to pick (see findMrzFieldCorrectionCandidates
+    // above). When that happens for the date of birth specifically, fall back to the plain printed
+    // "Date of birth" text most passport bio pages also carry — an entirely separate OCR read, in a
+    // different font, of a different part of the page — rather than leaving the applicant stuck with a
+    // birth year that's silently wrong. This is exactly the real case reported: DOB read as "3/9/1938"
+    // instead of "3/9/1988".
+    else if (fields && fields.birthDateSource === 'printed'){
+      rows += row('Auto-corrected', 'The date of birth read from the machine-readable zone didn\'t check out (a common OCR mixup, e.g. "8" read as "3"), so this was matched against the plain "Date of birth" text printed elsewhere on the page instead — still worth confirming against the physical document.', true);
+    }
+
     // Free, on-device "does this also appear printed elsewhere on the page" cross-check — genuine passports
     // print the document number and expiry both in the visual zone and the MRZ, so a match here is a small
     // extra consistency signal. Only ever shown as a positive bonus (never a warning) since OCR commonly
@@ -4067,8 +4245,10 @@
     mirrorPassportInline(id, cardHtml);
   }
 
-  function extractDates(text){
+  function extractDates(text, opts){
     var out = [];
+    var minYear = (opts && opts.minYear != null) ? opts.minYear : 1990;
+    var maxYear = (opts && opts.maxYear != null) ? opts.maxYear : 2100;
     var patterns = [
       /\b(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})\b/g,
       // "DD MON YY(YY)" — tolerant of the messier real-world OCR shapes a bilingual passport date
@@ -4120,10 +4300,29 @@
             d = new Date(parseInt(m[3],10), months[m[1].toLowerCase().slice(0,3)], parseInt(m[2],10));
           }
         } catch(e){ d = null; }
-        if (d && !isNaN(d.getTime()) && d.getFullYear() > 1990 && d.getFullYear() < 2100) out.push(d);
+        if (d && !isNaN(d.getTime()) && d.getFullYear() > minYear && d.getFullYear() < maxYear) out.push(d);
       }
     });
     return out;
+  }
+
+  // A birth date's own MRZ check digit sometimes can't be trusted back to a single answer — a handful
+  // of OCR-confusable digit pairs (like "3"/"8") are mathematically indistinguishable to the check-digit
+  // maths once a field contains more than one of them (see the note above where this is used). Most
+  // passport bio pages also print "Date of birth" in plain text, in a different, usually larger font, on
+  // a different part of the page — an independent second OCR read this can fall back to. Deliberately
+  // scoped to a plausible human age range (0-120 years) rather than extractDates' default near-present/
+  // near-future window, which exists for expiry dates and would incorrectly reject a real birth date.
+  var BIRTH_DATE_LABEL_RE = /(date\s*of\s*birth|birth\s*date|d\.?\s*o\.?\s*b\.?|date\s*de\s*naissance|n[ée]e?\s+le)/i;
+  function extractPrintedBirthDate(text){
+    if (!text) return null;
+    var vizText = stripMrzLines(text);
+    var m = BIRTH_DATE_LABEL_RE.exec(vizText);
+    if (!m) return null;
+    var windowText = vizText.slice(m.index, m.index + m[0].length + 60);
+    var nowYear = new Date().getFullYear();
+    var found = extractDates(windowText, { minYear: nowYear - 120, maxYear: nowYear });
+    return found.length ? found[0] : null;
   }
 
   function analyze(kind, text, answers){
