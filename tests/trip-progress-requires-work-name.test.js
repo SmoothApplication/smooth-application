@@ -27,7 +27,7 @@ exports.run = async function(ctx){
     var beforeTick = await readTripHeader(page);
     assert.ok(beforeTick && /100% filled/.test(beforeTick), 'Should read 100% before self-employed is ticked, got: ' + beforeTick);
 
-    await page.check('#f_selfEmployed');
+    await page.selectOption('#f_workStatus', 'selfEmployed');
     await page.waitForTimeout(300);
     var withBlankBusinessName = await readTripHeader(page);
     assert.ok(withBlankBusinessName && !/100% filled/.test(withBlankBusinessName),
@@ -39,8 +39,7 @@ exports.run = async function(ctx){
     assert.ok(afterFilled && /100% filled/.test(afterFilled), 'Should read 100% again once business name is filled, got: ' + afterFilled);
 
     // Same check for the employer-name path (employed, not self-employed).
-    await page.uncheck('#f_selfEmployed');
-    await page.check('#f_employed');
+    await page.selectOption('#f_workStatus', 'employed');
     await page.waitForTimeout(300);
     var withBlankEmployerName = await readTripHeader(page);
     assert.ok(withBlankEmployerName && !/100% filled/.test(withBlankEmployerName),

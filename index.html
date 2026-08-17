@@ -783,7 +783,22 @@
           <div id="quickTripCostContent"></div>
         </div>
         <label class="field" style="margin-top:6px;">Work status</label>
-        <div class="checkrow"><input type="checkbox" id="f_employed"><label for="f_employed">I'm currently employed in Nigeria</label></div>
+        <div class="gate-select-wrap" style="max-width:420px;">
+          <select id="f_workStatus">
+            <option value="">Select your status…</option>
+            <option value="employed">I'm currently employed</option>
+            <option value="selfEmployed">I'm self-employed / run a business</option>
+            <option value="both">I'm currently employed &amp; self-employed / run a business in Nigeria</option>
+            <option value="student">I'm currently a student</option>
+            <option value="child">I'm applying for a child, or travelling with one</option>
+          </select>
+          <span class="gate-select-chevron" aria-hidden="true">▾</span>
+        </div>
+        <!-- The four checkboxes below are the actual data fields everything else in this file reads
+             (getAnswers(), saved-session restore, etc.) — driven programmatically by the "Work status"
+             dropdown above rather than shown directly, so this whole section stays down to one compact
+             control instead of four separate checkboxes. -->
+        <div class="checkrow" style="display:none;"><input type="checkbox" id="f_employed"><label for="f_employed">I'm currently employed in Nigeria</label></div>
         <div id="employerNameRow" style="display:none; padding-left:24px; margin:-2px 0 8px;">
           <label class="field">Employer / company name <span style="color:var(--danger, #c0392b);">*</span></label>
           <input type="text" id="f_employerName" placeholder="e.g. Zenith Bank Plc" style="max-width:340px;">
@@ -796,13 +811,13 @@
           </div>
           <div id="employedInlineMsg" class="item-tip no-print" style="margin:2px 0 0;">Optional — attach it now, or later under "Ties to Nigeria" below.</div>
         </div>
-        <div class="checkrow"><input type="checkbox" id="f_selfEmployed"><label for="f_selfEmployed">I'm self-employed / run a business in Nigeria</label></div>
+        <div class="checkrow" style="display:none;"><input type="checkbox" id="f_selfEmployed"><label for="f_selfEmployed">I'm self-employed / run a business in Nigeria</label></div>
         <div id="businessNameRow" style="display:none; padding-left:24px; margin:-2px 0 8px;">
           <label class="field">Business name <span style="color:var(--danger, #c0392b);">*</span></label>
           <input type="text" id="f_businessName" placeholder="e.g. Okafor Fashion House" style="max-width:340px;">
           <div class="item-tip" style="margin-top:4px;">Used below to check this name actually turns up on your bank statement — a strong, expected signal to a reviewer.</div>
         </div>
-        <div id="workStatusBothNote" class="item-tip" style="display:none; padding-left:24px; margin:-2px 0 8px;">Both employed and self-employed are ticked — please fill in both names above; a reviewer will expect to see evidence of both.</div>
+        <div id="workStatusBothNote" class="item-tip" style="display:none; padding-left:24px; margin:-2px 0 8px;">You've selected "employed &amp; self-employed" — please fill in both names above; a reviewer will expect to see evidence of both.</div>
         <div class="doc-reminder" id="selfEmployedNote" style="display:none;">
           Please also add:
           <ul>
@@ -812,7 +827,7 @@
           </ul>
           <a href="#item_cacDocs">↓ See details under "Financial evidence" below</a>
         </div>
-        <div class="checkrow"><input type="checkbox" id="f_student"><label for="f_student">I'm currently a student in Nigeria</label></div>
+        <div class="checkrow" style="display:none;"><input type="checkbox" id="f_student"><label for="f_student">I'm currently a student in Nigeria</label></div>
         <div id="studentSponsorBlock" style="display:none; padding-left:24px; margin:-2px 0 8px;">
           <div class="checkrow"><input type="checkbox" id="f_studentSponsor"><label for="f_studentSponsor">Someone else (parent, relative, employer, etc.) is funding some or all of this trip</label></div>
           <div id="sponsorRelationshipRow" style="display:none; margin-top:6px;">
@@ -821,21 +836,7 @@
             <div class="item-tip" style="margin-top:4px;">Ticking this makes a document from your sponsor <b>required</b> below — see "Ties to Nigeria" once you reach that section.</div>
           </div>
         </div>
-        <div class="checkrow"><input type="checkbox" id="f_hasChild"><label for="f_hasChild">I'm applying for a child, or travelling with one</label></div>
-        <div class="checkrow"><input type="checkbox" id="f_translation"><label for="f_translation">Some of my documents are not in <span id="translationLangLabel">English</span></label></div>
-        <div class="checkrow"><input type="checkbox" id="f_readyToSubmit"><label for="f_readyToSubmit">I've gathered my supporting documents and I'm ready to start the formal application steps (form, fee, biometrics)</label></div>
-        <div class="checkrow"><input type="checkbox" id="f_hasRefusal"><label for="f_hasRefusal">I've been refused a visa (for this country or any other) in the last 5 years</label></div>
-        <div id="refusalRow" style="display:none; padding-left:24px; margin:-2px 0 8px;">
-          <div class="row" style="margin-bottom:8px;">
-            <div>
-              <label class="field">How many times in the last 5 years?</label>
-              <input type="text" inputmode="numeric" id="f_refusalCount" placeholder="e.g. 1">
-            </div>
-          </div>
-          <label class="field">For each refusal, list the country and year (one per line)</label>
-          <textarea id="f_refusalDetails" rows="2" placeholder="e.g. United Kingdom, 2024&#10;Schengen (France), 2022"></textarea>
-          <div class="item-tip" style="margin-top:4px;">Being upfront about a past refusal — with a clear explanation of what's changed since — reads far better to a reviewer than a refusal they discover independently. Attach the refusal letter(s) under "Previous visa refusal documentation" below.</div>
-        </div>
+        <div class="checkrow" style="display:none;"><input type="checkbox" id="f_hasChild"><label for="f_hasChild">I'm applying for a child, or travelling with one</label></div>
         </div>
       </details>
 
@@ -1089,6 +1090,24 @@
           </ul>
         </div>
         <div class="item-tip" id="noHostDocsNote" style="margin:6px 0 0;">Not staying with a host? You'll need a hotel/accommodation booking confirmation instead — see below.</div>
+      </div>
+
+      <div class="card" id="identityStatusCard" data-session-key="cat:Identity & application" style="border-left: 4px solid #1b6fa8;">
+        <label class="field" style="margin-top:0;">Application readiness &amp; visa history</label>
+        <div class="checkrow"><input type="checkbox" id="f_translation"><label for="f_translation">Some of my documents are not in <span id="translationLangLabel">English</span></label></div>
+        <div class="checkrow"><input type="checkbox" id="f_readyToSubmit"><label for="f_readyToSubmit">I've gathered my supporting documents and I'm ready to start the formal application steps (form, fee, biometrics)</label></div>
+        <div class="checkrow"><input type="checkbox" id="f_hasRefusal"><label for="f_hasRefusal">I've been refused a visa (for this country or any other) in the last 5 years</label></div>
+        <div id="refusalRow" style="display:none; padding-left:24px; margin:-2px 0 8px;">
+          <div class="row" style="margin-bottom:8px;">
+            <div>
+              <label class="field">How many times in the last 5 years?</label>
+              <input type="text" inputmode="numeric" id="f_refusalCount" placeholder="e.g. 1">
+            </div>
+          </div>
+          <label class="field">For each refusal, list the country and year (one per line)</label>
+          <textarea id="f_refusalDetails" rows="2" placeholder="e.g. United Kingdom, 2024&#10;Schengen (France), 2022"></textarea>
+          <div class="item-tip" style="margin-top:4px;">Being upfront about a past refusal — with a clear explanation of what's changed since — reads far better to a reviewer than a refusal they discover independently. Attach the refusal letter(s) under "Previous visa refusal documentation" below.</div>
+        </div>
       </div>
 
       <div id="checklistRoot"></div>
@@ -3078,6 +3097,50 @@
     syncTravelerCountFromBreakdown();
   }
   refreshTravelerBreakdownUI();
+
+  /* ---------------- "Work status" dropdown ----------------
+     f_employed/f_selfEmployed/f_student/f_hasChild (the actual data fields everything else in this
+     file reads — getAnswers(), saved-session restore, the reveal rows in render(), etc.) stay exactly
+     as they were; they're just driven programmatically from this one compact dropdown instead of shown
+     as four separate checkboxes, per user feedback about the page feeling too busy. */
+  var WORK_STATUS_OPTIONS = {
+    '':            { employed:false, selfEmployed:false, student:false, hasChild:false },
+    employed:      { employed:true,  selfEmployed:false, student:false, hasChild:false },
+    selfEmployed:  { employed:false, selfEmployed:true,  student:false, hasChild:false },
+    both:          { employed:true,  selfEmployed:true,  student:false, hasChild:false },
+    student:       { employed:false, selfEmployed:false, student:true,  hasChild:false },
+    child:         { employed:false, selfEmployed:false, student:false, hasChild:true }
+  };
+  var WORK_STATUS_CHECKBOX_IDS = { employed:'f_employed', selfEmployed:'f_selfEmployed', student:'f_student', hasChild:'f_hasChild' };
+  document.getElementById('f_workStatus').addEventListener('change', function(){
+    var chosen = WORK_STATUS_OPTIONS[this.value] || WORK_STATUS_OPTIONS[''];
+    Object.keys(WORK_STATUS_CHECKBOX_IDS).forEach(function(key){
+      var cb = document.getElementById(WORK_STATUS_CHECKBOX_IDS[key]);
+      if (cb.checked !== chosen[key]){
+        cb.checked = chosen[key];
+        cb.dispatchEvent(new Event('change', {bubbles:true}));
+      }
+    });
+  });
+  // Reusable sync: called at init, and again after anything restores f_employed/f_selfEmployed/
+  // f_student/f_hasChild from outside the dropdown itself (a saved session or an imported file) —
+  // makes sure the dropdown reflects whichever of the four combinations the real fields carry. Any
+  // combination this dropdown itself can't produce (e.g. student + employed, from an older saved
+  // session) falls back to the blank placeholder rather than silently picking one arbitrarily.
+  function syncWorkStatusDropdownFromCheckboxes(){
+    var a = {
+      employed: document.getElementById('f_employed').checked,
+      selfEmployed: document.getElementById('f_selfEmployed').checked,
+      student: document.getElementById('f_student').checked,
+      hasChild: document.getElementById('f_hasChild').checked
+    };
+    var match = Object.keys(WORK_STATUS_OPTIONS).find(function(key){
+      var opt = WORK_STATUS_OPTIONS[key];
+      return opt.employed === a.employed && opt.selfEmployed === a.selfEmployed && opt.student === a.student && opt.hasChild === a.hasChild;
+    });
+    document.getElementById('f_workStatus').value = match || '';
+  }
+  syncWorkStatusDropdownFromCheckboxes();
 
   /* ---------------- Transport cost helper ---------------- */
   // Multiple modes can be combined for the same trip (e.g. a rideshare from the airport AND a
@@ -6371,6 +6434,7 @@
       var payload = JSON.parse(raw);
       applyPayload(payload);
       refreshTravelerBreakdownUI();
+      syncWorkStatusDropdownFromCheckboxes();
       return true;
     } catch(e){
       return false;
@@ -6397,6 +6461,7 @@
         var payload = JSON.parse(reader.result);
         applyPayload(payload);
         refreshTravelerBreakdownUI();
+      syncWorkStatusDropdownFromCheckboxes();
         render();
         computeFinancials();
       } catch(err){
@@ -6424,6 +6489,7 @@
     ['f_hasHost','f_hostFunding','f_employed','f_selfEmployed','f_student','f_studentSponsor','f_hasChild','f_translation','f_readyToSubmit','f_hasRefusal'].forEach(function(id){
       document.getElementById(id).checked = false;
     });
+    document.getElementById('f_workStatus').value = '';
     document.getElementById('f_employerName').value = '';
     document.getElementById('f_businessName').value = '';
     document.getElementById('f_sponsorRelationship').value = '';

@@ -3,6 +3,33 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## "Work status" is now a single dropdown, and three items moved into "Identity & application"
+
+User feedback: "WORK STATUS should have a collapsible drop-down menu with the following; I'm
+currently employed / I'm self-employed / run a business / I'm currently a student / I'm applying
+for a child, or travelling with one / I'm currently employed & self-employed & run a business in
+Nigeria. Move the following to a Session 4 (Identity & application): I've gathered my supporting
+documents and I'm ready to start the formal application steps (form, fee, biometrics) / I've been
+refused a visa (for this country or any other) in the last 5 years; state the count / Some of my
+documents are not in English."
+
+The four "Work status" checkboxes (employed / self-employed / student / applying for a child or
+travelling with one) are now one compact `<select>` dropdown, plus a fifth combined option for
+someone who's both employed and self-employed/running a business. Picking an option drives the
+same underlying fields the rest of the app already reads from — the employer-name row, business-
+name row, student-sponsor block, and every progress/consistency check tied to them all work exactly
+as before, since nothing about *how* those fields are used changed, only how they're chosen.
+
+The three unrelated checkboxes — "Some of my documents are not in English", "I've gathered my
+supporting documents and I'm ready to start the formal application steps", and "I've been refused
+a visa... in the last 5 years" (with its count/detail follow-up) — moved out of "Your trip details"
+into a new card at the top of "Identity & application", ahead of that session's document checklist,
+so the trip-details page reads as trip planning only and these identity/history questions live
+where they conceptually belong.
+
+Full test suite (20/20, including one new regression test covering the dropdown's five options and
+the relocated card) passed.
+
 ## Adults/Adolescents/Children breakdown is now collapsible once filled in
 
 User feedback: "I do not want the page to be too busy, i want it user friendly. After clicking 'How
