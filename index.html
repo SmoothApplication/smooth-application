@@ -396,6 +396,11 @@
   .doc-reminder ul { margin: 4px 0 0; padding-left: 18px; }
   .doc-reminder li { margin-bottom: 2px; }
   .doc-reminder a { font-weight: 600; font-size: 11.5px; display: inline-block; margin-top: 4px; }
+  /* Each "please also add" bullet is itself a jump-to-item link (see #item_ handler) — higher
+     specificity than the plain ".doc-reminder a" rule above (which is sized/spaced for the
+     standalone "See details below" footer link only) so these read as normal inline text with just
+     an underline, not a small standalone button sitting on its own line. */
+  .doc-reminder li a { font-weight: inherit; font-size: inherit; display: inline; margin-top: 0; text-decoration: underline; }
 
   .item {
     border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px;
@@ -414,6 +419,13 @@
   .tag.required { background: var(--critical-wash); color: var(--critical); }
   .tag.recommended { background: var(--accent-wash); color: var(--accent); }
   .item-tip { font-size: 12px; color: var(--text-secondary); margin-top: 3px; line-height: 1.45; }
+  /* !important since #f_lengthDisplay carries its own inline color (higher specificity) that this
+     needs to override whenever the dates it's describing are actually invalid. */
+  .item-tip.error { color: var(--critical) !important; font-weight: 600; }
+  /* Applied to a date/text input whenever its current value fails a same-page check (e.g. a return
+     date that isn't after the travel date) — a clear, hard-to-miss visual stop alongside the native
+     browser validation message, since this app has no traditional "Next" button to block instead. */
+  input.field-invalid { border-color: var(--critical) !important; background: var(--critical-wash); }
 
   .upload-row { display: flex; align-items: center; gap: 10px; margin-top: 9px; flex-wrap: wrap; }
   /* min(230px, 60vw) instead of a flat 230px — native file inputs don't reliably shrink below their
@@ -719,9 +731,6 @@
             <div class="item-tip" id="appDateCountdown" style="margin-top:4px;"></div>
           </div>
         </div>
-        <div class="fin-breakdown no-print" id="quickTripCostBox" style="display:none; margin:10px 0;">
-          <div id="quickTripCostContent"></div>
-        </div>
         <div class="row">
           <div>
             <label class="field">How many people are travelling on this application?</label>
@@ -766,6 +775,9 @@
             </div>
           </div>
         </div>
+        <div class="fin-breakdown no-print" id="quickTripCostBox" style="display:none; margin:10px 0;">
+          <div id="quickTripCostContent"></div>
+        </div>
         <label class="field" style="margin-top:6px;">Work status</label>
         <div class="checkrow"><input type="checkbox" id="f_employed"><label for="f_employed">I'm currently employed in Nigeria</label></div>
         <div id="employerNameRow" style="display:none; padding-left:24px; margin:-2px 0 8px;">
@@ -790,9 +802,9 @@
         <div class="doc-reminder" id="selfEmployedNote" style="display:none;">
           Please also add:
           <ul>
-            <li>CAC certificate &amp; other business registration documents</li>
-            <li>6 months of BUSINESS bank statements — showing you draw a personal salary from the business, not just that the business has money (see below for why that distinction matters)</li>
-            <li>That same payment must also turn up as an inflow on your <b>personal</b> bank statement — upload both and this tool will automatically check that money leaving the company account is actually landing in your personal account</li>
+            <li><a href="#item_cacDocs">CAC certificate &amp; other business registration documents</a></li>
+            <li><a href="#item_bizFinance">6 months of BUSINESS bank statements — showing you draw a personal salary from the business, not just that the business has money (see below for why that distinction matters)</a></li>
+            <li><a href="#item_bankStatements">That same payment must also turn up as an inflow on your <b>personal</b> bank statement — upload both and this tool will automatically check that money leaving the company account is actually landing in your personal account</a></li>
           </ul>
           <a href="#item_cacDocs">↓ See details under "Financial evidence" below</a>
         </div>
@@ -1046,6 +1058,7 @@
           </tr></tfoot>
         </table>
         <div id="cashFlowSummary"></div>
+        <div id="statementReadinessBox"></div>
 
         <h3 class="subcat-heading" style="margin-top:18px;">Top 10 inflows</h3>
         <p class="fin-note" style="margin-top:0;">The 10 largest individual credits detected in your uploaded statement(s), ranked by amount — a quick way to see at a glance what a reviewer's eye will land on first.</p>
@@ -1855,7 +1868,24 @@
     }
     if (key === 'trip'){
       var tripFields = ['f_name','f_purpose','f_traveldate','f_returndate','f_appdate'];
-      var tripFilled = tripFields.filter(function(id){ var el = document.getElementById(id); return el && String(el.value||'').trim(); }).length;
+      // Employer/business name become required (marked with a red *) the moment their checkbox is
+      // ticked — without counting them here, this could read "100% filled" while a required field
+      // sat empty right below it, which is exactly the confusing state a user reported ("100%
+      // complete and the business name is not written").
+      if (a.employed) tripFields.push('f_employerName');
+      if (a.selfEmployed) tripFields.push('f_businessName');
+      // Same class of bug for the return date: a return date typed in BEFORE the travel date is the
+      // wrong value, not a filled-in one — user report: "the system should not allow you [to] proceed
+      // until you choose a date [later] than the travel date." Never let this session read 100% while
+      // that's still true.
+      var returnDateBeforeTravel = a.travelDate && a.returnDate &&
+        (new Date(a.returnDate) - new Date(a.travelDate)) <= 0;
+      var tripFilled = tripFields.filter(function(id){
+        var el = document.getElementById(id);
+        if (!el || !String(el.value||'').trim()) return false;
+        if (id === 'f_returndate' && returnDateBeforeTravel) return false;
+        return true;
+      }).length;
       return {percent: Math.round(tripFilled/tripFields.length*100), points: tripFilled, total: tripFields.length};
     }
     if (key === 'finance'){
@@ -1877,7 +1907,7 @@
       // empty explanation box below. Every flagged "needs an explanation" inflow, and every income-source
       // entry that calls for a note (personal / other / company), now counts as its own point too.
       var flaggedInflows = window.__lastUnexplainedInflows || [];
-      var explainedInflows = flaggedInflows.filter(function(t){ return !!(inflowExplanations[inflowKey(t)] || '').trim(); }).length;
+      var explainedInflows = flaggedInflows.filter(function(t){ return inflowExplanationIsFilled(inflowExplanations[inflowKey(t)]); }).length;
 
       var breakdownGroups = window.__lastIncomeBreakdown || [];
       var groupsNeedingNote = breakdownGroups.filter(function(g){ return sourceNeedsNote(g.type); });
@@ -2408,6 +2438,12 @@
   // anywhere else in the calculator.
   var lastAutoFlightDep = null, lastAutoFlightArr = null;
 
+  // Edge-triggers the native browser validation popup on the return date field (see computeFinancials()
+  // below) only the moment it BECOMES invalid, not on every recompute while it's already flagged —
+  // computeFinancials() runs on every keystroke across the whole trip session (e.g. typing your name),
+  // so without this a single invalid date pair would re-pop the browser's tooltip on unrelated typing.
+  var lastReturnDateInvalidReported = false;
+
   // Tracks whether the closing balance typed into the calculator has actually been backed by
   // anything — either matched against an analyzed bank statement, or accompanied by at least a
   // couple of months of real cash-flow data. Without this, someone could type any number into
@@ -2455,28 +2491,64 @@
     var nightsInput = document.getElementById('fc_nights');
     var tripLengthNoteEl = document.getElementById('tripLengthNote');
     var lengthDisplayEl = document.getElementById('f_lengthDisplay');
+    var returnDateInput = document.getElementById('f_returndate');
     var nightsFromDates = null;
+    // True only once BOTH dates are typed in and the return date fails to land after the travel date —
+    // deliberately distinct from "not filled in yet" (missing dates aren't an error, just incomplete).
+    var returnDateInvalid = false;
     if (travelDateStr && returnDateStr){
       var diffDays = Math.round((new Date(returnDateStr) - new Date(travelDateStr)) / 86400000);
-      if (diffDays > 0) nightsFromDates = diffDays;
+      if (diffDays > 0) nightsFromDates = diffDays; else returnDateInvalid = true;
     }
     if (nightsFromDates !== null && String(nightsFromDates) !== nightsInput.value){
       nightsInput.value = nightsFromDates;
     }
+    // User report: "Once planned return date is after your travel date [sic — before], the system
+    // should not allow you [to] proceed until you choose a date further than the travel date." This
+    // app has no traditional "Next" button to gate, so instead: (1) the return date field gets a
+    // hard-to-miss red border plus the browser's own native validation message via `min`/
+    // reportValidity() — the closest, standards-based equivalent of "won't let you proceed" a plain
+    // date input has, and (2) sessionProgress('trip') below no longer counts an invalid return date
+    // as "filled", so the trip session can never read 100% complete while the dates don't make sense
+    // (same bug class already fixed for the employer/business name fields).
+    if (returnDateInput){
+      // Constrains the native calendar picker itself to only offer dates after the travel date, and
+      // makes the input's own :invalid state (and reportValidity() message) reflect that constraint.
+      if (travelDateStr){
+        var minReturn = new Date(travelDateStr);
+        minReturn.setDate(minReturn.getDate() + 1);
+        returnDateInput.min = minReturn.toISOString().slice(0, 10);
+      } else {
+        returnDateInput.removeAttribute('min');
+      }
+      returnDateInput.classList.toggle('field-invalid', returnDateInvalid);
+      if (returnDateInvalid){
+        returnDateInput.setCustomValidity('Return date must be after your travel date.');
+        // Only pop the native validation tooltip the moment this NEWLY becomes invalid (and the
+        // applicant isn't mid-typing in the field itself) — see lastReturnDateInvalidReported above.
+        if (!lastReturnDateInvalidReported && document.activeElement !== returnDateInput) returnDateInput.reportValidity();
+        lastReturnDateInvalidReported = true;
+      } else {
+        returnDateInput.setCustomValidity('');
+        lastReturnDateInvalidReported = false;
+      }
+    }
     if (tripLengthNoteEl){
+      tripLengthNoteEl.classList.toggle('error', returnDateInvalid);
       if (nightsFromDates !== null) tripLengthNoteEl.textContent = nightsFromDates+' night(s) — auto-filled into the financial calculator below.';
-      else if (travelDateStr && returnDateStr) tripLengthNoteEl.textContent = 'Return date should be after your travel date.';
+      else if (returnDateInvalid) tripLengthNoteEl.textContent = '⚠️ Return date must be after your travel date — pick a later return date before this counts as filled in.';
       else tripLengthNoteEl.textContent = '';
     }
     // Replaces the old manual "Planned length of stay" (short/6wk-6mo/6mo+) dropdown — deduced straight
     // from the two dates above instead of asking the applicant to also categorize it by hand.
     if (lengthDisplayEl){
+      lengthDisplayEl.classList.toggle('error', returnDateInvalid);
       if (nightsFromDates !== null){
         var lengthWeeks = nightsFromDates / 7;
         var lengthBand = lengthWeeks < 6 ? 'Under 6 weeks' : (nightsFromDates < 183 ? '6 weeks – 6 months' : 'More than 6 months (academic visit only)');
         lengthDisplayEl.textContent = nightsFromDates + ' night(s) — ' + lengthBand;
-      } else if (travelDateStr && returnDateStr){
-        lengthDisplayEl.textContent = 'Return date should be after your travel date.';
+      } else if (returnDateInvalid){
+        lengthDisplayEl.textContent = '⚠️ Return date must be after your travel date.';
       } else {
         lengthDisplayEl.textContent = 'Enter your travel and return dates above to see this.';
       }
@@ -2493,23 +2565,31 @@
     if (quickBox && quickContent){
       if (nightsFromDates !== null && nightsFromDates > 0){
         var qNights = nightsFromDates;
-        var qHotel = 50000 * qNights;
+        var qHotel = 50000 * qNights; // hotel room cost doesn't scale 1:1 with headcount (travellers can share a room), so this stays as-is
         var qBusRate = (TRANSPORT_MODES && TRANSPORT_MODES.bus) ? TRANSPORT_MODES.bus.rate : 6;
         var qTransportGbp = qBusRate * qNights;
         var qShoppingGbp = 100;
         var qRate = (typeof DEFAULT_GBP_NGN === 'number' && DEFAULT_GBP_NGN) ? DEFAULT_GBP_NGN : 1840.60;
-        var qTransportNgn = qTransportGbp * qRate;
-        var qShoppingNgn = qShoppingGbp * qRate;
-        var qFlightNgn = 1500000; // low end of the existing flight placeholder range (₦1.5M–2.5M) elsewhere in this file
+        // Local transport and shopping are genuinely per-traveller costs, so they scale with headcount
+        // (adults + adolescents + children, computed earlier in this function). Flight cost instead
+        // reuses the SAME adolescent/child discount pattern as the detailed calculator's totalFlight
+        // below (90%/75% of the adult fare) rather than a flat per-head multiply — this is exactly the
+        // discount the traveller-count tip text above already promises is "applied [in] the calculator
+        // below", it just wasn't wired into this quick box yet.
+        var qFlightPerAdult = 1500000; // low end of the existing flight placeholder range (₦1.5M–2.5M) elsewhere in this file
+        var qFlightNgn = Math.round(qFlightPerAdult * adults + qFlightPerAdult * 0.9 * adolescents + qFlightPerAdult * 0.75 * children);
+        var qTransportNgn = qTransportGbp * qRate * travellers;
+        var qShoppingNgn = qShoppingGbp * qRate * travellers;
         var qTotal = qHotel + qTransportNgn + qShoppingNgn + qFlightNgn;
         var qRecommended = qTotal * 2; // same 2× buffer rule used throughout the financial calculator
+        var qTravellerLabel = adults+' adult'+(adults===1?'':'s')+(adolescents?', '+adolescents+' adolescent'+(adolescents===1?'':'s'):'')+(children?', '+children+' child'+(children===1?'':'ren'):'');
         quickBox.style.display = 'block';
         quickContent.innerHTML =
           '<p class="fin-note" style="margin-top:0;"><b>Rough worst-case cost estimate for ' + qNights + ' night(s)</b> — a quick, conservative ballpark so you have a number to aim for right away. This is <b>not a quote</b>: flight cost especially varies a lot by date and how far ahead you book. Fill in the financial calculator below with your own real figures for an accurate, personalized breakdown.</p>'
-          + '<div class="fb-row"><span>Flight (cheapest route, e.g. Kenya Airways/RwandAir — indicative only)</span><span>' + fmtN(qFlightNgn) + '</span></div>'
+          + '<div class="fb-row"><span>Flight (cheapest route, e.g. Kenya Airways/RwandAir — indicative only; ' + qTravellerLabel + ')</span><span>' + fmtN(qFlightNgn) + '</span></div>'
           + '<div class="fb-row"><span>Hotel (₦50,000/night × ' + qNights + ')</span><span>' + fmtN(qHotel) + '</span></div>'
-          + '<div class="fb-row"><span>Local transport (cheapest option, bus, £' + qBusRate + '/day × ' + qNights + ')</span><span>' + fmtN(qTransportNgn) + '</span></div>'
-          + '<div class="fb-row"><span>Shopping (£100 minimum)</span><span>' + fmtN(qShoppingNgn) + '</span></div>'
+          + '<div class="fb-row"><span>Local transport (cheapest option, bus, £' + qBusRate + '/day × ' + qNights + ' × ' + travellers + ' traveller' + (travellers===1?'':'s') + ')</span><span>' + fmtN(qTransportNgn) + '</span></div>'
+          + '<div class="fb-row"><span>Shopping (£100 minimum × ' + travellers + ' traveller' + (travellers===1?'':'s') + ')</span><span>' + fmtN(qShoppingNgn) + '</span></div>'
           + '<div class="fb-row" style="font-weight:600; border-top:1px solid var(--border); margin-top:4px; padding-top:6px;"><span>Rough total</span><span>' + fmtN(qTotal) + '</span></div>'
           + '<div class="fb-row" style="font-weight:600;"><span>Recommended funds to show (2× buffer)</span><span>' + fmtN(qRecommended) + '</span></div>';
       } else {
@@ -2620,6 +2700,60 @@
       avgOut = rows.reduce(function(a,r){return a+r.outflow;},0) / rows.length;
     }
     var monthlyNetSavings = avgIn - avgOut;
+
+    // A more immediate readiness signal than the full financial calculator further down, using ONLY
+    // numbers already on the page at this point: the closing balance auto-filled from an uploaded
+    // bank statement (cfLastBalance, just computed above), compared against the rough worst-case
+    // cost estimate already shown up in "Your trip details" (the SAME qTotal/qRecommended numbers
+    // computed earlier in this function — not a second set that could drift apart). Lets an
+    // applicant see roughly where they stand right after scanning a statement, without first
+    // filling in the separate, more detailed financial calculator below.
+    var readinessBox = document.getElementById('statementReadinessBox');
+    if (readinessBox){
+      if (cfLastBalance === null){
+        readinessBox.innerHTML = '<div class="scan-msg info">Scan a bank statement above (or fill in a closing balance) to see how ready this looks against your rough trip-cost estimate.</div>';
+      } else if (typeof qRecommended !== 'number' || !qRecommended){
+        readinessBox.innerHTML = '<div class="scan-msg info">Enter your travel and return dates under <a href="#" onclick="document.querySelector(\'[data-session-key=trip]\').open=true; document.querySelector(\'[data-session-key=trip]\').scrollIntoView({behavior:\'smooth\'}); return false;">Your trip details</a> to get a rough cost estimate to compare your closing balance against.</div>';
+      } else {
+        var readinessPct = Math.max(0, Math.min(100, Math.round(cfLastBalance / qRecommended * 100)));
+        var readinessShortfall = Math.max(0, qRecommended - cfLastBalance);
+        var readinessRows = '<p class="fin-note" style="margin-top:0; margin-bottom:8px;"><b>You\'re about '+readinessPct+'% ready</b> — based on your most recent closing balance against the recommended 2× buffer on your rough trip-cost estimate (see "Your trip details" above).</p>'
+          + '<div class="fin-breakdown">'
+          + '<div class="fb-row"><span>Most recent closing balance (from your statement)</span><span>'+fmtN(cfLastBalance)+'</span></div>'
+          + '<div class="fb-row total"><span>Recommended funds (2× buffer on rough estimate)</span><span>'+fmtN(qRecommended)+'</span></div>'
+          + '</div>';
+        var readinessMsg;
+        if (readinessShortfall <= 0){
+          readinessMsg = '<div class="scan-msg ok">🎉 Your closing balance already covers the recommended 2× buffer for your rough trip-cost estimate — a strong sign, though remember this is a rough estimate, not your real, itemized costs (fill in the financial calculator below for that).</div>';
+        } else {
+          var savingsBits = 'You need roughly '+fmtN(readinessShortfall)+' more to be fully ready.';
+          if (travelDateStr){
+            var daysToDesiredTravel = Math.round((new Date(travelDateStr) - new Date()) / 86400000);
+            if (daysToDesiredTravel > 0){
+              var weeksToDesiredTravel = daysToDesiredTravel / 7;
+              var monthsToDesiredTravel = daysToDesiredTravel / 30.44;
+              var perWeek = readinessShortfall / weeksToDesiredTravel;
+              var perMonth = readinessShortfall / monthsToDesiredTravel;
+              savingsBits += ' With about '+Math.max(1, Math.round(weeksToDesiredTravel))+' week(s) until your planned travel date, that\'s roughly '+fmtN(perWeek)+'/week (about '+fmtN(perMonth)+'/month) of steady saving to close the gap in time.';
+              if (hasCashFlowData && monthlyNetSavings > 0){
+                var monthsNeededForGap = readinessShortfall / monthlyNetSavings;
+                if (monthsNeededForGap > monthsToDesiredTravel){
+                  savingsBits += ' At your recent average pace of about '+fmtN(monthlyNetSavings)+'/month, though, that would take about '+Math.ceil(monthsNeededForGap)+' month(s) — longer than you have before your planned travel date, so you\'ll likely need to save faster, push your travel date back, or trim your cost estimate.';
+                } else {
+                  savingsBits += ' At your recent average pace of about '+fmtN(monthlyNetSavings)+'/month, you\'re on track to close this gap in roughly '+Math.ceil(monthsNeededForGap)+' month(s) — comfortably before your planned travel date.';
+                }
+              } else if (hasCashFlowData && monthlyNetSavings <= 0){
+                savingsBits += ' Your recent cash flow shows you\'re not currently saving net each month — you\'ll need to cut spending or increase income for this gap to actually start closing.';
+              }
+            } else {
+              savingsBits += ' Your planned travel date has already passed or is today — double-check your trip dates under Your trip details.';
+            }
+          }
+          readinessMsg = '<div class="scan-msg warn">'+savingsBits+'</div>';
+        }
+        readinessBox.innerHTML = readinessRows + readinessMsg;
+      }
+    }
 
     var anyCostEntered = (flightPer || accomPerNight || transport || extras || closing || forexSavings);
     var finSummary = document.getElementById('finSummary');
@@ -2789,7 +2923,7 @@
     // irregular or unexplained inflow should NOT read as fully "ready" — these are graded independently.
     // An inflow the applicant has since typed an explanation for no longer counts against this score.
     var unexplainedCount = (window.__lastUnexplainedInflows || []).filter(function(t){
-      return !(inflowExplanations[inflowKey(t)] || '').trim();
+      return !inflowExplanationIsFilled(inflowExplanations[inflowKey(t)]);
     }).length;
     var incomePillEl = document.getElementById('incomePill');
     if (!hasCashFlowData){
@@ -3795,7 +3929,7 @@
     } else if (overall === 'warn'){
       footer = 'One or more checks above need your attention before you rely on this passport for the application — see the flagged row(s), and remember this is a best-effort read, not an official check.';
       if (expiryIsProblem){
-        var renewalLink = ' <a href="https://immigration.gov.ng/info-center/renewal-of-passport/" target="_blank" rel="noopener">Start your renewal on the official Nigeria Immigration Service site ↗</a>';
+        var renewalLink = ' <a href="https://passport.immigration.gov.ng/" target="_blank" rel="noopener">Start your renewal on the official Nigeria Immigration Service site ↗</a>';
         footer += (Math.round((expiryDate - new Date())/86400000) < 0)
           ? ' Your passport looks expired — that\'s a real blocker for a visa application, so renewing it should be your next step.'+renewalLink+' But it\'s not a reason to stop here: keep going with the rest of your documents (bank statements, trip details, etc.) below while you sort renewal out in parallel — none of that work goes to waste.'
           : ' Your passport looks like it won\'t have enough validity left for this trip (visas usually need 6+ months beyond your return date) — worth checking on renewal.'+renewalLink+' That said, it\'s not a reason to stop here: carry on with the rest of your documents below while you look into renewing — none of that work goes to waste.';
@@ -4693,6 +4827,15 @@
     return { amount: best, monthsSeen: bestCount };
   }
 
+  // Different bank apps truncate/abbreviate the "Limited" company suffix differently in their narration
+  // text — "LTD", "LTD.", "Limited", or a mid-word truncation like "Limite" (as reported: "CRISP N CLEAN
+  // EXCLUSIVE SOLUTIONS LIMITE" instead of "...LIMITED") when a fixed-width narration field just gets cut
+  // off. Rather than hardcoding every specific truncation seen so far, this matches ANY word that starts
+  // with "LIMIT" (LIMIT, LIMITE, LIMITED, and any other bank's own variant) — used everywhere "LTD"/
+  // "LIMITED" are already treated as a company-suffix stopword/keyword, so a truncated suffix is treated
+  // exactly the same as the full word would be.
+  var LIMITED_SUFFIX_RE = /^LIMIT[A-Z]*$/;
+
   // Best-effort: pull a likely sender name (person or company) out of the narration of the credits that
   // make up the "stable income" figure above, and see which name recurs across the most distinct months —
   // the same way a human reviewer notices "oh, it's always from the same employer/company" scanning by eye.
@@ -4745,25 +4888,126 @@
   var WORK_NAME_STOPWORDS = ['LTD','LIMITED','PLC','NIGERIA','NIG','ENTERPRISES','ENTERPRISE','COMPANY',
     'CO','INC','INTERNATIONAL','GROUP','GLOBAL','VENTURES','VENTURE','AND','OF','THE','SERVICES','SERVICE',
     'BANK','STORE','STORES','HOLDINGS','INDUSTRIES'];
-  function nameAppearsInStatementText(name, text){
-    if (!name || !text) return false;
-    var upperText = text.toUpperCase();
-    var words = name.toUpperCase().replace(/[^A-Z0-9\s]/g, ' ').split(/\s+/).filter(function(w){
-      return w.length >= 3 && WORK_NAME_STOPWORDS.indexOf(w) === -1;
+  // Shared word-list extraction used by both the whole-document presence check below and the
+  // per-transaction inflow-matching check further down — one place these distinctive words are
+  // derived from a typed employer/business name, so both checks stay consistent with each other.
+  function nameMatchWords(name){
+    var words = (name || '').toUpperCase().replace(/[^A-Z0-9\s]/g, ' ').split(/\s+/).filter(function(w){
+      return w.length >= 3 && WORK_NAME_STOPWORDS.indexOf(w) === -1 && !LIMITED_SUFFIX_RE.test(w);
     });
     // A short name (e.g. "GTB" or a two-word personal name with nothing left after stopwords) falls back
     // to a looser 2-character-minimum pass rather than being unmatchable by construction.
     if (!words.length){
-      words = name.toUpperCase().replace(/[^A-Z0-9\s]/g, ' ').split(/\s+/).filter(function(w){ return w.length >= 2; });
+      words = (name || '').toUpperCase().replace(/[^A-Z0-9\s]/g, ' ').split(/\s+/).filter(function(w){ return w.length >= 2 && !LIMITED_SUFFIX_RE.test(w); });
     }
+    return words;
+  }
+  function nameAppearsInStatementText(name, text){
+    if (!name || !text) return false;
+    var upperText = text.toUpperCase();
+    var words = nameMatchWords(name);
     return words.some(function(w){ return upperText.indexOf(w) !== -1; });
+  }
+  // Finds the individual CREDIT transactions whose own narration line names this employer/business —
+  // stronger evidence than just "the name appears somewhere in the document" (which could be a page
+  // header, a debit line, or unrelated text), since what a reviewer actually wants to see is money
+  // regularly ARRIVING from the stated employer/business. Reversal credits are excluded, same as every
+  // other inflow analysis in this file — money bouncing back from a failed debit isn't new income.
+  function findInflowsMatchingName(name, txns){
+    var words = nameMatchWords(name);
+    if (!words.length) return {words: words, matches: []};
+    var matches = txns.filter(function(t){
+      if (!t.credit || isReversalNarration(t.narration)) return false;
+      var upperN = (t.narration || '').toUpperCase();
+      return words.some(function(w){ return upperN.indexOf(w) !== -1; });
+    });
+    return {words: words, matches: matches};
+  }
+  // Bank narrations for a NIP/electronic transfer are commonly slash-delimited, roughly:
+  // CHANNEL/PRODUCT-CODE/SENDER NAME/REASON/REFERENCE (e.g. "NIP/ROLEZ/CRISP N CLEAN EXCLUSIVE
+  // SOLUTIONS LIMITE/February Salary/AT68TRF2MPTj92cg2030304544496898048"). This pulls out the
+  // human-readable "reason" segment (e.g. "February Salary") so it can be shown alongside the
+  // inflow count — skipping the segment that's actually the matched employer/business name itself,
+  // known bank/channel codes, and long alphanumeric reference codes. Best-effort: narration formats
+  // vary a lot between banks, so this simply returns null (no reason shown) rather than guessing when
+  // nothing clearly reason-shaped is found.
+  var NARRATION_REASON_HINTS = ['SALARY','WAGE','WAGES','STIPEND','ALLOWANCE','INCOME','REMUNERATION',
+    'COMMISSION','BONUS','PAY','PAYMENT','FEE','FEES','INVOICE','CONSULTANCY','CONTRACT','HONORARIUM',
+    'DIVIDEND','REFUND','RENT'];
+  var NARRATION_CHANNEL_WORDS = ['NIP','NEFT','RTGS','MOB','USSD','CIP','TRF','POS','ATM','FRM','FROM',
+    'TO','CR','DR','STLB','ONEBANK','CASH','DEP'];
+  function extractNarrationReason(narration, nameWords){
+    if (!narration) return null;
+    var parts = narration.split('/').map(function(p){ return p.trim(); }).filter(Boolean);
+    var upperNameWords = (nameWords || []);
+    var candidates = parts.filter(function(p){
+      // Reason segments read as ordinary words — letters, spaces and light punctuation — never a long
+      // run of digits/mixed-case reference-code characters like "AT68TRF2MPTj92cg2030304544496898048".
+      if (!/^[A-Za-z][A-Za-z .,'&\-]{1,50}$/.test(p)) return false;
+      var upperP = p.toUpperCase();
+      if (NARRATION_CHANNEL_WORDS.indexOf(upperP) !== -1) return false;
+      // Skip the segment that's actually the matched employer/business name itself (or clearly overlaps
+      // with it), so the name isn't echoed back as its own "reason".
+      var pWords = upperP.split(/\s+/);
+      var overlap = pWords.filter(function(w){ return upperNameWords.indexOf(w) !== -1; }).length;
+      if (upperNameWords.length && overlap >= Math.min(2, upperNameWords.length)) return false;
+      return true;
+    });
+    if (!candidates.length) return null;
+    var hinted = null;
+    for (var i = 0; i < candidates.length; i++){
+      var upperC = candidates[i].toUpperCase();
+      if (NARRATION_REASON_HINTS.some(function(h){ return upperC.indexOf(h) !== -1; })){ hinted = candidates[i]; break; }
+    }
+    return hinted || candidates[candidates.length - 1];
+  }
+
+  // Best-effort extraction of the account HOLDER's own name from a bank statement's header — most
+  // Nigerian statements print one near the top under a label like "Account Name" or "Customer Name".
+  // Used to catch the applicant uploading someone else's statement (a common mistake — a parent's,
+  // a friend's, or simply the wrong file) before that surfaces much later as a refusal. Deliberately
+  // conservative: returns null (no check performed) rather than guessing, so a statement whose
+  // format this doesn't recognise never produces a false "wrong name" alarm.
+  var ACCOUNT_NAME_LABEL_RE = [
+    /account\s*name\s*[:\-]\s*([A-Za-z][A-Za-z.,'\-\s]{3,60})/i,
+    /customer\s*name\s*[:\-]\s*([A-Za-z][A-Za-z.,'\-\s]{3,60})/i,
+    /name\s*of\s*(?:account\s*)?holder\s*[:\-]\s*([A-Za-z][A-Za-z.,'\-\s]{3,60})/i,
+    /a\/?c\s*name\s*[:\-]\s*([A-Za-z][A-Za-z.,'\-\s]{3,60})/i
+  ];
+  function extractAccountHolderName(text){
+    if (!text) return null;
+    for (var i = 0; i < ACCOUNT_NAME_LABEL_RE.length; i++){
+      var m = text.match(ACCOUNT_NAME_LABEL_RE[i]);
+      if (m && m[1]){
+        // Cut off at the first run of 2+ digits, or the start of the NEXT header-shaped label —
+        // statements are extracted line-by-line and then joined with spaces, so "Account Name: X"
+        // immediately followed by "Account Number: Y" on the next line reads as one run of text
+        // here; without this, "Y"'s label words would get swept into the captured name too.
+        var raw = m[1].split(/\d{2,}|\bno\.?\b|\bnumber\b|\baccount\b|\bacct\b|\bbranch\b|\bsort\s*code\b|\biban\b|\bbvn\b|\baddress\b|\bstatement\b|\bperiod\b|\bcurrency\b|\bdate\b|\btype\b|\bbalance\b|\bcustomer\b|\bholder\b/i)[0].replace(/\s+/g, ' ').trim();
+        if (raw.length >= 4 && /[A-Za-z]{2,}\s+[A-Za-z]{2,}/.test(raw)) return raw;
+      }
+    }
+    return null;
+  }
+  // Symmetric loose word-overlap match, same approach already used for the passport-vs-typed-name
+  // check in renderPassportCard — tolerant of a name being printed in a different order, with a
+  // middle name added/dropped, etc., since that alone isn't evidence of a wrong statement.
+  function namesLooselyMatch(nameA, textB){
+    if (!nameA || !textB) return null;
+    var wordsA = nameA.toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/).filter(function(w){ return w.length >= 2; });
+    if (!wordsA.length) return null;
+    var lowerB = textB.toLowerCase();
+    var found = wordsA.filter(function(w){ return lowerB.indexOf(w) !== -1; });
+    if (found.length === wordsA.length) return 'ok';
+    if (found.length > 0) return 'partial';
+    return 'fail';
   }
 
   function classifySourceType(narration){
     var upper = (narration || '').toUpperCase();
     var isCompany = COMPANY_KEYWORDS.some(function(k){
       return new RegExp('\\b'+k+'\\b').test(upper);
-    });
+    }) || /\bLIMIT[A-Z]*\b/.test(upper); // catches a truncated "Limited" (e.g. "LIMITE") too, see LIMITED_SUFFIX_RE above
     return isCompany ? 'company' : 'personal';
   }
 
@@ -4772,7 +5016,7 @@
     var runs = [], current = [];
     raw.forEach(function(w){
       if (!w) return;
-      if (BANK_NARRATION_STOPWORDS.indexOf(w) !== -1){
+      if (BANK_NARRATION_STOPWORDS.indexOf(w) !== -1 || LIMITED_SUFFIX_RE.test(w)){
         if (current.length >= 2) runs.push(current.join(' '));
         current = [];
       } else if (w.length >= 3){
@@ -5011,6 +5255,31 @@
     return t.date.getTime() + '_' + Math.round(t.credit) + '_' + (t.narration || '').slice(0, 40);
   }
 
+  // Same {category, detail} shape as sourceExplanations below (see normalizeSourceExplanation) — a
+  // fixed, scannable reason a visa officer can read at a glance, picked from INCOME_SOURCE_CATEGORIES,
+  // with a free-text "detail" field that only "Others" actually requires. This used to be a single
+  // free-text box ("What was this payment for, and from whom?") — normalizeInflowExplanation() folds
+  // anything saved under that older, plain-string format into {category:'others', detail: <old text>}
+  // on the fly, so nothing typed before this change is lost.
+  function normalizeInflowExplanation(exp){
+    if (!exp) return null;
+    if (typeof exp === 'string') return exp.trim() ? {category:'others', detail: exp} : null;
+    return exp;
+  }
+  function inflowExplanationIsFilled(exp){
+    exp = normalizeInflowExplanation(exp);
+    if (!exp || !exp.category) return false;
+    if (exp.category === 'others') return !!(exp.detail && exp.detail.trim());
+    return true;
+  }
+  function inflowExplanationSummary(exp){
+    exp = normalizeInflowExplanation(exp);
+    if (!exp || !exp.category) return '';
+    var label = sourceCategoryLabel(exp.category);
+    if (exp.category === 'others') return exp.detail && exp.detail.trim() ? 'Others — '+exp.detail.trim() : 'Others';
+    return label;
+  }
+
   function inflowHeaderText(flagged, explainedCount){
     var blankCount = flagged.filter(function(t){ return t.__flagReason === 'blank'; }).length;
     var vagueCount = flagged.length - blankCount;
@@ -5034,12 +5303,11 @@
     if (!box) return;
     window.__lastUnexplainedInflows = flagged || [];
     if (!flagged || !flagged.length){ box.innerHTML = ''; return; }
-    var explainedCount = flagged.filter(function(t){ return !!(inflowExplanations[inflowKey(t)] || '').trim(); }).length;
+    var explainedCount = flagged.filter(function(t){ return inflowExplanationIsFilled(inflowExplanations[inflowKey(t)]); }).length;
     var html = '<div class="scan-msg warn" id="unexplainedHeaderMsg">'+inflowHeaderText(flagged, explainedCount)+'</div>';
     flagged.forEach(function(t, idx){
       var key = inflowKey(t);
-      var existing = inflowExplanations[key] || '';
-      var explained = !!existing.trim();
+      var explained = inflowExplanationIsFilled(inflowExplanations[key]);
       if (!explainBoxCollapsed.hasOwnProperty(key)) explainBoxCollapsed[key] = explained;
       var collapsed = explained && explainBoxCollapsed[key];
       html += renderExplainBoxHtml(idx, key, t, collapsed);
@@ -5050,54 +5318,69 @@
 
   function renderExplainBoxHtml(idx, key, t, collapsed){
     var isBlank = t.__flagReason === 'blank';
-    var explained = !!(inflowExplanations[key] || '').trim();
+    var existing = normalizeInflowExplanation(inflowExplanations[key]);
+    var explained = inflowExplanationIsFilled(existing);
     if (collapsed){
       return '<div class="explain-box explained collapsed" id="explainbox_'+idx+'">'
         + '<div class="explain-collapsed-row" id="explaincollapsed_'+idx+'" tabindex="0" role="button">'
-        + '<span class="tx-line">'+inflowPreviewLine(t, isBlank, true)+'</span>'
+        + '<span class="tx-line">'+inflowPreviewLine(t, isBlank, true)+' — <i>'+escapeHtml(inflowExplanationSummary(existing))+'</i></span>'
         + '<span class="explain-edit-link">✏️ Edit</span>'
         + '</div></div>';
     }
-    var existing = inflowExplanations[key] || '';
-    var placeholder = isBlank
-      ? 'No narration was detected for this payment — please state who sent it and what it was for'
+    var selectedCat = existing ? existing.category : '';
+    var detailVal = existing ? (existing.detail || '') : '';
+    var options = INCOME_SOURCE_CATEGORIES.map(function(c){
+      return '<option value="'+c.value+'"'+(selectedCat === c.value ? ' selected' : '')+'>'+c.label+'</option>';
+    }).join('');
+    var promptText = isBlank
+      ? 'No narration was detected for this payment — please choose who sent it and what it was for'
       : 'What was this payment for, and from whom?';
     return '<div class="explain-box'+(explained?' explained':'')+'" id="explainbox_'+idx+'">'
       + '<div class="tx-line">'+inflowPreviewLine(t, isBlank, explained)+'</div>'
-      + '<textarea id="explain_inflow_'+idx+'" rows="2" placeholder="'+escapeHtml(placeholder)+'">'+escapeHtml(existing)+'</textarea>'
+      + '<div class="item-tip" style="margin-top:4px;">'+promptText+'</div>'
+      + '<select id="explain_cat_'+idx+'" style="margin-top:4px;">'
+      + '<option value=""'+(selectedCat ? '' : ' selected')+'>Choose a reason…</option>'
+      + options
+      + '</select>'
+      + '<div id="explain_others_'+idx+'" style="margin-top:6px; display:'+(selectedCat === 'others' ? 'block' : 'none')+';">'
+      + '<textarea id="explain_detail_'+idx+'" rows="2" placeholder="Please specify…">'+escapeHtml(detailVal)+'</textarea>'
+      + '</div>'
       + '<div id="explain_status_'+idx+'">'+(explained ? '<div class="scan-msg ok compact">Saved — auto-saved in this browser, and included if you export it.</div>' : '')+'</div>'
       + '</div>';
   }
 
-  // Debounced auto-save as the applicant types — no separate "Save" button to remember to click. Once a
-  // box has been explained, it tidies itself away to a one-line summary a moment after saving (click
-  // "Edit" any time to reopen it) — otherwise a long list of already-handled inflows just clutters the page.
+  // Debounced auto-save as the applicant picks/types — no separate "Save" button to remember to click.
+  // Once a box has been explained, it tidies itself away to a one-line summary a moment after saving
+  // (click "Edit" any time to reopen it) — otherwise a long list of already-handled inflows just
+  // clutters the page.
   function wireExplainBox(flagged, t, idx){
     var key = inflowKey(t);
-    var isBlank = t.__flagReason === 'blank';
     var collapsedRow = document.getElementById('explaincollapsed_'+idx);
     if (collapsedRow){
       collapsedRow.addEventListener('click', function(){ expandExplainBox(flagged, t, idx); });
       collapsedRow.addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); expandExplainBox(flagged, t, idx); } });
       return;
     }
-    var ta = document.getElementById('explain_inflow_'+idx);
+    var sel = document.getElementById('explain_cat_'+idx);
+    var othersBox = document.getElementById('explain_others_'+idx);
+    var detailTa = document.getElementById('explain_detail_'+idx);
     var statusEl = document.getElementById('explain_status_'+idx);
     var boxEl = document.getElementById('explainbox_'+idx);
-    if (!ta) return;
+    if (!sel) return;
     var saveTimer = null, collapseTimer = null;
-    ta.addEventListener('input', function(){
+    function saveNow(){
       if (saveTimer) clearTimeout(saveTimer);
       if (collapseTimer) clearTimeout(collapseTimer);
       statusEl.innerHTML = '<div class="item-tip" style="margin-top:4px;">Saving…</div>';
       saveTimer = setTimeout(function(){
-        var val = ta.value.trim();
-        if (val) inflowExplanations[key] = ta.value; else delete inflowExplanations[key];
-        boxEl.classList.toggle('explained', !!val);
-        var label = document.querySelector('#explainbox_'+idx+' .tx-line');
-        if (label) label.textContent = inflowPreviewLine(t, isBlank, !!val);
-        statusEl.innerHTML = val ? '<div class="scan-msg ok compact">Saved — auto-saved in this browser, and included if you export it.</div>' : '';
-        var stillExplained = flagged.filter(function(t2){ return !!(inflowExplanations[inflowKey(t2)] || '').trim(); }).length;
+        var cat = sel.value;
+        var detail = detailTa ? detailTa.value : '';
+        var exp = cat ? {category: cat, detail: detail} : null;
+        var filled = inflowExplanationIsFilled(exp);
+        if (filled) inflowExplanations[key] = exp; else delete inflowExplanations[key];
+        if (boxEl) boxEl.classList.toggle('explained', filled);
+        statusEl.innerHTML = filled ? '<div class="scan-msg ok compact">Saved — auto-saved in this browser, and included if you export it.</div>' : '';
+        var stillExplained = flagged.filter(function(t2){ return inflowExplanationIsFilled(inflowExplanations[inflowKey(t2)]); }).length;
         var headerEl = document.getElementById('unexplainedHeaderMsg');
         if (headerEl){ headerEl.innerHTML = inflowHeaderText(flagged, stillExplained); }
         computeFinancials(); // re-check the Income generation score now that this one is explained/cleared
@@ -5105,15 +5388,21 @@
         // which is exactly how a session could keep reading "100% filled" after an explanation was
         // cleared, or stay stuck below 100% for a while after the last one was actually filled in.
         if (typeof applySessionVisibility === 'function') applySessionVisibility();
-        if (val){
+        if (filled){
           collapseTimer = setTimeout(function(){ collapseExplainBox(flagged, t, idx); }, 1200);
         }
       }, 500);
+    }
+    sel.addEventListener('change', function(){
+      if (othersBox) othersBox.style.display = (sel.value === 'others') ? 'block' : 'none';
+      if (sel.value === 'others' && detailTa) detailTa.focus();
+      saveNow();
     });
+    if (detailTa) detailTa.addEventListener('input', saveNow);
   }
   function collapseExplainBox(flagged, t, idx){
     var key = inflowKey(t);
-    if (!(inflowExplanations[key] || '').trim()) return; // never auto-collapse an empty/unexplained box
+    if (!inflowExplanationIsFilled(inflowExplanations[key])) return; // never auto-collapse an empty/unexplained box
     explainBoxCollapsed[key] = true;
     var boxEl = document.getElementById('explainbox_'+idx);
     if (!boxEl) return;
@@ -5127,8 +5416,8 @@
     if (!boxEl) return;
     boxEl.outerHTML = renderExplainBoxHtml(idx, key, t, false);
     wireExplainBox(flagged, t, idx);
-    var ta = document.getElementById('explain_inflow_'+idx);
-    if (ta) ta.focus();
+    var sel = document.getElementById('explain_cat_'+idx);
+    if (sel) sel.focus();
   }
 
   // ---- Top 10 inflows ----
@@ -5238,13 +5527,20 @@
   // are normalized into {category:'others', detail: <old text>} the moment they're loaded so nothing
   // typed before this change is lost — see normalizeSourceExplanation() / applyPayload().
   var sourceExplanations = {};
+  // 'salary' is included here even though auto-detected stable/recurring income already gets grouped
+  // as "Salary" automatically (see buildIncomeSourceBreakdown) and skips this dropdown entirely — this
+  // covers the case where a real salary payment DIDN'T get auto-detected as stable (e.g. irregular
+  // timing, or amount varies slightly month to month) and landed in a "personal"/"other" group instead,
+  // so the applicant can still correctly label it rather than picking the closest-sounding option.
   var INCOME_SOURCE_CATEGORIES = [
+    {value:'salary', label:'Salary'},
     {value:'business', label:'Business'},
     {value:'family', label:'Family'},
     {value:'contribution', label:'Contribution'},
     {value:'work', label:'Work'},
     {value:'bonus', label:'Bonus'},
     {value:'sales', label:'Sales'},
+    {value:'gift', label:'Gift'},
     {value:'others', label:'Others'}
   ];
   function sourceCategoryLabel(value){
@@ -5305,7 +5601,7 @@
         + '</div></div>';
     }
     var txList = g.txns.map(function(t){
-      var txExplained = !!(inflowExplanations[inflowKey(t)] || '').trim();
+      var txExplained = inflowExplanationIsFilled(inflowExplanations[inflowKey(t)]);
       return '<div class="tx-line" style="font-size:12px; color:var(--text-secondary);">'+(txExplained ? '✅ ' : '')+t.date.toDateString()+' — '+fmtN(t.credit)+(t.narration ? ' ("'+escapeHtml(t.narration)+'")' : ' (no narration)')+(txExplained ? ' — explained above' : '')+'</div>';
     }).join('');
     var selectedCat = existing ? existing.category : '';
@@ -5436,7 +5732,7 @@
         // explanation" boxes above the cash-flow table — always wins. The per-source note (typed under this
         // breakdown itself) is only used as a fallback on the group's first row, so nothing typed anywhere
         // in this section gets left out of the download.
-        var txNote = (inflowExplanations[inflowKey(t)] || '').trim() || (i === 0 ? groupNote : '');
+        var txNote = inflowExplanationSummary(inflowExplanations[inflowKey(t)]) || (i === 0 ? groupNote : '');
         aoa.push([i === 0 ? g.name : '', i === 0 ? g.type : '', t.date.toDateString(), Math.round(t.credit), t.narration || '(none)', txNote]);
       });
       aoa.push(['', '', '', '', 'Subtotal for '+g.name+':', g.total]);
@@ -5526,24 +5822,92 @@
         computeFinancials();
 
         var results = [{cls:'ok', text:'Detected '+txns.length+' transaction(s) across '+months.length+' month(s). The cash-flow table has been auto-filled from the '+recent.length+' most recent month(s) — double-check these figures (especially the debit/credit split) against your real statement before relying on them.'}];
+        var workAnswers = getAnswers();
+        var fullStatementText = allLines.map(function(l){ return l.text || ''; }).join(' ');
+
+        // Is this actually the APPLICANT'S OWN statement? A statement uploaded under someone else's
+        // name (a parent's, a friend's, or just the wrong file grabbed by mistake) is a real, common
+        // mistake — and one a reviewer catches instantly, since the account holder's name is right
+        // there on the page. Try the precise route first (an "Account Name:"-style header field, if
+        // this statement's format has one); fall back to the coarser "does the applicant's name
+        // appear anywhere in the document at all" check used for employer/business names below, only
+        // when the precise route found nothing to compare against (never claim a specific mismatch
+        // off a check that couldn't actually read a name).
+        if (workAnswers.name){
+          var detectedHolderName = extractAccountHolderName(fullStatementText);
+          var holderMatch = detectedHolderName ? namesLooselyMatch(workAnswers.name, detectedHolderName) : null;
+          if (detectedHolderName && holderMatch === 'fail'){
+            results.push({cls:'err', text:'⚠️ This statement\'s account holder appears to be "'+escapeHtml(detectedHolderName)+'", which doesn\'t match the name you entered ("'+escapeHtml(workAnswers.name)+'"). If this is your own account, double-check you\'ve uploaded the right file, or that your name is spelled/typed the same way here as on your account. If this genuinely belongs to someone else supporting your trip (a parent, relative, etc.), it needs to go through sponsor documentation instead — a third party\'s statement generally isn\'t accepted as evidence of the applicant\'s OWN funds without a covering sponsor letter explaining the relationship.'});
+          } else if (detectedHolderName && holderMatch === 'ok'){
+            results.push({cls:'ok', text:'Account holder name detected as "'+escapeHtml(detectedHolderName)+'" — matches what you entered as your name, a good sign this is your own statement.'});
+          } else if (!detectedHolderName){
+            var coarseMatch = nameAppearsInStatementText(workAnswers.name, fullStatementText);
+            if (!coarseMatch){
+              results.push({cls:'warn', text:'Couldn\'t find "'+escapeHtml(workAnswers.name)+'" anywhere in this statement (and couldn\'t automatically detect an account-holder name field to check directly). Worth double-checking by eye that this is your own account and not someone else\'s — if it belongs to a sponsor rather than you, that needs to go through sponsor documentation instead of being treated as your own funds evidence.'});
+            }
+          }
+        }
 
         // Cross-check the employer/business name typed under "Work status" against this statement's own
         // text — a reviewer expects the name you say pays you to actually show up in your account's
         // narrations. Deliberately a hard, high-visibility warning (not a soft advisory tip like most
         // other checks here) since a name that's genuinely nowhere in the statement is a real red flag,
         // not just a formatting quirk — worth surfacing prominently rather than burying it.
-        var workAnswers = getAnswers();
+        //
+        // Beyond just "does this name appear somewhere", also counts the actual CREDIT transactions
+        // whose own narration names the employer/business — this is the stronger, more specific evidence
+        // a reviewer is really looking for (money actually arriving from the stated payer, not just its
+        // name printed somewhere on the page), and reads off a human "reason" segment from those same
+        // narrations (e.g. "February Salary") where the statement's own narration format allows it.
         var namesToCheck = [];
         if (workAnswers.employed && workAnswers.employerName) namesToCheck.push({label:'employer', name: workAnswers.employerName});
         if (workAnswers.selfEmployed && workAnswers.businessName) namesToCheck.push({label:'business', name: workAnswers.businessName});
         if (namesToCheck.length){
-          var fullStatementText = allLines.map(function(l){ return l.text || ''; }).join(' ');
-          var foundNames = namesToCheck.filter(function(n){ return nameAppearsInStatementText(n.name, fullStatementText); });
-          if (!foundNames.length){
-            results.push({cls:'err', text:'⚠️ "'+escapeHtml(namesToCheck.map(function(n){ return n.name; }).join('" and "'))+'" — the name(s) you entered under "Work status" — could not be found anywhere in this bank statement. Reviewers expect your stated employer or business to actually show up in your account\'s transaction narrations; if it genuinely doesn\'t appear here, this application faces a high risk of denial. Double-check you\'ve uploaded the statement your income is actually paid into, or that the name matches exactly.'});
-          } else {
-            results.push({cls:'ok', text:'Found "'+escapeHtml(foundNames.map(function(n){ return n.name; }).join('", "'))+'" referenced in this bank statement — matches what you entered under "Work status," a good consistency signal for a reviewer.'});
+          var nameChecks = namesToCheck.map(function(n){
+            var inflowInfo = findInflowsMatchingName(n.name, txns);
+            var inflowMatches = inflowInfo.matches;
+            var inflowTotal = inflowMatches.reduce(function(s,t){ return s + t.credit; }, 0);
+            // Tally which "reason" text (e.g. "February Salary") recurs most often across the matched
+            // inflows, so the message can point to the single most representative one rather than an
+            // unreadable list of every slightly-different narration.
+            var reasonCounts = {};
+            inflowMatches.forEach(function(t){
+              var r = extractNarrationReason(t.narration, inflowInfo.words);
+              if (!r) return;
+              var key = r.toUpperCase();
+              if (!reasonCounts[key]) reasonCounts[key] = {display: r, count: 0};
+              reasonCounts[key].count++;
+            });
+            var topReason = null, topReasonCount = 0, distinctReasons = Object.keys(reasonCounts).length;
+            Object.keys(reasonCounts).forEach(function(k){
+              if (reasonCounts[k].count > topReasonCount){ topReasonCount = reasonCounts[k].count; topReason = reasonCounts[k].display; }
+            });
+            // Only claim a reason is the "most common" one when it genuinely recurs more than once —
+            // with one inflow per distinct month label (e.g. "January Salary", "February Salary", ...)
+            // every reason ties at a count of 1, so that phrasing would overclaim; show it as just an
+            // example narration instead in that case.
+            var reasonIsMajority = topReasonCount > 1;
+            var found = inflowMatches.length > 0 || nameAppearsInStatementText(n.name, fullStatementText);
+            return {label: n.label, name: n.name, inflowCount: inflowMatches.length, inflowTotal: inflowTotal, topReason: topReason, reasonIsMajority: reasonIsMajority, distinctReasons: distinctReasons, found: found};
+          });
+          var notFoundChecks = nameChecks.filter(function(c){ return !c.found; });
+          var foundChecks = nameChecks.filter(function(c){ return c.found; });
+          if (notFoundChecks.length){
+            results.push({cls:'err', text:'⚠️ "'+escapeHtml(notFoundChecks.map(function(c){ return c.name; }).join('" and "'))+'" — the name(s) you entered under "Work status" — could not be found anywhere in this bank statement. Reviewers expect your stated employer or business to actually show up in your account\'s transaction narrations; if it genuinely doesn\'t appear here, this application faces a high risk of denial. Double-check you\'ve uploaded the statement your income is actually paid into, or that the name matches exactly.'});
           }
+          foundChecks.forEach(function(c){
+            if (c.inflowCount > 0){
+              var reasonBit = '';
+              if (c.topReason){
+                reasonBit = c.reasonIsMajority
+                  ? ' Most commonly narrated as "'+escapeHtml(toTitleCase(c.topReason))+'".'
+                  : ' E.g. narrated as "'+escapeHtml(toTitleCase(c.topReason))+'".';
+              }
+              results.push({cls:'ok', text:'Found "'+escapeHtml(c.name)+'" as the sender on '+c.inflowCount+' inflow'+(c.inflowCount===1?'':'s')+' in this bank statement, totaling '+fmtN(c.inflowTotal)+' — matches what you entered under "Work status" as your '+c.label+'.'+reasonBit+' This is exactly the kind of consistency signal a reviewer looks for: regular money actually arriving from the '+c.label+' you say pays you, not just its name appearing somewhere on the page.'});
+            } else {
+              results.push({cls:'ok', text:'Found "'+escapeHtml(c.name)+'" referenced in this bank statement — matches what you entered under "Work status," a good consistency signal for a reviewer. It doesn\'t look like the direct sender on any individual inflow though — worth double-checking by eye that this statement actually shows your '+c.label+' income landing here, not just a mention elsewhere (e.g. a fee or a reference to it in passing).'});
+            }
+          });
         }
         if (truncatedFiles.length){
           results.push({cls:'warn', text:truncatedFiles.map(function(f){ return '"'+escapeHtml(f.name)+'" has '+f.info.total+' pages — only the first '+f.info.processed+' were read'; }).join('; ')+'. A busy account can run to many pages for 6 months; if your statement covers more than that, the earliest month(s) may be missing from this analysis. Consider splitting it into shorter date ranges and uploading each separately.'});
@@ -5754,7 +6118,15 @@
       });
     }
     if (payload.inflowExplanations && typeof payload.inflowExplanations === 'object'){
-      inflowExplanations = payload.inflowExplanations;
+      // Sessions saved before the category-dropdown change stored a plain free-text string per inflow —
+      // normalize each one into {category:'others', detail} on load so nothing typed before this update
+      // gets silently dropped (same treatment as sourceExplanations just below).
+      var normalizedInflows = {};
+      Object.keys(payload.inflowExplanations).forEach(function(k){
+        var n = normalizeInflowExplanation(payload.inflowExplanations[k]);
+        if (n) normalizedInflows[k] = n;
+      });
+      inflowExplanations = normalizedInflows;
     }
     if (payload.sourceExplanations && typeof payload.sourceExplanations === 'object'){
       // Sessions saved before the category-dropdown change stored a plain free-text string per source —
@@ -5879,6 +6251,7 @@
       document.getElementById(id).value = '';
     });
     document.getElementById('unexplainedInflowsBox').innerHTML = '';
+    document.getElementById('statementReadinessBox').innerHTML = '';
     document.getElementById('incomeSourcePersonal').innerHTML = '';
     document.getElementById('incomeSourceBusiness').innerHTML = '';
     document.getElementById('topInflowsBox').innerHTML = '';

@@ -3,6 +3,187 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Reordered "Your trip details" — traveler count now comes before the cost estimate
+User request: move "How many people are travelling on this application?" (and its adults/adolescents/
+children breakdown) to immediately after "Planned application/submission date", and move the "Rough
+worst-case cost estimate" box to come after that, instead of before it. Previously the cost estimate
+box sat between the application-date row and the traveler-count question, which read oddly once the
+cost estimate itself started scaling by traveler count (flight/local transport/shopping figures that
+depend on a question the applicant hasn't reached yet). Pure reordering of existing markup — no
+element was changed, added, or removed, so all IDs, event listeners, and the actual calculations are
+untouched. Full test suite (15/15) passed with no regressions.
+
+## A return date before the travel date no longer counts as "filled in"
+User report: "Once planned return date is [before] your travel date, the system should not allow you
+[to] proceed until you choose a date [later] than the travel date." An invalid date pair (return date
+on or before the travel date) already showed a plain "Return date should be after your travel date"
+note, but the return date field itself still counted as fully filled toward the trip session's
+progress % — the same class of bug already fixed for the employer/business name fields ("100%
+complete" while something required was actually still wrong). This app doesn't have a traditional
+"Next" button with a hard block, so the fix works on the two mechanisms it does have: (1) the return
+date field now gets a clear red border, a dynamic `min` constraint (set to the day after the travel
+date, so the calendar picker itself won't offer earlier dates), and the browser's own native
+validation message the moment the pair becomes invalid; and (2) the trip session's progress % no
+longer counts an invalid return date as filled, so it can never read 100% while the dates don't make
+sense — which also means the app's existing "Next →" soft-nudge (the "you're only X% done, go anyway?"
+confirm dialog) now correctly fires if someone tries to move on with the dates still wrong. Added a
+dedicated Playwright test covering the red-border/min-attribute/native-validity state, the progress-%
+drop, the dialog firing on "Next", and the state clearing once a valid later return date is entered.
+Full test suite (15/15) passed.
+
+## Recognize truncated "Limited" company suffixes ("Limite", etc.) from different bank apps
+User feedback: "Limited can be Ltd or LTD or Limite because some can be shortened by different bank
+apps" — different banks' narration fields truncate the "Limited" company suffix differently, and a
+mid-word cut like "Limite" (as seen in the earlier "CRISP N CLEAN EXCLUSIVE SOLUTIONS LIMITE" report)
+wasn't recognized anywhere this file specifically looks for the literal words "LTD"/"LIMITED". Two
+places were affected: the company-vs-personal classifier used to tag each top inflow as "Company" or
+"Personal" (a truncated suffix could be the ONLY company signal in a narration, e.g. "ABC LIMITE" —
+"ABC" alone isn't a recognized company keyword — and would have been wrongly tagged "Personal"), and
+the narration-cleanup logic that keeps a company suffix from getting glued onto an extracted sender
+name. Both now also recognize any word starting with "LIMIT" (LIMIT, LIMITE, LIMITED, and whatever
+else a given bank's app happens to cut it down to) via one shared rule, instead of only the two exact
+spellings "LTD"/"LIMITED" — so a truncated suffix is treated exactly the same as the full word would
+be, everywhere in the file. Added a dedicated Playwright test using a statement whose narration's only
+company signal is a truncated "LIMITE" suffix, confirming both inflows are now correctly tagged
+"Company". Full test suite (14/14) passed.
+
+## Employer/business bank statement cross-check now counts inflows and reads the payment reason
+User feedback, after seeing "Found 'MFM Lekki Youth Church', 'Crisp N Clean Exclusive Solutions Ltd'
+referenced in this bank statement": "the place you work is where the visa officer wants to see at
+least monthly inflows from, state how many inflow comes in from the employer or business name
+extracted from the bank statement... [also] check for the narration" — pointing to a real narration
+line like "NIP/ROLEZ/CRISP N CLEAN EXCLUSIVE SOLUTIONS LIMITE/February Salary/AT68TRF2...", noting
+the company name is printed with a truncated suffix ("LIMITE" instead of "LIMITED"/"LTD") immediately
+followed by the payment reason ("February Salary"). Simply saying a name was "found somewhere in the
+statement" was weaker evidence than what a reviewer actually wants: money genuinely, regularly
+arriving FROM that employer/business. This cross-check now counts the individual CREDIT transactions
+whose own narration names the employer/business (not just any mention anywhere in the document,
+and excluding reversals), totals them, and — where the statement's own narration follows the common
+CHANNEL/PRODUCT-CODE/SENDER/REASON/REFERENCE slash-delimited format — reads off a human-readable
+"reason" segment (e.g. "February Salary") to show alongside the count. The match is still word-based
+against distinctive parts of the typed name (same tolerant approach used elsewhere), so a truncated
+or abbreviated company suffix in the narration — "LIMITE" instead of "LIMITED"/"LTD", as in the report
+above — doesn't cause a false "not found". Where a name appears in the statement but isn't the direct
+sender on any individual inflow, the message now says so explicitly rather than implying it does.
+Where a name genuinely never appears at all, the existing hard warning is unchanged. Added a dedicated
+Playwright test covering the inflow count/total, the narration-reason readout (including the
+tie-breaking wording so a one-off reason isn't overclaimed as "most common"), the truncated-suffix
+match, and the not-found path. Full test suite (13/13) passed.
+
+## The rough trip-cost estimate now scales with how many people are travelling
+User report: the "Rough worst-case cost estimate" box on "Your trip details" showed the exact
+same figures (flight, hotel, local transport, shopping, total, recommended funds) no matter how
+many people were set under "How many people are travelling on this application?" — switching from
+2 adults to 5 adults, 2 adolescents and 1 child left every number unchanged, even though the
+traveller-count tip text right next to it already promised discounted adolescent/child flight fares
+were "applied [in] the calculator below." The box was in fact only ever pricing a single traveller.
+Fixed: flight cost now uses the same adult/adolescent/child discount formula already used by the
+detailed financial calculator further down the page (full adult fare per adult, 90% of the adult
+fare per adolescent, 75% per child, so the 90%/75% discount note now actually matches what's shown
+here too) instead of a flat, headcount-blind figure. Local transport and shopping — genuinely
+per-traveller costs — now multiply by total headcount (adults + adolescents + children). Hotel cost
+is left as-is, since a hotel room's nightly rate doesn't scale 1:1 with the number of people sharing
+it. The "Rough total" and "Recommended funds to show (2×)" figures, and the downstream statement
+vs. rough-estimate readiness box further down (which reads the same numbers), update automatically
+since they're computed from these same figures. Verified manually across 1 adult, 2 adults, and a
+5 adults / 2 adolescents / 1 child scenario — full test suite (12/12) also passed with no
+regressions.
+
+## Added a check for bank statements that don't belong to the applicant
+User question: "How do we handle those who upload wrong bank statement that doesn't tally with
+their names?" A statement uploaded under someone else's name is a real risk — a reviewer treats
+funds evidence as the applicant's OWN money unless it's clearly documented as sponsor support, so
+a mismatched statement can quietly undermine an otherwise-strong application. The analyzer now
+tries to read the "Account Name:" (or "Customer Name:", "Name of holder:", "A/C Name:") line
+printed on the statement itself and cross-checks it against the name the applicant typed in on the
+trip-details session, using the same tolerant loose-word-match approach already used for the
+passport-name check (so a reordered name, a dropped middle name, or minor punctuation differences
+don't trigger a false alarm). Three outcomes: a clear match gets a quiet confirming note; a clear
+mismatch gets a direct warning naming both the detected account holder and the applicant's own
+entered name, along with a pointer that a third party's statement needs to go through sponsor
+documentation instead of being treated as the applicant's own funds evidence; and a name that's
+only partially found (or that the extractor can't confidently read a name for at all) stays silent
+on this specific check rather than risk a false positive, falling back to the existing looser
+"does this name appear anywhere in the statement text" check as a safety net. Also fixed a related
+extraction bug found while testing: a statement's account-number line printed immediately after the
+account-name line (e.g. "Account Name: X" followed by "Account Number: Y") could get swept into
+the captured name — the cutoff logic now recognizes a broader set of common statement-header words
+(account, number, branch, sort code, IBAN, BVN, address, statement, period, currency, date, type,
+balance, customer, holder) as the end of a name, not just digits. Added a dedicated Playwright test
+covering a matching name, a mismatched name, and the no-name-entered guard, using two new synthetic
+statement fixtures. Full test suite (12/12) and the OCR regression check both passed.
+
+## Fixed a real bug: "Your trip details" could read 100% filled with a required field still blank
+User report: "100% complete and the business name is not written." Root cause: the trip session's
+progress % only checked five fixed fields (name, purpose, travel date, return date, application
+date) — it never accounted for the employer/business name field, even though that field becomes
+required (marked with a red *) the instant "I'm currently employed" or "I'm self-employed" gets
+ticked. So a self-employed applicant who ticked the box but hadn't yet typed a business name saw
+"100% filled" right above an empty, starred-as-required field — a confusing, actively misleading
+state. Fixed by including the employer name (when employed is ticked) or business name (when
+self-employed is ticked) in what counts toward that session's completion, so it correctly drops
+below 100% until whichever name is actually filled in. Added a dedicated Playwright test covering
+both the employed and self-employed paths in both directions (ticking the box drops the %, filling
+the name brings it back to 100%). Full test suite (11/11) and the OCR regression check both passed.
+
+## Made the "Please also add" business-document reminders clickable
+The self-employed reminder box (CAC registration, business bank statements, and the note about that
+payment needing to also show up on your personal statement) listed these as plain, non-interactive
+text. Per feedback: make the 3 items clickable and able to collapse. Turned each of the 3 bullets
+into a link to its matching checklist item under "Financial evidence" (CAC registration → business
+bank statements → personal bank statements), reusing the app's existing "jump to item" behavior
+(already used by the sidebar's "Still missing" list and other "see below" links) — clicking one
+switches to the right session if needed, opens the collapsed category it lives in, scrolls to it,
+and briefly highlights it, so "collapse" (closing that category back up once you're done) works the
+same way it already does everywhere else in the app, rather than needing new UI. Verified in a real
+browser: all three links have the right target, and clicking one reveals and highlights that
+checklist item.
+
+## Added an immediate "how ready am I" % right under the auto-filled closing balance
+Per feedback: "Based on the closing balance generated from the bank statement, tell the user how
+many percentage he/she is ready for application. Work the percentage readiness based on the
+closing balance and the Rough worst-case cost estimate. Tell the applicants how much it need to
+get in total to be ready. Break it down and tell it how much it needs till his/her desired date of
+travel." Previously, seeing a readiness percentage required also manually filling in the separate
+Financial readiness calculator (flight/accommodation/transport costs, etc.) — a real bank
+statement scan alone (which already auto-fills a real closing balance) produced no percentage at
+all. Added a new box right under the cash-flow table, in the "Income & bank statement analysis"
+session, that compares the most recent closing balance detected from the statement against the
+recommended 2× buffer on the rough trip-cost estimate (the same figure already shown in "Your trip
+details" — one number, not a second one that could drift out of sync). Shows: the % ready, the
+exact shortfall if any, and — if a travel date is set — a breakdown of roughly how much to save
+per week and per month to close that gap in time, including a check against the applicant's own
+recent average saving pace (from the scanned statement) so it can flag if the current pace won't
+get there before the planned travel date. Verified the arithmetic exactly (closing balance ₦1.823M
+against a 5-night estimate's ₦3,978,556 recommended buffer → 46% ready, ₦2,155,556 shortfall,
+correct per-week/per-month figures) via a dedicated Playwright test using a synthetic bank
+statement fixture, plus the two guard states (no statement scanned yet; no trip dates yet). Full
+test suite (10/10) and the real-passport OCR regression check both passed.
+
+## Pointed the passport-renewal link at the actual renewal portal
+The "Start your renewal" link shown for an expired/soon-to-expire passport pointed at a general
+Nigeria Immigration Service info page. Changed it to https://passport.immigration.gov.ng/ — the
+actual passport application/renewal portal — so someone flagged with an expired passport lands
+somewhere they can actually start the renewal, not just read about it.
+
+## Added a dropdown to categorize unexplained/large bank inflows, instead of free text
+The "Income sources breakdown" section already had a dropdown for grouped income sources (Business,
+Family, Contribution, Work, Bonus, Sales, Others), but the separate "these payment(s) need an
+explanation" boxes (for individual large or no-narration credits flagged on a bank statement) were
+still a single free-text box. Per feedback: "Create a drop-down menu where the applicant picks...
+salary, business, family, contribution, work, bonus, sales, gift & others. Under 'others' give the
+applicants the chance to fill in the specifics." Added "Salary" and "Gift" to the shared category
+list (now: Salary, Business, Family, Contribution, Work, Bonus, Sales, Gift, Others) and converted
+the per-inflow explanation box to the same dropdown-plus-conditional-detail-field pattern already
+used by the grouped section, so both places now work identically — pick a category, and only
+"Others" asks for a free-text detail. Old sessions that saved a plain free-text explanation before
+this change are automatically read as "Others" with that text preserved, so nothing typed before
+this update is lost. Added a dedicated Playwright test with a synthetic bank statement fixture
+(`tests/fixtures/bank-statement-sample.pdf`) that exercises the full flow: dropdown options and
+order, "Others" reveals/requires a detail field, a non-"Others" pick saves and collapses
+immediately, and the collapsed summary reflects whichever category was chosen. Full test suite
+(9/9) passed, plus the existing real-passport-photo OCR regression check with no changes there.
+
 ## Fixed a real bug: a sideways/upside-down passport photo could silently give up on the wrong rotation
 A user reported a passport photo that scanned as "Expires: not detected / MRZ checksum: not
 detected" — a genuine failure, not a caching issue. Root cause: the automatic photo-orientation
