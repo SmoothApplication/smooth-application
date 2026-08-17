@@ -3,6 +3,20 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Adults/Adolescents/Children breakdown is now collapsible once filled in
+
+User feedback: "I do not want the page to be too busy, i want it user friendly. After clicking 'How
+many people are travelling on this application?' the following Adults (18+)/Adolescents
+(12-17)/Children (2-11) once filled should be collapsible." A "✓ Done — collapse this" button now
+tucks the three number fields away behind a one-line summary ("2 adults, 1 adolescent — edit
+breakdown") once the applicant is happy with the split — the same collapse-after-use pattern already
+used by the transport/sightseeing/currency helpers elsewhere on this page, so the page doesn't stay
+cluttered with three open fields for the rest of the session. Clicking "edit breakdown" reopens them.
+Picking a different traveller count from the dropdown always re-expands the fields (rather than
+leaving a stale summary on screen), and the underlying figures used everywhere else in the app are
+untouched by collapsing — this is purely a display change. Full test suite (19/19, including one new
+regression test) passed.
+
 ## Fixed three real-user bugs: a misread passport name, and two bank statements that wouldn't read
 
 A real applicant hit three separate problems in the same session, reported together: "After the name

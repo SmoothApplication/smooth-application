@@ -754,26 +754,30 @@
           </div>
         </div>
         <div id="travelerBreakdownRow" style="display:none;">
-          <div class="row">
-            <div>
-              <label class="field">Adults (18+) on this application</label>
-              <input type="text" inputmode="numeric" id="f_adults" value="1">
+          <div id="travelerBreakdownFields">
+            <div class="row">
+              <div>
+                <label class="field">Adults (18+) on this application</label>
+                <input type="text" inputmode="numeric" id="f_adults" value="1">
+              </div>
+              <div>
+                <label class="field">Adolescents (12–17)</label>
+                <input type="text" inputmode="numeric" id="f_adolescents" placeholder="0">
+              </div>
             </div>
-            <div>
-              <label class="field">Adolescents (12–17)</label>
-              <input type="text" inputmode="numeric" id="f_adolescents" placeholder="0">
+            <div class="row">
+              <div>
+                <label class="field">Children (2–11)</label>
+                <input type="text" inputmode="numeric" id="f_children" placeholder="0">
+              </div>
+              <div>
+                <label class="field">&nbsp;</label>
+                <div class="item-tip" id="travelerCountMismatch" style="margin-top:6px;"></div>
+              </div>
             </div>
+            <button type="button" class="btn" id="btnCollapseTravelerBreakdown" style="margin-top:2px;">✓ Done — collapse this</button>
           </div>
-          <div class="row">
-            <div>
-              <label class="field">Children (2–11)</label>
-              <input type="text" inputmode="numeric" id="f_children" placeholder="0">
-            </div>
-            <div>
-              <label class="field">&nbsp;</label>
-              <div class="item-tip" id="travelerCountMismatch" style="margin-top:6px;"></div>
-            </div>
-          </div>
+          <div class="item-tip" id="travelerBreakdownCollapsedNote" style="margin-top:4px; display:none;"></div>
         </div>
         <div class="fin-breakdown no-print" id="quickTripCostBox" style="display:none; margin:10px 0;">
           <div id="quickTripCostContent"></div>
@@ -3007,6 +3011,35 @@
     else if (total > 8) countSelect.value = '8';
     if (mismatchEl) mismatchEl.textContent = total === 0 ? 'Add at least one traveller above.' : '';
   }
+  // User feedback: "I do not want the page to be too busy... once filled [Adults/Adolescents/
+  // Children] should be collapsible." Once the applicant is happy with the split, "✓ Done" tucks
+  // the three number fields away behind a one-line summary — same collapse-after-use pattern as
+  // the transport/sightseeing/currency helpers elsewhere on this page — instead of leaving three
+  // open fields sitting on the page for the rest of the session.
+  function travelerBreakdownSummaryText(){
+    var adults = Math.max(0, Math.round(parseNum(document.getElementById('f_adults').value)) || 0);
+    var adolescents = Math.max(0, Math.round(parseNum(document.getElementById('f_adolescents').value)) || 0);
+    var children = Math.max(0, Math.round(parseNum(document.getElementById('f_children').value)) || 0);
+    var parts = [];
+    if (adults) parts.push(adults + ' adult' + (adults === 1 ? '' : 's'));
+    if (adolescents) parts.push(adolescents + ' adolescent' + (adolescents === 1 ? '' : 's'));
+    if (children) parts.push(children + ' child' + (children === 1 ? '' : 'ren'));
+    return parts.length ? parts.join(', ') : 'No travellers added yet';
+  }
+  function expandTravelerBreakdownFields(){
+    document.getElementById('travelerBreakdownFields').style.display = 'block';
+    document.getElementById('travelerBreakdownCollapsedNote').style.display = 'none';
+  }
+  document.getElementById('btnCollapseTravelerBreakdown').addEventListener('click', function(){
+    document.getElementById('travelerBreakdownFields').style.display = 'none';
+    var note = document.getElementById('travelerBreakdownCollapsedNote');
+    note.style.display = 'block';
+    note.innerHTML = '✓ ' + escapeHtml(travelerBreakdownSummaryText()) + ' — <a href="#" id="reopenTravelerBreakdown">edit breakdown</a>.';
+    document.getElementById('reopenTravelerBreakdown').addEventListener('click', function(e){
+      e.preventDefault();
+      expandTravelerBreakdownFields();
+    });
+  });
   document.getElementById('f_travelerCount').addEventListener('change', function(){
     var count = parseInt(this.value, 10);
     var breakdownRow = document.getElementById('travelerBreakdownRow');
@@ -3017,6 +3050,9 @@
       breakdownRow.style.display = 'none';
     } else {
       breakdownRow.style.display = 'block';
+      // Picking a new count always re-expands the fields (rather than leaving a stale collapsed
+      // summary on screen) so the applicant can see/adjust the split the new count implies.
+      expandTravelerBreakdownFields();
       // Only auto-fill a starting split the first time this goes above 1 (i.e. it was still at the
       // untouched single-traveller default) — never overwrite a breakdown the applicant already
       // customized, since re-picking a nearby count while fine-tuning shouldn't wipe their answers.
@@ -6381,6 +6417,8 @@
     document.getElementById('f_children').value = '';
     document.getElementById('f_travelerCount').value = '1';
     document.getElementById('travelerBreakdownRow').style.display = 'none';
+    document.getElementById('travelerBreakdownFields').style.display = 'block';
+    document.getElementById('travelerBreakdownCollapsedNote').style.display = 'none';
     document.getElementById('tripLengthNote').textContent = '';
     document.getElementById('f_lengthDisplay').textContent = 'Enter your travel and return dates above to see this.';
     ['f_hasHost','f_hostFunding','f_employed','f_selfEmployed','f_student','f_studentSponsor','f_hasChild','f_translation','f_readyToSubmit','f_hasRefusal'].forEach(function(id){
