@@ -3,6 +3,38 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fix: recover narration text that wraps onto a second physical PDF line
+
+Follow-up to the previous two fixes below. On the real 31-page Zenith statement used for testing, many
+transaction DESCRIPTION cells wrap across MORE THAN ONE physical PDF line — the date and amount figures
+sit on the first line, but the tail end of the narration (e.g. "...Exclusive Solutions Ltd/February
+Salary") spills onto the next line, which has no date and no amounts of its own. That trailing text was
+being silently dropped: the parser only ever recognises a row that starts with a date, so a line with no
+date was simply skipped past, and its text was lost for good. This is exactly why the salary-narration
+checks shipped a few batches ago came up empty ("Inconsistent salary narration", 0% consistency) even on
+genuine salary payments — the word "Salary" itself only existed on the wrapped second line.
+
+A new step (`mergeWrappedNarrationLines`) now stitches a trailing line back onto the preceding
+transaction's narration, but only when it looks unambiguously like leftover narration text: no date of
+its own, no amount-shaped numbers of its own (a real data row, not wrapped text), on the same PDF page
+(never wraps across a page break, where headers/footers repeat and would otherwise get glued onto the
+wrong transaction), short enough to plausibly be one wrapped cell, and not a recognisable page-furniture
+phrase ("Page 3 of 31", "continued", etc). It caps how many trailing lines it will absorb per
+transaction. Deliberately conservative, in keeping with how the rest of this parser backs off rather
+than guesses — a candidate line that fails any of these checks is left alone.
+
+Re-verified against the real statement: the business ("Crisp N Clean Exclusive Solutions Ltd") inflow
+count went from 27 to 28 (recovering one more genuine payment whose distinctive words were split across
+the wrap), and narration consistency for "Salary" went from 0% to 18% (5 of 28 inflows now correctly
+show their recovered "Salary" narration, up from none). One thing worth flagging honestly: the employer
+("MFM Lekki Youth Church") still shows zero direct-sender matches after this fix — that one doesn't
+appear to be caused by the wrapping issue this fix addresses, so it's left as a separate open question
+rather than something this change claims to have resolved.
+
+New regression test: `tests/wrapped-narration.test.js`, using a fixture (`wrapped-narration-fixture.pdf`)
+built with real two-physical-line wrapped narrations, confirming both that the wrapped "Salary" text is
+recovered and that amount/date figures (which live entirely on the first line) are unaffected.
+
 ## Fix: unrelated payer wrongly matched to a declared employer/business on one shared word
 
 Follow-up to the previous batch below. On the real 928-transaction Zenith statement used for testing,

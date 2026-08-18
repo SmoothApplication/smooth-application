@@ -5045,6 +5045,51 @@
     return out;
   }
 
+  // Real-data finding, off a full 31-page statement: many bank statement DESCRIPTION cells wrap across
+  // MORE THAN ONE physical PDF text line — the transaction's date and amount figures sit on the first
+  // line, but the tail end of its narration (e.g. "...Exclusive Solutions Ltd/February Salary") spills
+  // onto the next line(s), which carry no date and no amount figures of their own. Those trailing lines
+  // used to be silently dropped: parseLeadingDate rejects them (no leading date), so the main parser
+  // loop just skipped past them and that text was lost for good — which is exactly why narration-
+  // dependent checks (salary-reason detection, the narration-consistency percentage) came up empty on
+  // otherwise-genuine salary payments whose "Salary" word only existed on the wrapped second line.
+  //
+  // This stitches a trailing line back onto the PRECEDING transaction's narration instead, but only when
+  // it looks unambiguously like leftover narration text, never a real row or unrelated page furniture:
+  // no leading date of its own, no amount-shaped numbers of its own, on the SAME PDF page (never wraps
+  // across a page break, where headers/footers repeat and would otherwise get glued onto the wrong
+  // transaction), short enough to plausibly be one wrapped cell, and not a recognisable page-furniture
+  // phrase (page numbers, "continued", etc). Caps how many trailing lines it will absorb per transaction.
+  // Deliberately conservative — a candidate line that fails any of these checks is left alone rather than
+  // guessed at, consistent with how the rest of this parser backs off instead of over-claiming.
+  var NARRATION_WRAP_MAX_LINES = 3;
+  var NARRATION_WRAP_MAX_LEN = 80;
+  var NARRATION_WRAP_SKIP_RE = /^(page\s+\d+|statement of account|continued|end of statement|generated on|printed on)\b/i;
+  function mergeWrappedNarrationLines(lines){
+    var out = [];
+    var i = 0;
+    while (i < lines.length){
+      var line = lines[i];
+      if (!parseLeadingDate(line.text)){ out.push(line); i++; continue; }
+      var mergedText = line.text;
+      var consumed = 0;
+      while (consumed < NARRATION_WRAP_MAX_LINES && (i + 1 + consumed) < lines.length){
+        var next = lines[i + 1 + consumed];
+        var nextText = (next.text || '').trim();
+        if (next.__page !== line.__page) break;               // never wrap across a page boundary
+        if (!nextText || nextText.length > NARRATION_WRAP_MAX_LEN) break;
+        if (parseLeadingDate(nextText)) break;                 // the next real row starts here
+        if (extractAmountTokens(nextText).length > 0) break;   // a real data row, not wrapped text
+        if (NARRATION_WRAP_SKIP_RE.test(nextText)) break;       // page furniture, not narration
+        mergedText += ' ' + nextText;
+        consumed++;
+      }
+      out.push(consumed ? { text: mergedText, parts: line.parts, __page: line.__page } : line);
+      i += 1 + consumed;
+    }
+    return out;
+  }
+
   function parseStatementLines(lines){
     var columns = detectColumns(lines);
     // Debit/credit/balance in left-to-right table order, derived from the header's own x-positions.
@@ -5227,8 +5272,11 @@
   // column-major reconstruction when the normal parser essentially found nothing, so normal (working)
   // statement formats are never affected by it.
   function parseStatementLinesWithFallback(lines){
-    var txns = parseStatementLines(lines);
+    var txns = parseStatementLines(mergeWrappedNarrationLines(lines));
     if (txns.length >= 2) return txns;
+    // Column-major fallback deliberately uses the RAW (unmerged) lines — it reads dates/balances off
+    // whole date-list/balance-list lines by shape, not narration, so wrap-merging has nothing to offer
+    // it and could only risk interfering with that separate detection pass.
     var fallback = tryColumnMajorStatementParse(lines);
     if (fallback.length > txns.length){ fallback.__usedColumnMajorFallback = true; return fallback; }
     return txns;
