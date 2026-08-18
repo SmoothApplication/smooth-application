@@ -1,5 +1,7 @@
 # Smooth Application
 
+[![CI](https://github.com/SmoothApplication/smooth-application/actions/workflows/ci.yml/badge.svg)](https://github.com/SmoothApplication/smooth-application/actions/workflows/ci.yml)
+
 A free, private, single-file visa document-readiness checklist for Nigerian applicants preparing a **UK Standard Visitor visa** or a **Canada visitor visa (TRV)**.
 
 Live: https://smoothapplication.github.io/smooth-application/ (primary — this is the link to share)
@@ -44,6 +46,15 @@ to also update Netlify).
 Because it's a single static file, any static host works (Netlify, Vercel, GitHub Pages, Cloudflare Pages) —
 GitHub Pages was chosen as primary since it has no bandwidth/build ceiling to worry about at
 current or expected traffic levels.
+
+## Automated tests (CI)
+
+Every push (or GitHub web-UI upload) to `main` automatically triggers the full Playwright
+regression suite (`tests/run-all.js`, ~30 tests) via GitHub Actions — see
+`.github/workflows/ci.yml` and the badge at the top of this file. This runs *in addition to*, not
+instead of, running the suite locally before building a release — it's a safety net that catches a
+regression within a couple of minutes even if a change slipped through without a local test run
+first. Click the badge, or the repo's "Actions" tab, to see the status/history of every run.
 
 ## Analytics (currently ON)
 
