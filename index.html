@@ -1056,6 +1056,7 @@
         </div>
         <p class="fin-note no-print" style="margin-bottom:10px;">Up to 3 separate statement files (e.g. one per account, or one per date range) — PDF, a photo/scan, or an Excel export (.xlsx/.xls). Processed entirely in your browser — nothing is uploaded anywhere. This is a best-effort reader: bank formats vary, so always check the auto-filled numbers below against your real statement.</p>
         <div id="stmtAnalyzeMsg"></div>
+        <div id="matchedIncomeInflowsBox"></div>
         <div id="unexplainedInflowsBox"></div>
         <table class="cf-table" id="cashFlowTable">
           <thead><tr><th>Month</th><th>Total inflow (₦)</th><th>Total outflow (₦)</th><th>Closing balance (₦)</th></tr></thead>
@@ -5859,6 +5860,147 @@
     if (sel) sel.focus();
   }
 
+  // User feedback, off a real statement with 19 separate salary-looking credits from a declared
+  // employer/business: "Instead of grouping the 19 transactions ... must be explained." The
+  // employer/business cross-check below (findInflowsMatchingName) used to fold every matching inflow
+  // into one summary sentence ("Found X as the sender on 19 inflows... totaling Y"). That's honest
+  // about the total, but it hides the individual payments a reviewer might actually want to see one by
+  // one — and folds 19 real transactions into a single line no one has to look closely at. This renders
+  // each matched inflow as its own box, same explain-box UI as the "needs an explanation" list above,
+  // pre-tagged with the obviously-correct category (an employer match -> "Salary", a business match ->
+  // "Business") the first time it's seen so 19 legitimate salary payments don't turn into 19 chores —
+  // but left fully editable, since an applicant should still be able to correct any one of them (e.g. a
+  // payment that merely mentions the company in passing rather than being an actual salary credit).
+  // Shares the same inflowExplanations store (keyed by inflowKey) as every other inflow explanation on
+  // this page, so a transaction explained here also shows as "explained" wherever else it's listed
+  // (e.g. inside the "Income sources breakdown" group for the same sender).
+  function inflowMatchPreviewLine(t, explained){
+    return (explained ? '✅ ' : '') + t.date.toDateString() + ' — ' + fmtN(t.credit) + (t.narration ? ' ("'+escapeHtml(t.narration)+'")' : ' (no narration)');
+  }
+  function renderMatchedInflowBoxHtml(idx, key, t, collapsed){
+    var existing = normalizeInflowExplanation(inflowExplanations[key]);
+    var explained = inflowExplanationIsFilled(existing);
+    if (collapsed){
+      return '<div class="explain-box explained collapsed" id="matchbox_'+idx+'">'
+        + '<div class="explain-collapsed-row" id="matchcollapsed_'+idx+'" tabindex="0" role="button">'
+        + '<span class="tx-line">'+inflowMatchPreviewLine(t, true)+' — <i>'+escapeHtml(inflowExplanationSummary(existing))+'</i></span>'
+        + '<span class="explain-edit-link">✏️ Edit</span>'
+        + '</div></div>';
+    }
+    var selectedCat = existing ? existing.category : '';
+    var detailVal = existing ? (existing.detail || '') : '';
+    var options = INCOME_SOURCE_CATEGORIES.map(function(c){
+      return '<option value="'+c.value+'"'+(selectedCat === c.value ? ' selected' : '')+'>'+c.label+'</option>';
+    }).join('');
+    return '<div class="explain-box'+(explained?' explained':'')+'" id="matchbox_'+idx+'">'
+      + '<div class="tx-line">'+inflowMatchPreviewLine(t, explained)+'</div>'
+      + '<div class="item-tip" style="margin-top:4px;">This inflow\'s narration matched the name you entered under "Work status" — confirm the reason below, or change it if this particular payment isn\'t actually that.</div>'
+      + '<select id="match_cat_'+idx+'" style="margin-top:4px;">'
+      + '<option value=""'+(selectedCat ? '' : ' selected')+'>Choose a reason…</option>'
+      + options
+      + '</select>'
+      + '<div id="match_others_'+idx+'" style="margin-top:6px; display:'+(selectedCat === 'others' ? 'block' : 'none')+';">'
+      + '<textarea id="match_detail_'+idx+'" rows="2" placeholder="Please specify…">'+escapeHtml(detailVal)+'</textarea>'
+      + '</div>'
+      + '<div id="match_status_'+idx+'">'+(explained ? '<div class="scan-msg ok compact">Saved — auto-saved in this browser, and included if you export it.</div>' : '')+'</div>'
+      + '</div>';
+  }
+  function wireMatchedInflowBox(list, t, idx){
+    var key = inflowKey(t);
+    var collapsedRow = document.getElementById('matchcollapsed_'+idx);
+    if (collapsedRow){
+      collapsedRow.addEventListener('click', function(){ expandMatchedInflowBox(list, t, idx); });
+      collapsedRow.addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); expandMatchedInflowBox(list, t, idx); } });
+      return;
+    }
+    var sel = document.getElementById('match_cat_'+idx);
+    var othersBox = document.getElementById('match_others_'+idx);
+    var detailTa = document.getElementById('match_detail_'+idx);
+    var statusEl = document.getElementById('match_status_'+idx);
+    var boxEl = document.getElementById('matchbox_'+idx);
+    if (!sel) return;
+    var saveTimer = null, collapseTimer = null;
+    function saveNow(){
+      if (saveTimer) clearTimeout(saveTimer);
+      if (collapseTimer) clearTimeout(collapseTimer);
+      statusEl.innerHTML = '<div class="item-tip" style="margin-top:4px;">Saving…</div>';
+      saveTimer = setTimeout(function(){
+        var cat = sel.value;
+        var detail = detailTa ? detailTa.value : '';
+        var exp = cat ? {category: cat, detail: detail} : null;
+        var filled = inflowExplanationIsFilled(exp);
+        if (filled) inflowExplanations[key] = exp; else delete inflowExplanations[key];
+        if (boxEl) boxEl.classList.toggle('explained', filled);
+        statusEl.innerHTML = filled ? '<div class="scan-msg ok compact">Saved — auto-saved in this browser, and included if you export it.</div>' : '';
+        computeFinancials();
+        if (typeof applySessionVisibility === 'function') applySessionVisibility();
+        if (filled){
+          collapseTimer = setTimeout(function(){ collapseMatchedInflowBox(list, t, idx); }, 1200);
+        }
+      }, 500);
+    }
+    sel.addEventListener('change', function(){
+      if (othersBox) othersBox.style.display = (sel.value === 'others') ? 'block' : 'none';
+      if (sel.value === 'others' && detailTa) detailTa.focus();
+      saveNow();
+    });
+    if (detailTa) detailTa.addEventListener('input', saveNow);
+  }
+  function collapseMatchedInflowBox(list, t, idx){
+    var key = inflowKey(t);
+    if (!inflowExplanationIsFilled(inflowExplanations[key])) return;
+    explainBoxCollapsed[key] = true;
+    var boxEl = document.getElementById('matchbox_'+idx);
+    if (!boxEl) return;
+    boxEl.outerHTML = renderMatchedInflowBoxHtml(idx, key, t, true);
+    wireMatchedInflowBox(list, t, idx);
+  }
+  function expandMatchedInflowBox(list, t, idx){
+    var key = inflowKey(t);
+    explainBoxCollapsed[key] = false;
+    var boxEl = document.getElementById('matchbox_'+idx);
+    if (!boxEl) return;
+    boxEl.outerHTML = renderMatchedInflowBoxHtml(idx, key, t, false);
+    wireMatchedInflowBox(list, t, idx);
+    var sel = document.getElementById('match_cat_'+idx);
+    if (sel) sel.focus();
+  }
+  // groups: [{label:'employer'|'business', name, category, txns:[...]}] — one entry per declared
+  // name that had at least one matching inflow. Renders every transaction across every group as its
+  // own explain-box, auto-tagging (but never re-tagging) each one the first time it's seen.
+  function renderMatchedIncomeInflows(groups){
+    var box = document.getElementById('matchedIncomeInflowsBox');
+    if (!box) return;
+    var allTxns = [];
+    (groups || []).forEach(function(g){ g.txns.forEach(function(t){ allTxns.push(t); }); });
+    window.__lastMatchedIncomeInflows = allTxns;
+    if (!allTxns.length){ box.innerHTML = ''; return; }
+    var html = '';
+    groups.forEach(function(g){
+      if (!g.txns.length) return;
+      html += '<div class="scan-msg ok" style="margin-top:10px;">Instead of one lump total, here\'s each of the '+g.txns.length+' inflow'+(g.txns.length===1?'':'s')+' matching "'+escapeHtml(g.name)+'" (your declared '+g.label+') — pre-tagged as "'+escapeHtml(sourceCategoryLabel(g.category))+'"; correct any one that doesn\'t actually belong:</div>';
+    });
+    var idx = 0;
+    groups.forEach(function(g){
+      g.txns.forEach(function(t){
+        var key = inflowKey(t);
+        // Auto-explain the first time this transaction is seen only — never clobber an explanation the
+        // applicant has since customised (re-picked a different reason, added an "Others" note, etc.).
+        if (!inflowExplanations.hasOwnProperty(key)) inflowExplanations[key] = {category: g.category, detail: ''};
+        var explained = inflowExplanationIsFilled(inflowExplanations[key]);
+        if (!explainBoxCollapsed.hasOwnProperty(key)) explainBoxCollapsed[key] = explained;
+        var collapsed = explained && explainBoxCollapsed[key];
+        html += renderMatchedInflowBoxHtml(idx, key, t, collapsed);
+        idx++;
+      });
+    });
+    box.innerHTML = html;
+    idx = 0;
+    groups.forEach(function(g){
+      g.txns.forEach(function(t){ wireMatchedInflowBox(allTxns, t, idx); idx++; });
+    });
+  }
+
   // ---- Top 10 inflows ----
   function getTopInflows(txns, n){
     return txns.filter(function(t){ return t.credit > 0; })
@@ -6337,13 +6479,17 @@
             // example narration instead in that case.
             var reasonIsMajority = topReasonCount > 1;
             var found = inflowMatches.length > 0 || nameAppearsInStatementText(n.name, fullStatementText);
-            return {label: n.label, name: n.name, inflowCount: inflowMatches.length, inflowTotal: inflowTotal, topReason: topReason, reasonIsMajority: reasonIsMajority, distinctReasons: distinctReasons, found: found};
+            return {label: n.label, name: n.name, inflowCount: inflowMatches.length, inflowTotal: inflowTotal, topReason: topReason, reasonIsMajority: reasonIsMajority, distinctReasons: distinctReasons, found: found, inflowMatches: inflowMatches};
           });
           var notFoundChecks = nameChecks.filter(function(c){ return !c.found; });
           var foundChecks = nameChecks.filter(function(c){ return c.found; });
           if (notFoundChecks.length){
             results.push({cls:'err', text:'⚠️ "'+escapeHtml(notFoundChecks.map(function(c){ return c.name; }).join('" and "'))+'" — the name(s) you entered under "Work status" — could not be found anywhere in this bank statement. Reviewers expect your stated employer or business to actually show up in your account\'s transaction narrations; if it genuinely doesn\'t appear here, this application faces a high risk of denial. Double-check you\'ve uploaded the statement your income is actually paid into, or that the name matches exactly.'});
           }
+          // User feedback, off a real statement with 19 matching credits: "Instead of grouping the
+          // 19 transactions... must be explained." Each matched inflow now gets its own explain-box
+          // (rendered into matchedIncomeInflowsBox below) instead of only a single rolled-up sentence.
+          var matchedIncomeGroups = [];
           foundChecks.forEach(function(c){
             if (c.inflowCount > 0){
               var reasonBit = '';
@@ -6352,11 +6498,15 @@
                   ? ' Most commonly narrated as "'+escapeHtml(toTitleCase(c.topReason))+'".'
                   : ' E.g. narrated as "'+escapeHtml(toTitleCase(c.topReason))+'".';
               }
-              results.push({cls:'ok', text:'Found "'+escapeHtml(c.name)+'" as the sender on '+c.inflowCount+' inflow'+(c.inflowCount===1?'':'s')+' in this bank statement, totaling '+fmtN(c.inflowTotal)+' — matches what you entered under "Work status" as your '+c.label+'.'+reasonBit+' This is exactly the kind of consistency signal a reviewer looks for: regular money actually arriving from the '+c.label+' you say pays you, not just its name appearing somewhere on the page.'});
+              results.push({cls:'ok', text:'Found "'+escapeHtml(c.name)+'" as the sender on '+c.inflowCount+' inflow'+(c.inflowCount===1?'':'s')+' in this bank statement, totaling '+fmtN(c.inflowTotal)+' — matches what you entered under "Work status" as your '+c.label+'.'+reasonBit+' This is exactly the kind of consistency signal a reviewer looks for: regular money actually arriving from the '+c.label+' you say pays you, not just its name appearing somewhere on the page. Each of those '+c.inflowCount+' payment'+(c.inflowCount===1?'':'s')+' is also listed individually below, rather than left as just this one summary line.'});
+              matchedIncomeGroups.push({label: c.label, name: c.name, category: (c.label === 'business' ? 'business' : 'salary'), txns: c.inflowMatches});
             } else {
               results.push({cls:'ok', text:'Found "'+escapeHtml(c.name)+'" referenced in this bank statement — matches what you entered under "Work status," a good consistency signal for a reviewer. It doesn\'t look like the direct sender on any individual inflow though — worth double-checking by eye that this statement actually shows your '+c.label+' income landing here, not just a mention elsewhere (e.g. a fee or a reference to it in passing).'});
             }
           });
+          renderMatchedIncomeInflows(matchedIncomeGroups);
+        } else {
+          renderMatchedIncomeInflows([]);
         }
         if (truncatedFiles.length){
           results.push({cls:'warn', text:truncatedFiles.map(function(f){ return '"'+escapeHtml(f.name)+'" has '+f.info.total+' pages — only the first '+f.info.processed+' were read'; }).join('; ')+'. A busy account can run to many pages for 6 months; if your statement covers more than that, the earliest month(s) may be missing from this analysis. Consider splitting it into shorter date ranges and uploading each separately.'});
@@ -6705,6 +6855,7 @@
       document.getElementById(id).value = '';
     });
     document.getElementById('unexplainedInflowsBox').innerHTML = '';
+    document.getElementById('matchedIncomeInflowsBox').innerHTML = '';
     document.getElementById('statementReadinessBox').innerHTML = '';
     document.getElementById('incomeSourcePersonal').innerHTML = '';
     document.getElementById('incomeSourceBusiness').innerHTML = '';
@@ -6713,6 +6864,7 @@
     document.getElementById('btnDownloadBreakdown').style.display = 'none';
     document.getElementById('downloadBreakdownNote').style.display = 'none';
     window.__lastUnexplainedInflows = [];
+    window.__lastMatchedIncomeInflows = [];
     window.__lastIncomeBreakdown = [];
     inflowExplanations = {};
     sourceExplanations = {};

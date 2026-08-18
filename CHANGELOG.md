@@ -3,6 +3,20 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Employer/business-matched bank inflows are now listed and explained individually, not grouped
+
+User request, off a real statement with 19 credits matching a declared employer/business: "Instead
+of grouping the 19 transactions from Crisp N Clean Exclusive Ltd must be explained." The "Work
+status" cross-check used to fold every matching inflow into one summary sentence ("Found X as the
+sender on 19 inflows... totaling Y"). Every matched inflow now ALSO gets its own explain-box —
+the same UI already used for "needs an explanation" inflows — listed individually with its own
+date, amount and narration. Each one is auto-tagged the moment it's first seen with the obviously
+correct category (an employer match → "Salary", a business match → "Business"), so legitimate
+recurring salary payments don't turn into 19 chores, but every box stays fully editable — if one
+particular payment isn't actually salary/business income, it can be re-labelled just like any other
+inflow on the page. Full test suite (23/23, including a new regression test covering the itemized
+boxes, their auto-tagging, and re-editing one) passed.
+
 ## Added "Self" and "Reversal" to the unexplained-inflow reason dropdown
 
 User request, made straight off a real statement's own flagged inflow list: two common, legitimate
