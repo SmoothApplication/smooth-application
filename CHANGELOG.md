@@ -3,6 +3,35 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Polish: wider entry-screen card on desktop
+
+User feedback: the entry/consent card felt too small on a desktop screen. Widened from 560px to
+640px — matching the width already used by the Privacy/Terms modal elsewhere in this file, so the
+two overlay-style cards in the app are now visually consistent. Mobile is unaffected: the small-
+phone padding override (under 400px) doesn't touch width, and the card was already `width: 100%`
+up to its max-width, so this only adds breathing room on screens that have the spare space.
+
+## New: individual payments keep their own narration, and a missing salary month gets flagged
+
+User feedback, off a real Zenith/Crisp N Clean statement: in the "Income sources breakdown," every
+payment from the same source used to read as just "Salary" — a visa officer wants to see that
+salary was actually collected for each specific month ("February Salary," "March Salary," etc.),
+not just a generic category label. Each payment under "Show individual payment(s)" now shows the
+bank's own specific narration for that exact payment (small "Salary" tag alongside it when it's a
+salary-style narration), instead of the category name repeated on every row — the original
+narration is never dropped, it's what's actually shown.
+
+Once at least two "\<Month\> Salary"-style narrations are found, the tool also checks every month in
+between (and any later month the source is still active in) for a matching payment, and flags
+whichever one(s) never got one — e.g. the source has July activity but no "July Salary" ever shows
+up, even though February through June all did. Checked once across every detected inflow rather
+than per individual source box, since a recurring salary can land in either the auto-detected
+"same amount every time" bucket or a same-named-sender group depending on its exact amount, and
+checking box-by-box could either miss a pattern split across both or flag a false gap for a month
+that simply landed in the other bucket. Shown as a warning right in the breakdown, and included in
+the downloadable spreadsheet too, alongside a new "Reason" column carrying the same extracted
+narration.
+
 ## Fix: two accessibility gaps found in an international-standard review
 
 A GUI audit turned up two real, measurable issues rather than subjective nitpicks:

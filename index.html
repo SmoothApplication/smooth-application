@@ -152,7 +152,11 @@
   :root[data-theme="dark"] .gate-blob { opacity: 0.18; }
   .consent-gate-card { margin: auto 0; }
   .consent-gate-card {
-    max-width: 560px; width: 100%; background: var(--surface-2); border: 1px solid var(--border);
+    /* Widened from 560px to match the legal/privacy modal's own 640px card width elsewhere in this
+       file, per user feedback that the entry screen felt too small on desktop — this only affects
+       desktop/tablet widths where there's spare room either side; the sub-400px override below still
+       tightens padding for small phones, unaffected by this change. */
+    max-width: 640px; width: 100%; background: var(--surface-2); border: 1px solid var(--border);
     border-radius: 16px; padding: 30px 26px 26px; box-shadow: 0 8px 40px rgba(0,0,0,0.10);
     position: relative; overflow: hidden;
   }
@@ -5773,6 +5777,46 @@
     return reason;
   }
 
+  // User feedback, off a real Zenith/Crisp N Clean statement: several of the recurring salary
+  // payments from the same employer spell out exactly which month they're for right in their own
+  // narration ("...February Salary...", "...March Salary..."), and the statement kept going for
+  // months afterwards (other payments from the same employer in July) without a matching "July
+  // Salary" ever showing up. That's exactly the kind of gap a reviewer notices — so once at least
+  // two distinct "<Month> Salary"-style narrations are found for one income source, this checks
+  // every month in between (and any later month the source is still active in) for a matching
+  // payment, and reports back whichever month(s) never got one.
+  var FULL_MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var MONTH_NAME_RE = /\b(january|february|march|april|may|june|july|august|september|october|november|december)\b/i;
+  function detectMissingSalaryMonths(txns, nameWords){
+    var salaryKeys = [], allKeys = [], seen = {};
+    txns.forEach(function(t){
+      if (!t.date || !t.credit) return;
+      var key = t.date.getFullYear() * 12 + t.date.getMonth();
+      allKeys.push(key);
+      var reason = extractNarrationReason(t.narration, nameWords);
+      if (!reason || !/\bsalary\b/i.test(reason)) return;
+      var mm = reason.match(MONTH_NAME_RE);
+      if (!mm) return;
+      // The narration NAMES the month this payment is for — trusted over the posting date itself,
+      // since salary often posts a few days into the following month. Only the YEAR comes from the
+      // actual posting date (best-effort: a named month right at a Dec/Jan boundary could mis-key,
+      // same caveat as every other best-effort read in this tool).
+      var monthIndex = FULL_MONTH_NAMES.findIndex(function(n){ return n.toLowerCase() === mm[1].toLowerCase(); });
+      var salaryKey = t.date.getFullYear() * 12 + monthIndex;
+      if (!seen[salaryKey]){ seen[salaryKey] = true; salaryKeys.push(salaryKey); }
+    });
+    if (salaryKeys.length < 2) return null; // not enough of a pattern yet to assume monthly recurrence
+    var minKey = Math.min.apply(null, salaryKeys);
+    var maxKey = Math.max(Math.max.apply(null, salaryKeys), Math.max.apply(null, allKeys));
+    var missing = [];
+    for (var k = minKey; k <= maxKey; k++){
+      if (seen[k]) continue;
+      var mIdx = ((k % 12) + 12) % 12;
+      missing.push(FULL_MONTH_NAMES[mIdx]);
+    }
+    return missing.length ? missing : null;
+  }
+
   // User feedback, off a real matched-employer inflow list: several payments already spell out exactly
   // what they were for right in their own narration ("...February Salary/...", ".../allowance/...") — the
   // matched-inflow box should read and use that instead of defaulting every payment to the same generic
@@ -6587,6 +6631,14 @@
     if (reversalTxns.length) groups.push(summarizeSourceGroup('Reversals (money returned to you)', reversalTxns, 'reversal'));
 
     groups.sort(function(a,b){ return b.total - a.total; });
+    // Checked across ALL inflows here, not per rendered group — a "<Month> Salary"-style payment can
+    // land in either the auto-detected recurring-amount "Salary" bucket above OR a same-employer named
+    // group (whichever one its exact amount happens to match), so checking group-by-group would miss a
+    // recurring pattern split across both, or flag a false gap for a month that landed in the OTHER
+    // bucket. Empty nameWords here (see extractNarrationReason) is deliberate: at this point there's no
+    // single "sender name" in scope to exclude, and a hint-matched candidate like "February Salary" is
+    // already prioritized over a plain company-name candidate regardless.
+    groups.missingSalaryMonths = detectMissingSalaryMonths(txns.filter(function(t){ return t.credit && !isReversalNarration(t.narration); }), []);
     return groups;
   }
 
@@ -6716,9 +6768,22 @@
         + '<span class="explain-edit-link">✏️ Edit</span>'
         + '</div></div>';
     }
+    // User feedback: individual payments from a recurring source should keep the SPECIFIC narration
+    // the bank itself gave each one (e.g. "February Salary", "March Salary") rather than just showing
+    // "Salary" for every row — that's what lets a reviewer see salary was actually collected for each
+    // named month, not just that the category is "Salary" in general. The auto-detected recurring-
+    // amount "Salary" bucket (g.type === 'salary') has no real sender name of its own — g.name is just
+    // the label "Salary" — so nothing is excluded as "the sender's own name" for that bucket specifically;
+    // for every other group, the group's own name IS excluded so it doesn't get echoed back as the reason.
+    var nameWords = (g.name && g.type !== 'salary') ? g.name.toUpperCase().split(/\s+/) : [];
     var txList = g.txns.map(function(t){
       var txExplained = inflowExplanationIsFilled(inflowExplanations[inflowKey(t)]);
-      return '<div class="tx-line" style="font-size:12px; color:var(--text-secondary);">'+(txExplained ? '✅ ' : '')+t.date.toDateString()+' — '+fmtN(t.credit)+(t.narration ? ' ("'+escapeHtml(t.narration)+'")' : ' (no narration)')+(txExplained ? ' — explained above' : '')+'</div>';
+      var reason = extractNarrationReason(t.narration, nameWords);
+      var isSalaryReason = reason && /\bsalary\b/i.test(reason);
+      var reasonHtml = reason
+        ? ' — <b>'+escapeHtml(reason)+'</b>'+(isSalaryReason ? ' <span class="src-tag salary" style="font-size:10px; padding:1px 6px;">Salary</span>' : '')
+        : (t.narration ? ' ("'+escapeHtml(t.narration)+'")' : ' (no narration)');
+      return '<div class="tx-line" style="font-size:12px; color:var(--text-secondary);">'+(txExplained ? '✅ ' : '')+t.date.toDateString()+' — '+fmtN(t.credit)+reasonHtml+(txExplained ? ' — explained above' : '')+'</div>';
     }).join('');
     var selectedCat = existing ? existing.category : '';
     var detailVal = existing ? (existing.detail || '') : '';
@@ -6818,6 +6883,17 @@
     if (!groups || !groups.length){ box.innerHTML = ''; if (dlBtn) dlBtn.style.display = 'none'; if (dlNote) dlNote.style.display = 'none'; return; }
     var grandTotal = groups.reduce(function(s,g){ return s+g.total; }, 0);
     var html = '';
+    // Checked once across every detected inflow (see buildIncomeSourceBreakdown) rather than per
+    // source box below — a recurring "<Month> Salary" narration can land in either the auto-detected
+    // "Salary" bucket or a same-employer named group depending on its exact amount, so one combined
+    // check avoids both missing a pattern split across the two and flagging a false gap for a month
+    // that simply landed in the other bucket.
+    if (groups.missingSalaryMonths){
+      html += '<div class="scan-msg warn" style="margin-bottom:10px;">⚠️ Your statement(s) show what looks like a recurring monthly salary, but no <b>'
+        + groups.missingSalaryMonths.map(function(m){ return m+' Salary'; }).join('</b>, <b>')
+        + '</b> payment was found. If you were actually paid for '+(groups.missingSalaryMonths.length > 1 ? 'those months' : 'that month')+', double-check your statement upload covers '
+        + (groups.missingSalaryMonths.length > 1 ? 'them' : 'it')+' and that the payment\'s own narration names the month — otherwise a reviewer may read this as a gap in your income.</div>';
+    }
     groups.forEach(function(g, idx){
       var key = sourceKey(g);
       var existing = normalizeSourceExplanation(sourceExplanations[key]);
@@ -6841,23 +6917,37 @@
       alert('The spreadsheet tool hasn\'t finished loading — wait a moment and try again.');
       return;
     }
-    var aoa = [['Source', 'Type', 'Date', 'Amount (NGN)', 'Narration', 'Your explanation']];
+    // Both a "Reason" column (the specific, cleaned-up bit of the narration, e.g. "February Salary" —
+    // same extraction shown on screen) AND the full original "Narration" column are included — a
+    // reviewer scanning the spreadsheet can read the Reason column at a glance, but the source
+    // narration is never actually dropped, per feedback that the original bank narration should be
+    // kept, not replaced by a generic category label.
+    var aoa = [['Source', 'Type', 'Date', 'Amount (NGN)', 'Reason (from narration)', 'Narration', 'Your explanation']];
+    if (groups.missingSalaryMonths){
+      aoa.push(['⚠️ Possibly missing:', '', '', '', '', groups.missingSalaryMonths.map(function(m){ return m+' Salary'; }).join(', '), '']);
+      aoa.push([]);
+    }
     var grandTotal = 0;
     groups.forEach(function(g){
       grandTotal += g.total;
       var groupNote = sourceExplanationSummary(sourceExplanations[sourceKey(g)]);
+      // Same exception as the on-screen render — the auto-detected recurring-amount "Salary" bucket
+      // has no real sender name of its own (g.name is just the label "Salary"), so nothing is excluded
+      // as "the sender's own name" for that bucket specifically.
+      var nameWords = (g.name && g.type !== 'salary') ? g.name.toUpperCase().split(/\s+/) : [];
       g.txns.forEach(function(t, i){
         // Whatever the applicant typed against this exact payment — in the "large inflow(s) that need an
         // explanation" boxes above the cash-flow table — always wins. The per-source note (typed under this
         // breakdown itself) is only used as a fallback on the group's first row, so nothing typed anywhere
         // in this section gets left out of the download.
         var txNote = inflowExplanationSummary(inflowExplanations[inflowKey(t)]) || (i === 0 ? groupNote : '');
-        aoa.push([i === 0 ? g.name : '', i === 0 ? g.type : '', t.date.toDateString(), Math.round(t.credit), t.narration || '(none)', txNote]);
+        var reason = extractNarrationReason(t.narration, nameWords);
+        aoa.push([i === 0 ? g.name : '', i === 0 ? g.type : '', t.date.toDateString(), Math.round(t.credit), reason || '', t.narration || '(none)', txNote]);
       });
-      aoa.push(['', '', '', '', 'Subtotal for '+g.name+':', g.total]);
+      aoa.push(['', '', '', '', '', 'Subtotal for '+g.name+':', g.total]);
       aoa.push([]);
     });
-    aoa.push(['', '', '', '', 'GRAND TOTAL:', grandTotal]);
+    aoa.push(['', '', '', '', '', 'GRAND TOTAL:', grandTotal]);
     var ws = window.XLSX.utils.aoa_to_sheet(aoa);
     var wb = window.XLSX.utils.book_new();
     window.XLSX.utils.book_append_sheet(wb, ws, 'Income Breakdown');
