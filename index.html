@@ -368,6 +368,7 @@
   .src-tag.company { background: var(--good-wash); color: var(--good); }
   .src-tag.personal { background: var(--warning-wash); color: var(--warning-text); }
   .src-tag.salary { background: var(--accent-wash); color: var(--accent); }
+  .src-tag.family { background: var(--accent-wash); color: var(--accent); }
   .src-tag.other { background: var(--critical-wash); color: var(--critical); }
   .src-tag.reversal { background: var(--surface-1); color: var(--text-secondary); border: 1px solid var(--border); }
   .passport-card { border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; background: var(--accent-wash); margin-top: 6px; }
@@ -1074,6 +1075,10 @@
         <h3 class="subcat-heading" style="margin-top:18px;">Top 10 inflows</h3>
         <p class="fin-note" style="margin-top:0;">The 10 largest individual credits detected in your uploaded statement(s), ranked by amount — a quick way to see at a glance what a reviewer's eye will land on first.</p>
         <div id="topInflowsBox"></div>
+
+        <h3 class="subcat-heading">Top 10 most consistent senders</h3>
+        <p class="fin-note" style="margin-top:0;">Ranked by how many separate months each sender's name recurs across, not by amount — a sender you hear from steadily month after month is the kind of pattern a reviewer finds reassuring, even if no single payment from them is the biggest one on the statement.</p>
+        <div id="topConsistentSendersBox"></div>
 
         <h3 class="subcat-heading">Income sources breakdown</h3>
         <p class="fin-note" style="margin-top:0;">Groups every inflow by who sent it — salary, named senders/companies, and a catch-all for anything with no clear sender — the same approach experienced applicants use to pre-empt "income not explained" refusals. Add a short note per source; it's kept with your progress.</p>
@@ -5286,7 +5291,96 @@
     // Generic transfer-notification / channel prefixes seen on real Nigerian bank narrations (e.g. "TNF-",
     // "CASH DEP:", "REV/MOB/UTO/") — without these, the SAME sender ends up split into multiple groups
     // purely because one narration line happened to carry a prefix and another didn't.
-    'TNF','NFT','NIBSS','LASG','PAYRO','ACTIVE','REV','UTO','CASH','DEP','CASHDEP','CASHDEPOSIT'];
+    'TNF','NFT','NIBSS','LASG','PAYRO','ACTIVE','REV','UTO','CASH','DEP','CASHDEP','CASHDEPOSIT',
+    // Real-world channel/processor/aggregator codes off an actual statement (e.g. "NIP/ROLEZ/CRISP N
+    // CLEAN.../February Salary") — without these, a code like "ROLEZ" gets swept into the extracted
+    // sender name itself ("Rolez Crisp N Clean Exclusive Solutions" instead of just "Crisp N Clean
+    // Exclusive Solutions"), splitting what should be one recognised sender into a differently-named,
+    // unmerged group. See BANK_NARRATION_GLOSSARY below for what each of these actually means.
+    'ETI','VFD','WBP','ROLEZ','ROLEX','STBC','ABN','FD','FDP','ISW','QTELLER','PBNL','ZIB','NXG','AFB'];
+
+  // User feedback, off a real statement: most applicants have no idea what "NIP", "ROLEZ" or "CIP"
+  // actually mean in their own narration line. Best-effort glossary of the channel/processor/bank
+  // shorthand commonly seen in Nigerian bank statement narrations — deliberately only the codes we're
+  // actually confident about (a bank's own internal-only codes, like "STLB", are left undecoded rather
+  // than guessed at), surfaced via decodeNarration()/renderNarrationDecodeHtml() below.
+  var BANK_NARRATION_GLOSSARY = {
+    'NIP': 'Nigeria Instant Payment — an interbank transfer processed through Nigeria\'s instant payment system.',
+    'TRF': 'Transfer.',
+    'FT': 'Funds transfer.',
+    'CIP': 'A credit (inflow) transaction on this account.',
+    'CR': 'Credit — money coming in.',
+    'DR': 'Debit — money going out.',
+    'FRM': 'From.',
+    'FROM': 'From.',
+    'ETI': 'Ecobank Transnational Incorporated — the Ecobank group identifier.',
+    'RVSL': 'Reversal — money returned after a failed/reversed transaction, not new income.',
+    'REVERSAL': 'Reversal — money returned after a failed/reversed transaction, not new income.',
+    'VFD': 'VFD Microfinance Bank.',
+    'WBP': 'Wema Bank.',
+    'ROLEZ': 'Moniepoint MFB (a payment-channel code, not the sender\'s own bank name).',
+    'ROLEX': 'Moniepoint MFB (a payment-channel code, not the sender\'s own bank name).',
+    'STBC': 'Stanbic IBTC.',
+    'ABN': 'Access Bank.',
+    'FDP': 'Fidelity Bank.',
+    'ISW': 'Interswitch — Nigeria\'s electronic payments switch/processor.',
+    'QTELLER': 'Quickteller — Interswitch\'s consumer payments platform (transfers, bills, airtime).',
+    'MOB': 'Mobile banking channel.',
+    'POS': 'Point-of-sale (card) transaction.',
+    'ATM': 'ATM transaction.',
+    'USSD': 'USSD (phone short-code) banking channel.',
+    'GTB': 'Guaranty Trust Bank.',
+    'GTBANK': 'Guaranty Trust Bank.',
+    'FBN': 'First Bank of Nigeria.',
+    'UBA': 'United Bank for Africa.',
+    'OPAY': 'OPay (mobile money).',
+    'PALMPAY': 'PalmPay (mobile money).',
+    'KUDA': 'Kuda Bank.',
+    'MONIEPOINT': 'Moniepoint MFB.',
+    'PROVIDUS': 'Providus Bank.',
+    'STANBIC': 'Stanbic IBTC.',
+    'ONEBANK': 'A bank-branded digital transfer product name (varies by bank), not a separate institution.'
+  };
+  function decodeNarrationSegment(seg){
+    var trimmed = (seg || '').trim();
+    if (!trimmed) return null;
+    var upper = trimmed.toUpperCase();
+    if (BANK_NARRATION_GLOSSARY[upper]) return {part: trimmed, meaning: BANK_NARRATION_GLOSSARY[upper]};
+    // Scan every word in the segment, not just the first — some best-effort text extractions leave a
+    // date or other stray text stuck to the front of a segment (e.g. "2026 NIP" instead of a clean
+    // "NIP" segment), and the code can be anywhere in that mix.
+    var words = upper.split(/\s+/);
+    var matchedMeanings = [];
+    words.forEach(function(w){
+      if (BANK_NARRATION_GLOSSARY[w] && matchedMeanings.indexOf(BANK_NARRATION_GLOSSARY[w]) === -1) matchedMeanings.push(BANK_NARRATION_GLOSSARY[w]);
+    });
+    if (matchedMeanings.length){
+      return {part: trimmed, meaning: matchedMeanings.join(' ') + (words.length > matchedMeanings.length ? ' The rest of this segment is additional detail added by the bank.' : '')};
+    }
+    // A long unbroken run of letters/digits with no spaces reads as a transaction/reference number
+    // rather than anything meaningful to decode.
+    if (/^[A-Za-z0-9]{10,}$/.test(trimmed)) return {part: trimmed, meaning: 'Likely a transaction/reference number generated by the bank or payment processor — useful for tracing this payment if you ever need to query it, not something you typed.'};
+    return {part: trimmed, meaning: 'Likely the sender\'s name, the beneficiary, or the reason given for this payment.'};
+  }
+  // Bank narrations for a NIP/electronic transfer are commonly slash-delimited (see
+  // extractNarrationReason above) — split on "/" first if present, otherwise treat the whole narration
+  // as a single segment rather than guessing at some other delimiter.
+  function decodeNarration(narration){
+    if (!narration) return [];
+    var segments = narration.indexOf('/') !== -1 ? narration.split('/') : [narration];
+    return segments.map(decodeNarrationSegment).filter(Boolean);
+  }
+  function renderNarrationDecodeHtml(narration){
+    var parts = decodeNarration(narration);
+    if (!parts.length) return '';
+    var rows = parts.map(function(p){
+      return '<tr><td style="font-family:monospace; font-size:11px; padding:3px 6px; vertical-align:top; word-break:break-word;">'+escapeHtml(p.part)+'</td><td style="font-size:12px; padding:3px 6px; color:var(--text-secondary);">'+escapeHtml(p.meaning)+'</td></tr>';
+    }).join('');
+    return '<details style="margin-top:4px;"><summary style="cursor:pointer; font-size:12px; color:var(--text-secondary);">🔍 What does this narration mean?</summary>'
+      + '<table class="cf-table" style="margin-top:4px;"><thead><tr><th>Part</th><th>Best-effort meaning</th></tr></thead><tbody>'+rows+'</tbody></table>'
+      + '<div class="item-tip" style="margin-top:2px;">Best-effort only, based on common Nigerian bank narration shorthand — always confirm anything important directly with your bank.</div>'
+      + '</details>';
+  }
 
   // Best-effort company-vs-personal classifier: a reviewer generally reads recurring income from a
   // registered business as more stable/credible than payments from a personal account, so this is used to
@@ -5372,7 +5466,12 @@
     'COMMISSION','BONUS','PAY','PAYMENT','FEE','FEES','INVOICE','CONSULTANCY','CONTRACT','HONORARIUM',
     'DIVIDEND','REFUND','RENT'];
   var NARRATION_CHANNEL_WORDS = ['NIP','NEFT','RTGS','MOB','USSD','CIP','TRF','POS','ATM','FRM','FROM',
-    'TO','CR','DR','STLB','ONEBANK','CASH','DEP'];
+    'TO','CR','DR','STLB','ONEBANK','CASH','DEP',
+    // Same real-world channel/aggregator codes added to BANK_NARRATION_STOPWORDS above — without these
+    // here too, a segment like "ROLEZ" (with nothing else surviving the name-overlap filter below) gets
+    // wrongly picked as if it were the payment's REASON ("Most commonly narrated as 'Rolez'") instead
+    // of being recognised as just a channel code with no real reason text to report.
+    'ETI','VFD','WBP','ROLEZ','ROLEX','STBC','ABN','FD','FDP','ISW','QTELLER','PBNL','ZIB','NXG','AFB'];
   function extractNarrationReason(narration, nameWords){
     if (!narration) return null;
     var parts = narration.split('/').map(function(p){ return p.trim(); }).filter(Boolean);
@@ -5397,6 +5496,29 @@
       if (NARRATION_REASON_HINTS.some(function(h){ return upperC.indexOf(h) !== -1; })){ hinted = candidates[i]; break; }
     }
     return hinted || candidates[candidates.length - 1];
+  }
+
+  // User feedback: "Pick similar words and group them, example Happy Birthday means HBD." Different
+  // narrations for the SAME underlying reason (an abbreviation on one payment, the spelled-out phrase
+  // on another) would otherwise tally as separate one-off reasons instead of one recurring one — which
+  // understates how consistent a category of inflow actually is. Deliberately conservative: only known,
+  // common Nigerian bank-narration shorthand is folded together; anything not matched here is left
+  // exactly as extracted, never guessed at.
+  var NARRATION_REASON_SYNONYMS = [
+    {canonical: 'Birthday', pattern: /\bhbd\b|\bhappy\s*b['’]?day\b|\bhappy\s*birthday\b|\bb['’]?day\s*token\b|\bb['’]?day\b/i},
+    {canonical: 'Salary', pattern: /\bsalary\b/i},
+    {canonical: 'Transport allowance', pattern: /\btransport\s*allowance\b/i},
+    {canonical: 'Allowance', pattern: /\ballowance\b/i},
+    {canonical: 'Gift', pattern: /\bgift\b/i},
+    {canonical: 'Refund', pattern: /\brefund\b/i},
+    {canonical: 'Rental income', pattern: /\brent(al)?\s*income\b|\brent\b/i}
+  ];
+  function canonicalizeNarrationReason(reason){
+    if (!reason) return reason;
+    for (var i = 0; i < NARRATION_REASON_SYNONYMS.length; i++){
+      if (NARRATION_REASON_SYNONYMS[i].pattern.test(reason)) return NARRATION_REASON_SYNONYMS[i].canonical;
+    }
+    return reason;
   }
 
   // Best-effort extraction of the account HOLDER's own name from a bank statement's header — most
@@ -5438,6 +5560,23 @@
     if (found.length === wordsA.length) return 'ok';
     if (found.length > 0) return 'partial';
     return 'fail';
+  }
+
+  // User feedback: "If you find any Surname similar to applicant from the bank statement group as
+  // Family then ask for the reason." Nigerian full names on this form are typically typed as First
+  // Middle Last, so the LAST word of the applicant's own typed name is taken as their likely surname —
+  // e.g. "Oluwaseyi Adegboyega Afeni" -> "Afeni", which is exactly what recurs in real family-sender
+  // narrations like "Mosunmola Abeke Afeni". Deliberately conservative: requires the applicant to have
+  // typed at least two words (so a lone single name never becomes a match-anything surname), and skips
+  // very short words that would produce false positives.
+  function surnameOf(fullName){
+    var words = (fullName || '').trim().split(/\s+/).filter(function(w){ return w.length >= 3; });
+    return words.length >= 2 ? words[words.length - 1] : '';
+  }
+  function sharesSurname(candidateName, applicantSurname){
+    if (!applicantSurname) return false;
+    var words = (candidateName || '').toUpperCase().split(/\s+/);
+    return words.indexOf(applicantSurname.toUpperCase()) !== -1;
   }
 
   function classifySourceType(narration){
@@ -5777,6 +5916,7 @@
       : 'What was this payment for, and from whom?';
     return '<div class="explain-box'+(explained?' explained':'')+'" id="explainbox_'+idx+'">'
       + '<div class="tx-line">'+inflowPreviewLine(t, isBlank, explained)+'</div>'
+      + (isBlank ? '' : renderNarrationDecodeHtml(t.narration))
       + '<div class="item-tip" style="margin-top:4px;">'+promptText+'</div>'
       + '<select id="explain_cat_'+idx+'" style="margin-top:4px;">'
       + '<option value=""'+(selectedCat ? '' : ' selected')+'>Choose a reason…</option>'
@@ -5894,6 +6034,7 @@
     }).join('');
     return '<div class="explain-box'+(explained?' explained':'')+'" id="matchbox_'+idx+'">'
       + '<div class="tx-line">'+inflowMatchPreviewLine(t, explained)+'</div>'
+      + renderNarrationDecodeHtml(t.narration)
       + '<div class="item-tip" style="margin-top:4px;">This inflow\'s narration matched the name you entered under "Work status" — confirm the reason below, or change it if this particular payment isn\'t actually that.</div>'
       + '<select id="match_cat_'+idx+'" style="margin-top:4px;">'
       + '<option value=""'+(selectedCat ? '' : ' selected')+'>Choose a reason…</option>'
@@ -6025,6 +6166,43 @@
     box.innerHTML = '<table class="cf-table"><thead><tr><th>#</th><th>Date</th><th>Amount (₦)</th><th>Narration</th></tr></thead><tbody>'+rows+'</tbody></table>';
   }
 
+  // ---- Top 10 most consistent senders ----
+  // User feedback: "Pick top 10 consistent names applicant receives inflow from." Different from "Top
+  // 10 highest transfers" above (ranked by amount) — this ranks by how many SEPARATE months a sender's
+  // name recurs across, since a sender appearing steadily month after month is the pattern a reviewer
+  // finds reassuring, even when no single payment from them is the biggest amount on the statement.
+  // Reuses the same name-extraction/merging as the Income sources breakdown below, so the two lists
+  // stay consistent with each other about what counts as "the same sender".
+  function getTopConsistentSenders(txns, n){
+    var namedGroups = {};
+    txns.forEach(function(t){
+      if (!t.credit || isReversalNarration(t.narration)) return;
+      var candidates = extractNameCandidates(t.narration);
+      if (!candidates.length) return;
+      var name = toTitleCase(candidates.reduce(function(a,b){ return b.length > a.length ? b : a; }));
+      (namedGroups[name] = namedGroups[name] || []).push(t);
+    });
+    namedGroups = mergeNameVariants(namedGroups);
+    var list = Object.keys(namedGroups).map(function(name){
+      var grpTxns = namedGroups[name];
+      var months = {};
+      var total = 0;
+      grpTxns.forEach(function(t){ months[t.date.getFullYear()+'-'+t.date.getMonth()] = true; total += t.credit; });
+      return {name: name, monthCount: Object.keys(months).length, count: grpTxns.length, total: total};
+    });
+    list.sort(function(a,b){ return b.monthCount - a.monthCount || b.count - a.count || b.total - a.total; });
+    return list.slice(0, n || 10);
+  }
+  function renderTopConsistentSenders(list){
+    var box = document.getElementById('topConsistentSendersBox');
+    if (!box) return;
+    if (!list || !list.length){ box.innerHTML = ''; return; }
+    var rows = list.map(function(g, idx){
+      return '<tr><td>'+(idx+1)+'</td><td>'+escapeHtml(g.name)+'</td><td>'+g.monthCount+'</td><td>'+g.count+'</td><td>'+fmtN(g.total)+'</td></tr>';
+    }).join('');
+    box.innerHTML = '<table class="cf-table"><thead><tr><th>#</th><th>Sender</th><th>Distinct months</th><th>Payment(s)</th><th>Total (₦)</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  }
+
   // ---- Income sources breakdown (models the "group every inflow by sender, subtotal each" approach an
   // experienced applicant would build manually to pre-empt an "income not explained" refusal) ----
   function summarizeSourceGroup(name, txnsIn, type){
@@ -6063,10 +6241,11 @@
     return merged;
   }
 
-  function buildIncomeSourceBreakdown(txns){
+  function buildIncomeSourceBreakdown(txns, applicantName){
     var stable = identifyStableIncome(txns);
     var salaryTxns = [], otherTxns = [], reversalTxns = [];
     var namedGroups = {}; // titleCasedName -> txns[]
+    var applicantSurname = surnameOf(applicantName);
 
     txns.forEach(function(t){
       if (!t.credit) return;
@@ -6093,7 +6272,12 @@
     if (salaryTxns.length) groups.push(summarizeSourceGroup('Salary', salaryTxns, 'salary'));
     Object.keys(namedGroups).forEach(function(name){
       var grpTxns = namedGroups[name];
-      groups.push(summarizeSourceGroup(name, grpTxns, classifySourceType(grpTxns[0].narration)));
+      // A sender sharing the applicant's own surname (and not just the applicant's own name showing up
+      // as a self-transfer) is very likely a family member — grouped and labelled distinctly so the
+      // applicant gets a narrower, more relevant set of reasons to pick from (see FAMILY_INCOME_CATEGORIES).
+      var isApplicantSelf = applicantName && namesLooselyMatch(applicantName, name) === 'ok';
+      var type = (!isApplicantSelf && sharesSurname(name, applicantSurname)) ? 'family' : classifySourceType(grpTxns[0].narration);
+      groups.push(summarizeSourceGroup(name, grpTxns, type));
     });
     if (otherTxns.length) groups.push(summarizeSourceGroup('Other / one-off inflows (no clear sender name)', otherTxns, 'other'));
     if (reversalTxns.length) groups.push(summarizeSourceGroup('Reversals (money returned to you)', reversalTxns, 'reversal'));
@@ -6131,8 +6315,21 @@
     {value:'reversal', label:'Reversal (a reversed/bounced-back payment)'},
     {value:'others', label:'Others'}
   ];
+  // User feedback: "If you find any Surname similar to applicant from the bank statement group as
+  // Family then ask for the reason for what. Create a drop down menu to contain gift, sales of
+  // property, rental income, others." A narrower, purpose-built list for surname-matched senders —
+  // the general INCOME_SOURCE_CATEGORIES list above still applies everywhere else. Values are kept
+  // distinct from INCOME_SOURCE_CATEGORIES' own ('gift'/'others' are intentionally reused so an
+  // existing "Gift"/"Others" pick from before this change still displays correctly) — see
+  // sourceCategoryLabel below, which looks across both lists.
+  var FAMILY_INCOME_CATEGORIES = [
+    {value:'gift', label:'Gift'},
+    {value:'sale_of_property', label:'Sale of property'},
+    {value:'rental_income', label:'Rental income'},
+    {value:'others', label:'Others'}
+  ];
   function sourceCategoryLabel(value){
-    var found = INCOME_SOURCE_CATEGORIES.filter(function(c){ return c.value === value; })[0];
+    var found = INCOME_SOURCE_CATEGORIES.concat(FAMILY_INCOME_CATEGORIES).filter(function(c){ return c.value === value; })[0];
     return found ? found.label : value;
   }
   function normalizeSourceExplanation(exp){
@@ -6158,6 +6355,7 @@
   function sourceTypeBadge(type){
     if (type === 'salary') return '<span class="src-tag salary">Salary</span>';
     if (type === 'company') return '<span class="src-tag company">Company</span>';
+    if (type === 'family') return '<span class="src-tag family">Family</span>';
     if (type === 'personal') return '<span class="src-tag personal">Personal</span>';
     if (type === 'reversal') return '<span class="src-tag reversal">Reversal</span>';
     return '<span class="src-tag other">Unclear sender</span>';
@@ -6170,10 +6368,11 @@
   // from a company name alone doesn't tell a visa officer WHY that company pays you; if it's your own
   // business, that connection has to be stated explicitly (ownership/role), since that's the actual
   // evidence a reviewer needs to see that you personally earn from it.
-  function sourceNeedsNote(type){ return type === 'personal' || type === 'other' || type === 'company'; }
+  function sourceNeedsNote(type){ return type === 'personal' || type === 'other' || type === 'company' || type === 'family'; }
   function sourceCategoryPrompt(type){
     if (type === 'company') return 'Is this your own business, or another reason this company pays you? Choose whichever fits best — if it\'s your business, pick "Business".';
     if (type === 'other') return 'These payments have no clear sender name — choose whichever reason best explains them.';
+    if (type === 'family') return 'This sender shares your surname, so it looks like it could be from a family member — what was this for?';
     return 'What is your relationship to this person, and why do they pay you regularly?';
   }
   function renderSourceBoxHtml(idx, key, g, collapsed){
@@ -6194,7 +6393,10 @@
     }).join('');
     var selectedCat = existing ? existing.category : '';
     var detailVal = existing ? (existing.detail || '') : '';
-    var options = INCOME_SOURCE_CATEGORIES.map(function(c){
+    // Surname-matched "Family" senders get the narrower, purpose-built dropdown (gift / sale of
+    // property / rental income / others) instead of the full general-purpose category list.
+    var categoryList = g.type === 'family' ? FAMILY_INCOME_CATEGORIES : INCOME_SOURCE_CATEGORIES;
+    var options = categoryList.map(function(c){
       return '<option value="'+c.value+'"'+(selectedCat === c.value ? ' selected' : '')+'>'+c.label+'</option>';
     }).join('');
     var noteBlock = needsNote
@@ -6405,7 +6607,8 @@
         recent.forEach(function(m){ if (m) recentMonthKeys[m.year+'-'+m.month] = true; });
         var recentTxns = txns.filter(function(t){ return recentMonthKeys[t.date.getFullYear()+'-'+t.date.getMonth()]; });
         renderTopInflows(getTopInflows(recentTxns, 10));
-        renderIncomeBreakdown(buildIncomeSourceBreakdown(recentTxns));
+        renderTopConsistentSenders(getTopConsistentSenders(recentTxns, 10));
+        renderIncomeBreakdown(buildIncomeSourceBreakdown(recentTxns, getAnswers().name));
 
         computeFinancials();
 
@@ -6461,12 +6664,15 @@
             // Tally which "reason" text (e.g. "February Salary") recurs most often across the matched
             // inflows, so the message can point to the single most representative one rather than an
             // unreadable list of every slightly-different narration.
+            // Canonicalized first (see NARRATION_REASON_SYNONYMS above) so e.g. "HBD" and "Happy
+            // Birthday" tally as the SAME recurring reason instead of two separate one-off ones.
             var reasonCounts = {};
             inflowMatches.forEach(function(t){
               var r = extractNarrationReason(t.narration, inflowInfo.words);
               if (!r) return;
-              var key = r.toUpperCase();
-              if (!reasonCounts[key]) reasonCounts[key] = {display: r, count: 0};
+              var canon = canonicalizeNarrationReason(r);
+              var key = canon.toUpperCase();
+              if (!reasonCounts[key]) reasonCounts[key] = {display: canon, count: 0};
               reasonCounts[key].count++;
             });
             var topReason = null, topReasonCount = 0, distinctReasons = Object.keys(reasonCounts).length;
@@ -6479,7 +6685,19 @@
             // example narration instead in that case.
             var reasonIsMajority = topReasonCount > 1;
             var found = inflowMatches.length > 0 || nameAppearsInStatementText(n.name, fullStatementText);
-            return {label: n.label, name: n.name, inflowCount: inflowMatches.length, inflowTotal: inflowTotal, topReason: topReason, reasonIsMajority: reasonIsMajority, distinctReasons: distinctReasons, found: found, inflowMatches: inflowMatches};
+            // User feedback off a real 19-transaction statement: (1) flag as "inconsistent salary" when
+            // none of the matched inflows are narrated "Salary" at all; (2) 6+ distinct months of
+            // salary/employer inflow is what a reviewer wants to see — fewer than that is a red flag;
+            // (4) state the level of narration consistency as a plain percentage.
+            var salaryLabeledCount = inflowMatches.filter(function(t){
+              var r = extractNarrationReason(t.narration, inflowInfo.words);
+              return r && /salary/i.test(canonicalizeNarrationReason(r));
+            }).length;
+            var distinctMonthsSet = {};
+            inflowMatches.forEach(function(t){ distinctMonthsSet[t.date.getFullYear()+'-'+t.date.getMonth()] = true; });
+            var distinctMonthsCount = Object.keys(distinctMonthsSet).length;
+            var narrationConsistencyPct = inflowMatches.length ? Math.round(salaryLabeledCount / inflowMatches.length * 100) : 0;
+            return {label: n.label, name: n.name, inflowCount: inflowMatches.length, inflowTotal: inflowTotal, topReason: topReason, reasonIsMajority: reasonIsMajority, distinctReasons: distinctReasons, found: found, inflowMatches: inflowMatches, salaryLabeledCount: salaryLabeledCount, distinctMonthsCount: distinctMonthsCount, narrationConsistencyPct: narrationConsistencyPct};
           });
           var notFoundChecks = nameChecks.filter(function(c){ return !c.found; });
           var foundChecks = nameChecks.filter(function(c){ return c.found; });
@@ -6500,6 +6718,21 @@
               }
               results.push({cls:'ok', text:'Found "'+escapeHtml(c.name)+'" as the sender on '+c.inflowCount+' inflow'+(c.inflowCount===1?'':'s')+' in this bank statement, totaling '+fmtN(c.inflowTotal)+' — matches what you entered under "Work status" as your '+c.label+'.'+reasonBit+' This is exactly the kind of consistency signal a reviewer looks for: regular money actually arriving from the '+c.label+' you say pays you, not just its name appearing somewhere on the page. Each of those '+c.inflowCount+' payment'+(c.inflowCount===1?'':'s')+' is also listed individually below, rather than left as just this one summary line.'});
               matchedIncomeGroups.push({label: c.label, name: c.name, category: (c.label === 'business' ? 'business' : 'salary'), txns: c.inflowMatches});
+              // Narration consistency, as a plain percentage — and an explicit "inconsistent salary"
+              // warning when NONE of the matched inflows say "Salary" anywhere in their narration.
+              if (c.salaryLabeledCount === 0){
+                results.push({cls:'warn', text:'⚠️ Inconsistent salary narration: none of the '+c.inflowCount+' inflow'+(c.inflowCount===1?'':'s')+' from "'+escapeHtml(c.name)+'" are explicitly narrated as "Salary" (or a close variant). If this genuinely is your salary, ask your '+c.label+' to include the word "Salary" in the payment narration going forward — reviewers specifically look for it, and its total absence here can itself read as inconsistent.'});
+              } else {
+                results.push({cls:'ok', text:'Narration consistency: '+c.narrationConsistencyPct+'% of these inflows ('+c.salaryLabeledCount+' of '+c.inflowCount+') are explicitly narrated "Salary" — a reviewer can trace the pattern directly from the narration text itself, not just the amount.'});
+              }
+              // 6+ distinct months of salary/employer inflow is the threshold reviewers commonly look
+              // for — those are treated as already explained (see matchedIncomeGroups above) rather
+              // than needing individual confirmation; fewer than that is flagged as a red flag.
+              if (c.distinctMonthsCount >= 6){
+                results.push({cls:'ok', text:'Found '+c.label+' inflow in '+c.distinctMonthsCount+' distinct month(s) — 6 or more months of consistent income is exactly what reviewers look for, so these are treated as already accounted for rather than needing further explanation.'});
+              } else {
+                results.push({cls:'warn', text:'⚠️ Only found '+c.label+' inflow in '+c.distinctMonthsCount+' distinct month(s) so far — reviewers typically expect at least 6 months of consistent salary/income history. If you genuinely have 6 months, make sure every page covering that period is uploaded; if you don\'t yet, this is a common reason for refusal and worth addressing directly in a covering letter.'});
+              }
             } else {
               results.push({cls:'ok', text:'Found "'+escapeHtml(c.name)+'" referenced in this bank statement — matches what you entered under "Work status," a good consistency signal for a reviewer. It doesn\'t look like the direct sender on any individual inflow though — worth double-checking by eye that this statement actually shows your '+c.label+' income landing here, not just a mention elsewhere (e.g. a fee or a reference to it in passing).'});
             }
@@ -6860,6 +7093,7 @@
     document.getElementById('incomeSourcePersonal').innerHTML = '';
     document.getElementById('incomeSourceBusiness').innerHTML = '';
     document.getElementById('topInflowsBox').innerHTML = '';
+    document.getElementById('topConsistentSendersBox').innerHTML = '';
     document.getElementById('incomeBreakdownBox').innerHTML = '';
     document.getElementById('btnDownloadBreakdown').style.display = 'none';
     document.getElementById('downloadBreakdownNote').style.display = 'none';

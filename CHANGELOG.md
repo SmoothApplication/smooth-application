@@ -3,6 +3,55 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Salary consistency checks, top consistent senders, family detection, and a narration code glossary
+
+A 10-point list of requests, built off a real Zenith Bank statement and the applicant's own manual
+analysis spreadsheet of it:
+
+1. **Inconsistent salary narration**: if none of the inflows matched to a declared employer/business
+   are explicitly narrated "Salary" (or a recognised variant — see item 7), this is now called out as
+   a specific warning, rather than silently passing.
+2. **6-month salary coverage**: matched employer/business inflows spanning 6 or more distinct months
+   are now called out as already-sufficient evidence (no further explanation needed); fewer than 6 is
+   flagged as a red flag reviewers commonly cite, with guidance on what to do about it.
+3. Inflows with no narration at all already prompted an explanation (shipped earlier) — unchanged.
+4. **Narration consistency, as a percentage**: e.g. "62% of these inflows (5 of 8) are explicitly
+   narrated 'Salary'" — a plain, checkable number instead of just a pass/fail message.
+5. "Top 10 highest transfers" already existed — unchanged.
+6. **New: "Top 10 most consistent senders"** — ranked by how many separate months a sender recurs
+   across, not by amount. A sender who sends smaller amounts every month now correctly outranks a
+   single one-off large payment, which the existing amount-ranked list would otherwise put first.
+7. **Narration word grouping**: common shorthand/variants for the same reason (e.g. "HBD" and "Happy
+   Birthday", or "January Salary"/"February Salary"/"March Salary") are now recognised as the SAME
+   recurring reason when tallying "most common narration" and salary-consistency, instead of each
+   being counted as a separate one-off mention.
+8/10. **Bank narration code glossary**: a best-effort "🔍 What does this narration mean?" breakdown,
+   decoding common Nigerian bank/payment-channel shorthand (NIP, TRF, CIP, ETI, RVSL, VFD, WBP =
+   Wema Bank, ROLEZ = Moniepoint MFB, STBC = Stanbic IBTC, ABN = Access Bank, FD/FDP = Fidelity Bank,
+   ISW/QTeller = Interswitch, and more), shown right on each inflow's own explain-box. The same codes
+   are now also excluded from the automatic sender-NAME extraction (they used to leak into extracted
+   names, e.g. "Rolez Crisp N Clean Exclusive Solutions" instead of just "Crisp N Clean Exclusive
+   Solutions") and from the automatic REASON extraction (a bare channel code like "ROLEZ" could
+   previously get wrongly reported as if it were the payment's reason).
+9. **Family detection**: a sender sharing the applicant's own surname is now grouped and badged
+   "Family" in the Income sources breakdown, with a narrower, purpose-built reason dropdown (Gift /
+   Sale of property / Rental income / Others) instead of the general-purpose list used everywhere else.
+
+Full test suite (24/24, including a new regression test built around a synthetic fixture with a
+family-surname sender, a one-off large payment, and a recurring smaller one, proving the new
+"most consistent" ranking genuinely differs from the existing "highest amount" ranking) passed.
+
+Also smoke-tested against a real, full 31-page bank statement during this work (not shipped as a
+committed test fixture, for privacy) — this surfaced two known, pre-existing limitations worth
+flagging honestly rather than silently working around: (a) when a statement's own description column
+wraps across multiple lines in the source PDF, only the first wrapped line is currently captured as
+the narration — so a genuine "...February Salary/..." reason further down the wrapped cell can be lost
+entirely, which will understate the narration-consistency percentage on statements laid out this way;
+and (b) the employer/business name match is word-based, so a genuinely different company sharing one
+distinctive word (e.g. "Clean" in both "Crisp N Clean..." and an unrelated "Clean Deals Ventures") can
+occasionally get swept in as a false-positive match. Neither is new to this change, but both are worth
+a dedicated follow-up if you'd like them tightened up.
+
 ## Employer/business-matched bank inflows are now listed and explained individually, not grouped
 
 User request, off a real statement with 19 credits matching a declared employer/business: "Instead

@@ -45,12 +45,23 @@ exports.run = async function(ctx){
     assert.ok(/totaling ₦1,050,000/.test(html), 'Should total the business inflows to ₦1,050,000, got: ' + html);
 
     // A narration "reason" (e.g. "January Salary") should be read off the slash-delimited narration and
-    // shown — with 3 distinct per-month reasons (Jan/Feb/Mar) tied at count 1 each, it should be framed
-    // as an example ("E.g. narrated as"), not overclaimed as the "most common" one.
-    assert.ok(/E\.g\. narrated as "January (Allowance|Salary)"/.test(html),
-      'Should surface an example narration reason without overclaiming a majority, got: ' + html);
-    assert.ok(!/Most commonly narrated/.test(html),
-      'Should not claim a "most common" reason when every reason ties at count 1, got: ' + html);
+    // shown. Per-month reasons ("January Salary", "February Salary", "March Salary") are canonicalized
+    // (see NARRATION_REASON_SYNONYMS/canonicalizeNarrationReason) before tallying, so these 3 distinct
+    // narrations correctly tally as 3 occurrences of the SAME reason ("Salary") rather than 3 separate
+    // one-off reasons tied at count 1 — and so it's rightly framed as the "most common" one, not just
+    // an example.
+    assert.ok(/Most commonly narrated as "Allowance"/.test(html),
+      'Should recognise "Allowance" as the majority reason for the employer inflows, got: ' + html);
+    assert.ok(/Most commonly narrated as "Salary"/.test(html),
+      'Should recognise "Salary" as the majority reason once per-month variants are canonicalized together, got: ' + html);
+
+    // Narration-consistency check (percentage) and the "inconsistent salary" / 6-month red-flag messages.
+    assert.ok(/Inconsistent salary narration: none of the 3 inflows from "MFM Lekki Youth Church"/.test(html),
+      'Employer inflows narrated "Allowance" (never "Salary") should be flagged as inconsistent salary narration, got: ' + html);
+    assert.ok(/Narration consistency: 100% of these inflows \(3 of 3\) are explicitly narrated "Salary"/.test(html),
+      'Business inflows all narrated "Salary" should show 100% narration consistency, got: ' + html);
+    assert.ok(/Only found employer inflow in 3 distinct month\(s\)/.test(html) && /Only found business inflow in 3 distinct month\(s\)/.test(html),
+      'Fewer than 6 distinct months of matched inflow should be flagged as a red flag for both employer and business, got: ' + html);
 
     // A name genuinely absent from the statement should still produce the original hard warning.
     var page2 = await newPageAt(ctx.browser, '/index.html');
