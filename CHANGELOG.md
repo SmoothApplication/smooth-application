@@ -3,6 +3,46 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fix: consent checkbox honesty gap + explain why Continue is disabled
+
+Direct follow-up from a UI/UX review of the entry/consent screen. Two issues, both about the gate
+doing what it visually claims rather than about density/layout (the earlier decluttering pass
+stays exactly as it was):
+
+- The consent checkbox used to read "I've read the disclaimer above and understand this is
+  guidance only, not immigration advice" — but by default only one bolded headline sentence is
+  visible; the 3-bullet summary and full legal text both sit behind a collapsed "Read the full
+  disclaimer" toggle most visitors will never click. A visitor could tick that box and unlock
+  Continue having only ever seen one sentence, despite the checkbox implying they'd read the whole
+  thing. Reworded to "I understand this is guidance only, not immigration advice — full details
+  are in the disclaimer above," which affirms the one fact that actually needs affirming and
+  points to where the rest lives, without claiming an action (reading the full text) that may not
+  have happened.
+- The Continue button used to go from disabled to disabled with zero explanation why — a real
+  usability problem for a less tech-confident visitor, who has no way to tell "gated" apart from
+  "broken." A one-line hint now appears directly under the button ("Tick the box above to
+  continue," or, for the still-unbuilt countries in the picker, a note to pick UK or Canada for
+  now) and clears itself the moment Continue actually becomes clickable — zero layout shift, and
+  no visual weight added once there's nothing left to explain.
+
+## Polish: bigger/friendlier headline, shorter subtitle, trimmed credit line
+
+Three quick follow-up tweaks to the entry/consent screen redesign above, all direct feedback on
+that same screen:
+
+- The "Smooth Application" headline is now larger (24px -> 32px) and bolder, in a distinct rounded
+  display font (`ui-rounded`, Apple's built-in rounded system font) instead of the same system-ui
+  stack the rest of the page uses. Deliberately NOT a Google Fonts/CDN import — that would add a
+  new third-party network request undisclosed in the Privacy Policy and work against the "nothing
+  leaves your device" promise the product is built around. `ui-rounded` renders on Safari/Mac
+  (most of this app's traffic is iOS Safari per GoatCounter) and falls back to the same system-ui
+  stack everywhere else, at zero network cost.
+- The subtitle dropped its trailing "for Nigerian visa applicants" — now just "A personal
+  document-readiness checklist." — since the trust badge right below it already says "Built for
+  Nigerian applicants."
+- The footer credit line dropped "— a free personal project, not a company" — now just "Built by
+  SafeNetwork. Email · WhatsApp."
+
 ## Polish: calmer, less cluttered entry/consent screen
 
 Direct feedback on the first screen a visitor sees: "make this page more appealing... minimalist

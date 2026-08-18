@@ -157,7 +157,7 @@
   @media (max-width: 400px) {
     .consent-gate { padding: 10px; }
     .consent-gate-card { padding: 20px 16px 16px; border-radius: 14px; }
-    .consent-gate-title { font-size: 21px; }
+    .consent-gate-title { font-size: 26px; }
   }
   .consent-gate-card::before {
     content: ''; position: absolute; top: 0; left: 0; right: 0; height: 5px;
@@ -169,7 +169,17 @@
     font-size: 24px; margin-bottom: 12px;
     background: linear-gradient(135deg, #1b6fa81f, #0e8f821f); border: 1px solid var(--border);
   }
-  .consent-gate-title { font-size: 24px; margin: 0 0 6px; letter-spacing: -0.01em; }
+  /* A distinct, friendlier display font just for this headline — "ui-rounded" is Apple's built-in
+     rounded system font (Safari/Mac only; most of this app's traffic is iOS Safari per GoatCounter),
+     with a graceful fallback to the same system-ui stack the rest of the page uses everywhere else.
+     Deliberately NOT a Google Fonts (or any other CDN) import: that would add a new third-party
+     network request undisclosed in the Privacy Policy and work against the "nothing leaves your
+     device" promise the whole product is built around — a system font gets the same visual lift
+     with zero network cost and zero policy update needed. */
+  .consent-gate-title {
+    font-size: 32px; margin: 0 0 6px; letter-spacing: -0.015em; font-weight: 800;
+    font-family: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
   .consent-gate-subtitle { font-size: 13px; color: var(--text-secondary); margin: 0 0 16px; line-height: 1.5; }
   /* Lighter, borderless pills — plain colored text on a faint tint reads as calm reassurance rather
      than another bordered box competing for attention next to the select and disclaimer below it. */
@@ -222,6 +232,9 @@
   .consent-gate-card .checkrow { font-size: 12.5px; line-height: 1.5; gap: 8px; }
   .consent-gate-card .checkrow input { margin-top: 3px; flex-shrink: 0; }
   #gateContinue:disabled { opacity: 0.5; cursor: not-allowed; }
+  /* Explains WHY the button is inert instead of leaving it as an unexplained dead click — empty
+     (and takes no layout space beyond a small min-height) once the button is actually enabled. */
+  .gate-continue-hint { font-size: 12px; color: var(--text-muted); text-align: center; margin: 8px 0 0; min-height: 1em; }
 
   /* "What you'll likely need to gather first" — a quick heads-up before starting the form, so the
      applicant can go get bank statements/scans ready in advance instead of discovering requirements
@@ -630,7 +643,7 @@
   <div class="consent-gate-card">
     <div class="gate-icon-badge" aria-hidden="true">🛂</div>
     <h1 class="consent-gate-title">Smooth Application</h1>
-    <p class="consent-gate-subtitle">A personal document-readiness checklist for Nigerian visa applicants.</p>
+    <p class="consent-gate-subtitle">A personal document-readiness checklist.</p>
     <div class="gate-trust-row">
       <span class="gate-trust-badge">🔒 Nothing leaves your device</span>
       <span class="gate-trust-badge">🆓 Free, always</span>
@@ -659,9 +672,10 @@
     </div>
     <label class="checkrow" style="margin-top:10px; align-items:flex-start;">
       <input type="checkbox" id="gateAgree">
-      <span>I've read the disclaimer above and understand this is guidance only, not immigration advice.</span>
+      <span>I understand this is guidance only, not immigration advice — full details are in the disclaimer above.</span>
     </label>
     <button class="btn primary" id="gateContinue" disabled style="margin-top:14px; width:100%;">Continue</button>
+    <p class="gate-continue-hint" id="gateContinueHint"></p>
     <p class="gate-credit">Built by <b>SafeNetwork</b>. <a href="mailto:lalasionline@gmail.com">Email</a> · <a href="https://wa.me/2349081389969" target="_blank" rel="noopener">WhatsApp</a></p>
   </div>
 </div>
@@ -7532,16 +7546,32 @@
     html += '<p style="margin-top:6px;">A few more documents may apply once you answer specific questions in the form (e.g. if a host or sponsor is involved) — the checklist adjusts automatically as you go.</p>';
     box.innerHTML = html;
   }
+  // The Continue button starts (and often stays) disabled with no visual explanation of why —
+  // real feedback was that an unexplained disabled button reads as broken rather than gated,
+  // especially for a less tech-confident visitor on a form this consequential. This fills in the
+  // one-line reason underneath it, and stays blank once there's nothing left to explain.
+  function updateGateContinueHint(){
+    var hint = document.getElementById('gateContinueHint');
+    if (!hint) return;
+    var sel = document.getElementById('gateCountrySelect');
+    var ready = COUNTRIES[sel.value] && COUNTRIES[sel.value].ready;
+    var agreed = document.getElementById('gateAgree').checked;
+    if (!ready) hint.textContent = "This country isn't available yet — pick United Kingdom or Canada for now.";
+    else if (!agreed) hint.textContent = 'Tick the box above to continue.';
+    else hint.textContent = '';
+  }
   document.getElementById('gateCountrySelect').addEventListener('change', function(){
     populateGateDisclaimer();
     populateGatePrepChecklist();
     document.getElementById('gateAgree').checked = false;
     document.getElementById('gateContinue').disabled = true;
+    updateGateContinueHint();
   });
   document.getElementById('gateAgree').addEventListener('change', function(){
     var sel = document.getElementById('gateCountrySelect');
     var ready = COUNTRIES[sel.value] && COUNTRIES[sel.value].ready;
     document.getElementById('gateContinue').disabled = !(this.checked && ready);
+    updateGateContinueHint();
   });
   document.getElementById('gateContinue').addEventListener('click', function(){
     var code = document.getElementById('gateCountrySelect').value;
@@ -7558,12 +7588,14 @@
     populateGatePrepChecklist();
     document.getElementById('gateAgree').checked = false;
     document.getElementById('gateContinue').disabled = true;
+    updateGateContinueHint();
     document.getElementById('appWrap').style.display = 'none';
     document.getElementById('consentGate').style.display = 'flex';
     window.scrollTo(0,0);
   });
   populateGateDisclaimer();
   populateGatePrepChecklist();
+  updateGateContinueHint();
 
   render();
 
