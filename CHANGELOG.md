@@ -3,6 +3,25 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fix: two accessibility gaps found in an international-standard review
+
+A GUI audit turned up two real, measurable issues rather than subjective nitpicks:
+
+- **Form labels weren't programmatically linked to their inputs.** 48 `<label>` elements across
+  the app (trip details, financial calculator, declaration, and two dynamically-rendered fields in
+  the currency/sightseeing tools) relied purely on visual proximity to their field, with no
+  `for`/`id` pairing. A sighted user never notices, but a screen-reader user tabbing through the
+  form would only hear "edit text" instead of the actual field name. Every one of those labels now
+  has a matching `for` attribute, verified by clicking a label in a real browser and confirming
+  focus lands on the right input. (Checkbox labels that already wrap their input, and a couple of
+  pure layout spacers, were correctly left alone — they didn't have this problem.)
+- **`--text-muted` failed WCAG AA contrast at the sizes it's actually used at.** The old color
+  (`#6b8494`) measured 3.5–3.7:1 against this theme's backgrounds — below the 4.5:1 minimum for
+  normal-sized text — while being used at 11–13px for real content (tips, the footer credit line,
+  legal notes), not decorative filler. Darkened to `#566a76`, which clears 4.5:1 against both
+  background tones with real headroom (5.4:1 / 5.1:1), confirmed by computing the actual contrast
+  ratios rather than eyeballing it. Dark mode's muted color already passed and was left unchanged.
+
 ## Polish: "What your statement(s) show" now collapses by default
 
 Follow-up question: should Session 2 ("Income & bank statement analysis") be split into two

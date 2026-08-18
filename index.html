@@ -22,7 +22,11 @@
     --card:        #ffffff;
     --text-primary:   #12232e;
     --text-secondary: #4c6270;
-    --text-muted:     #6b8494;
+    /* Darkened from #6b8494 — the original only hit 3.5–3.7:1 against this theme's backgrounds,
+       below WCAG AA's 4.5:1 minimum for normal-sized text, and this color is used at 11–13px for
+       real content (tips, footer credit line, legal notes), not just decorative filler. This shade
+       clears 4.5:1 against both --surface-1 and --surface-2 with headroom (5.4:1 / 5.1:1). */
+    --text-muted:     #566a76;
     --gridline:    #dce6ea;
     --baseline:    #b9ccd4;
     --border:      rgba(18,35,46,0.12);
@@ -685,7 +689,7 @@
       <span class="gate-trust-badge">🆓 Free, always</span>
       <span class="gate-trust-badge">🇳🇬 Built for Nigerian applicants</span>
     </div>
-    <label class="field">Which visa are you preparing for?</label>
+    <label class="field" for="gateCountrySelect">Which visa are you preparing for?</label>
     <div class="gate-select-wrap">
       <select id="gateCountrySelect">
         <option value="UK">🇬🇧 United Kingdom — Standard Visitor visa</option>
@@ -746,7 +750,7 @@
         </summary>
         <div class="card-body">
         <div class="doc-reminder" id="passportInlineBox" style="margin:0 0 14px; padding-left:12px;">
-          <label class="field" style="margin-bottom:6px;">📘 Check your passport first — upload the bio page to check its expiry date</label>
+          <label class="field" style="margin-bottom:6px;" for="file_passportInline">📘 Check your passport first — upload the bio page to check its expiry date</label>
           <div class="upload-row no-print" style="margin:4px 0;">
             <input type="file" id="file_passportInline" accept="image/*,application/pdf">
             <button type="button" class="btn" id="btnPassportInlineAttach" disabled>📎 Attach &amp; check expiry</button>
@@ -756,11 +760,11 @@
         </div>
         <div class="row">
           <div>
-            <label class="field">Your full name (as on passport)</label>
+            <label class="field" for="f_name">Your full name (as on passport)</label>
             <input type="text" id="f_name" placeholder="e.g. Adaeze Okafor">
           </div>
           <div>
-            <label class="field">Main purpose of visit</label>
+            <label class="field" for="f_purpose">Main purpose of visit</label>
             <select id="f_purpose">
               <option value="" selected>Select a purpose…</option>
               <option value="tourism">Tourism / holiday</option>
@@ -778,11 +782,11 @@
         </div>
         <div class="row">
           <div>
-            <label class="field">Planned travel date (departure)</label>
+            <label class="field" for="f_traveldate">Planned travel date (departure)</label>
             <input type="date" id="f_traveldate">
           </div>
           <div>
-            <label class="field">Planned return date</label>
+            <label class="field" for="f_returndate">Planned return date</label>
             <input type="date" id="f_returndate">
             <div class="item-tip" id="tripLengthNote" style="margin-top:4px;"></div>
           </div>
@@ -793,7 +797,7 @@
             <div class="item-tip" id="f_lengthDisplay" style="margin-top:9px; font-weight:600; color:var(--text-primary);">Enter your travel and return dates above to see this.</div>
           </div>
           <div>
-            <label class="field">Planned application/submission date</label>
+            <label class="field" for="f_appdate">Planned application/submission date</label>
             <input type="date" id="f_appdate">
             <div class="item-tip" id="prepTimeCountdown" style="margin-top:4px;"></div>
             <div class="item-tip" id="appDateCountdown" style="margin-top:4px;"></div>
@@ -801,7 +805,7 @@
         </div>
         <div class="row">
           <div>
-            <label class="field">How many people are travelling on this application?</label>
+            <label class="field" for="f_travelerCount">How many people are travelling on this application?</label>
             <div class="gate-select-wrap" style="max-width:340px;">
               <select id="f_travelerCount">
                 <option value="1">Just me (1 person)</option>
@@ -825,17 +829,17 @@
           <div id="travelerBreakdownFields">
             <div class="row">
               <div>
-                <label class="field">Adults (18+) on this application</label>
+                <label class="field" for="f_adults">Adults (18+) on this application</label>
                 <input type="text" inputmode="numeric" id="f_adults" value="1">
               </div>
               <div>
-                <label class="field">Adolescents (12–17)</label>
+                <label class="field" for="f_adolescents">Adolescents (12–17)</label>
                 <input type="text" inputmode="numeric" id="f_adolescents" placeholder="0">
               </div>
             </div>
             <div class="row">
               <div>
-                <label class="field">Children (2–11)</label>
+                <label class="field" for="f_children">Children (2–11)</label>
                 <input type="text" inputmode="numeric" id="f_children" placeholder="0">
               </div>
               <div>
@@ -850,7 +854,7 @@
         <div class="fin-breakdown no-print" id="quickTripCostBox" style="display:none; margin:10px 0;">
           <div id="quickTripCostContent"></div>
         </div>
-        <label class="field" style="margin-top:6px;">Work status</label>
+        <label class="field" style="margin-top:6px;" for="f_workStatus">Work status</label>
         <div class="gate-select-wrap" style="max-width:420px;">
           <select id="f_workStatus">
             <option value="">Select your status…</option>
@@ -868,10 +872,10 @@
              control instead of four separate checkboxes. -->
         <div class="checkrow" style="display:none;"><input type="checkbox" id="f_employed"><label for="f_employed">I'm currently employed in Nigeria</label></div>
         <div id="employerNameRow" style="display:none; padding-left:24px; margin:-2px 0 8px;">
-          <label class="field">Employer / company name <span style="color:var(--danger, #c0392b);">*</span></label>
+          <label class="field" for="f_employerName">Employer / company name <span style="color:var(--danger, #c0392b);">*</span></label>
           <input type="text" id="f_employerName" placeholder="e.g. Zenith Bank Plc" style="max-width:340px;">
           <div class="item-tip" style="margin-top:4px;">Used below to check this name actually turns up on your bank statement — a strong, expected signal to a reviewer.</div>
-          <label class="field" style="margin-top:6px;">Also known as / abbreviation used in your statement (optional)</label>
+          <label class="field" style="margin-top:6px;" for="f_employerAltName">Also known as / abbreviation used in your statement (optional)</label>
           <input type="text" id="f_employerAltName" placeholder="e.g. MFM LYC" style="max-width:340px;">
           <div class="item-tip" style="margin-top:4px;">Banks often shorten a name in the narration (initials, an acronym, a branch code). If your statement doesn't spell out the full name above, add the short form actually used so this check can still find it.</div>
         </div>
@@ -884,10 +888,10 @@
         </div>
         <div class="checkrow" style="display:none;"><input type="checkbox" id="f_selfEmployed"><label for="f_selfEmployed">I'm self-employed / run a business in Nigeria</label></div>
         <div id="businessNameRow" style="display:none; padding-left:24px; margin:-2px 0 8px;">
-          <label class="field">Business name <span style="color:var(--danger, #c0392b);">*</span></label>
+          <label class="field" for="f_businessName">Business name <span style="color:var(--danger, #c0392b);">*</span></label>
           <input type="text" id="f_businessName" placeholder="e.g. Okafor Fashion House" style="max-width:340px;">
           <div class="item-tip" style="margin-top:4px;">Used below to check this name actually turns up on your bank statement — a strong, expected signal to a reviewer.</div>
-          <label class="field" style="margin-top:6px;">Also known as / abbreviation used in your statement (optional)</label>
+          <label class="field" style="margin-top:6px;" for="f_businessAltName">Also known as / abbreviation used in your statement (optional)</label>
           <input type="text" id="f_businessAltName" placeholder="e.g. CNC Solutions" style="max-width:340px;">
           <div class="item-tip" style="margin-top:4px;">Banks often shorten a name in the narration (initials, an acronym, a branch code). If your statement doesn't spell out the full name above, add the short form actually used so this check can still find it.</div>
         </div>
@@ -905,7 +909,7 @@
         <div id="studentSponsorBlock" style="display:none; padding-left:24px; margin:-2px 0 8px;">
           <div class="checkrow"><input type="checkbox" id="f_studentSponsor"><label for="f_studentSponsor">Someone else (parent, relative, employer, etc.) is funding some or all of this trip</label></div>
           <div id="sponsorRelationshipRow" style="display:none; margin-top:6px;">
-            <label class="field">Sponsor's name &amp; relationship to you</label>
+            <label class="field" for="f_sponsorRelationship">Sponsor's name &amp; relationship to you</label>
             <input type="text" id="f_sponsorRelationship" placeholder="e.g. Adaeze Okafor — my mother">
             <div class="item-tip" style="margin-top:4px;">Ticking this makes a document from your sponsor <b>required</b> below — see "Ties to Nigeria" once you reach that section.</div>
           </div>
@@ -924,11 +928,11 @@
 
         <div class="row">
           <div>
-            <label class="field">Trip length (nights)</label>
+            <label class="field" for="fc_nights">Trip length (nights)</label>
             <input type="text" inputmode="numeric" id="fc_nights" placeholder="e.g. 14">
           </div>
           <div>
-            <label class="field">Estimated flight cost per traveller (₦)</label>
+            <label class="field" for="fc_flight">Estimated flight cost per traveller (₦)</label>
             <input type="text" inputmode="numeric" id="fc_flight" placeholder="e.g. 1,800,000 (typical range 1.5M–2.5M)">
           </div>
         </div>
@@ -936,17 +940,17 @@
           <p class="fin-note" style="margin-top:0;">Now that you've costed a flight, add the actual booking details — scanning your flight itinerary under "Travel details" below will check these against the document.</p>
           <div class="row">
             <div>
-              <label class="field">Airline</label>
+              <label class="field" for="fc_airline">Airline</label>
               <input type="text" id="fc_airline" placeholder="e.g. British Airways">
             </div>
             <div>
-              <label class="field">Departure date</label>
+              <label class="field" for="fc_depDate">Departure date</label>
               <input type="date" id="fc_depDate">
               <div class="item-tip" style="margin-top:4px;">Auto-filled from your travel date above — change it here if your actual flight leaves on a different day.</div>
             </div>
           </div>
           <div style="margin-bottom:14px;">
-            <label class="field">Return/arrival-back date</label>
+            <label class="field" for="fc_arrDate">Return/arrival-back date</label>
             <input type="date" id="fc_arrDate" style="max-width:260px;">
             <div class="item-tip" style="margin-top:4px;">Auto-filled from your return date above — change it here if your actual flight arrives back on a different day.</div>
           </div>
@@ -954,15 +958,15 @@
           <div class="item-tip" id="flightVerifyNote" style="margin-top:4px;">Fill in both dates above to compare current typical fares across airlines — opens a search in a new tab. This app has no flight-price API, so it can't fetch or guarantee an exact price for you; treat the results as a sanity-check, not a quote.</div>
         </div>
         <div style="margin-bottom:14px;">
-          <label class="field">Accommodation cost per night (₦)</label>
+          <label class="field" for="fc_accom">Accommodation cost per night (₦)</label>
           <input type="text" inputmode="numeric" id="fc_accom" placeholder="e.g. 60,000 (from 50,000/night)" style="max-width:340px;">
           <div class="item-tip" style="margin-top:4px;">Scanning your accommodation booking under "Accommodation &amp; <span id="hostTypeLabel3">UK host</span>" below will try to detect its nightly rate and check it against this figure.</div>
-          <label class="field" style="margin-top:8px;">Accommodation address (optional)</label>
+          <label class="field" style="margin-top:8px;" for="fc_accomAddress">Accommodation address (optional)</label>
           <input type="text" id="fc_accomAddress" placeholder="e.g. 22 Baker Street, London NW1 6XE" style="max-width:340px;">
           <button type="button" class="btn ghost no-print" id="btnNearbyStores" style="margin-top:6px; font-size:11px; padding:4px 8px;">🗺️ Check nearby shops/supermarkets</button>
         </div>
         <div style="margin-bottom:14px;">
-          <label class="field">Transport estimate, whole trip (₦)</label>
+          <label class="field" for="fc_transport">Transport estimate, whole trip (₦)</label>
           <input type="text" inputmode="numeric" id="fc_transport" placeholder="e.g. 150,000" style="max-width:340px;">
           <button type="button" class="btn ghost no-print" id="btnTransportHelper" style="margin-top:6px; font-size:11px; padding:4px 8px;">🧮 Not sure? Help me estimate this</button>
           <div class="item-tip" id="transportHelperCollapsedNote" style="margin-top:4px; display:none;"></div>
@@ -973,17 +977,17 @@
           <div id="th_modes"></div>
           <div class="row" style="margin-top:4px;">
             <div>
-              <label class="field">One-off trips (airport transfer, day trip, etc.)</label>
+              <label class="field" for="th_oneoffCount">One-off trips (airport transfer, day trip, etc.)</label>
               <input type="text" inputmode="numeric" id="th_oneoffCount" placeholder="e.g. 2" max="2">
               <div class="item-tip" style="margin-top:4px;">Capped at 2 — for repeat day-to-day travel use the modes above (rate × number of days) instead. It's more realistic, and reads better to a reviewer, to budget around one trip per day rather than stacking up separate one-offs.</div>
             </div>
             <div>
-              <label class="field">Cost per one-off trip (£)</label>
+              <label class="field" for="th_oneoffRate">Cost per one-off trip (£)</label>
               <input type="text" inputmode="numeric" id="th_oneoffRate" placeholder="35">
             </div>
           </div>
           <div style="max-width:340px;">
-            <label class="field">£ → ₦ exchange rate</label>
+            <label class="field" for="th_rate">£ → ₦ exchange rate</label>
             <div class="upload-row" style="margin-top:0;">
               <input type="text" inputmode="numeric" id="th_rate" style="flex:1;">
               <button type="button" class="btn" id="btnFetchRate" style="font-size:11px;">🔄 Fetch live rate</button>
@@ -996,14 +1000,14 @@
         <details class="fin-breakdown no-print" style="margin:10px 0;">
           <summary style="cursor:pointer; font-weight:600;">🛍️ Shopping &amp; sightseeing estimate</summary>
           <div style="margin-top:10px;">
-            <label class="field">Shopping estimate (₦)</label>
+            <label class="field" for="fc_shopping">Shopping estimate (₦)</label>
             <input type="text" inputmode="numeric" id="fc_shopping" placeholder="e.g. 100,000">
-            <label class="field" style="margin-top:6px;">Where do you plan to shop? (optional)</label>
+            <label class="field" style="margin-top:6px;" for="fc_shoppingPlace">Where do you plan to shop? (optional)</label>
             <input type="text" id="fc_shoppingPlace" placeholder="e.g. Westfield London, Oxford Street">
             <div class="item-tip" id="shoppingEstimateNote" style="margin-top:4px;"></div>
           </div>
           <div style="margin-top:14px;">
-            <label class="field">Sightseeing estimate (₦)</label>
+            <label class="field" for="fc_sightseeing">Sightseeing estimate (₦)</label>
             <input type="text" inputmode="numeric" id="fc_sightseeing" placeholder="e.g. 100,000">
             <div class="item-tip" style="margin-top:4px;">Entry tickets, tours, attractions — e.g. London Eye, museums, day trips.</div>
             <button type="button" class="btn ghost no-print" id="btnSightseeingHelper" style="margin-top:6px; font-size:11px; padding:4px 8px;">🎟️ Pick specific attractions</button>
@@ -1014,7 +1018,7 @@
             <p class="fin-note" style="margin-top:0;">A vague lump sum reads as guesswork to a reviewer — naming real, ticketed attractions you'll actually visit reads as a genuine, researched trip. Tick whichever you plan to visit; approximate adult ticket prices as of August 2026 (always confirm current prices on the attraction's own site before you travel). Free major museums are included too — visiting some of these alongside paid attractions is completely normal and doesn't weaken your case.</p>
             <div id="sight_attractions"></div>
             <div style="margin-top:4px; max-width:340px;">
-              <label class="field" id="sight_rateLabel">£ → ₦ exchange rate</label>
+              <label class="field" id="sight_rateLabel" for="sight_rate">£ → ₦ exchange rate</label>
               <div class="upload-row" style="margin-top:0;">
                 <input type="text" inputmode="numeric" id="sight_rate" style="flex:1;">
                 <button type="button" class="btn" id="btnFetchSightRate" style="font-size:11px;">🔄 Fetch live rate</button>
@@ -1025,17 +1029,17 @@
           </div>
         </details>
         <div style="margin-bottom:14px;">
-          <label class="field">Opening balance at the start of your statement(s) (₦)</label>
+          <label class="field" for="fc_opening">Opening balance at the start of your statement(s) (₦)</label>
           <input type="text" inputmode="numeric" id="fc_opening" placeholder="e.g. 1,200,000" style="max-width:340px;">
           <div class="item-tip" style="margin-top:4px;">The balance shown on the very first line of your earliest statement — shows a reviewer the trajectory of your funds, not just the final number. If you upload statements below, this is checked against what's detected automatically.</div>
         </div>
         <div style="margin-bottom:14px;">
-          <label class="field">Current closing balance on your statement(s) (₦)</label>
+          <label class="field" for="fc_closing">Current closing balance on your statement(s) (₦)</label>
           <input type="text" inputmode="numeric" id="fc_closing" placeholder="e.g. 3,000,000" style="max-width:340px;">
           <div class="item-tip" style="margin-top:4px;">If you upload up to 3 personal bank statements below, this must equal the <b>total</b> of their closing balances added together — e.g. if you type ₦3,020,000 here and upload 3 statements, those 3 closing balances must sum to ₦3,020,000.</div>
         </div>
         <div style="margin-bottom:14px;">
-          <label class="field">Foreign currency savings, if any (₦ equivalent)</label>
+          <label class="field" for="fc_forexSavings">Foreign currency savings, if any (₦ equivalent)</label>
           <input type="text" inputmode="numeric" id="fc_forexSavings" placeholder="e.g. 0" readonly style="max-width:340px;">
           <button type="button" class="btn ghost no-print" id="btnCurrencyHelper" style="margin-top:6px; font-size:11px; padding:4px 8px;">🌍 Earn or hold savings in another currency?</button>
           <div class="item-tip" id="currencyHelperCollapsedNote" style="margin-top:4px; display:none;"></div>
@@ -1046,7 +1050,7 @@
           <p class="fin-note" style="margin-top:0;">For applicants paid in a foreign currency (remote work, foreign employer, foreign account) or holding foreign-currency savings separately from the Naira account above. Converts using a live market exchange rate — the same kind of mid-market rate you'd see quoted on <a href="https://www.oanda.com/currency-converter/en/" target="_blank" rel="noopener">oanda.com</a> — not a bank or transfer-service rate, which is usually a bit worse. This amount is <b>added to</b> your closing balance above, not used to replace it.</p>
           <div class="row">
             <div>
-              <label class="field">Currency</label>
+              <label class="field" for="cur_code">Currency</label>
               <select id="cur_code">
                 <option value="USD">US Dollar (USD)</option>
                 <option value="GBP">British Pound (GBP)</option>
@@ -1056,13 +1060,13 @@
               </select>
             </div>
             <div>
-              <label class="field">Amount</label>
+              <label class="field" for="cur_amount">Amount</label>
               <input type="text" inputmode="numeric" id="cur_amount" placeholder="e.g. 2,000">
             </div>
           </div>
           <div class="row">
             <div>
-              <label class="field" id="cur_rateLabel">Exchange rate (1 USD → ₦)</label>
+              <label class="field" id="cur_rateLabel" for="cur_rate">Exchange rate (1 USD → ₦)</label>
               <input type="text" inputmode="numeric" id="cur_rate">
             </div>
             <div>
@@ -1110,16 +1114,16 @@
         <p class="fin-note">Upload your bank statement(s) below and this fills in the table automatically — or skip the upload and just type the totals in yourself, straight from your statement.</p>
         <div class="row no-print" style="margin-bottom:4px;">
           <div>
-            <label class="field">Bank statement 1</label>
+            <label class="field" for="stmtFile1">Bank statement 1</label>
             <input type="file" id="stmtFile1" accept="application/pdf,image/*,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
           </div>
           <div>
-            <label class="field">Bank statement 2 (optional)</label>
+            <label class="field" for="stmtFile2">Bank statement 2 (optional)</label>
             <input type="file" id="stmtFile2" accept="application/pdf,image/*,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
           </div>
         </div>
         <div class="no-print" style="margin-bottom:4px;">
-          <label class="field">Bank statement 3 (optional)</label>
+          <label class="field" for="stmtFile3">Bank statement 3 (optional)</label>
           <input type="file" id="stmtFile3" accept="application/pdf,image/*,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
         </div>
         <div class="upload-row no-print" style="margin-bottom:4px;">
@@ -1185,18 +1189,18 @@
       </div>
 
       <div class="card" id="identityStatusCard" data-session-key="cat:Identity & application" style="border-left: 4px solid #1b6fa8;">
-        <label class="field" style="margin-top:0;">Application readiness &amp; visa history</label>
+        <label class="field" style="margin-top:0;" for="f_translation">Application readiness &amp; visa history</label>
         <div class="checkrow"><input type="checkbox" id="f_translation"><label for="f_translation">Some of my documents are not in <span id="translationLangLabel">English</span></label></div>
         <div class="checkrow"><input type="checkbox" id="f_readyToSubmit"><label for="f_readyToSubmit">I've gathered my supporting documents and I'm ready to start the formal application steps (form, fee, biometrics)</label></div>
         <div class="checkrow"><input type="checkbox" id="f_hasRefusal"><label for="f_hasRefusal">I've been refused a visa (for this country or any other) in the last 5 years</label></div>
         <div id="refusalRow" style="display:none; padding-left:24px; margin:-2px 0 8px;">
           <div class="row" style="margin-bottom:8px;">
             <div>
-              <label class="field">How many times in the last 5 years?</label>
+              <label class="field" for="f_refusalCount">How many times in the last 5 years?</label>
               <input type="text" inputmode="numeric" id="f_refusalCount" placeholder="e.g. 1">
             </div>
           </div>
-          <label class="field">For each refusal, list the country and year (one per line)</label>
+          <label class="field" for="f_refusalDetails">For each refusal, list the country and year (one per line)</label>
           <textarea id="f_refusalDetails" rows="2" placeholder="e.g. United Kingdom, 2024&#10;Schengen (France), 2022"></textarea>
           <div class="item-tip" style="margin-top:4px;">Being upfront about a past refusal — with a clear explanation of what's changed since — reads far better to a reviewer than a refusal they discover independently. Attach the refusal letter(s) under "Previous visa refusal documentation" below.</div>
         </div>
@@ -1230,8 +1234,8 @@
         <div class="card-body">
         <p class="item-tip" style="margin-top:-6px;">This is a personal record for your own use, confirming the information above is accurate to your knowledge — it isn't part of any official government form, nothing is sent anywhere, and no account or sign-in is needed. Fill it in whenever suits you: before you start, or once your report is ready.</p>
         <div class="row">
-          <div><label class="field">Full name</label><input type="text" id="decl_name" placeholder="e.g. Oluwaseyi Adegboyega Afeni"></div>
-          <div><label class="field">Date</label><input type="date" id="decl_date"></div>
+          <div><label class="field" for="decl_name">Full name</label><input type="text" id="decl_name" placeholder="e.g. Oluwaseyi Adegboyega Afeni"></div>
+          <div><label class="field" for="decl_date">Date</label><input type="date" id="decl_date"></div>
         </div>
         <div class="checkrow"><input type="checkbox" id="decl_confirm"><label for="decl_confirm">I confirm the information I've entered in this checklist is accurate to the best of my knowledge.</label></div>
         <div id="declMsg" class="item-tip" style="margin-top:6px;"></div>
@@ -3402,7 +3406,7 @@
         + '<input type="text" inputmode="numeric" id="th_count_'+key+'" placeholder="e.g. 10">'
         + (isDayBased ? '<div class="item-tip" id="th_dayhint_'+key+'" style="margin-top:4px;"></div>' : '')
         + '</div>'
-        + '<div><label class="field">Cost per unit (£)</label><input type="text" inputmode="numeric" id="th_rate_'+key+'" value="'+cfg.rate+'"></div>'
+        + '<div><label class="field" for="th_rate_'+key+'">Cost per unit (£)</label><input type="text" inputmode="numeric" id="th_rate_'+key+'" value="'+cfg.rate+'"></div>'
         + '</div>';
     });
     document.getElementById('th_modes').innerHTML = html;
@@ -3627,7 +3631,7 @@
       return '<div class="row" style="align-items:end; margin-bottom:8px;">'
         + '<div><label class="checkrow" style="margin:0 0 4px;"><input type="checkbox" id="sight_en_'+a.key+'"> '+escapeHtml(a.label)+'</label>'
         + '<input type="text" inputmode="numeric" id="sight_count_'+a.key+'" placeholder="e.g. '+defaultCount+'" value="'+defaultCount+'"></div>'
-        + '<div><label class="field">Cost per ticket ('+cur.symbol+')</label><input type="text" inputmode="numeric" id="sight_rate_'+a.key+'" value="'+a.price+'"></div>'
+        + '<div><label class="field" for="sight_rate_'+a.key+'">Cost per ticket ('+cur.symbol+')</label><input type="text" inputmode="numeric" id="sight_rate_'+a.key+'" value="'+a.price+'"></div>'
         + '</div>';
     }).join('');
     wrap.innerHTML = html;
