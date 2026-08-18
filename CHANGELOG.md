@@ -3,6 +3,36 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fix: unrelated payer wrongly matched to a declared employer/business on one shared word
+
+Follow-up to the previous batch below. On the real 928-transaction Zenith statement used for testing,
+an unrelated payment narrated `NIP/PBNL/CLEAN DEALS VENTURES/...` was being wrongly counted as an
+inflow from "Crisp N Clean Exclusive Solutions Ltd" — purely because both names happen to share the
+single ordinary word "CLEAN". The employer/business inflow matcher (`findInflowsMatchingName`) only
+ever required ONE shared distinctive word between the declared name and a transaction's narration,
+which is too weak a bar: any two genuinely unrelated payers can innocently share one ordinary word.
+
+It now requires at least 2 of the declared name's distinctive words to appear in the narration (or all
+of them, when the name only has 1 distinctive word to begin with — e.g. a short name like "GTB") before
+counting a transaction as a match. A genuine "Crisp N Clean Exclusive Solutions" payment still matches
+easily (it shares CRISP + CLEAN + EXCLUSIVE + SOLUTIONS — 4 words, not 1), while "Clean Deals Ventures"
+— sharing only "CLEAN" — no longer does. Re-verified against the real statement: the business inflow
+count correctly dropped from 28 to 27 (removing exactly the one false positive), and "Clean Deals
+Ventures" no longer appears among the itemized matched-inflow boxes.
+
+One side effect worth flagging honestly: on the same real statement, this stricter matching also
+dropped "MFM Lekki Youth Church" from a small number of directly-matched inflows down to zero (it
+still shows as "referenced in this bank statement," just not confirmed as the direct sender of any
+individual payment). This traces back to the already-disclosed multi-line PDF narration-wrapping
+limitation (see the batch below) — when a narration's later words get cut off because they wrapped
+onto a second physical line the parser doesn't read, only one distinctive word may survive per line for
+some entries, which is no longer enough on its own to count as a match. Fixing that wrapping issue
+should recover this, and remains an open follow-up rather than something attempted in this fix, to keep
+this change narrowly scoped to the false-positive-matching bug it was meant to address.
+
+New regression test: `tests/false-positive-name-match.test.js`, covering both the false positive being
+excluded and the genuine match still being counted correctly.
+
 ## Salary consistency checks, top consistent senders, family detection, and a narration code glossary
 
 A 10-point list of requests, built off a real Zenith Bank statement and the applicant's own manual

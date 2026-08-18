@@ -5447,10 +5447,19 @@
   function findInflowsMatchingName(name, txns){
     var words = nameMatchWords(name);
     if (!words.length) return {words: words, matches: []};
+    // User feedback, off a real 928-transaction statement: an unrelated payment narrated "NIP/PBNL/CLEAN
+    // DEALS VENTURES/..." was wrongly counted as an inflow from "Crisp N Clean Exclusive Solutions Ltd"
+    // purely because both share the single ordinary word "CLEAN". A lone shared word isn't strong enough
+    // evidence to attribute a whole transaction to a specific employer/business — two genuinely unrelated
+    // payers can innocently share one word. Require at least 2 of the name's distinctive words to appear
+    // in the narration (or all of them, when the name only has 1 distinctive word to begin with, e.g.
+    // "GTB") before counting a transaction as a match.
+    var minWordsNeeded = Math.min(2, words.length);
     var matches = txns.filter(function(t){
       if (!t.credit || isReversalNarration(t.narration)) return false;
       var upperN = (t.narration || '').toUpperCase();
-      return words.some(function(w){ return upperN.indexOf(w) !== -1; });
+      var hitCount = words.filter(function(w){ return upperN.indexOf(w) !== -1; }).length;
+      return hitCount >= minWordsNeeded;
     });
     return {words: words, matches: matches};
   }
