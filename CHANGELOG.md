@@ -3,6 +3,18 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Polish: "What your statement(s) show" now collapses by default
+
+Follow-up question: should Session 2 ("Income & bank statement analysis") be split into two
+separate numbered sessions to shorten it? Splitting would've separated the upload/analyze action
+from its own results — you'd upload on one screen, then have to click "Next" to a different screen
+just to see what it found, making it harder to spot-check the auto-fill against your real
+statement. Instead, the "What your statement(s) show" report card (Top 10 inflows, Top 10 most
+consistent senders, Income sources breakdown) is now a closed-by-default `<details>` disclosure —
+before you upload anything, Session 2 is just the upload box and the two score badges; the report
+opens itself automatically the instant a statement is analyzed, so there's nothing to remember to
+expand.
+
 ## Polish: decluttered "Income & bank statement analysis" (Session 2)
 
 Direct feedback: this session "looks too clumsy." After analyzing a real statement it could stack

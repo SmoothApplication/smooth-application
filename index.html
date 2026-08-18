@@ -286,6 +286,14 @@
     padding: 14px 16px 16px; margin-top: 20px;
   }
   .report-group-heading { font-size: 14px; font-weight: 700; color: var(--text-primary); margin: 0; }
+  /* Closed by default (see the <details> markup below) — shortens Session 2's default length without
+     splitting it into a separate numbered session, which would separate the upload/analyze action from
+     its own results. Opens itself automatically the moment a statement is analyzed, so nobody has to
+     remember to expand it to see what they just uploaded. */
+  summary.report-group-heading { cursor: pointer; list-style: none; }
+  summary.report-group-heading::-webkit-details-marker { display: none; }
+  summary.report-group-heading::before { content: '▸ '; }
+  details[open] > summary.report-group-heading::before { content: '▾ '; }
 
   /* Collapsible sections — a long single-scroll page reads as "takes forever"; showing one section
      at a time (native <details>, so it's keyboard/print/accessibility-friendly for free) makes the
@@ -1140,9 +1148,9 @@
              scroll. Grouping them in their own visually distinct block signals "this part is what the
              tool worked out for you, not something to type into" (aside from the short per-source
              notes at the bottom, which stay editable same as before). -->
-        <div class="report-group">
-          <h3 class="report-group-heading">📊 What your statement(s) show</h3>
-          <p class="fin-note" style="margin-top:0;">Automatically detected from your upload(s) above — nothing to fill in here except the short notes per source at the bottom.</p>
+        <details class="report-group" id="statementReportGroup">
+          <summary class="report-group-heading">📊 What your statement(s) show</summary>
+          <p class="fin-note" style="margin-top:8px;">Automatically detected from your upload(s) above — nothing to fill in here except the short notes per source at the bottom.</p>
 
           <h4 class="subcat-heading" style="margin-top:18px;">Top 10 inflows</h4>
           <p class="fin-note" style="margin-top:0;">The 10 largest individual credits detected in your uploaded statement(s), ranked by amount — a quick way to see at a glance what a reviewer's eye will land on first.</p>
@@ -1157,7 +1165,7 @@
           <div id="incomeBreakdownBox"></div>
           <button type="button" class="btn ghost no-print" id="btnDownloadBreakdown" style="display:none; margin-top:8px;">⬇️ Download breakdown as spreadsheet</button>
           <div class="item-tip no-print" id="downloadBreakdownNote" style="display:none; margin-top:4px;">The spreadsheet always reflects your latest explanations — from the "inflow(s) need an explanation" boxes above and from the notes you add per source below — so fill those in first, then download.</div>
-        </div>
+        </details>
         </div>
       </details>
 
@@ -6926,6 +6934,9 @@
         renderTopInflows(getTopInflows(recentTxns, 10));
         renderTopConsistentSenders(getTopConsistentSenders(recentTxns, 10));
         renderIncomeBreakdown(buildIncomeSourceBreakdown(recentTxns, getAnswers().name));
+        // Closed by default (see CSS), so nobody has to remember to expand it after uploading.
+        var reportGroupEl = document.getElementById('statementReportGroup');
+        if (reportGroupEl) reportGroupEl.open = true;
 
         computeFinancials();
 
