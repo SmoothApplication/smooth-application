@@ -3,6 +3,28 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## New: narrower payment-type dropdown for narration-blank employer inflows
+
+Applicant uploaded their own manual extraction of every inflow from their declared employer ("Crisp N
+Clean Exclusive Solutions Ltd"), narration column included. Several of those genuine, already-matched
+payments carry a narration that never states a specific reason at all — just "…AFB NIP TRANSFER TO
+<applicant> FROM CRISP N CLEAN EXCL…", no "Salary"/"Allowance"/etc. anywhere in it. Until now, every
+matched employer/business inflow got the same general reason dropdown (Salary/Business/Family/
+Contribution/Work/Bonus/Sales/Gift/Self/Reversal/Others) — technically usable, but most of those options
+make no sense once the sender is already confirmed as the applicant's own declared employer, and the list
+had nothing specific enough for the actual gap: which *type* of employment payment a given one was.
+
+Added a second, narrower dropdown — Salary, Allowance, Transport Allowance, Housing Allowance, Car
+Allowance, Fuel Allowance, Wardrobe Allowance, Subsidy Allowance, 13th Month Allowance, Medical Allowance,
+Others (with a free-text box, same as every other "Others" pick elsewhere in the app) — and it now appears
+automatically, but only when BOTH are true: (1) the inflow is matched to a declared EMPLOYER specifically
+(not a self-employed business — "Housing Allowance"/"Wardrobe Allowance" describe an employee's payslip,
+not a company's own income, so business-matched inflows keep the general list unchanged), and (2) that
+specific transaction's own narration doesn't already spell out a recognisable reason. Any inflow whose
+narration DOES state one (e.g. "February Salary") keeps the general list exactly as before — nothing
+changes there. Every matched inflow is still auto-pre-tagged "Salary" the first time it's seen either way,
+and remains fully editable, same as before this change.
+
 ## Fix: narration glossary gap — "FD" (Fidelity Bank) wasn't decoded at all
 
 Applicant supplied their own manually-built code glossary from the real statement, cross-checked against

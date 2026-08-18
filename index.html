@@ -6117,13 +6117,25 @@
     }
     var selectedCat = existing ? existing.category : '';
     var detailVal = existing ? (existing.detail || '') : '';
-    var options = INCOME_SOURCE_CATEGORIES.map(function(c){
+    // User feedback, off a real employer inflow extraction: a payment already confirmed as coming from
+    // the applicant's declared EMPLOYER, but whose own narration doesn't spell out a specific reason
+    // (e.g. just "…TRANSFER TO <applicant> FROM <employer>…", no "Salary"/"Allowance"/etc.), should
+    // offer the narrower Salary/Allowance-type list (WORK_PAYMENT_REASON_CATEGORIES) instead of the
+    // general one — "Family"/"Gift"/"Business" etc. don't apply once the sender is already known; what's
+    // unclear is which type of employment payment this specific one was. A business (self-employed)
+    // match, or any inflow whose narration DOES already state a specific reason, keeps the general list.
+    var useWorkCategories = !t.__narrationReason && t.__matchGroupLabel === 'employer';
+    var catList = useWorkCategories ? WORK_PAYMENT_REASON_CATEGORIES : INCOME_SOURCE_CATEGORIES;
+    var options = catList.map(function(c){
       return '<option value="'+c.value+'"'+(selectedCat === c.value ? ' selected' : '')+'>'+c.label+'</option>';
     }).join('');
+    var promptText = useWorkCategories
+      ? 'This payment\'s narration doesn\'t spell out a specific reason — please choose what type of employment payment this was'
+      : 'This inflow\'s narration matched the name you entered under "Work status" — confirm the reason below, or change it if this particular payment isn\'t actually that.';
     return '<div class="explain-box'+(explained?' explained':'')+'" id="matchbox_'+idx+'">'
       + '<div class="tx-line">'+inflowMatchPreviewLine(t, explained)+'</div>'
       + renderNarrationDecodeHtml(t.narration)
-      + '<div class="item-tip" style="margin-top:4px;">This inflow\'s narration matched the name you entered under "Work status" — confirm the reason below, or change it if this particular payment isn\'t actually that.</div>'
+      + '<div class="item-tip" style="margin-top:4px;">'+promptText+'</div>'
       + '<select id="match_cat_'+idx+'" style="margin-top:4px;">'
       + '<option value=""'+(selectedCat ? '' : ' selected')+'>Choose a reason…</option>'
       + options
@@ -6213,6 +6225,11 @@
     groups.forEach(function(g){
       g.txns.forEach(function(t){
         var key = inflowKey(t);
+        // Tags which declared group ("employer" or "business") this inflow was matched against, so
+        // renderMatchedInflowBoxHtml can decide whether the narrower WORK_PAYMENT_REASON_CATEGORIES list
+        // applies (see there) — cheaper than threading the label through every render/collapse/expand
+        // call, and consistent with how other per-transaction flags (e.g. t.__flagReason) are stored.
+        t.__matchGroupLabel = g.label;
         // Auto-explain the first time this transaction is seen only — never clobber an explanation the
         // applicant has since customised (re-picked a different reason, added an "Others" note, etc.).
         if (!inflowExplanations.hasOwnProperty(key)) inflowExplanations[key] = {category: g.category, detail: ''};
@@ -6416,8 +6433,33 @@
     {value:'rental_income', label:'Rental income'},
     {value:'others', label:'Others'}
   ];
+  // User feedback, off a real Zenith statement's own manual extraction of every inflow from a declared
+  // employer ("Crisp N Clean Exclusive Solutions Ltd"): several of the genuine salary-source payments
+  // carry no narration at all beyond "…TRANSFER TO <applicant> FROM <employer>…" — no clue what that
+  // specific payment actually was. The general INCOME_SOURCE_CATEGORIES list (Salary/Business/Family/
+  // Gift/Self/Reversal/…) doesn't fit here — the sender is already confirmed as the applicant's own
+  // employer, so "Family" or "Gift" would never apply; what's actually unclear is which *type* of
+  // employment payment this was. This narrower, purpose-built list (same pattern as
+  // FAMILY_INCOME_CATEGORIES above) is offered instead, only for narration-blank inflows matched to a
+  // declared EMPLOYER specifically (not a self-employed business — allowance types like "Housing
+  // Allowance" describe an employee's payslip, not a company's own income). 'salary' is intentionally
+  // reused from INCOME_SOURCE_CATEGORIES so an inflow auto-tagged "Salary" before this change still
+  // displays correctly; 'others' is reused for the same reason as FAMILY_INCOME_CATEGORIES' own.
+  var WORK_PAYMENT_REASON_CATEGORIES = [
+    {value:'salary', label:'Salary'},
+    {value:'allowance', label:'Allowance'},
+    {value:'transport_allowance', label:'Transport Allowance'},
+    {value:'housing_allowance', label:'Housing Allowance'},
+    {value:'car_allowance', label:'Car Allowance'},
+    {value:'fuel_allowance', label:'Fuel Allowance'},
+    {value:'wardrobe_allowance', label:'Wardrobe Allowance'},
+    {value:'subsidy_allowance', label:'Subsidy Allowance'},
+    {value:'13th_month_allowance', label:'13th Month Allowance'},
+    {value:'medical_allowance', label:'Medical Allowance'},
+    {value:'others', label:'Others'}
+  ];
   function sourceCategoryLabel(value){
-    var found = INCOME_SOURCE_CATEGORIES.concat(FAMILY_INCOME_CATEGORIES).filter(function(c){ return c.value === value; })[0];
+    var found = INCOME_SOURCE_CATEGORIES.concat(FAMILY_INCOME_CATEGORIES).concat(WORK_PAYMENT_REASON_CATEGORIES).filter(function(c){ return c.value === value; })[0];
     return found ? found.label : value;
   }
   function normalizeSourceExplanation(exp){
@@ -6765,6 +6807,13 @@
             var reasonCounts = {};
             inflowMatches.forEach(function(t){
               var r = extractNarrationReason(t.narration, inflowInfo.words);
+              // Tag whether a specific reason could be pulled out of THIS transaction's own narration
+              // (e.g. "February Salary", "transport allowance") — used below by
+              // renderMatchedInflowBoxHtml to decide whether the narrower WORK_PAYMENT_REASON_CATEGORIES
+              // dropdown applies. Kept separate from t.narration itself, since the raw narration text is
+              // almost never truly empty (it still contains the sender's name/channel codes) — what
+              // varies is whether it contains anything BEYOND that.
+              t.__narrationReason = r;
               if (!r) return;
               var canon = canonicalizeNarrationReason(r);
               var key = canon.toUpperCase();
