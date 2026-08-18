@@ -3,6 +3,24 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Polish: calmer, less cluttered entry/consent screen
+
+Direct feedback on the first screen a visitor sees: "make this page more appealing... minimalist
+user friendly." Three changes, no functional/behavior change (same country picker, same consent
+checkbox gating Continue, same disclaimer wording):
+
+- The "Not immigration advice" disclaimer box no longer uses the same alarm-yellow warning style
+  as genuine problems elsewhere in the app (missing fields, unexplained inflows) — it's now the
+  same calm blue "info" tint used for other neutral notices, which both reads as less alarming for
+  a disclosure that's routine, not a problem to fix, and stops diluting what --warning-colored
+  elements mean everywhere else in the app.
+- The trust badges ("Nothing leaves your device," "Free, always," "Built for Nigerian applicants")
+  dropped their individual pill borders/backgrounds in favor of plain colored text — same
+  reassurance, less visual noise competing with the actual picker and disclaimer.
+- The "Built by SafeNetwork..." credit line moved from mid-card (interrupting the picker →
+  disclaimer → agree → continue flow) down to a quiet footer below the Continue button, and the
+  subtitle dropped a redundant sentence that just repeated the country-picker label right below it.
+
 ## New: actual percentages under "Income generation" and "Closing balance strength"
 
 User feedback, off the two summary pills at the top of "Income & bank statement analysis": "Under income

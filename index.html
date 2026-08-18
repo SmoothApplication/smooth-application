@@ -170,13 +170,20 @@
     background: linear-gradient(135deg, #1b6fa81f, #0e8f821f); border: 1px solid var(--border);
   }
   .consent-gate-title { font-size: 24px; margin: 0 0 6px; letter-spacing: -0.01em; }
-  .consent-gate-subtitle { font-size: 13px; color: var(--text-secondary); margin: 0 0 14px; line-height: 1.5; }
-  .gate-trust-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+  .consent-gate-subtitle { font-size: 13px; color: var(--text-secondary); margin: 0 0 16px; line-height: 1.5; }
+  /* Lighter, borderless pills — plain colored text on a faint tint reads as calm reassurance rather
+     than another bordered box competing for attention next to the select and disclaimer below it. */
+  .gate-trust-row { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-bottom: 20px; }
   .gate-trust-badge {
-    font-size: 11px; font-weight: 600; color: var(--text-secondary); background: var(--surface-1);
-    border: 1px solid var(--border); border-radius: 20px; padding: 4px 10px; white-space: nowrap;
+    font-size: 12px; font-weight: 600; color: var(--text-secondary); white-space: nowrap;
+    display: inline-flex; align-items: center; gap: 4px;
   }
-  .gate-credit { font-size: 11.5px; color: var(--text-muted); margin: 0 0 18px; line-height: 1.5; }
+  /* Credit line now lives in the card footer (below the Continue button) instead of interrupting
+     the primary picker -> disclaimer -> agree -> continue path — same info, quieter placement. */
+  .gate-credit {
+    font-size: 11.5px; color: var(--text-muted); margin: 16px 0 0; padding-top: 14px;
+    border-top: 1px solid var(--border); text-align: center; line-height: 1.5;
+  }
   .gate-credit a { color: var(--text-muted); text-decoration: underline; }
   .gate-credit b { color: var(--text-secondary); }
   .gate-select-wrap { position: relative; margin-top: 6px; }
@@ -193,9 +200,13 @@
   .consent-gate-card select:focus {
     outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-wash);
   }
+  /* Neutral "info" styling rather than alarm-yellow — this is a standard notice to read, not a
+     problem to fix, and the app already reserves --warning for things that genuinely need
+     attention (missing fields, unexplained inflows). Using the same accent blue as the rest of the
+     card keeps the page calmer and reads as more trustworthy than a page full of warning banners. */
   .consent-gate-disclaimer {
     display: flex; gap: 10px; align-items: flex-start; margin-top: 16px;
-    background: var(--warning-wash); border: 1px solid var(--border); border-left: 4px solid var(--warning);
+    background: var(--accent-wash); border: 1px solid var(--border); border-left: 4px solid var(--accent);
     border-radius: 10px; padding: 12px 14px; font-size: 12.5px; color: var(--text-secondary); line-height: 1.55;
   }
   .consent-gate-disclaimer > .icon { margin-top: 1px; }
@@ -619,13 +630,12 @@
   <div class="consent-gate-card">
     <div class="gate-icon-badge" aria-hidden="true">🛂</div>
     <h1 class="consent-gate-title">Smooth Application</h1>
-    <p class="consent-gate-subtitle">A personal document-readiness checklist for Nigerian visa applicants. Pick which visa you're preparing for to get started.</p>
+    <p class="consent-gate-subtitle">A personal document-readiness checklist for Nigerian visa applicants.</p>
     <div class="gate-trust-row">
       <span class="gate-trust-badge">🔒 Nothing leaves your device</span>
       <span class="gate-trust-badge">🆓 Free, always</span>
       <span class="gate-trust-badge">🇳🇬 Built for Nigerian applicants</span>
     </div>
-    <p class="gate-credit">Built by <b>SafeNetwork</b> — a free personal project, not a company. <a href="mailto:lalasionline@gmail.com">Email</a> · <a href="https://wa.me/2349081389969" target="_blank" rel="noopener">WhatsApp</a></p>
     <label class="field">Which visa are you preparing for?</label>
     <div class="gate-select-wrap">
       <select id="gateCountrySelect">
@@ -644,7 +654,7 @@
       <div id="gatePrepChecklist" class="gate-prep-list"></div>
     </details>
     <div class="consent-gate-disclaimer">
-      <span class="icon">⚠️</span>
+      <span class="icon">ℹ️</span>
       <div id="gateDisclaimer"></div>
     </div>
     <label class="checkrow" style="margin-top:10px; align-items:flex-start;">
@@ -652,6 +662,7 @@
       <span>I've read the disclaimer above and understand this is guidance only, not immigration advice.</span>
     </label>
     <button class="btn primary" id="gateContinue" disabled style="margin-top:14px; width:100%;">Continue</button>
+    <p class="gate-credit">Built by <b>SafeNetwork</b>. <a href="mailto:lalasionline@gmail.com">Email</a> · <a href="https://wa.me/2349081389969" target="_blank" rel="noopener">WhatsApp</a></p>
   </div>
 </div>
 
