@@ -3,6 +3,91 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fix: narration glossary gap — "FD" (Fidelity Bank) wasn't decoded at all
+
+Applicant supplied their own manually-built code glossary from the real statement, cross-checked against
+the app's existing one. Most entries already matched (NIP, TRF, CIP, ETI, RVSL, VFD, WBP, ROLEZ/ROLEX,
+STBC, ABN), but "FD" — the bare code, not "FDP" — had no glossary entry at all, so it silently showed no
+decoded meaning. Added `'FD': 'Fidelity Bank.'`. Also tightened "NIP"'s description to its correct
+industry name, NIBSS Instant Payment (NIBSS: Nigeria Inter-Bank Settlement System), rather than the
+looser "Nigeria Instant Payment" it said before.
+
+Two entries from the applicant's list were deliberately NOT added: "MFM" and "MFMLYC," decoded in their
+list as "MFM TMPM LYC REGION 3." That's correct for their own statement, but it's this one applicant's
+own employer's abbreviation, not a generic Nigerian banking code — adding it to the shared glossary would
+mislead every other applicant using this tool whose statement happens to contain those same letters for
+an unrelated reason. That's exactly what the "also known as" field (added just above) is for instead —
+it's scoped to one person's own declared employer/business, not baked into the shared code everyone gets.
+
+## Fix: reversed/bounced-back transfers double-counted as new income ("RSVL" vs "RVSL")
+
+Direct follow-up to the "also known as" feature below — the applicant checked the 4 newly-matched
+"MFM Lekki Youth Church" inflows against their own manual analysis and flagged that one of them had
+actually been reversed. Traced this by reading the raw statement columns (DATE / DESCRIPTION / DEBIT /
+CREDIT / VALUE DATE / BALANCE, confirmed from the statement's own header) line by line around each
+flagged entry, rather than trusting either narration wording or an earlier guess at debit/credit
+direction — and found two separate real issues, not one:
+
+1. Two entries narrated "NIP CR/MOB/JAMES DANIEL/FBN / MFM LYC WEDDING SUPPORT" are actually a DEBIT
+   (₦1,500,000 sent OUT, presumably by/via the church, to an individual) that failed and was reversed —
+   the reversal shows up as its own separate line marked "***RSVL", crediting the ₦1,500,000 (plus a
+   ₦50 stamp-duty reversal) back into the account. `isReversalNarration` only recognised the spelling
+   "RVSL" — this statement mostly uses "RSVL" (the same 4 letters, transposed), which slipped through
+   as if it were ordinary new income, wrongly inflating the employer match by ₦1,500,050 across what
+   looked like 2 genuine inflows but were really just a failed transfer bouncing back. Confirmed both
+   spellings are real by finding an unrelated genuine "RVSL:Airtime..." reversal elsewhere in the same
+   statement — banks are not internally consistent about this, so the check now accepts either ordering.
+2. Separately, "FRM MFM TMPM LYC REGION 3 = PRINTING" (₦1,450,000) and an "ETI NXG MOBILE TRF...FRM
+   EKIM HANNAH I" payment referencing "MFMLYC" (₦800,000) are genuinely real, non-reversed CREDIT
+   inflows — confirmed from the DEBIT/CREDIT columns, not the narration wording (narration alone is a
+   misleading guide here: e.g. "NIP CR/MOB/..." literally appears on plenty of DEBIT rows in this
+   statement, since "CR" is apparently just part of Zenith's fixed channel-code template, not a live
+   indicator of which way the money moved). These 2 are correctly kept.
+
+Net effect: "MFM Lekki Youth Church" now shows 2 genuine matched inflows totaling ₦2,250,000 (down from
+the previously-reported 4 inflows / ₦3,750,050, which included the ₦1,500,050 that had bounced back).
+This reversal-detection fix isn't specific to the alt-name feature — it affects every part of the tool
+that reads narrations to decide what counts as real income (top inflows, income-source breakdown,
+stable-income detection, the matched employer/business inflow checks), so it's a broadly more accurate
+result across the board, not just for this one employer.
+
+New regression test: `tests/rsvl-reversal-spelling.test.js`, using a fixture with a "***RSVL"-marked
+reversal credit, confirming it's excluded from the matched-inflow count and total.
+
+## New: "also known as" name for employer/business, plus another bank-code narration fix
+
+Follow-up investigation, prompted directly by the previous fix's honest caveat: "MFM Lekki Youth Church"
+still showed zero direct inflow matches even after the wrapping fix. Traced this by grepping the real
+statement's own raw text (not just the app's output) for "MFM"/"Lekki"/"Youth" — the statement never
+spells the name out at all. It abbreviates it as **"MFM LYC"** (once even glued together as "MFMLYC").
+Since the applicant's typed name only ever shares ONE literal word ("MFM") with what the statement
+actually prints, the 2-distinctive-word safety threshold (added a couple of batches ago to stop "Clean
+Deals Ventures" wrongly matching "Crisp N Clean...") correctly declined to treat that as a match — a
+single shared word still isn't enough evidence on its own. That threshold was doing its job; the real
+gap was that the tool had no way to know "MFM LYC" and "MFM Lekki Youth Church" are the same thing.
+
+Added an optional **"Also known as / abbreviation used in your statement"** field under both Employer
+and Business name. Whatever's typed there is folded into the SAME word-matching pass as the full name
+(not checked separately) — so "MFM" + "LYC" together now clear the 2-word threshold — while every
+message shown still displays the full name you originally typed, never the abbreviation itself. A word
+appearing in both the full name and the alias (e.g. "MFM" in both) is deduplicated before counting, so a
+single repeated word still can't satisfy the 2-word threshold on its own — the safety fix stays intact.
+
+Re-verified against the real statement with "MFM LYC" entered as the alias: "MFM Lekki Youth Church" now
+shows 4 matched inflows (₦3,750,050). Worth flagging honestly: those 4 payments are narrated as coming
+from an individual ("James Daniel") with "MFM LYC Wedding Support" mentioned in passing, rather than
+looking like a direct payroll transfer from the church itself, and none are narrated "Salary" — which is
+exactly why the existing "Inconsistent salary narration" and "only found in 2 distinct months" warnings
+still correctly flag these for your own double-checking rather than treating them as a clean match.
+
+Also fixed, found while re-testing this: the receiving bank's own name/code (e.g. "FBN" — First Bank of
+Nigeria) could end up mislabeled as the payment's "reason" ("Most commonly narrated as 'Fbn'") — the same
+class of bug as the earlier "Rolez" fix, just for bank-name codes instead of channel codes. The list used
+by the salary-reason detector is now kept in sync with the bank-name list already used elsewhere.
+
+New regression test: `tests/employer-alt-name.test.js`, confirming both that the alias is required for a
+statement using only the abbreviation, and that the full typed name (never the alias) is what's shown.
+
 ## Fix: recover narration text that wraps onto a second physical PDF line
 
 Follow-up to the previous two fixes below. On the real 31-page Zenith statement used for testing, many

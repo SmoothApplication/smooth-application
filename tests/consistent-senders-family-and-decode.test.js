@@ -97,7 +97,7 @@ exports.run = async function(ctx){
     await page.waitForSelector('#match_cat_0');
     var decodeHtml = await page.$eval('#matchedIncomeInflowsBox', function(el){ return el.innerHTML; });
     assert.ok(/What does this narration mean/i.test(decodeHtml), 'Matched inflow boxes should offer a narration decode toggle, got missing from: ' + decodeHtml.slice(0, 200));
-    assert.ok(/Nigeria Instant Payment/i.test(decodeHtml), 'Should decode "NIP" as Nigeria Instant Payment, got: ' + decodeHtml);
+    assert.ok(/NIBSS Instant Payment/i.test(decodeHtml), 'Should decode "NIP" as NIBSS Instant Payment, got: ' + decodeHtml);
     assert.ok(/Moniepoint MFB/i.test(decodeHtml), 'Should decode "ROLEZ" as Moniepoint MFB, got: ' + decodeHtml);
   } finally {
     await page.context().close();

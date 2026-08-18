@@ -809,6 +809,9 @@
           <label class="field">Employer / company name <span style="color:var(--danger, #c0392b);">*</span></label>
           <input type="text" id="f_employerName" placeholder="e.g. Zenith Bank Plc" style="max-width:340px;">
           <div class="item-tip" style="margin-top:4px;">Used below to check this name actually turns up on your bank statement — a strong, expected signal to a reviewer.</div>
+          <label class="field" style="margin-top:6px;">Also known as / abbreviation used in your statement (optional)</label>
+          <input type="text" id="f_employerAltName" placeholder="e.g. MFM LYC" style="max-width:340px;">
+          <div class="item-tip" style="margin-top:4px;">Banks often shorten a name in the narration (initials, an acronym, a branch code). If your statement doesn't spell out the full name above, add the short form actually used so this check can still find it.</div>
         </div>
         <div id="employedUploadRow" style="display:none; padding-left:24px; margin:-2px 0 8px;">
           <div class="upload-row no-print" style="margin:4px 0;">
@@ -822,6 +825,9 @@
           <label class="field">Business name <span style="color:var(--danger, #c0392b);">*</span></label>
           <input type="text" id="f_businessName" placeholder="e.g. Okafor Fashion House" style="max-width:340px;">
           <div class="item-tip" style="margin-top:4px;">Used below to check this name actually turns up on your bank statement — a strong, expected signal to a reviewer.</div>
+          <label class="field" style="margin-top:6px;">Also known as / abbreviation used in your statement (optional)</label>
+          <input type="text" id="f_businessAltName" placeholder="e.g. CNC Solutions" style="max-width:340px;">
+          <div class="item-tip" style="margin-top:4px;">Banks often shorten a name in the narration (initials, an acronym, a branch code). If your statement doesn't spell out the full name above, add the short form actually used so this check can still find it.</div>
         </div>
         <div id="workStatusBothNote" class="item-tip" style="display:none; padding-left:24px; margin:-2px 0 8px;">You've selected "employed &amp; self-employed" — please fill in both names above; a reviewer will expect to see evidence of both.</div>
         <div class="doc-reminder" id="selfEmployedNote" style="display:none;">
@@ -1801,8 +1807,10 @@
       hostFunding: document.getElementById('f_hostFunding').checked,
       employed: document.getElementById('f_employed').checked,
       employerName: document.getElementById('f_employerName').value.trim(),
+      employerAltName: document.getElementById('f_employerAltName').value.trim(),
       selfEmployed: document.getElementById('f_selfEmployed').checked,
       businessName: document.getElementById('f_businessName').value.trim(),
+      businessAltName: document.getElementById('f_businessAltName').value.trim(),
       student: document.getElementById('f_student').checked,
       studentSponsor: document.getElementById('f_studentSponsor').checked,
       sponsorRelationship: document.getElementById('f_sponsorRelationship').value.trim(),
@@ -2417,7 +2425,7 @@
   wireEmailSummaryButton('btnEmailSummaryFinal');
   wireEmailSummaryButton('btnEmailSummarySidebar');
 
-  ['f_name','f_purpose','f_traveldate','f_returndate','f_appdate','f_travelerCount','f_adults','f_adolescents','f_children','f_hasHost','f_hostFunding','f_employed','f_employerName','f_selfEmployed','f_businessName','f_student','f_studentSponsor','f_sponsorRelationship','f_hasChild','f_translation','f_readyToSubmit','f_hasRefusal','f_refusalCount','f_refusalDetails']
+  ['f_name','f_purpose','f_traveldate','f_returndate','f_appdate','f_travelerCount','f_adults','f_adolescents','f_children','f_hasHost','f_hostFunding','f_employed','f_employerName','f_employerAltName','f_selfEmployed','f_businessName','f_businessAltName','f_student','f_studentSponsor','f_sponsorRelationship','f_hasChild','f_translation','f_readyToSubmit','f_hasRefusal','f_refusalCount','f_refusalDetails']
     .forEach(function(id){
       var el = document.getElementById(id);
       el.addEventListener('change', render);
@@ -5353,7 +5361,7 @@
   // actually confident about (a bank's own internal-only codes, like "STLB", are left undecoded rather
   // than guessed at), surfaced via decodeNarration()/renderNarrationDecodeHtml() below.
   var BANK_NARRATION_GLOSSARY = {
-    'NIP': 'Nigeria Instant Payment — an interbank transfer processed through Nigeria\'s instant payment system.',
+    'NIP': 'NIBSS Instant Payment — Nigeria\'s real-time interbank transfer system, run by NIBSS (Nigeria Inter-Bank Settlement System).',
     'TRF': 'Transfer.',
     'FT': 'Funds transfer.',
     'CIP': 'A credit (inflow) transaction on this account.',
@@ -5370,6 +5378,7 @@
     'ROLEX': 'Moniepoint MFB (a payment-channel code, not the sender\'s own bank name).',
     'STBC': 'Stanbic IBTC.',
     'ABN': 'Access Bank.',
+    'FD': 'Fidelity Bank.',
     'FDP': 'Fidelity Bank.',
     'ISW': 'Interswitch — Nigeria\'s electronic payments switch/processor.',
     'QTELLER': 'Quickteller — Interswitch\'s consumer payments platform (transfers, bills, airtime).',
@@ -5446,11 +5455,16 @@
     'MICROFINANCE','SACCO','COOPERATIVE','CHAMBERS','CHAMBER','CLEANING','CLEANERS','CATERING','TRANSPORT',
     'TRANSPORTATION','HAULAGE','SECURITY','SUPPLIES','SUPPLY','TRADING','TRADERS','MERCHANDISE','FASHION',
     'DESIGNS','DESIGN','STUDIO','STUDIOS','MEDIA','PRODUCTIONS','PRODUCTION','ENT'];
-  // "RVSL" is the standard Nigerian bank-statement abbreviation for a reversal (e.g. a failed POS/airtime
-  // debit refunded back to the account) — treat it exactly like the full word "reversal" everywhere a
-  // narration is read, so these credits are never mistaken for new/unexplained income.
+  // "RVSL"/"RSVL" are both real Nigerian bank-statement abbreviations for a reversal (e.g. a failed
+  // transfer refunded back to the account) — real-data finding: a single real statement was seen using
+  // BOTH letter orderings in different places ("RVSL:Airtime..." in one entry, "***RSVL" prefixing
+  // several others) — treat either spelling exactly like the full word "reversal" everywhere a narration
+  // is read, so these credits (and their matching charge-reversal lines) are never mistaken for new/
+  // unexplained income. Missing "RSVL" specifically meant every transaction whose original attempt
+  // failed and bounced back — a fairly common real occurrence — was being counted as genuine new income
+  // on top of whatever eventually did go through, double-counting money that never actually arrived.
   function isReversalNarration(narration){
-    return /\brvsl\b|\breversal\b/i.test(narration || '');
+    return /\brvsl\b|\brsvl\b|\breversal\b/i.test(narration || '');
   }
 
   // Checks whether a typed employer/business name plausibly shows up anywhere in a bank statement's raw
@@ -5479,7 +5493,17 @@
     if (!words.length){
       words = (name || '').toUpperCase().replace(/[^A-Z0-9\s]/g, ' ').split(/\s+/).filter(function(w){ return w.length >= 2 && !LIMITED_SUFFIX_RE.test(w); });
     }
-    return words;
+    // Dedupe — the same word can legitimately show up twice (e.g. an "also known as" alias folded in
+    // alongside the full name, sharing a word with it), but a repeated word must still only count as ONE
+    // piece of matching evidence below, not two — otherwise a single shared word appearing twice in this
+    // list could, on its own, satisfy the "2+ distinctive words" safety threshold it's meant to guard
+    // against (see findInflowsMatchingName).
+    var seenWord = {};
+    return words.filter(function(w){
+      if (seenWord[w]) return false;
+      seenWord[w] = true;
+      return true;
+    });
   }
   function nameAppearsInStatementText(name, text){
     if (!name || !text) return false;
@@ -5528,7 +5552,14 @@
     // here too, a segment like "ROLEZ" (with nothing else surviving the name-overlap filter below) gets
     // wrongly picked as if it were the payment's REASON ("Most commonly narrated as 'Rolez'") instead
     // of being recognised as just a channel code with no real reason text to report.
-    'ETI','VFD','WBP','ROLEZ','ROLEX','STBC','ABN','FD','FDP','ISW','QTELLER','PBNL','ZIB','NXG','AFB'];
+    'ETI','VFD','WBP','ROLEZ','ROLEX','STBC','ABN','FD','FDP','ISW','QTELLER','PBNL','ZIB','NXG','AFB',
+    // Real-data finding, off the same real statement: a receiving-BANK's own name/code (e.g. "FBN" —
+    // First Bank of Nigeria) can end up as the only candidate left once the sender's name is excluded,
+    // wrongly surfacing as "Most commonly narrated as 'Fbn'" — a bank name is never itself the REASON for
+    // a payment. Kept in sync with the equivalent bank-name entries already in BANK_NARRATION_STOPWORDS
+    // above, for the same reason "ROLEZ" etc. needed to be kept in sync there.
+    'GTB','GTBANK','FBN','UBA','ZENITH','ACCESS','FIRST','STANBIC','FIDELITY','WEMA','POLARIS','UNION',
+    'STERLING','KEYSTONE','PROVIDUS','MONIEPOINT','PALMPAY','KUDA'];
   function extractNarrationReason(narration, nameWords){
     if (!narration) return null;
     var parts = narration.split('/').map(function(p){ return p.trim(); }).filter(Boolean);
@@ -6711,11 +6742,19 @@
         // name printed somewhere on the page), and reads off a human "reason" segment from those same
         // narrations (e.g. "February Salary") where the statement's own narration format allows it.
         var namesToCheck = [];
-        if (workAnswers.employed && workAnswers.employerName) namesToCheck.push({label:'employer', name: workAnswers.employerName});
-        if (workAnswers.selfEmployed && workAnswers.businessName) namesToCheck.push({label:'business', name: workAnswers.businessName});
+        if (workAnswers.employed && workAnswers.employerName) namesToCheck.push({label:'employer', name: workAnswers.employerName, altName: workAnswers.employerAltName});
+        if (workAnswers.selfEmployed && workAnswers.businessName) namesToCheck.push({label:'business', name: workAnswers.businessName, altName: workAnswers.businessAltName});
         if (namesToCheck.length){
           var nameChecks = namesToCheck.map(function(n){
-            var inflowInfo = findInflowsMatchingName(n.name, txns);
+            // User feedback: a bank statement's narration commonly shortens a name to initials, an
+            // acronym, or a branch code that never spells out the full name typed above (e.g. a real
+            // case — "MFM Lekki Youth Church" narrated only as "MFM LYC") — so the optional "also known
+            // as" name is folded into the SAME word-matching pass as the full name, not checked
+            // separately, since both refer to the one entity a reviewer would recognise as the same
+            // source. The applicant's own typed n.name is still what's SHOWN in every message below —
+            // this combined string is only used to derive the distinctive words matching looks for.
+            var matchName = n.altName ? (n.name + ' ' + n.altName) : n.name;
+            var inflowInfo = findInflowsMatchingName(matchName, txns);
             var inflowMatches = inflowInfo.matches;
             var inflowTotal = inflowMatches.reduce(function(s,t){ return s + t.credit; }, 0);
             // Tally which "reason" text (e.g. "February Salary") recurs most often across the matched
@@ -6741,7 +6780,7 @@
             // every reason ties at a count of 1, so that phrasing would overclaim; show it as just an
             // example narration instead in that case.
             var reasonIsMajority = topReasonCount > 1;
-            var found = inflowMatches.length > 0 || nameAppearsInStatementText(n.name, fullStatementText);
+            var found = inflowMatches.length > 0 || nameAppearsInStatementText(matchName, fullStatementText);
             // User feedback off a real 19-transaction statement: (1) flag as "inconsistent salary" when
             // none of the matched inflows are narrated "Salary" at all; (2) 6+ distinct months of
             // salary/employer inflow is what a reviewer wants to see — fewer than that is a red flag;
@@ -6989,8 +7028,10 @@
       document.getElementById('f_hostFunding').checked = !!payload.answers.hostFunding;
       document.getElementById('f_employed').checked = !!payload.answers.employed;
       document.getElementById('f_employerName').value = payload.answers.employerName || '';
+      document.getElementById('f_employerAltName').value = payload.answers.employerAltName || '';
       document.getElementById('f_selfEmployed').checked = !!payload.answers.selfEmployed;
       document.getElementById('f_businessName').value = payload.answers.businessName || '';
+      document.getElementById('f_businessAltName').value = payload.answers.businessAltName || '';
       document.getElementById('f_student').checked = !!payload.answers.student;
       document.getElementById('f_studentSponsor').checked = !!payload.answers.studentSponsor;
       document.getElementById('f_sponsorRelationship').value = payload.answers.sponsorRelationship || '';
@@ -7137,7 +7178,9 @@
     });
     document.getElementById('f_workStatus').value = '';
     document.getElementById('f_employerName').value = '';
+    document.getElementById('f_employerAltName').value = '';
     document.getElementById('f_businessName').value = '';
+    document.getElementById('f_businessAltName').value = '';
     document.getElementById('f_sponsorRelationship').value = '';
     document.getElementById('f_refusalCount').value = '';
     document.getElementById('f_refusalDetails').value = '';
