@@ -1,13 +1,20 @@
 'use strict';
 // User feedback, off a real manual extraction of every inflow from a declared employer ("Crisp N Clean
-// Exclusive Solutions Ltd"): several of the genuine matched inflows carry a narration that never states
-// a specific reason at all — just "…TRANSFER TO <applicant> FROM <employer>…", no "Salary"/"Allowance"/
-// etc. For those specifically, offer a narrower Salary/Allowance-type dropdown
-// (WORK_PAYMENT_REASON_CATEGORIES) instead of the general reason list, since the sender is already
-// confirmed as the declared employer — "Family"/"Gift"/"Business" etc. don't apply, what's unclear is
-// which TYPE of employment payment this one was. A matched inflow whose own narration DOES already state
-// a reason (e.g. "February Salary"), and any inflow matched to a declared BUSINESS rather than an
-// employer, should both keep the general list.
+// Exclusive Solutions Ltd"), in two rounds:
+//   1. Several genuinely matched inflows carry a narration that never states a specific reason at all —
+//      just "…TRANSFER TO <applicant> FROM <employer>…", no "Salary"/"Allowance"/etc. For those, offer a
+//      narrower Salary/Allowance-type dropdown (WORK_PAYMENT_REASON_CATEGORIES) instead of the general
+//      reason list, since the sender is already confirmed — what's unclear is which TYPE of employment
+//      payment this one was.
+//   2. Direct follow-up, screenshotted straight off the live matched-inflow boxes: other inflows' own
+//      narration DOES already state a specific reason (".../February Salary/...", ".../allowance/...")
+//      but were still defaulting to the generic "Business" pre-tag from the general list, ignoring what
+//      the narration said. Those should read the stated reason and pre-select/offer the matching
+//      WORK_PAYMENT_REASON_CATEGORIES option instead — regardless of whether the match was against a
+//      declared employer or a declared business, since "February Salary" means the same thing either way.
+//      A blank-narration inflow matched to a declared BUSINESS (not an employer) is the one case that
+//      still keeps the general list — no specific reason stated, and a business's own income could be
+//      anything (a sale, a service fee), not necessarily payroll.
 const assert = require('assert');
 const path = require('path');
 const { newPageAt, passConsentGate, goToSessionByPill } = require('./helpers');
@@ -15,7 +22,7 @@ const { newPageAt, passConsentGate, goToSessionByPill } = require('./helpers');
 var FIXTURE = path.join(__dirname, 'fixtures', 'work-payment-reason-fixture.pdf');
 
 exports.run = async function(ctx){
-  // --- Employer match: one txn has an explicit reason, one doesn't -------------------------------
+  // --- Employer match: one txn states "February Salary", the other has no specific reason -----------
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page);
@@ -33,40 +40,42 @@ exports.run = async function(ctx){
     }, { timeout: 20000 });
     await page.waitForTimeout(400);
 
-    // Both matched inflows are auto-tagged "Salary" on first sight, so their boxes start collapsed —
-    // expand both to inspect their dropdowns.
+    // Both matched inflows are auto-tagged on first sight, so their boxes start collapsed — expand both.
     await page.click('#matchcollapsed_0');
     await page.click('#matchcollapsed_1');
     await page.waitForSelector('#match_cat_0');
     await page.waitForSelector('#match_cat_1');
     var boxes = await page.$$eval('#matchedIncomeInflowsBox select[id^="match_cat_"]', function(sels){
-      return sels.map(function(sel){ return Array.from(sel.options).map(function(o){ return o.value; }); });
+      return sels.map(function(sel){ return {value: sel.value, options: Array.from(sel.options).map(function(o){ return o.value; })}; });
     });
     assert.strictEqual(boxes.length, 2, 'Expected 2 matched-inflow dropdowns, got: ' + JSON.stringify(boxes));
 
-    // The "February Salary" txn already states a specific reason -> general list (has "family"/"business").
-    var generalListBox = boxes.filter(function(opts){ return opts.indexOf('business') !== -1; })[0];
-    assert.ok(generalListBox, 'The txn with an explicit narration reason should keep the general reason list, got: ' + JSON.stringify(boxes));
-
-    // The boilerplate "TRANSFER TO ... FROM ..." txn has no specific reason -> narrower work-payment list
-    // (has "transport_allowance"/"housing_allowance", no "family"/"business"/"gift").
-    var workListBox = boxes.filter(function(opts){ return opts.indexOf('transport_allowance') !== -1; })[0];
-    assert.ok(workListBox, 'The txn with no specific narration reason should offer the narrower work-payment-type list, got: ' + JSON.stringify(boxes));
-    assert.ok(workListBox.indexOf('family') === -1 && workListBox.indexOf('business') === -1 && workListBox.indexOf('gift') === -1,
-      'The narrower work-payment list should not include Family/Business/Gift, got: ' + JSON.stringify(workListBox));
-    ['housing_allowance','car_allowance','fuel_allowance','wardrobe_allowance','subsidy_allowance','13th_month_allowance','medical_allowance'].forEach(function(v){
-      assert.ok(workListBox.indexOf(v) !== -1, 'Narrower work-payment list missing expected option "'+v+'", got: ' + JSON.stringify(workListBox));
+    // Both are matched to a declared EMPLOYER, so BOTH should offer the narrower work-payment list
+    // (one because its narration states "Salary" directly, the other because it states no reason at all
+    // and an employer match with no reason still gets the narrower list) — neither should ever offer
+    // "Family"/"Business"/"Gift" from the general list.
+    boxes.forEach(function(b){
+      assert.ok(b.options.indexOf('transport_allowance') !== -1, 'Employer-matched inflow should offer the narrower work-payment list, got: ' + JSON.stringify(b));
+      assert.ok(b.options.indexOf('family') === -1 && b.options.indexOf('business') === -1 && b.options.indexOf('gift') === -1,
+        'Narrower work-payment list should not include Family/Business/Gift, got: ' + JSON.stringify(b));
     });
 
-    // Its prompt text should reflect the narrower framing.
+    // The txn whose narration literally says "February Salary" should be pre-selected "salary" — read
+    // FROM the narration, not just defaulted to the generic employer pre-tag.
+    var salarySelected = boxes.filter(function(b){ return b.value === 'salary'; });
+    assert.ok(salarySelected.length >= 1, 'Expected at least one dropdown pre-selected "salary" from its own narration, got: ' + JSON.stringify(boxes));
+
     var promptTexts = await page.$$eval('#matchedIncomeInflowsBox .item-tip', function(els){ return els.map(function(e){ return e.textContent; }); });
+    assert.ok(promptTexts.some(function(t){ return /already states what it was for/.test(t); }),
+      'Expected the "read from narration" prompt text to appear for the "February Salary" txn, got: ' + JSON.stringify(promptTexts));
     assert.ok(promptTexts.some(function(t){ return /doesn't spell out a specific reason/.test(t); }),
-      'Expected the narrower work-payment prompt text to appear, got: ' + JSON.stringify(promptTexts));
+      'Expected the "no specific reason" prompt text to appear for the blank-reason txn, got: ' + JSON.stringify(promptTexts));
   } finally {
     await page.context().close();
   }
 
-  // --- Business match: even the boilerplate no-reason txn keeps the GENERAL list, not the work list ---
+  // --- Business match: "February Salary" txn still reads the narration; the blank one keeps the general
+  // list (a business's blank-narration payment isn't assumed to be payroll) ---------------------------
   var page2 = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page2);
@@ -89,12 +98,17 @@ exports.run = async function(ctx){
     await page2.waitForSelector('#match_cat_0');
     await page2.waitForSelector('#match_cat_1');
     var boxes2 = await page2.$$eval('#matchedIncomeInflowsBox select[id^="match_cat_"]', function(sels){
-      return sels.map(function(sel){ return Array.from(sel.options).map(function(o){ return o.value; }); });
+      return sels.map(function(sel){ return {value: sel.value, options: Array.from(sel.options).map(function(o){ return o.value; })}; });
     });
     assert.strictEqual(boxes2.length, 2, 'Expected 2 matched-inflow dropdowns for the business match too, got: ' + JSON.stringify(boxes2));
-    boxes2.forEach(function(opts){
-      assert.ok(opts.indexOf('business') !== -1, 'A business-declared match should always keep the general reason list (never the employer-only work-payment list), got: ' + JSON.stringify(opts));
-    });
+
+    var salaryBox = boxes2.filter(function(b){ return b.value === 'salary'; })[0];
+    assert.ok(salaryBox, 'The "February Salary" txn should still be pre-selected "salary" even on a business match, got: ' + JSON.stringify(boxes2));
+    assert.ok(salaryBox.options.indexOf('business') === -1, 'Once a specific reason is read from the narration, the narrower list (not the general one) should be offered, got: ' + JSON.stringify(salaryBox));
+
+    var businessBox = boxes2.filter(function(b){ return b.value === 'business'; })[0];
+    assert.ok(businessBox, 'The blank-narration txn on a business match should keep the general list, pre-tagged "business", got: ' + JSON.stringify(boxes2));
+    assert.ok(businessBox.options.indexOf('transport_allowance') === -1, 'A business match with no stated reason should NOT get the employer-only narrower list, got: ' + JSON.stringify(businessBox));
   } finally {
     await page2.context().close();
   }

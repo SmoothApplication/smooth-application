@@ -3,6 +3,55 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## New: actual percentages under "Income generation" and "Closing balance strength"
+
+User feedback, off the two summary pills at the top of "Income & bank statement analysis": "Under income
+generation add the percentage of income that has been generated. Under Closing balance strength, add the
+closing balance generated from the bank statement and give it a percentage of what the closing balance
+[is] to the amount needed to travel." Until now both pills only showed a qualitative label ("Strong —
+steady & explainable," "Needs attention — unexplained inflow(s)," "Enter your figures") with no number
+behind it.
+
+**Closing balance strength** now shows a line underneath with the actual balance and what percentage it
+is of the funds needed: prefers the balance actually DETECTED from an uploaded/analyzed bank statement
+(the most recent month in the cash-flow table) over a self-typed figure, since that's real evidence rather
+than a number anyone could type in — falls back to the self-typed closing balance only once no statement
+has been analyzed yet. "Amount needed to travel" is the same recommended 2× buffer on the estimated trip
+cost that this badge itself already uses to decide Strong/Needs attention/Weak, so the percentage always
+matches the badge's own wording above it, capped at 100%.
+
+**Income generation**'s percentage blends the two things that badge was already judging qualitatively,
+clarified directly with the applicant: (1) how much of the "needs an explanation" list has genuinely been
+explained (0 of 1, 100%, etc.), and (2) how consistent the monthly income itself looks — no zero-income
+months, low month-to-month variance (measured via coefficient of variation). Each half is scored 0-100
+independently, then averaged, so a perfect explanation record can't fully offset wildly inconsistent
+income and vice versa. Both lines stay blank until there's enough data to compute them (matching each
+pill's own existing "Enter your figures" state), so nothing shows a misleading 0%.
+
+## Fix: matched-inflow pre-tag now reads each payment's own narration instead of defaulting
+
+Direct follow-up, off screenshots of the live matched-inflow boxes: several payments were showing the
+generic "Business" pre-tag even though their own narration clearly stated what they were for — e.g.
+"07/03/2026 NIP/ROLEZ/CRISP N CLEAN EXCLUSIVE ... SOLUTIONS LIMITE/February Salary/AT68 TRF..." was tagged
+"Business" instead of "Salary", and a similar one narrated "allowance" was also tagged "Business." The
+narrower dropdown added just below (for narration-blank employer inflows) only solved half the problem —
+inflows that DO already state a reason were still being defaulted off which field they matched (employer
+-> "Salary", business -> "Business"), ignoring the narration text sitting right there.
+
+Added `detectWorkPaymentCategory`, which reads a matched inflow's own extracted narration reason and maps
+it straight to the correct option — Salary, Allowance, Transport/Housing/Car/Fuel/Wardrobe/Subsidy/13th
+Month/Medical Allowance (checking the specific allowance types before the generic "Allowance" catch-all,
+so "housing allowance" pre-selects "Housing Allowance," not just "Allowance"). This now applies regardless
+of whether the payment matched a declared employer or a declared business — "February Salary" means the
+same thing either way — and whenever a specific reason is detected, the narrower Salary/Allowance-type
+list is shown (not the general Business/Family/Gift one), since a stated payroll-type reason means that
+list is genuinely no longer relevant. Confirmed with a fixture that deliberately narrates the declared
+employer's payments "Allowance" and the declared business's payments "Salary" — the wrong way round from
+the old blanket assumption — to prove the pre-tag now follows the narration, not the matched field. A
+payment matched to a declared BUSINESS whose narration states no specific reason at all is the one case
+still left on the general list, since a business's own unlabelled income could be anything (a sale, a
+service fee), not necessarily payroll.
+
 ## New: narrower payment-type dropdown for narration-blank employer inflows
 
 Applicant uploaded their own manual extraction of every inflow from their declared employer ("Crisp N

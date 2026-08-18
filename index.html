@@ -1033,10 +1033,12 @@
           <div>
             <div class="label">Income generation</div>
             <div id="incomePill" class="status-pill critical">Enter your figures</div>
+            <div id="incomePillPct" class="fin-note" style="margin-top:4px;"></div>
           </div>
           <div>
             <div class="label">Closing balance strength</div>
             <div id="balancePill" class="status-pill critical">Enter your figures</div>
+            <div id="balancePillPct" class="fin-note" style="margin-top:4px;"></div>
           </div>
         </div>
         <div id="incomeSourcePersonal"></div>
@@ -3054,6 +3056,27 @@
       incomePillEl.textContent = 'Needs attention — irregular / gaps';
     }
 
+    // User feedback: show an actual percentage under "Income generation," not just the qualitative
+    // label above — blending the two things that badge is actually judging: (1) how much of the
+    // "needs an explanation" list has genuinely been explained, and (2) how consistent the monthly
+    // income itself looks (no zero-income months, low month-to-month variance). Each half is its own
+    // 0-100 score, then averaged — a perfect explanation record can't fully offset wildly inconsistent
+    // income, and vice versa.
+    var incomePillPctEl = document.getElementById('incomePillPct');
+    if (incomePillPctEl){
+      if (!hasCashFlowData){
+        incomePillPctEl.textContent = '';
+      } else {
+        var flaggedTotal = (window.__lastUnexplainedInflows || []).length;
+        var explainedPct = flaggedTotal ? Math.round((flaggedTotal - unexplainedCount) / flaggedTotal * 100) : 100;
+        var incomeMonthsPresentPct = rows.length ? (rows.length - zeroMonths) / rows.length : 0;
+        var incomeVarianceFactor = Math.max(0, 1 - Math.min(cv, 1)); // cv 0 (dead steady) -> 1.0; cv >=1 (wild) -> 0
+        var consistencyPct = Math.round((incomeMonthsPresentPct * 0.5 + incomeVarianceFactor * 0.5) * 100);
+        var incomeCombinedPct = Math.round((explainedPct + consistencyPct) / 2);
+        incomePillPctEl.innerHTML = '<b>'+incomeCombinedPct+'% overall</b> — '+explainedPct+'% of flagged inflows explained ('+(flaggedTotal-unexplainedCount)+' of '+flaggedTotal+'), '+consistencyPct+'% income consistency (no gaps + low month-to-month variance).';
+      }
+    }
+
     var balancePillEl = document.getElementById('balancePill');
     if (!anyCostEntered || totalCost <= 0){
       balancePillEl.className = 'status-pill critical';
@@ -3067,6 +3090,26 @@
     } else {
       balancePillEl.className = 'status-pill critical';
       balancePillEl.textContent = 'Weak — below the floor';
+    }
+
+    // User feedback: show the actual closing balance and what percentage it is of the amount needed to
+    // travel, right under "Closing balance strength." Prefers the balance actually DETECTED from an
+    // uploaded/analyzed bank statement (cfLastBalance, most recent month in the cash-flow table) over the
+    // self-typed figure, since that's real evidence rather than a number anyone could type in — falls
+    // back to the self-typed closing balance (the same totalFunds already used to grade this very badge)
+    // only when no statement has been analyzed yet. "Amount needed to travel" is the recommended 2× buffer
+    // on the estimated trip cost — the same bar this badge itself uses to decide Strong/Needs attention/
+    // Weak, so the percentage shown here always matches the badge's own wording above it.
+    var balancePillPctEl = document.getElementById('balancePillPct');
+    if (balancePillPctEl){
+      if (!anyCostEntered || totalCost <= 0){
+        balancePillPctEl.textContent = '';
+      } else {
+        var pctSourceBalance = (cfLastBalance !== null && cfLastBalance !== undefined) ? cfLastBalance : totalFunds;
+        var pctSourceLabel = (cfLastBalance !== null && cfLastBalance !== undefined) ? 'detected from your bank statement' : 'as entered';
+        var balanceOfNeededPct = recommendedFunds > 0 ? Math.max(0, Math.min(100, Math.round(pctSourceBalance / recommendedFunds * 100))) : 0;
+        balancePillPctEl.innerHTML = '<b>'+fmtN(pctSourceBalance)+'</b> closing balance ('+pctSourceLabel+') — <b>'+balanceOfNeededPct+'%</b> of the '+fmtN(recommendedFunds)+' recommended (2× buffer on your '+fmtN(totalCost)+' estimated trip cost).';
+      }
     }
 
     // "Needs attention" remediation advice, pulled together from whichever checks are currently failing.
@@ -5609,6 +5652,34 @@
     return reason;
   }
 
+  // User feedback, off a real matched-employer inflow list: several payments already spell out exactly
+  // what they were for right in their own narration ("...February Salary/...", ".../allowance/...") — the
+  // matched-inflow box should read and use that instead of defaulting every payment to the same generic
+  // "Business"/"Salary" pre-tag regardless of what the narration actually says. More specific than
+  // NARRATION_REASON_SYNONYMS above (which only folds down to a generic "Allowance" for tallying/display
+  // purposes) — this maps straight to a WORK_PAYMENT_REASON_CATEGORIES value, checking the more specific
+  // allowance types (Transport/Housing/Car/Fuel/Wardrobe/Subsidy/13th Month/Medical) before the generic
+  // "Allowance" catch-all, so "housing allowance" pre-selects "Housing Allowance," not just "Allowance."
+  var NARRATION_REASON_TO_WORK_CATEGORY = [
+    {value: 'transport_allowance', pattern: /\btransport\s*allowance\b/i},
+    {value: 'housing_allowance', pattern: /\bhousing\s*allowance\b/i},
+    {value: 'car_allowance', pattern: /\bcar\s*allowance\b/i},
+    {value: 'fuel_allowance', pattern: /\bfuel\s*allowance\b/i},
+    {value: 'wardrobe_allowance', pattern: /\bwardrobe\s*allowance\b/i},
+    {value: 'subsidy_allowance', pattern: /\bsubsidy\s*allowance\b/i},
+    {value: '13th_month_allowance', pattern: /\b13th\s*month\s*allowance\b|\bthirteenth\s*month\s*allowance\b/i},
+    {value: 'medical_allowance', pattern: /\bmedical\s*allowance\b/i},
+    {value: 'allowance', pattern: /\ballowance\b/i},
+    {value: 'salary', pattern: /\bsalary\b/i}
+  ];
+  function detectWorkPaymentCategory(narrationReason){
+    if (!narrationReason) return null;
+    for (var i = 0; i < NARRATION_REASON_TO_WORK_CATEGORY.length; i++){
+      if (NARRATION_REASON_TO_WORK_CATEGORY[i].pattern.test(narrationReason)) return NARRATION_REASON_TO_WORK_CATEGORY[i].value;
+    }
+    return null;
+  }
+
   // Best-effort extraction of the account HOLDER's own name from a bank statement's header — most
   // Nigerian statements print one near the top under a label like "Account Name" or "Customer Name".
   // Used to catch the applicant uploading someone else's statement (a common mistake — a parent's,
@@ -6117,19 +6188,23 @@
     }
     var selectedCat = existing ? existing.category : '';
     var detailVal = existing ? (existing.detail || '') : '';
-    // User feedback, off a real employer inflow extraction: a payment already confirmed as coming from
-    // the applicant's declared EMPLOYER, but whose own narration doesn't spell out a specific reason
-    // (e.g. just "…TRANSFER TO <applicant> FROM <employer>…", no "Salary"/"Allowance"/etc.), should
-    // offer the narrower Salary/Allowance-type list (WORK_PAYMENT_REASON_CATEGORIES) instead of the
-    // general one — "Family"/"Gift"/"Business" etc. don't apply once the sender is already known; what's
-    // unclear is which type of employment payment this specific one was. A business (self-employed)
-    // match, or any inflow whose narration DOES already state a specific reason, keeps the general list.
-    var useWorkCategories = !t.__narrationReason && t.__matchGroupLabel === 'employer';
+    // User feedback, off a real matched-inflow list: some payments' OWN narration already spells out
+    // exactly what they were for ("...February Salary/...", ".../allowance/...") — those should read and
+    // use that stated reason directly (via WORK_PAYMENT_REASON_CATEGORIES + detectWorkPaymentCategory)
+    // rather than defaulting to the generic employer/business pre-tag regardless of what the narration
+    // actually says. A payment whose narration doesn't state a recognisable salary/allowance-type reason
+    // falls back to: the SAME narrower list (still no clue what type of employment payment it was) if
+    // matched to a declared EMPLOYER specifically, or the general list otherwise (a business match with
+    // no specific reason could be anything — a sale, a fee, a client payment — not necessarily payroll).
+    var detectedWorkCategory = detectWorkPaymentCategory(t.__narrationReason);
+    var useWorkCategories = !!detectedWorkCategory || (!t.__narrationReason && t.__matchGroupLabel === 'employer');
     var catList = useWorkCategories ? WORK_PAYMENT_REASON_CATEGORIES : INCOME_SOURCE_CATEGORIES;
     var options = catList.map(function(c){
       return '<option value="'+c.value+'"'+(selectedCat === c.value ? ' selected' : '')+'>'+c.label+'</option>';
     }).join('');
-    var promptText = useWorkCategories
+    var promptText = detectedWorkCategory
+      ? 'This payment\'s own narration already states what it was for — pre-filled below from that; change it if this particular payment isn\'t actually that.'
+      : useWorkCategories
       ? 'This payment\'s narration doesn\'t spell out a specific reason — please choose what type of employment payment this was'
       : 'This inflow\'s narration matched the name you entered under "Work status" — confirm the reason below, or change it if this particular payment isn\'t actually that.';
     return '<div class="explain-box'+(explained?' explained':'')+'" id="matchbox_'+idx+'">'
@@ -6232,7 +6307,10 @@
         t.__matchGroupLabel = g.label;
         // Auto-explain the first time this transaction is seen only — never clobber an explanation the
         // applicant has since customised (re-picked a different reason, added an "Others" note, etc.).
-        if (!inflowExplanations.hasOwnProperty(key)) inflowExplanations[key] = {category: g.category, detail: ''};
+        // Prefer whatever this specific transaction's OWN narration states (e.g. "February Salary" ->
+        // 'salary', "allowance" -> 'allowance') over the blanket employer/business pre-tag — see
+        // detectWorkPaymentCategory above.
+        if (!inflowExplanations.hasOwnProperty(key)) inflowExplanations[key] = {category: detectWorkPaymentCategory(t.__narrationReason) || g.category, detail: ''};
         var explained = inflowExplanationIsFilled(inflowExplanations[key]);
         if (!explainBoxCollapsed.hasOwnProperty(key)) explainBoxCollapsed[key] = explained;
         var collapsed = explained && explainBoxCollapsed[key];

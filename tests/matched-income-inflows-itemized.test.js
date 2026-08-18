@@ -4,10 +4,16 @@
 // grouping the 19 transactions from Crisp N Clean Exclusive Ltd must be explained." The employer/
 // business cross-check used to fold every matching inflow into one summary sentence ("Found X as the
 // sender on N inflows... totaling Y"). Each matched inflow now ALSO gets its own explain-box (reusing
-// the same UI as the "needs an explanation" list), auto-tagged the first time it's seen with the
-// obviously-correct category (an employer match -> "Salary", a business match -> "Business") so 19
-// legitimate salary payments don't turn into 19 chores, but still individually visible and editable —
-// not just one lump total.
+// the same UI as the "needs an explanation" list), auto-tagged the first time it's seen so 19 legitimate
+// salary payments don't turn into 19 chores, but still individually visible and editable — not just one
+// lump total.
+//
+// Follow-up user feedback, screenshotted straight off these boxes on the live site: the auto-tag used to
+// be a blanket "an employer match -> Salary, a business match -> Business" regardless of what each
+// individual payment's OWN narration actually said. This fixture deliberately narrates the EMPLOYER's
+// payments "Allowance" and the BUSINESS's payments "Salary" — the wrong way round from the old blanket
+// assumption — specifically to prove the pre-tag now reads and uses each transaction's own stated reason
+// (see detectWorkPaymentCategory) rather than defaulting off which field it matched.
 const assert = require('assert');
 const path = require('path');
 const { newPageAt, passConsentGate, goToSessionByPill } = require('./helpers');
@@ -49,10 +55,12 @@ exports.run = async function(ctx){
 
     // Match on the trailing "— <category>" summary specifically (not just anywhere in the line) —
     // the narration text itself can legitimately contain the word "Salary" too (e.g. "January Salary"),
-    // so a bare /Salary/ search would over-match business-matched lines as well.
+    // so a bare /Salary/ search would over-match. This fixture deliberately narrates the EMPLOYER
+    // (MFM Lekki Youth Church) payments "Allowance" and the BUSINESS (Crisp N Clean) payments "Salary" —
+    // the pre-tag should follow what each payment's own narration says, not which field it matched.
     var summaries = await page.$$eval('#matchedIncomeInflowsBox .tx-line', function(els){ return els.map(function(e){ return e.textContent; }); });
-    assert.ok(summaries.filter(function(s){ return /— Salary$/.test(s); }).length === 3, 'Employer-matched inflows should be pre-tagged "Salary", got: ' + JSON.stringify(summaries));
-    assert.ok(summaries.filter(function(s){ return /— Business$/.test(s); }).length === 3, 'Business-matched inflows should be pre-tagged "Business", got: ' + JSON.stringify(summaries));
+    assert.ok(summaries.filter(function(s){ return /— Allowance$/.test(s); }).length === 3, 'The 3 employer inflows, all narrated "Allowance", should be pre-tagged "Allowance" (read from their own narration, not defaulted to "Salary" just because they matched the employer), got: ' + JSON.stringify(summaries));
+    assert.ok(summaries.filter(function(s){ return /— Salary$/.test(s); }).length === 3, 'The 3 business inflows, all narrated "Salary", should be pre-tagged "Salary" (read from their own narration, not defaulted to "Business" just because they matched the business), got: ' + JSON.stringify(summaries));
 
     // Still fully editable — a wrongly-matched payment should be re-classifiable, same as any other
     // inflow explanation on this page.
