@@ -36,13 +36,18 @@ policy explains the few exceptions.
   website using third-party scripts) but does not involve sending your documents anywhere — the
   libraries run locally in your browser once loaded. *[Lawyer note: confirm which CDNs are used
   today and list them by name here, since "a CDN" isn't specific enough for a real policy.]*
-- **Optional, aggregate analytics.** [ANALYTICS STATUS: OFF by default as of this draft — update
-  this section if/when turned on.] If enabled, the product can report anonymous, aggregate usage
-  counts (e.g. "a session reached the review step," "a passport was scanned") via GoatCounter, a
-  privacy-focused analytics service that does not use cookies and does not collect personal data.
-  No document content, filenames, names, dates, or answers are ever included in these events —
-  only event names and counts. If/when this is turned on for the live site, this policy needs to
-  say so explicitly, name GoatCounter, and link to GoatCounter's own privacy policy.
+- **Aggregate analytics — currently ON.** The product reports anonymous, aggregate usage counts
+  (e.g. "a session reached the review step," "a passport was scanned") via
+  [GoatCounter](https://www.goatcounter.com), a privacy-focused analytics service that does not
+  use cookies and does not collect personal data. No document content, filenames, names, dates, or
+  answers are ever included in these events — only event names and counts (see the comment block
+  above `ANALYTICS_SITE_CODE` in `index.html` for the full list of tracked events). This currently
+  reports to the `smoothapplication` GoatCounter account, and can be switched off entirely by
+  clearing the `ANALYTICS_SITE_CODE` value in the code. *[Lawyer note: link to GoatCounter's own
+  privacy policy here, and confirm this section's wording satisfies what NDPR/GDPR require for
+  this kind of aggregate, cookie-free analytics — it may still count as "processing" even without
+  cookies or personal data.]* If this is ever turned off again, update this bullet back to
+  reflect that.
 
 ## Documents you attach
 
