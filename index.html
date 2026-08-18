@@ -276,6 +276,17 @@
   .subcat-heading { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); margin: 18px 0 8px; padding-top: 12px; border-top: 1px solid var(--border); }
   .subcat-heading:first-of-type { border-top: none; padding-top: 0; margin-top: 4px; }
 
+  /* Visually separates "here's what the tool worked out for you" (read-only reports) from the
+     editable form content above it — real feedback was that a whole session of stacked messages,
+     an editable table, and several report tables all ran together with nothing but a small label
+     between them, reading as one long undifferentiated scroll. A shaded, bordered sub-card gives
+     this cluster of related reports its own visual boundary without a full page redesign. */
+  .report-group {
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 16px 16px; margin-top: 20px;
+  }
+  .report-group-heading { font-size: 14px; font-weight: 700; color: var(--text-primary); margin: 0; }
+
   /* Collapsible sections — a long single-scroll page reads as "takes forever"; showing one section
      at a time (native <details>, so it's keyboard/print/accessibility-friendly for free) makes the
      same content feel dramatically shorter. Each section also gets its own accent color + icon badge
@@ -516,6 +527,23 @@
      .explain-box), which sit inside an already-padded card and don't need the full stacked-message
      spacing above. */
   .scan-msg.compact { margin-top: 4px; padding: 5px 9px; font-size: 11.5px; }
+
+  /* Collapsed home for pure positive confirmations on the bank-statement analysis (setStmtMsg) —
+     same quiet-good color language as .scan-msg.ok, but ONE line by default instead of a full-width
+     box per finding, since these are reassurance rather than something the applicant needs to act
+     on. Same collapsible-details pattern already used for "Read the full disclaimer" elsewhere. */
+  .scan-msg-good {
+    margin-top: 8px; padding: 8px 11px; border-radius: 8px; border: 1px solid var(--good-wash);
+    background: var(--good-wash); font-size: 12.5px; color: var(--good);
+  }
+  .scan-msg-good summary { cursor: pointer; font-weight: 700; list-style: none; }
+  .scan-msg-good summary::-webkit-details-marker { display: none; }
+  .scan-msg-good summary::before { content: '▸ '; }
+  .scan-msg-good[open] summary::before { content: '▾ '; }
+  .scan-msg-good-item {
+    margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border);
+    line-height: 1.5; color: var(--text-secondary);
+  }
 
   .avoid-note { font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
 
@@ -1106,19 +1134,30 @@
         <div id="cashFlowSummary"></div>
         <div id="statementReadinessBox"></div>
 
-        <h3 class="subcat-heading" style="margin-top:18px;">Top 10 inflows</h3>
-        <p class="fin-note" style="margin-top:0;">The 10 largest individual credits detected in your uploaded statement(s), ranked by amount — a quick way to see at a glance what a reviewer's eye will land on first.</p>
-        <div id="topInflowsBox"></div>
+        <!-- User feedback: this whole session "looks too clumsy" — before this wrapper, these three
+             read-only reports ran directly on from the editable cash-flow table above with nothing
+             but a small uppercase label between them, so the page read as one long undifferentiated
+             scroll. Grouping them in their own visually distinct block signals "this part is what the
+             tool worked out for you, not something to type into" (aside from the short per-source
+             notes at the bottom, which stay editable same as before). -->
+        <div class="report-group">
+          <h3 class="report-group-heading">📊 What your statement(s) show</h3>
+          <p class="fin-note" style="margin-top:0;">Automatically detected from your upload(s) above — nothing to fill in here except the short notes per source at the bottom.</p>
 
-        <h3 class="subcat-heading">Top 10 most consistent senders</h3>
-        <p class="fin-note" style="margin-top:0;">Ranked by how many separate months each sender's name recurs across, not by amount — a sender you hear from steadily month after month is the kind of pattern a reviewer finds reassuring, even if no single payment from them is the biggest one on the statement.</p>
-        <div id="topConsistentSendersBox"></div>
+          <h4 class="subcat-heading" style="margin-top:18px;">Top 10 inflows</h4>
+          <p class="fin-note" style="margin-top:0;">The 10 largest individual credits detected in your uploaded statement(s), ranked by amount — a quick way to see at a glance what a reviewer's eye will land on first.</p>
+          <div id="topInflowsBox"></div>
 
-        <h3 class="subcat-heading">Income sources breakdown</h3>
-        <p class="fin-note" style="margin-top:0;">Groups every inflow by who sent it — salary, named senders/companies, and a catch-all for anything with no clear sender — the same approach experienced applicants use to pre-empt "income not explained" refusals. Add a short note per source; it's kept with your progress.</p>
-        <div id="incomeBreakdownBox"></div>
-        <button type="button" class="btn ghost no-print" id="btnDownloadBreakdown" style="display:none; margin-top:8px;">⬇️ Download breakdown as spreadsheet</button>
-        <div class="item-tip no-print" id="downloadBreakdownNote" style="display:none; margin-top:4px;">The spreadsheet always reflects your latest explanations — from the "inflow(s) need an explanation" boxes above and from the notes you add per source below — so fill those in first, then download.</div>
+          <h4 class="subcat-heading">Top 10 most consistent senders</h4>
+          <p class="fin-note" style="margin-top:0;">Ranked by how many separate months each sender's name recurs across, not by amount — a sender you hear from steadily month after month is the kind of pattern a reviewer finds reassuring, even if no single payment from them is the biggest one on the statement.</p>
+          <div id="topConsistentSendersBox"></div>
+
+          <h4 class="subcat-heading">Income sources breakdown</h4>
+          <p class="fin-note" style="margin-top:0;">Groups every inflow by who sent it — salary, named senders/companies, and a catch-all for anything with no clear sender — the same approach experienced applicants use to pre-empt "income not explained" refusals. Add a short note per source; it's kept with your progress.</p>
+          <div id="incomeBreakdownBox"></div>
+          <button type="button" class="btn ghost no-print" id="btnDownloadBreakdown" style="display:none; margin-top:8px;">⬇️ Download breakdown as spreadsheet</button>
+          <div class="item-tip no-print" id="downloadBreakdownNote" style="display:none; margin-top:4px;">The spreadsheet always reflects your latest explanations — from the "inflow(s) need an explanation" boxes above and from the notes you add per source below — so fill those in first, then download.</div>
+        </div>
         </div>
       </details>
 
@@ -4917,9 +4956,25 @@
   /* ---------------- Bank statement auto-analyzer (beta) ---------------- */
   var MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
+  // User feedback, on this exact section: "looks too clumsy." Root cause: after analyzing a
+  // statement this could stack ten-odd full-width colored boxes in a row — errors, warnings, info,
+  // AND plain positive confirmations — all the same visual weight, so nothing actually stood out.
+  // Fix: things that need a decision (err/warn/info) still render exactly as before, in the same
+  // order, same text, same styling — only the pure "good news, nothing to do" confirmations
+  // (cls:'ok') now collapse into one compact "What looks good" summary instead of each claiming a
+  // full-width box of its own. Collapsed by default since these are reassurance, not action items;
+  // still one click away for anyone who wants to read every line.
   function setStmtMsg(clsOrArray, text){
     var arr = Array.isArray(clsOrArray) ? clsOrArray : [{cls: clsOrArray, text: text}];
-    document.getElementById('stmtAnalyzeMsg').innerHTML = arr.map(function(r){ return '<div class="scan-msg '+r.cls+'">'+r.text+'</div>'; }).join('');
+    var actionable = arr.filter(function(r){ return r.cls !== 'ok'; });
+    var confirmations = arr.filter(function(r){ return r.cls === 'ok'; });
+    var html = actionable.map(function(r){ return '<div class="scan-msg '+r.cls+'">'+r.text+'</div>'; }).join('');
+    if (confirmations.length){
+      html += '<details class="scan-msg-good"><summary>✓ What looks good ('+confirmations.length+')</summary>' +
+        confirmations.map(function(r){ return '<div class="scan-msg-good-item">'+r.text+'</div>'; }).join('') +
+        '</details>';
+    }
+    document.getElementById('stmtAnalyzeMsg').innerHTML = html;
   }
 
   // Reconstruct visual lines from pdf.js text items using their y-position (items alone have no line breaks).

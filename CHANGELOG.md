@@ -3,6 +3,26 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Polish: decluttered "Income & bank statement analysis" (Session 2)
+
+Direct feedback: this session "looks too clumsy." After analyzing a real statement it could stack
+ten-odd full-width colored boxes in a row — errors, warnings, info tips, AND plain positive
+confirmations — all the same visual weight, so nothing actually stood out and the page read as one
+long undifferentiated scroll before you even reached the table. Two changes, no detection logic or
+message wording touched — purely how the same findings are grouped and presented:
+
+- Positive, nothing-to-do confirmations (e.g. "recurring income detected," "name matches") now
+  collapse into one compact "✓ What looks good (N)" line instead of each claiming a full-width
+  green box of its own. Things that actually need a decision (errors, warnings, and info tips)
+  still render exactly as before — same text, same order, same styling — right where they were.
+  This alone typically cuts 3-4 boxes down to one collapsed line, un-expanded by default since
+  it's reassurance, not an action item.
+- The three read-only report tables (Top 10 inflows, Top 10 most consistent senders, Income
+  sources breakdown) now sit inside their own visually distinct, bordered sub-card labeled "📊 What
+  your statement(s) show" — separating "here's what the tool worked out for you" from the editable
+  monthly cash-flow table directly above it, instead of both running together with nothing but a
+  small uppercase label between them.
+
 ## New: how many days you have, starting today, to gather your documents
 
 User feedback: "State the number of days or weeks you have from the day you are filling this
