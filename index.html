@@ -759,6 +759,7 @@
           <div>
             <label class="field">Planned application/submission date</label>
             <input type="date" id="f_appdate">
+            <div class="item-tip" id="prepTimeCountdown" style="margin-top:4px;"></div>
             <div class="item-tip" id="appDateCountdown" style="margin-top:4px;"></div>
           </div>
         </div>
@@ -2604,6 +2605,34 @@
     var travelDateStr = document.getElementById('f_traveldate').value;
     var returnDateStr = document.getElementById('f_returndate').value;
     var appDateStr = document.getElementById('f_appdate').value;
+
+    // User feedback: "State the number of days or weeks you have from the day you are filling this
+    // website to Planned application/submission date — that is the number of days you have to
+    // prepare all your documents." Distinct from the countdown below this one, which measures the
+    // gap between application and travel (processing-time risk) — this one measures the gap between
+    // RIGHT NOW and the planned submission date (document-gathering time), so it only needs the
+    // submission date to be filled in, not the travel date too.
+    var prepTimeEl = document.getElementById('prepTimeCountdown');
+    if (prepTimeEl){
+      if (!appDateStr){
+        prepTimeEl.textContent = '';
+      } else {
+        var todayMidnight = new Date();
+        todayMidnight.setHours(0,0,0,0);
+        var daysToPrep = Math.round((new Date(appDateStr) - todayMidnight) / 86400000);
+        if (isNaN(daysToPrep)){
+          prepTimeEl.textContent = '';
+        } else if (daysToPrep < 0){
+          prepTimeEl.textContent = '⚠️ This planned submission date is in the past — update it once you have a new target date.';
+        } else if (daysToPrep === 0){
+          prepTimeEl.textContent = '⏰ That\'s today — gather what you can and submit as soon as everything on your checklist is ready.';
+        } else {
+          var weeksToPrep = Math.floor(daysToPrep / 7);
+          var weekPart = daysToPrep >= 7 ? ' (about ' + weeksToPrep + ' week' + (weeksToPrep === 1 ? '' : 's') + ')' : '';
+          prepTimeEl.textContent = '⏳ You have ' + daysToPrep + ' day(s)' + weekPart + ' from today to gather and prepare all your documents before your planned submission date.';
+        }
+      }
+    }
 
     // Immediate feedback right on the trip-details page as soon as both dates are in, rather than making
     // the applicant hunt for this in the financial calculator's own messaging further down.

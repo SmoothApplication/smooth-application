@@ -3,6 +3,19 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## New: how many days you have, starting today, to gather your documents
+
+User feedback: "State the number of days or weeks you have from the day you are filling this
+website to Planned application/submission date. That is the number of days you have to prepare
+all your documents." The "Planned application/submission date" field already had a countdown
+underneath it, but it measured a different thing — the gap between your application date and your
+travel date, i.e. whether there's enough visa-processing time. This adds a second, separate line
+above it that measures the gap between right now and your planned submission date, so it answers
+"how much time do I actually have left to gather everything" — and only needs the submission date
+filled in, not the travel date too. Handles the same day ("that's today"), a date already in the
+past (flagged so it gets updated rather than showing a negative number), and drops the "(about N
+weeks)" parenthetical for gaps under a week so it never reads as "(about 0 weeks)."
+
 ## Fix: consent checkbox honesty gap + explain why Continue is disabled
 
 Direct follow-up from a UI/UX review of the entry/consent screen. Two issues, both about the gate
