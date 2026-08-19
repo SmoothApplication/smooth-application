@@ -3,6 +3,18 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## New: statement analysis now tracks attempts, not just failures
+
+The existing anonymous, aggregate analytics (off by default; see the block near the top of the
+script for how to opt in) already counted specific statement-analysis failures — "couldn't detect
+any transaction rows," "analysis tools failed to load," and the newly-added catch-all errors — but
+had no count of how many analyses were actually ATTEMPTED. A failure count on its own can't say
+whether it's rare or common. Two new events close that gap: `statement_analysis:attempted` fires
+once a real analysis begins (after the file-count/size checks pass), and
+`statement_analysis:completed` fires once results are successfully rendered — together they turn
+the existing failure counts into an actual failure rate. Same privacy stance as everything else
+here: anonymous, aggregate, opt-in, never a filename, a document, or an answer.
+
 ## New: statement-analysis failures now surface a message and a way to report them, instead of failing silently
 
 Until now, if anything went wrong partway through reading a bank statement — a bug triggered by an

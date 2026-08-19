@@ -7114,6 +7114,11 @@
         return;
       }
     }
+    // Fires once per real analysis attempt (after the file-count/size checks above pass) — the
+    // denominator needed to turn the failure counts below (zero_txns, libs_failed, the error:
+    // events from the catch handlers) into an actual failure RATE, not just a raw count with no
+    // sense of how many attempts it's out of.
+    trackEvent('statement_analysis:attempted');
     onMessage('info','Loading local analysis tools… (nothing leaves your browser)');
     ensureLibs().then(function(){
       if (!libsLoaded.pdf && !libsLoaded.tesseract && !libsLoaded.xlsx){
@@ -7451,6 +7456,10 @@
         // refresh the pill/percentage right away rather than waiting for the next navigation.
         if (typeof applySessionVisibility === 'function') applySessionVisibility();
 
+        // Pairs with 'statement_analysis:attempted' above — reaching this line means at least one
+        // transaction was successfully parsed and the results actually rendered, i.e. a genuinely
+        // successful analysis, not just "didn't crash".
+        trackEvent('statement_analysis:completed');
         onMessage(results);
       }).catch(function(err){
         // Before this, a bug anywhere in the parsing/rendering above (e.g. an unusual statement
