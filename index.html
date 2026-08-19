@@ -6303,6 +6303,22 @@
       saveNow();
     });
     if (detailTa) detailTa.addEventListener('input', saveNow);
+    // User report: opening an already-explained box (via "✏️ Edit") just to glance at it, then
+    // clicking away WITHOUT changing anything, left it stuck open forever — the only thing that ever
+    // re-collapsed a box was the save flow above, which only runs on an actual edit. Catches that case
+    // too: once focus leaves the box entirely, if it's (still) filled in, tidy it away same as after a
+    // real save. The short delay lets focus actually land on wherever it's moving to first — checking
+    // synchronously on 'focusout' would see it as "nothing focused yet" even for clicks staying inside
+    // this same box (e.g. the category dropdown briefly blurring while its native options list opens).
+    if (boxEl){
+      boxEl.addEventListener('focusout', function(){
+        setTimeout(function(){
+          if (!boxEl.contains(document.activeElement) && inflowExplanationIsFilled(inflowExplanations[key])){
+            collapseExplainBox(flagged, t, idx);
+          }
+        }, 150);
+      });
+    }
   }
   function collapseExplainBox(flagged, t, idx){
     var key = inflowKey(t);
@@ -6426,6 +6442,23 @@
       saveNow();
     });
     if (detailTa) detailTa.addEventListener('input', saveNow);
+    // User report: two already-explained matched-inflow boxes, opened via "✏️ Edit" to double-check
+    // an unusual narration, stayed expanded forever instead of tidying away like the rest — the only
+    // thing that ever re-collapsed a box was the save flow above, which only fires on an actual edit.
+    // Catches "opened it, didn't change anything, moved on" too: once focus leaves the box entirely, if
+    // it's (still) filled in, collapse it same as after a real save. The short delay lets focus actually
+    // land on wherever it's moving to first — checking synchronously on 'focusout' would misfire even
+    // for clicks staying inside this same box (e.g. the category dropdown briefly blurring while its
+    // native options list opens).
+    if (boxEl){
+      boxEl.addEventListener('focusout', function(){
+        setTimeout(function(){
+          if (!boxEl.contains(document.activeElement) && inflowExplanationIsFilled(inflowExplanations[key])){
+            collapseMatchedInflowBox(list, t, idx);
+          }
+        }, 150);
+      });
+    }
   }
   function collapseMatchedInflowBox(list, t, idx){
     var key = inflowKey(t);
@@ -6591,6 +6624,17 @@
 
   function buildIncomeSourceBreakdown(txns, applicantName){
     var stable = identifyStableIncome(txns);
+    // A recurring rounded amount only means "stable income from one source" if the transactions making it
+    // up actually share a consistent, identifiable sender — otherwise it's just several DIFFERENT people or
+    // companies whose one-off payments happen to land on the same round number (real user report: a genuine
+    // Crisp N Clean Exclusive Solutions payment was swept into a false "Salary" bucket alongside 8 unrelated
+    // senders' unrelated ₦100,000 gifts/payments purely because the amounts coincided). identifyIncomeSourceName
+    // looks for a sender name that itself recurs across 2+ distinct months among just the stable-amount
+    // transactions. If one exists, only transactions whose own narration names THAT sender — or that name no
+    // sender at all, which most genuine salary narrations don't ("SALARY PAYMENT" with no employer name) — are
+    // trusted as "Salary"; a transaction with a name candidate that doesn't match the dominant sender is routed
+    // to its own named group instead, exactly like any other identified sender.
+    var stableSourceName = stable ? identifyIncomeSourceName(txns, stable.amount) : null;
     var salaryTxns = [], otherTxns = [], reversalTxns = [];
     var namedGroups = {}; // titleCasedName -> txns[]
     var applicantSurname = surnameOf(applicantName);
@@ -6601,11 +6645,20 @@
         reversalTxns.push(t);
         return;
       }
-      if (stable && Math.round(t.credit / 5000) * 5000 === stable.amount){
-        salaryTxns.push(t);
-        return;
-      }
       var candidates = extractNameCandidates(t.narration);
+      if (stable && Math.round(t.credit / 5000) * 5000 === stable.amount){
+        var matchesDominantSender = !candidates.length || (stableSourceName && candidates.some(function(cand){
+          var a = cand.toLowerCase(), b = stableSourceName.name.toLowerCase();
+          return Math.min(a.length, b.length) >= NAME_MERGE_MIN_LEN && (a.indexOf(b) !== -1 || b.indexOf(a) !== -1);
+        }));
+        if (matchesDominantSender){
+          salaryTxns.push(t);
+          return;
+        }
+        // Else: this transaction names its own identifiable sender and that sender doesn't match the
+        // amount's dominant recurring sender (or no consistent sender exists for this amount at all) — fall
+        // through and group it by its own name below, same as any other unrelated one-off payment.
+      }
       if (!candidates.length){
         otherTxns.push(t);
         return;

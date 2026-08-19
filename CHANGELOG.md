@@ -3,6 +3,30 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fix: two real bugs found on a live "Income sources breakdown," off the app's own export
+
+User report, off the app's own "Download breakdown as spreadsheet" export: a genuine ₦100,000
+payment from a declared business ("Crisp N Clean Exclusive Solutions," narrated "office") wasn't
+showing up under that business's group at all — and separately, two already-explained "matched
+income inflow" boxes stayed expanded instead of tidying away like the rest of the list.
+
+Root cause of the first bug: the tool's "stable recurring income" detector only looked for a
+rounded payment amount that recurs across 2+ months anywhere in the whole statement, with no
+check that the *same sender* was actually behind those payments. On a real statement, that meant
+several completely unrelated people's one-off ₦100,000 payments — a gift, a condolence transfer, a
+laundry-money reimbursement, and this business's own payment — coincidentally shared a round number
+and got swept into one fake "Salary" bucket together, hiding the real Crisp N Clean payment from
+its rightful group. The detector now also requires a genuinely recurring, identifiable sender name
+behind the amount before trusting it as one stable income source; a payment that names its own
+distinct sender — and that sender doesn't match — is grouped under its own name instead, exactly
+like every other payment on the page.
+
+Root cause of the second bug: opening an already-explained matched-inflow box (via "✏️ Edit," e.g.
+to double-check an unusual narration like "office" or "Tigernut") and then clicking away *without*
+changing anything never re-collapsed it — only an actual edit ever triggered the auto-tidy. These
+boxes now also collapse themselves once focus leaves them entirely, provided they're still filled
+in, matching the same "auto-tidy after use" behaviour already used everywhere else on this page.
+
 ## Polish: wider entry-screen card on desktop
 
 User feedback: the entry/consent card felt too small on a desktop screen. Widened from 560px to
