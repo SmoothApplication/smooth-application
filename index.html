@@ -5107,7 +5107,12 @@
   // is NOT rare — an account with 30+ transactions per page needs that many pages just for the date range
   // requested). Text-layer extraction (the common case) is cheap enough per page that a generous cap is
   // safe; OCR (only used as a scanned-PDF fallback) is far more expensive, so it gets a lower cap of its own.
-  var MAX_TEXT_PAGES = 60;
+  // Raised from 60 -> 150 after a real report of a genuine 120-page, single-file digital statement getting
+  // truncated at page 60 — a single real text-layer PDF this size still extracts in a few seconds, so
+  // there's plenty of headroom to raise this without it costing anything on the (far more common) shorter
+  // statement. Left well above 120 so a single file can comfortably cover the reported case with room to
+  // spare, without needing to split into multiple files just to work around the cap.
+  var MAX_TEXT_PAGES = 150;
   var MAX_OCR_PAGES = 20;
   function getLinesFromPdf(pdf){
     var maxPages = Math.min(pdf.numPages, MAX_TEXT_PAGES);
@@ -6213,14 +6218,26 @@
     return label;
   }
 
+  // User feedback: the headline number here always stayed fixed at the original total (e.g. "7 inflow(s)
+  // need an explanation"), only ever getting a small "(3 of 7 explained so far)" note tacked on — it never
+  // actually counted DOWN as each one got filled in, and there was no distinct "done" state once the last
+  // one was explained. The headline now counts the REMAINING unexplained ones down to zero, and switches
+  // to a clear success message the moment none are left — see the .toggle('ok'/'warn') pairing wherever
+  // this is called, so the banner's colour flips green at the same moment.
   function inflowHeaderText(flagged, explainedCount){
+    var remaining = flagged.length - explainedCount;
+    if (remaining <= 0){
+      return '✅ <b>All '+flagged.length+' inflow(s) explained</b> — nice, that\'s one less thing a reviewer could question.';
+    }
     var blankCount = flagged.filter(function(t){ return t.__flagReason === 'blank'; }).length;
     var vagueCount = flagged.length - blankCount;
     var kindNote = blankCount && vagueCount
       ? blankCount+' with no narration at all, '+vagueCount+' with a large amount but no clear description'
       : (blankCount ? 'no narration at all on these' : 'a large amount but no clear description');
-    return '<b>'+flagged.length+' inflow(s) need an explanation</b> ('+kindNote+') — worth explaining in a covering letter, or a reviewer will likely ask'
-      + (explainedCount ? ' ('+explainedCount+' of '+flagged.length+' explained so far)' : '') + ':';
+    var inflowWord = remaining === 1 ? 'inflow' : 'inflows';
+    var needWord = remaining === 1 ? 'needs' : 'need';
+    return '<b>'+remaining+' '+inflowWord+' still '+needWord+' an explanation</b> ('+kindNote+') — worth explaining in a covering letter, or a reviewer will likely ask'
+      + (explainedCount ? ' ('+explainedCount+' of '+flagged.length+' already explained)' : '') + ':';
   }
 
   // Remembers, per inflow (keyed the same stable way as inflowExplanations), whether its explain-box is
@@ -6237,7 +6254,8 @@
     window.__lastUnexplainedInflows = flagged || [];
     if (!flagged || !flagged.length){ box.innerHTML = ''; return; }
     var explainedCount = flagged.filter(function(t){ return inflowExplanationIsFilled(inflowExplanations[inflowKey(t)]); }).length;
-    var html = '<div class="scan-msg warn" id="unexplainedHeaderMsg">'+inflowHeaderText(flagged, explainedCount)+'</div>';
+    var headerCls = explainedCount >= flagged.length ? 'ok' : 'warn';
+    var html = '<div class="scan-msg '+headerCls+'" id="unexplainedHeaderMsg">'+inflowHeaderText(flagged, explainedCount)+'</div>';
     flagged.forEach(function(t, idx){
       var key = inflowKey(t);
       var explained = inflowExplanationIsFilled(inflowExplanations[key]);
@@ -6316,7 +6334,11 @@
         statusEl.innerHTML = filled ? '<div class="scan-msg ok compact">Saved — auto-saved in this browser, and included if you export it.</div>' : '';
         var stillExplained = flagged.filter(function(t2){ return inflowExplanationIsFilled(inflowExplanations[inflowKey(t2)]); }).length;
         var headerEl = document.getElementById('unexplainedHeaderMsg');
-        if (headerEl){ headerEl.innerHTML = inflowHeaderText(flagged, stillExplained); }
+        if (headerEl){
+          headerEl.innerHTML = inflowHeaderText(flagged, stillExplained);
+          headerEl.classList.toggle('ok', stillExplained >= flagged.length);
+          headerEl.classList.toggle('warn', stillExplained < flagged.length);
+        }
         computeFinancials(); // re-check the Income generation score now that this one is explained/cleared
         // Refresh the session pill/progress % live — otherwise it only catches up on next navigation,
         // which is exactly how a session could keep reading "100% filled" after an explanation was

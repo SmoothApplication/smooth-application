@@ -3,6 +3,27 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## New: "inflow(s) need an explanation" now counts down live, and tells you when you're done
+
+User feedback: "as I start filling each let the number 7 reduce until I fill the last one, then it
+tells me done or success." The headline number on this banner used to stay fixed at the original
+total forever — filling one in only added a small "(3 of 7 explained so far)" note beside it, never
+actually counting down, and there was no distinct finished state once every inflow was explained.
+It now counts the REMAINING unexplained ones down to zero as each is filled in, and the moment
+none are left it switches to a clear "✅ All 7 inflow(s) explained" message, with the banner itself
+turning green instead of staying orange.
+
+## Fix: raised the digital-statement page cap from 60 to 150
+
+User report: a genuine 120-page digital bank statement got truncated at the old 60-page cap on
+text-layer PDF extraction, silently losing months of real transaction history. Reading a real
+text-layer PDF (the common case — a normal digital statement, not a scan) is cheap enough per page
+that the cap was set conservatively low; raised to 150 with headroom to spare, at no cost to the
+far more common shorter statement. The scanned/photographed-statement OCR fallback keeps its own
+lower cap (20 pages), since OCR is genuinely far more expensive per page — for those, splitting a
+long statement across the up-to-3-files uploader, or trimming to just the required 6-month window,
+is still the practical path.
+
 ## New: closing balance auto-fills from your statement, and shows a % even before the full calculator's filled in
 
 User feedback: the financial calculator's own "Current closing balance" field never picked up the
