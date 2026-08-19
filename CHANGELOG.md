@@ -3,6 +3,21 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## The "explained inflows" and itemized matched-inflow lists can now be collapsed once done
+
+Real feedback, off screenshots of a fully-completed "All 7 inflow(s) explained" list and a 28-item
+itemized business-inflow list: once everything in one of these lists has been reviewed, it just sits
+there taking up the same amount of room it did while there was still real work to do — worse the
+longer the list (a business with dozens of matching inflows, for example).
+
+Each individual inflow already tidied itself away to a one-line summary once explained; now the whole
+list does too. The "needs an explanation" list gains a collapsible toggle the moment every inflow on
+it has actually been explained (it stays as it always has until then — nothing to hide while there's
+still real work left). The itemized matched-inflow list is pre-tagged automatically, so each declared
+employer's or business's group of inflows normally gets its toggle immediately. Both start OPEN, so
+nothing looks different the moment they finish — the toggle just gives the option to tuck a long,
+already-confirmed list away.
+
 ## Analytics: new event to pinpoint where the bank-statement upload step loses people
 
 Real-world usage data showed a big drop-off between opening "Income & bank statement analysis" and

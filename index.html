@@ -6712,7 +6712,15 @@
     if (!flagged || !flagged.length){ box.innerHTML = ''; return; }
     var explainedCount = flagged.filter(function(t){ return inflowExplanationIsFilled(inflowExplanations[inflowKey(t)]); }).length;
     var headerCls = explainedCount >= flagged.length ? 'ok' : 'warn';
+    var allExplained = explainedCount >= flagged.length;
     var html = '<div class="scan-msg '+headerCls+'" id="unexplainedHeaderMsg">'+inflowHeaderText(flagged, explainedCount)+'</div>';
+    // User request: "once filled, make [this] collapsible." While anything here still needs an
+    // explanation, this renders exactly as before (nothing to hide — it all needs the applicant's
+    // attention). Only once every one of them is actually explained does the list get wrapped in a
+    // native <details> — starting OPEN, so nothing looks different the instant it finishes, but now
+    // with a toggle so a long list of already-handled inflows can be tucked away instead of always
+    // taking up the same room it did while there was still real work to do.
+    if (allExplained) html += '<details class="report-group" id="unexplainedInflowsGroup" open><summary class="report-group-heading">Show '+flagged.length+' inflow'+(flagged.length===1?'':'s')+' individually</summary>';
     flagged.forEach(function(t, idx){
       var key = inflowKey(t);
       var explained = inflowExplanationIsFilled(inflowExplanations[key]);
@@ -6720,6 +6728,7 @@
       var collapsed = explained && explainBoxCollapsed[key];
       html += renderExplainBoxHtml(idx, key, t, collapsed);
     });
+    if (allExplained) html += '</details>';
     box.innerHTML = html;
     flagged.forEach(function(t, idx){ wireExplainBox(flagged, t, idx); });
   }
@@ -6802,7 +6811,22 @@
         // cleared, or stay stuck below 100% for a while after the last one was actually filled in.
         if (typeof applySessionVisibility === 'function') applySessionVisibility();
         if (filled){
-          collapseTimer = setTimeout(function(){ collapseExplainBox(flagged, t, idx); }, 1200);
+          // If this was the LAST one, a plain per-box collapse isn't enough — the whole list only
+          // gets its "show individually" collapsible wrapper (see renderUnexplainedInflows) once
+          // every box is explained, and that wrapper is only added at render time. Re-running the
+          // full render (same data, nothing lost) picks that up; otherwise just collapse this one box.
+          var justCompleted = stillExplained >= flagged.length;
+          collapseTimer = setTimeout(function(){
+            if (justCompleted){
+              // This box itself also needs to be marked collapsed before the re-render below, same as
+              // collapseExplainBox() would have done — otherwise the fresh render sees this key's
+              // remembered "expanded" state from before it was ever explained and redraws it open.
+              explainBoxCollapsed[key] = true;
+              renderUnexplainedInflows(flagged);
+            } else {
+              collapseExplainBox(flagged, t, idx);
+            }
+          }, 1200);
         }
       }, 500);
     }
@@ -7004,7 +7028,11 @@
       html += '<div class="scan-msg ok" style="margin-top:10px;">Instead of one lump total, here\'s each of the '+g.txns.length+' inflow'+(g.txns.length===1?'':'s')+' matching "'+escapeHtml(g.name)+'" (your declared '+g.label+') — pre-tagged as "'+escapeHtml(sourceCategoryLabel(g.category))+'"; correct any one that doesn\'t actually belong:</div>';
     });
     var idx = 0;
-    groups.forEach(function(g){
+    groups.forEach(function(g, gIdx){
+      if (!g.txns.length) return;
+      // Tag + auto-explain this group's transactions first (before deciding whether to wrap them
+      // below) — auto-tagging always assigns a real category, so this is normally already fully
+      // explained the instant it's first seen.
       g.txns.forEach(function(t){
         var key = inflowKey(t);
         // Tags which declared group ("employer" or "business") this inflow was matched against, so
@@ -7018,12 +7046,25 @@
         // 'salary', "allowance" -> 'allowance') over the blanket employer/business pre-tag — see
         // detectWorkPaymentCategory above.
         if (!inflowExplanations.hasOwnProperty(key)) inflowExplanations[key] = {category: detectWorkPaymentCategory(t.__narrationReason) || g.category, detail: ''};
+      });
+      // User request: "once filled, make [this] collapsible." These are pre-tagged and so are
+      // normally already fully explained from the moment they're first shown — wrap this group's
+      // items in a native <details>, starting OPEN (nothing looks different than before), so a list
+      // that can run to dozens of items (e.g. every inflow matching a business name) can be tucked
+      // away once the applicant is done double-checking it. If something in this particular group
+      // genuinely still needs attention (e.g. manually re-tagged "Others" with no detail typed in
+      // yet), it renders unwrapped instead, same as before this change.
+      var groupAllExplained = g.txns.every(function(t){ return inflowExplanationIsFilled(inflowExplanations[inflowKey(t)]); });
+      if (groupAllExplained) html += '<details class="report-group" id="matchGroup_'+gIdx+'" open><summary class="report-group-heading">Show these '+g.txns.length+' inflow'+(g.txns.length===1?'':'s')+' matching "'+escapeHtml(g.name)+'" individually</summary>';
+      g.txns.forEach(function(t){
+        var key = inflowKey(t);
         var explained = inflowExplanationIsFilled(inflowExplanations[key]);
         if (!explainBoxCollapsed.hasOwnProperty(key)) explainBoxCollapsed[key] = explained;
         var collapsed = explained && explainBoxCollapsed[key];
         html += renderMatchedInflowBoxHtml(idx, key, t, collapsed);
         idx++;
       });
+      if (groupAllExplained) html += '</details>';
     });
     box.innerHTML = html;
     idx = 0;
