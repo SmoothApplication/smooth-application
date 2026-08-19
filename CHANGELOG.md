@@ -3,6 +3,50 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fix: a genuine passport now passes its checksum check even when its name line reads badly
+
+Real report: a passport photo came back "MRZ checksum: not detected" even though the document was
+completely genuine — the applicant's name and other details all read and displayed correctly. Tracing
+the actual photo through the on-device OCR pipeline showed why: the machine-readable zone's first line
+(the small, dense name line, often sitting right over a background security pattern) read as pure
+garbage, while its second line — mostly digits, generally much easier to OCR cleanly — came back a
+perfect, checksum-valid line. The checksum check only ever needs that second line, but the old code
+required successfully reading BOTH lines together before it would even look at the checksum, so a bad
+read of the name line alone threw away a perfectly good one.
+
+Now the checksum check also looks for a stand-alone, correctly-shaped second line anywhere on the page
+when the two-line read fails, and only trusts it once that candidate's own check digits confirm it's
+the real thing — not just an unrelated OCR line that happens to be the right length and shape.
+
+## Fix: a statement whose column positions shift partway through the file could flip debits to credits
+
+Off a real, very large (168-page) wallet-style statement: its transaction table's column positions
+actually differ between an earlier and a later part of the same file, as if two separate exports had
+been combined into one PDF. The statement analyzer used to detect column positions once, from
+whichever matching header it found first anywhere in the document, and apply that single set of
+positions to every row in the whole file — so once it locked onto the later section's (different)
+positions, amounts on the earlier section's rows got compared against the wrong column and some
+transactions were silently misclassified. Column detection is now aware that a document can contain
+more than one such header, and matches each row against whichever header actually applies to that part
+of the file.
+
+That statement's very first page also wraps one of its three column headers onto its own line, one
+row apart from the other two — a shape the existing same-line-only detection (added specifically to
+reject a different real false-positive, an account-summary info box whose labels look superficially
+similar) couldn't see at all. Detection now also recognizes a header split across a couple of
+neighboring lines, gated on the three matched positions being genuinely spread apart in the correct
+left-to-right order — an info box's stacked, single-column labels can't satisfy that, so the original
+fix stays intact.
+
+Not yet resolved on that same statement: a number of individual rows where the statement shows an
+explicit "--" for whichever side (debit or credit) had no amount that transaction, rather than a real
+zero. Which side the one remaining number belongs to turned out not to be reliably readable from its
+on-page position either — a short, right-aligned value like "50.00" can render tens of points away
+from its own column, closer to the neighboring one, the same alignment quirk already known to affect
+wider statements. A position-based fix for this was tried, confirmed to fix the wallet statement, but
+also confirmed (against a separate real statement that previously reconciled exactly) to flip small,
+genuine debits to credits elsewhere — so it was not shipped. This remains open.
+
 ## Fix: cleaned up garbled transaction descriptions on statements with multi-line narrations
 
 Validated the whole statement-analysis pipeline against a real, independently-successful visa case —

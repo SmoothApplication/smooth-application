@@ -4215,11 +4215,47 @@
     var found = findMrzLinesWithIndex(text);
     return found ? found.lines : null;
   }
+  // Real-world case: a passport photo where line 1 (the name line — small, dense text, and often sitting
+  // right over a background security pattern) OCR'd as pure garbage ("eA CHE SLATE RTOS SRERESE"), while
+  // line 2 (mostly digits, generally easier for OCR to read cleanly) came back a perfect, checksum-valid
+  // 44-character MRZ line. Because the old detection required finding a valid line 1 FIRST and only then
+  // looked at whatever followed it, a bad read of line 1 alone threw away a perfectly good line 2 — and
+  // with it, the entire checksum check ("MRZ checksum: not detected") even though nothing was actually
+  // wrong with the document or, really, with line 2's own read.
+  //
+  // The checksum check (unlike the applicant's name) only ever needs line 2, so this searches for a
+  // standalone, structurally line-2-shaped line anywhere on the page and — critically — requires its OWN
+  // check digits to actually corroborate that shape before trusting it, exactly the same math validateMrz
+  // uses below. That second gate is what keeps this from false-triggering on some unrelated numeric-heavy
+  // OCR line that happens to be 44 characters of digits and letters in roughly the right places.
+  var MRZ_LINE2_SHAPE_RE = /^[A-Z0-9<]{9}\d[A-Z<]{3}\d{6}\d[MFX<]\d{6}\d[A-Z0-9<]{14}[\d<]\d$/;
+  function findMrzLine2Standalone(text){
+    var rawLines = text.split('\n').map(function(l){ return l.replace(/\s+/g,'').toUpperCase(); });
+    for (var i=0;i<rawLines.length;i++){
+      if (rawLines[i].length < 34) continue; // cheap skip before the heavier normalize/regex work below
+      var norm = normalizeMrzLine(rawLines[i], 44);
+      if (!norm || !MRZ_LINE2_SHAPE_RE.test(norm)) continue;
+      var passportNum = norm.slice(0,9), pnCheck = norm[9];
+      var birth = norm.slice(13,19), birthCheck = norm[19];
+      var expiry = norm.slice(21,27), expiryCheck = norm[27];
+      var okCount = 0, checkable = 0;
+      if (/^\d$/.test(pnCheck)){ checkable++; if (mrzCheckDigit(passportNum) === +pnCheck) okCount++; }
+      if (/^\d$/.test(birthCheck)){ checkable++; if (mrzCheckDigit(birth) === +birthCheck) okCount++; }
+      if (/^\d$/.test(expiryCheck)){ checkable++; if (mrzCheckDigit(expiry) === +expiryCheck) okCount++; }
+      if (checkable >= 2 && okCount >= 2) return norm;
+    }
+    return null;
+  }
   function validateMrz(text){
     var lines = findMrzLines(text);
-    if (!lines) return null;
-    var line2 = lines[1];
-    if (line2.length !== 44 || !/^P/.test(lines[0])) return null;
+    var line2;
+    if (lines){
+      line2 = lines[1];
+      if (line2.length !== 44 || !/^P/.test(lines[0])) return null;
+    } else {
+      line2 = findMrzLine2Standalone(text);
+      if (!line2) return null;
+    }
 
     var passportNum = line2.slice(0,9), pnCheck = line2[9];
     var birth = line2.slice(13,19), birthCheck = line2[19];
@@ -5269,20 +5305,71 @@
   // labels never do, each sits on its own row. Requiring co-occurrence on one line is what actually
   // distinguishes a header from this false positive, so only a single line's own parts are considered
   // per candidate; the first line whose own parts satisfy all three columns wins.
-  function detectColumns(lines){
+  // Real-data finding, off a real Opay wallet statement: a 168-page export whose column x-positions
+  // actually SHIFT partway through the document — the transaction table header appears (in whatever form)
+  // more than once, at two visibly different sets of x-positions, as if two separate exports had been
+  // concatenated into one PDF. detectColumns() below used to return only the FIRST matching header found
+  // ANYWHERE in the document and apply its x-positions to every row in the whole file — so once a later,
+  // differently-positioned header won the match, rows on the earlier pages (whose real column positions
+  // sat ~40-55pt to the right of what got detected) had their debit/credit tokens matched to the wrong
+  // column, silently flipping some transactions from debit to credit or vice versa. detectColumnsAll
+  // returns every occurrence instead, so callers can pick whichever one actually applies to a given row's
+  // position in the document rather than assuming one layout holds throughout.
+  // Collects whichever debit/credit/balance labels a single line's own parts satisfy — shared by both
+  // the strict single-line match and the small-window wrapped-header match below.
+  function scanColLabelsOnLine(line, into){
+    line.parts.forEach(function(p){
+      var norm = normalizeColLabel(p.str);
+      if (!norm) return;
+      Object.keys(COL_LABELS).forEach(function(col){
+        if (into[col] !== undefined) return;
+        if (COL_LABELS[col].some(function(k){ return colLabelMatches(norm, k); })) into[col] = p.x;
+      });
+    });
+  }
+  function detectColumnsAll(lines){
+    var found = [];
     for (var i = 0; i < lines.length; i++){
       var cols = {};
-      lines[i].parts.forEach(function(p){
-        var norm = normalizeColLabel(p.str);
-        if (!norm) return;
-        Object.keys(COL_LABELS).forEach(function(col){
-          if (cols[col] !== undefined) return;
-          if (COL_LABELS[col].some(function(k){ return colLabelMatches(norm, k); })) cols[col] = p.x;
-        });
-      });
-      if (cols.debit !== undefined && cols.credit !== undefined && cols.balance !== undefined) return cols;
+      scanColLabelsOnLine(lines[i], cols);
+      if (cols.debit !== undefined && cols.credit !== undefined && cols.balance !== undefined){
+        found.push({ index: i, cols: cols });
+        continue;
+      }
+      // Real-data finding, off a real Opay wallet statement: its "Balance After" column header wraps
+      // onto its own line, one line above "... Debit (₦) Credit (₦) ..." and one line below a lone
+      // "(₦)" — so the strict single-line check above never matches it, and the only header this
+      // document could then satisfy was a LATER, differently-positioned one elsewhere in the file (see
+      // detectColumnsAll's own header comment). This looks for the same three labels spread across a
+      // tight 2-line window instead of requiring them all on one line.
+      //
+      // The single-line requirement above exists specifically to reject the real First Bank false
+      // positive this function is named for — an account-summary info box whose "Pending Debit:",
+      // "Available Balance:", "Total Credit:" labels are each on their OWN row, all sharing one
+      // x-position (a single stacked label column). Widening the window to 2 lines risks matching that
+      // same info box if its four labels happen to land within 2 lines of each other, so this ALSO
+      // requires the three matched x-positions to be meaningfully spread apart (not one shared label
+      // column) and in the standard left-to-right table order (debit, then credit, then balance) — an
+      // info box's single-column labels can satisfy neither.
+      if (i + 1 < lines.length){
+        var windowCols = {};
+        scanColLabelsOnLine(lines[i], windowCols);
+        scanColLabelsOnLine(lines[i+1], windowCols);
+        if (windowCols.debit !== undefined && windowCols.credit !== undefined && windowCols.balance !== undefined){
+          var xs = [windowCols.debit, windowCols.credit, windowCols.balance];
+          var spread = Math.max.apply(null, xs) - Math.min.apply(null, xs);
+          var properOrder = windowCols.debit < windowCols.credit && windowCols.credit < windowCols.balance;
+          if (spread > 25 && properOrder){
+            found.push({ index: i, cols: windowCols });
+          }
+        }
+      }
     }
-    return null;
+    return found;
+  }
+  function detectColumns(lines){
+    var all = detectColumnsAll(lines);
+    return all.length ? all[0].cols : null;
   }
 
   function pdfPageToCanvas(page, scale){
@@ -5582,14 +5669,22 @@
   }
 
   function parseStatementLines(lines){
-    var columns = detectColumns(lines);
-    // Debit/credit/balance in left-to-right table order, derived from the header's own x-positions.
-    var colOrder = columns ? Object.keys(columns).sort(function(a,b){ return columns[a]-columns[b]; }) : null;
+    // Segment-aware: a document can contain more than one header occurrence, each with its own
+    // x-positions (see detectColumnsAll above) — walk a pointer forward through the occurrences as the
+    // row index advances, always using whichever occurrence is nearest to (at-or-before, or otherwise
+    // the very first) the current row, rather than one column set applied blindly to the whole document.
+    var headerOccurrences = detectColumnsAll(lines);
+    var hdrPtr = 0;
     var txns = [];
     var runningBalance = null;
-    lines.forEach(function(line){
+    lines.forEach(function(line, lineIdx){
       var parsed = parseLeadingDate(line.text);
       if (!parsed) return;
+
+      while (hdrPtr + 1 < headerOccurrences.length && headerOccurrences[hdrPtr + 1].index <= lineIdx) hdrPtr++;
+      var columns = headerOccurrences.length ? headerOccurrences[hdrPtr].cols : null;
+      // Debit/credit/balance in left-to-right table order, derived from this segment's own header.
+      var colOrder = columns ? Object.keys(columns).sort(function(a,b){ return columns[a]-columns[b]; }) : null;
 
       var credit = 0, debit = 0, balance;
       var excludeX = null;
@@ -5615,6 +5710,17 @@
         } else if (amtParts.length === 2){
           // One side (debit or credit) didn't survive as a separate token — we have [amount, balance].
           // Fall back to the running-balance delta to infer which side it belongs to.
+          //
+          // Tried and REJECTED: matching amtParts[0]'s x-position to whichever of columns.debit/
+          // columns.credit it sits closer to. That looked promising on a real Opay statement (where the
+          // one real amount landed exactly on its own column's x), but broke a real, previously-exact
+          // Providus reconciliation — small right-aligned values there (e.g. a "50.00" Stamp Duty debit)
+          // rendered 35+pt to the right of their own column's header, past the midpoint and closer to
+          // the NEIGHBORING column, the same right-alignment drift the >= colOrder.length branch above
+          // already has to guard against. That drift isn't bounded by a fixed margin — a short, narrow
+          // value can drift arbitrarily far right depending on the column's width — so there's no safe
+          // threshold that fixes one statement without silently flipping debits to credits on another.
+          // The delta heuristic below is less clever but doesn't share that failure mode.
           balance = amtParts[1].value;
           var amt2 = Math.abs(amtParts[0].value);
           if (runningBalance !== null && Math.abs((runningBalance + amt2) - balance) < 1) credit = amt2;
