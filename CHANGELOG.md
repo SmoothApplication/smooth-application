@@ -3,6 +3,29 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fix: cleaned up garbled transaction descriptions on statements with multi-line narrations
+
+Validated the whole statement-analysis pipeline against a real, independently-successful visa case —
+a full 6-month, 700+ transaction statement, run through the app and checked line-by-line against the
+same applicant's own manually-built breakdown. The core numbers held up exactly: total credits, total
+debits, and closing balance all matched the statement's own printed summary to the kobo, and the
+recurring-salary detector correctly isolated the real monthly figure. That's a strong result on its
+own, but it also surfaced two real display bugs worth fixing before leaning on this further.
+
+First: some statement layouts put a transaction's date and amount on one line but its actual
+description entirely on a separate, wrapped line below — previously, the code building that
+transaction's displayed narration started from the (empty) original line, so what showed up in the
+"explain this payment" box was either the raw, duplicated date/amount text, or in some cases the real
+description shown twice over. Descriptions are now rebuilt from just the row's own text cells plus
+any genuinely wrapped continuation text, so what an applicant sees quoted back to them is a clean,
+readable description — never a jumble of repeated dates and figures.
+
+Second: a few statement formats print footer text (an app download prompt, a head-office address)
+in the same position a wrapped narration line would normally be, with no date and no amount of its
+own — so it looked exactly like leftover description text and got silently absorbed into whichever
+nearby transaction's narration. That boilerplate is now recognized and skipped, the same way page
+numbers and "continued" markers already were.
+
 ## New: a second, independent financial-readiness check — income, not just savings
 
 User feedback, from someone who has personally helped many applicants prepare UK visa financial

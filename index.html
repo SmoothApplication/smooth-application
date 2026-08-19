@@ -5470,7 +5470,14 @@
   // guessed at, consistent with how the rest of this parser backs off instead of over-claiming.
   var NARRATION_WRAP_MAX_LINES = 3;
   var NARRATION_WRAP_MAX_LEN = 80;
-  var NARRATION_WRAP_SKIP_RE = /^(page\s+\d+|statement of account|continued|end of statement|generated on|printed on)\b/i;
+  // Real-data finding, off a real UBA statement: its page footer/header boilerplate — "Download App |
+  // Chat with Leo | Our Website", "Head Office: 57 Marina...", "Africa's global bank ... Bank Statement" —
+  // sits at a y-position with no date and no amount of its own, exactly like a genuine wrapped-narration
+  // continuation line, so the original (bank-name-agnostic) skip list let it get silently absorbed into
+  // whichever transaction happened to be nearest on the page. Extended with UBA's specific phrasing, plus
+  // a few generic bank-footer patterns (website/contact-centre lines) that would plausibly recur on other
+  // banks' statements in the same position.
+  var NARRATION_WRAP_SKIP_RE = /^(page\s+\d+|statement of account|continued|end of statement|generated on|printed on|download app|chat with leo|our website|head office\s*:|africa.s global bank|customer care|call\s*(centre|center)|toll[\s\-]?free|www\.|contact us)\b/i;
   function mergeWrappedNarrationLines(lines){
     var out = [];
     var i = 0;
@@ -5478,6 +5485,7 @@
       var line = lines[i];
       if (!parseLeadingDate(line.text)){ out.push(line); i++; continue; }
       var mergedText = line.text;
+      var extraText = '';
       var consumed = 0;
       while (consumed < NARRATION_WRAP_MAX_LINES && (i + 1 + consumed) < lines.length){
         var next = lines[i + 1 + consumed];
@@ -5488,9 +5496,13 @@
         if (extractAmountTokens(nextText).length > 0) break;   // a real data row, not wrapped text
         if (NARRATION_WRAP_SKIP_RE.test(nextText)) break;       // page furniture, not narration
         mergedText += ' ' + nextText;
+        extraText += (extraText ? ' ' : '') + nextText;
         consumed++;
       }
-      out.push(consumed ? { text: mergedText, parts: line.parts, __page: line.__page } : line);
+      // __wrapExtra keeps just the absorbed continuation text separate from the row's own date/amount
+      // cells, so a display-narration rebuild (buildCleanNarration) can drop the duplicated date/amount
+      // text while still keeping every bit of genuine wrapped narration that was stitched on here.
+      out.push(consumed ? { text: mergedText, parts: line.parts, __page: line.__page, __wrapExtra: extraText } : line);
       i += 1 + consumed;
     }
     return out;
@@ -5539,6 +5551,36 @@
     return out;
   }
 
+  // Real-data finding, off a real UBA statement: the column-position path stores the WHOLE bucketed
+  // line (transaction date + value date + narration + debit/credit/balance figures, all joined into one
+  // string) as the transaction's narration — harmless for most statements, where a human skimming the
+  // "explain this payment" box barely notices a leading date, but on statements whose narration cell wraps
+  // across several physical lines the same duplicated date/amount text got repeated inside what should be
+  // a short description, making an already-long quoted narration read as outright garbled. This rebuilds
+  // a cleaner narration from the row's own text cells, dropping only cells that ARE (in their entirety) the
+  // date or one of the three amount figures already parsed out above — everything else, including any
+  // genuine wrapped-narration text appended by mergeWrappedNarrationLines, is kept untouched.
+  function buildCleanNarration(line, excludeX, wrapExtra){
+    // Deliberately starts from '', not line.text — some real statement rows carry NO narration text of
+    // their own on the dated/amount line at all (the whole description sits on a wrapped continuation
+    // line instead), and starting from the full raw text here would silently re-glue the already-stripped
+    // date/amount prefix back on, then duplicate the wrapExtra tail on top of that.
+    var partsText = '';
+    if (line.parts && line.parts.length){
+      var kept = line.parts.filter(function(p){
+        var s = (p.str || '').trim();
+        if (!s) return false;
+        if (excludeX && excludeX[p.x]) return false;
+        var dm = parseLeadingDate(s);
+        if (dm && !dm.rest.trim()) return false; // the whole cell is just a date — not narration text
+        return true;
+      });
+      partsText = kept.map(function(p){ return p.str; }).join(' ').replace(/\s+/g,' ').trim();
+    }
+    var cleaned = (partsText + (wrapExtra ? ' ' + wrapExtra : '')).replace(/\s+/g,' ').trim();
+    return cleaned || line.text;
+  }
+
   function parseStatementLines(lines){
     var columns = detectColumns(lines);
     // Debit/credit/balance in left-to-right table order, derived from the header's own x-positions.
@@ -5550,6 +5592,7 @@
       if (!parsed) return;
 
       var credit = 0, debit = 0, balance;
+      var excludeX = null;
 
       if (columns && line.parts.length){
         // Column-position path (text-based PDF). Amount cells are matched to debit/credit/balance by their
@@ -5567,6 +5610,8 @@
           debit = Math.abs(assigned.debit || 0);
           credit = Math.abs(assigned.credit || 0);
           balance = assigned.balance;
+          excludeX = {};
+          tail.forEach(function(a){ excludeX[a.x] = true; });
         } else if (amtParts.length === 2){
           // One side (debit or credit) didn't survive as a separate token — we have [amount, balance].
           // Fall back to the running-balance delta to infer which side it belongs to.
@@ -5576,6 +5621,8 @@
           else if (runningBalance !== null && Math.abs((runningBalance - amt2) - balance) < 1) debit = amt2;
           else if (runningBalance !== null) { if (balance >= runningBalance) credit = amt2; else debit = amt2; }
           else debit = amt2;
+          excludeX = {};
+          amtParts.forEach(function(a){ excludeX[a.x] = true; });
         } else {
           return; // just one token on the row — not enough to classify as a transaction
         }
@@ -5602,7 +5649,8 @@
       }
 
       runningBalance = balance;
-      txns.push({date: parsed.date, credit: credit, debit: debit, balance: balance, narration: line.text});
+      var narrationText = excludeX ? buildCleanNarration(line, excludeX, line.__wrapExtra) : line.text;
+      txns.push({date: parsed.date, credit: credit, debit: debit, balance: balance, narration: narrationText});
     });
     return txns;
   }
