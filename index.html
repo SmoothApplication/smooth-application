@@ -373,6 +373,12 @@
     padding: 12px 16px; margin: -4px 0 18px;
   }
   .session-footer .btn { flex: 1; min-width: 120px; }
+  /* User feedback: the fill-progress % only showed at the TOP of a session (in the pill nav), which
+     can be scrolled out of view by the time someone reaches the Save/Next buttons at the bottom —
+     right where they're deciding whether to save-and-move-on. Repeating it here, directly above those
+     buttons, means it's always in view exactly when it's most useful. */
+  .session-footer-progress { font-size: 13px; font-weight: 600; color: var(--text-secondary); flex-basis: 100%; margin: 0 0 2px; }
+  .session-footer-progress b { color: var(--accent); }
   .session-footer-msg { font-size: 12px; font-weight: 600; color: var(--good); flex-basis: 100%; margin: 0; min-height: 1em; }
   @media print { .session-footer { display: none !important; } }
 
@@ -2215,7 +2221,15 @@
     var footer = document.getElementById('sessionFooter');
     if (!footer) return;
     var isLast = idx === keys.length - 1;
-    footer.innerHTML = '<button type="button" class="btn" id="sessionSaveBtn">💾 Save</button>'
+    // User feedback: show the fill-progress % right above Save/Next too, not just up in the pill nav,
+    // so it's visible at the exact moment someone's about to save and move on — not just at the top of
+    // the section, where it can be scrolled out of view by the time they reach these buttons.
+    var prog = sessionProgress(keys[idx]);
+    var progressHtml = prog.total > 0
+      ? '<p class="session-footer-progress" id="sessionFooterProgress">📊 <b>'+prog.percent+'%</b> of this section filled ('+prog.points+' of '+prog.total+')</p>'
+      : '';
+    footer.innerHTML = progressHtml
+      + '<button type="button" class="btn" id="sessionSaveBtn">💾 Save</button>'
       + '<button type="button" class="btn primary" id="sessionFooterNextBtn"'+(isLast?' disabled':'')+'>'+(isLast ? '✓ Last page' : 'Next →')+'</button>'
       + '<p class="session-footer-msg" id="sessionFooterMsg"></p>';
     var saveBtn = document.getElementById('sessionSaveBtn');

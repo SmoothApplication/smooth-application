@@ -3,6 +3,15 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## New: fill-progress % now also shows right above Save/Next, not just up in the pill nav
+
+User feedback: the "X% filled" indicator only lived up in the session pill navigation at the top
+of the page — by the time someone scrolls down to the Save/Next buttons to actually move on, it's
+often scrolled out of view, so there's no way to tell at a glance how far along the current section
+is right at the moment of deciding to save and proceed. The same live percentage (plus the raw
+count, e.g. "4 of 4") now also shows directly above the Save/Next buttons, updating immediately as
+fields are filled in — no separate scroll back up required.
+
 ## Fix: two real bugs found on a live "Income sources breakdown," off the app's own export
 
 User report, off the app's own "Download breakdown as spreadsheet" export: a genuine ₦100,000
