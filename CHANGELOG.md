@@ -3,6 +3,36 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## New: a second, independent financial-readiness check — income, not just savings
+
+User feedback, from someone who has personally helped many applicants prepare UK visa financial
+evidence over the years: reviewers have refused applicants who technically had enough money sitting
+in the account (the app's existing 2× funds/closing-balance buffer) but whose actual income barely
+covered the trip cost — reasoning, drawn from a real refusal letter, that the applicant would be
+spending essentially their entire income on a vacation with nothing left for rent, bills, school
+fees, and the family they're clearly still supporting. Their own rule of thumb, built from years of
+real outcomes: aim for annual income at least 4× the estimated trip cost.
+
+The financial calculator now checks this too, as a companion to (never a replacement for) the
+existing funds buffer — over the same 6-month window the cash-flow table already asks for, 4× annual
+income works out to a 2× buffer on 6-month inflow, so it reuses the exact same "2×" language and
+multiplier already used elsewhere, reading as one consistent rule rather than a second, differently-
+calibrated one. It only appears once the full 6 months of the cash-flow table are filled in — a
+partial window can't be honestly scaled up to a 6-month claim without either over- or under-stating
+it, so it stays hidden rather than showing a shaky number. For self-employed applicants whose income
+and non-income company transactions (reimbursements, purchases) both route through the same personal
+account, the warning message says so directly — a good reminder that the underlying six-month figures
+need to be genuine salary/allowance, not everything that hit the account.
+
+Deliberately NOT included: an automatic classifier that guesses which credits are "real" income vs.
+a business reimbursement or purchase. A real example off this exact feedback showed why that's not a
+job for a keyword rule — two blank-narration credits from the same company to the same person, only
+resolved by a phone call, turned out to be two different things: one was a genuine bonus (real
+income), the other was an office-expenses reimbursement (not income). The app's existing "flag
+unexplained inflows and ask the applicant to categorize them" feature already handles exactly this
+kind of judgment call the right way — surface it, don't guess it — so this stays as-is rather than
+trying to automate something that, by this feedback's own evidence, can't be reliably automated.
+
 ## Fix: bank/loan system codes and split-month salary narrations no longer masquerade as a "sender"
 
 Proactive follow-up to the First Bank column-collision fix below, digging further into the same real

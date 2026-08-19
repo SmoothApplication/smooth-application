@@ -2926,6 +2926,18 @@
     var totalCost = totalFlight + totalAccom + transport + extras;
     var recommendedFunds = totalCost * 2;
     var FLOOR = 200000;
+    // User feedback, from someone who has helped many applicants prepare UK visa evidence over the
+    // years: reviewers have refused applicants who technically had enough money sitting in the account
+    // (the 2× funds buffer above) but whose actual INCOME barely covered the trip cost — reasoning
+    // (seen directly in a real refusal letter) that the applicant would be spending essentially their
+    // entire income on a vacation, leaving nothing for rent, bills, school fees, and family costs they
+    // clearly still have. Their own rule of thumb, built from years of real outcomes: aim for annual
+    // income at least 4× the estimated trip cost. Over the same 6-month window this cash-flow table
+    // already asks for, that's equivalent to a 2× buffer — deliberately reusing the SAME "2×" language
+    // and multiplier the funds-buffer check above already uses, so this reads as a companion check, not
+    // a second, differently-calibrated rule. This is about income, not savings — a thin income margin is
+    // a real refusal risk even when the account balance itself looks comfortable.
+    var recommendedIncome = totalCost * 2;
 
     // Cash-flow figures computed up front so the balance message below can reference them
     // (e.g. a months-to-save estimate for salary earners).
@@ -3038,6 +3050,14 @@
                     // which used to make the sidebar wrongly read "Looking solid" before anything was typed
     } else {
       var forexRow = forexSavings ? ('<div class="fb-row"><span>+ Foreign currency savings (₦ equiv.)</span><span>'+fmtN(forexSavings)+'</span></div>') : '';
+      // Only shown once the full 6-month cash-flow table is filled in — a partial window (say, 3 of 6
+      // months) can't honestly be scaled up to a 6-month claim without either over- or under-stating it,
+      // so this stays hidden rather than showing a shaky number.
+      var showIncomeCheck = hasCashFlowData && rows.length === CF_MONTHS && totalCost > 0;
+      var incomeRows = showIncomeCheck
+        ? ('<div class="fb-row"><span>Total inflow, last 6 months (from cash-flow table)</span><span>'+fmtN(cfTotalIn)+'</span></div>'
+          + '<div class="fb-row total"><span>Recommended income over 6 months (2×, ≈4× annually)</span><span>'+fmtN(recommendedIncome)+'</span></div>')
+        : '';
       var breakdown = '<div class="fin-breakdown">'
         + '<div class="fb-row"><span>Flights ('+adults+' adult'+(adults===1?'':'s')+(adolescents?', '+adolescents+' adolescent'+(adolescents===1?'':'s'):'')+(children?', '+children+' child'+(children===1?'':'ren'):'')+' × '+fmtN(flightPer)+')</span><span>'+fmtN(totalFlight)+'</span></div>'
         + '<div class="fb-row"><span>Accommodation ('+nights+' nights × '+fmtN(accomPerNight)+')</span><span>'+fmtN(totalAccom)+'</span></div>'
@@ -3049,6 +3069,7 @@
         + '<div class="fb-row"><span>Statement closing balance</span><span>'+fmtN(closing)+'</span></div>'
         + forexRow
         + '<div class="fb-row total"><span>Total funds available</span><span>'+fmtN(totalFunds)+'</span></div>'
+        + incomeRows
         + '</div>';
 
       if (totalFunds < FLOOR){
@@ -3085,6 +3106,25 @@
       } else {
         msgs.push({cls:'info', text:'Enter your trip cost estimates above to check your closing balance against the 2× buffer rule.'});
         bump('info');
+      }
+
+      // Companion check to the funds/closing-balance buffer above, using a different signal: INCOME,
+      // not savings. A comfortable balance can still read as a refusal risk if the income behind it
+      // barely covers the trip — reviewers have refused applicants on exactly that reasoning, that the
+      // trip would consume essentially their entire income and leave nothing for rent, bills, school
+      // fees, and the family they're clearly still supporting. Deliberately only shown once the full
+      // 6-month cash-flow table is filled in (see showIncomeCheck above) — otherwise this would either
+      // need to guess-scale a partial window, or risk applicants reading a low partial total as "you
+      // don't earn enough" when they simply haven't filled in every month yet.
+      if (showIncomeCheck){
+        if (cfTotalIn < recommendedIncome){
+          var incomePct = Math.round(cfTotalIn / recommendedIncome * 100);
+          var incomeShortfall = recommendedIncome - cfTotalIn;
+          msgs.push({cls:'warn', text:'Separately from your balance above: your total inflow over these 6 months ('+fmtN(cfTotalIn)+') covers about '+incomePct+'% of a recommended 2× buffer against your estimated trip cost ('+fmtN(recommendedIncome)+' — equivalent to earning roughly 4× this trip\'s cost annually). This isn\'t about having enough saved up right now; it\'s about whether this trip looks affordable alongside your regular life — rent, bills, school fees, family support. A thin income margin, even with a healthy balance, is a real reason reviewers have refused applicants before. If most of your income comes from a business you run, make sure the inflow figures above reflect genuine salary/allowance draws — one-off business reimbursements or purchases routed through the same account can make this number look thinner (or, less often, inflated) than it really is.'});
+          bump('warn');
+        } else {
+          msgs.push({cls:'ok', text:'Separately from your balance above: your total inflow over these 6 months ('+fmtN(cfTotalIn)+') comfortably covers the recommended 2× buffer against your estimated trip cost — a good sign this trip looks affordable alongside your regular income, not like it\'s consuming all of it.'});
+        }
       }
 
       if (appDateStr && travelDateStr){
