@@ -7921,6 +7921,11 @@
   ['stmtFile1','stmtFile2','stmtFile3'].forEach(function(id){
     document.getElementById(id).addEventListener('change', function(){
       document.getElementById('btnAnalyzeStatements').disabled = !getStatementFiles().length;
+      // Funnel diagnostics: session_view:finance2 vastly outnumbers statement_analysis:attempted, but
+      // that alone can't say whether people never pick a file, or pick one and then never click
+      // Analyze. This fires the moment ANY statement file is actually chosen (never the file itself —
+      // just that a choice happened) so the two points on that funnel become measurable separately.
+      if (this.files && this.files[0]) trackEvent('stmt_file_selected');
     });
   });
 

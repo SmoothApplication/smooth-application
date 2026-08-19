@@ -3,6 +3,19 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Analytics: new event to pinpoint where the bank-statement upload step loses people
+
+Real-world usage data showed a big drop-off between opening "Income & bank statement analysis" and
+actually attempting a statement analysis — most people who open that section never get as far as
+clicking "Analyze." The existing analytics couldn't tell whether that's because people never pick a
+file at all, or pick one and then stop before clicking Analyze.
+
+A new anonymous event, `stmt_file_selected`, now fires the moment someone chooses a bank statement
+file — never the filename or its contents, just that a choice happened, same privacy rule every
+other event on this site already follows. Comparing this against the existing `session_view:finance2`
+and `statement_analysis:attempted` counts will show which side of that gap people are actually
+getting stuck on.
+
 ## Fix: "Your trip details" could read 100% filled while "Work status" still sat unanswered
 
 Real report, with a screenshot: the "Your trip details" session showed "100% of this section filled
