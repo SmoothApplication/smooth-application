@@ -3,6 +3,49 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fix: a real First Bank statement was silently misreading every debit as a credit
+
+User report, with a real (unprotected) First Bank statement to reproduce it against: the statement
+parsed "successfully" — 158 transactions detected — but the numbers were wrong throughout, and the
+"most frequent inflow source" came back as the nonsense name "Transaction S". The real cause: First
+Bank's account-summary info box prints its own labels — "Pending Debit:", "Available Balance:",
+"Total Credit:", "Total Debit:" — as a label column, each on its own row but all sharing the exact
+same x-position. Each one independently matches one of the debit/credit/balance column-header
+keywords the parser looks for, and matching them across separate rows (rather than requiring all
+three appear TOGETHER on one row, the way a genuine table header always does) wired the whole
+statement's debit/credit/balance detection up to that label column instead of the real transaction
+table further down the page — recording every row's running balance as its credit amount. Now fixed
+by requiring the three column labels to co-occur on the same physical line. Verified against the
+real statement: total credits, total debits, and the final balance now match the statement's own
+printed totals exactly (₦1,280,568.07 / ₦1,280,508.10 / ₦153.11).
+
+## Fix: password-protected bank statements now get a clear, actionable message instead of a generic one
+
+User report: an applicant with a First Bank account uploaded their statement and got the same
+"couldn't detect transaction rows — the format may be unusual" message a genuinely unsupported bank
+format would show. The real cause was different and much simpler: the PDF was password-protected (a
+default many Nigerian banks ship with), and pdf.js's specific "needs a password" error was being
+silently swallowed, so nothing distinguished it from an unfamiliar layout. Both the personal and
+business statement-analysis flows now recognise this specific error and say so by name — which
+file is affected, why nothing leaves the browser to try passwords against it, and concrete next
+steps (most banking apps offer an unprotected re-download; otherwise, opening the PDF with the
+password and using "Print to PDF"/"Save a copy" produces an unprotected version to upload instead).
+If one file in a multi-file upload is protected but others parse fine, that's now called out too,
+instead of just silently contributing nothing to the analysis.
+
+## Fix: bank statements whose Date column wraps onto two lines now parse correctly
+
+User report, with a real "ALAT by WEMA" statement to reproduce it against: uploading it returned
+"couldn't automatically detect transaction rows" even though the PDF had a completely normal-looking
+transaction table. The cause: that statement's Date column is rendered narrow enough that each date
+wraps within its own cell — e.g. "05-Feb-" on one line and a bare "2026" appearing several lines
+later — while the transaction's actual reference/narration/amount data sits at a different
+y-position sandwiched between the two date fragments, with no date of its own. The parser requires
+every transaction row to start with a date, so every single row in the statement was silently
+rejected. A new merge pass now detects this exact split-date pattern and reassembles it before the
+rest of the pipeline runs, so statements in this format parse normally — confirmed against the real
+statement (130 transactions across 7 months, previously 0).
+
 ## Fix: passport photos from low-end phones now read reliably, and the name auto-fills again
 
 User report, with an actual passport photo to reproduce it against: a passport photographed on a

@@ -5212,12 +5212,27 @@
     return norm === keyword || norm.indexOf(keyword) !== -1;
   }
 
-  // Scan every line for a header row naming Debit/Credit/Balance columns, and record each column's x-position
-  // so later rows — including ones with only one populated amount cell — can be matched by column, not guessed.
+  // Scan for a header row naming Debit/Credit/Balance columns, and record each column's x-position so
+  // later rows — including ones with only one populated amount cell — can be matched by column, not guessed.
+  //
+  // Real-data finding, off a real First Bank statement: its account-summary info box prints its own
+  // labels — "Pending Debit:", "Available Balance:", "Total Credit:", "Total Debit:" — as a vertically
+  // stacked label column, all left-aligned at the exact same x-position (one per row, e.g. "Available
+  // Balance:" then "Total Credit:" then "Total Debit:" a few rows down). Each one INDEPENDENTLY matches
+  // one of the debit/credit/balance keyword lists below, and since they share the summary box's label
+  // x-position, matching them column-by-column ACROSS separate lines (the previous approach) silently
+  // wired up debit/credit/balance to that x-position instead of the real transaction table's header —
+  // corrupting the debit/credit/balance assignment for every single transaction in the statement (a
+  // debit row's balance value ended up recorded as its credit amount).
+  //
+  // A genuine table header names all three columns TOGETHER, on the SAME physical row — an info box's
+  // labels never do, each sits on its own row. Requiring co-occurrence on one line is what actually
+  // distinguishes a header from this false positive, so only a single line's own parts are considered
+  // per candidate; the first line whose own parts satisfy all three columns wins.
   function detectColumns(lines){
-    var cols = {};
-    lines.forEach(function(line){
-      line.parts.forEach(function(p){
+    for (var i = 0; i < lines.length; i++){
+      var cols = {};
+      lines[i].parts.forEach(function(p){
         var norm = normalizeColLabel(p.str);
         if (!norm) return;
         Object.keys(COL_LABELS).forEach(function(col){
@@ -5225,8 +5240,9 @@
           if (COL_LABELS[col].some(function(k){ return colLabelMatches(norm, k); })) cols[col] = p.x;
         });
       });
-    });
-    return (cols.debit !== undefined && cols.credit !== undefined && cols.balance !== undefined) ? cols : null;
+      if (cols.debit !== undefined && cols.credit !== undefined && cols.balance !== undefined) return cols;
+    }
+    return null;
   }
 
   function pdfPageToCanvas(page, scale){
@@ -5440,6 +5456,49 @@
     return out;
   }
 
+  // Real-data finding, off the "ALAT by WEMA" statement format: its Date column is rendered narrow
+  // enough that the date text WRAPS within its own table cell, so pdf.js's y-position line-bucketing
+  // splits a single date across two separate lines — e.g. "05-Feb-" on one line and a bare "2026" several
+  // lines later — while the transaction's actual reference/narration/amount data sits at a DIFFERENT
+  // y-position sandwiched between those two date fragments, with no date of its own. parseLeadingDate
+  // then rejects every one of those data lines (nothing looks like a date at the start), so the row-based
+  // parser finds zero transactions and the app reports "couldn't detect transaction rows" on an otherwise
+  // perfectly good statement.
+  //
+  // This reassembles the split date and prepends it onto the sandwiched data line, BEFORE
+  // mergeWrappedNarrationLines ever runs (that pass requires a line to already start with a date, so it
+  // can't help here on its own). Deliberately narrow: only fires on the exact [date-head-with-no-year,
+  // data-line-with-amounts-and-no-date, bare-4-digit-year] triple, on the same PDF page, so it can't
+  // misfire on an ordinary statement whose dates already sit on one line.
+  var SPLIT_DATE_HEAD_RE = /^(\d{1,2})[\s\-\/](jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\s\-\/]?$/i;
+  var SPLIT_DATE_YEAR_RE = /^(\d{4})$/;
+  function mergeSplitDateLines(lines){
+    var out = [];
+    var i = 0;
+    while (i < lines.length){
+      var line = lines[i];
+      var text = (line.text || '').trim();
+      var headMatch = !parseLeadingDate(text) ? SPLIT_DATE_HEAD_RE.exec(text) : null;
+      if (headMatch && (i + 2) < lines.length){
+        var dataLine = lines[i + 1];
+        var yearLine = lines[i + 2];
+        var dataText = (dataLine.text || '').trim();
+        var yearText = (yearLine.text || '').trim();
+        var yearMatch = SPLIT_DATE_YEAR_RE.exec(yearText);
+        if (yearMatch && dataLine.__page === line.__page && yearLine.__page === line.__page &&
+            !parseLeadingDate(dataText) && extractAmountTokens(dataText).length > 0){
+          var fullDate = headMatch[0].replace(/[\s\-\/]+$/, '') + '-' + yearMatch[1];
+          out.push({ text: fullDate + ' ' + dataLine.text, parts: dataLine.parts, __page: dataLine.__page });
+          i += 3;
+          continue;
+        }
+      }
+      out.push(line);
+      i++;
+    }
+    return out;
+  }
+
   function parseStatementLines(lines){
     var columns = detectColumns(lines);
     // Debit/credit/balance in left-to-right table order, derived from the header's own x-positions.
@@ -5622,7 +5681,7 @@
   // column-major reconstruction when the normal parser essentially found nothing, so normal (working)
   // statement formats are never affected by it.
   function parseStatementLinesWithFallback(lines){
-    var txns = parseStatementLines(mergeWrappedNarrationLines(lines));
+    var txns = parseStatementLines(mergeWrappedNarrationLines(mergeSplitDateLines(lines)));
     if (txns.length >= 2) return txns;
     // Column-major fallback deliberately uses the RAW (unmerged) lines — it reads dates/balances off
     // whole date-list/balance-list lines by shape, not narration, so wrap-merging has nothing to offer
@@ -6293,19 +6352,27 @@
       var answers = getAnswers();
       var allLines = [];
       var truncatedFiles = [];
+      var passwordProtectedFiles = [];
       var chain = Promise.resolve();
       files.forEach(function(file){
         chain = chain.then(function(){
           return getLinesFromFile(file).then(function(lines){
             if (lines.__truncated) truncatedFiles.push({name: file.name, info: lines.__truncated});
             allLines = allLines.concat(lines);
-          }).catch(function(){});
+          }).catch(function(err){
+            if (err && err.name === 'PasswordException') passwordProtectedFiles.push(file.name);
+          });
         });
       });
       chain.then(function(){
         var txns = parseStatementLinesWithFallback(allLines);
         if (!txns.length){
           trackEvent('business_statement_analysis:zero_txns');
+          if (passwordProtectedFiles.length){
+            trackEvent('business_statement_analysis:password_protected');
+            onMessage('err','"'+passwordProtectedFiles.map(escapeHtml).join('", "')+'" appears to be password-protected, so it can\'t be read automatically — nothing leaves your browser to try passwords against it. Most Nigerian banks let you download or re-export an unprotected copy from internet/mobile banking; alternatively, open the PDF with the password, then "Print to PDF" or "Save a copy" to produce an unprotected version and upload that instead. '+reportProblemLinksHtml('business statement analysis (password-protected file)'));
+            return;
+          }
           onMessage('err','Couldn\'t automatically detect transaction rows in this business statement — the format may be unusual. Review it yourself for a recurring personal salary/drawing to you. '+reportProblemLinksHtml('business statement analysis (no rows detected)')+' — telling us which bank this statement is from helps us support more formats.');
           return;
         }
@@ -6317,6 +6384,10 @@
         }
         if (truncatedFiles.length){
           results.push({cls:'warn', text:truncatedFiles.map(function(f){ return '"'+escapeHtml(f.name)+'" has '+f.info.total+' pages — only the first '+f.info.processed+' were read'; }).join('; ')+'. If your statement covers more than that, earlier month(s) may be missing from this analysis.'});
+        }
+        if (passwordProtectedFiles.length){
+          trackEvent('business_statement_analysis:password_protected');
+          results.push({cls:'warn', text:'"'+passwordProtectedFiles.map(escapeHtml).join('", "')+'" appears to be password-protected, so it was skipped — the figures above come only from your other file(s). Re-export an unprotected copy and upload it separately to include that statement too.'});
         }
         var bizIncomeEl = document.getElementById('incomeSourceBusiness');
         if (match.monthsSeen >= 2){
@@ -7254,6 +7325,7 @@
       var perFileClosing = [];
       var perFileOpening = [];
       var truncatedFiles = [];
+      var passwordProtectedFiles = [];
       var chain = Promise.resolve();
       files.forEach(function(file){
         chain = chain.then(function(){
@@ -7267,6 +7339,11 @@
             }
           }).catch(function(err){
             console.warn('Could not read', file.name, err);
+            // pdf.js throws this specific, stable error when a PDF needs a password it wasn't given —
+            // several Nigerian banks (First Bank among them) ship statement downloads password-protected
+            // by default. Worth calling out by name instead of folding it into the generic "unusual
+            // format" message below, since it's common and the fix is simple and in the applicant's hands.
+            if (err && err.name === 'PasswordException') passwordProtectedFiles.push(file.name);
           });
         });
       });
@@ -7274,6 +7351,11 @@
         var txns = parseStatementLinesWithFallback(allLines);
         if (!txns.length){
           trackEvent('statement_analysis:zero_txns');
+          if (passwordProtectedFiles.length){
+            trackEvent('statement_analysis:password_protected');
+            onMessage('err','"'+passwordProtectedFiles.map(escapeHtml).join('", "')+'" appears to be password-protected, so it can\'t be read automatically — nothing leaves your browser to try passwords against it. Most Nigerian banks let you download or re-export an unprotected copy from internet/mobile banking (First Bank\'s app, for example, has an unprotected "Download statement" option); alternatively, open the PDF with the password on your phone/computer, then "Print to PDF" or "Save a copy" to produce an unprotected version and upload that instead. Or fill in the cash-flow table manually using your own statement. '+reportProblemLinksHtml('statement analysis (password-protected file)'));
+            return;
+          }
           onMessage('err','Couldn\'t automatically detect transaction rows in these file(s) — the format may be unusual, or the scan quality too low. Please fill in the cash-flow table manually using your own statement. '+reportProblemLinksHtml('statement analysis (no rows detected)')+' — telling us which bank this statement is from helps us support more formats.');
           return;
         }
@@ -7474,6 +7556,10 @@
         }
         if (truncatedFiles.length){
           results.push({cls:'warn', text:truncatedFiles.map(function(f){ return '"'+escapeHtml(f.name)+'" has '+f.info.total+' pages — only the first '+f.info.processed+' were read'; }).join('; ')+'. A busy account can run to many pages for 6 months; if your statement covers more than that, the earliest month(s) may be missing from this analysis. Consider splitting it into shorter date ranges and uploading each separately.'});
+        }
+        if (passwordProtectedFiles.length){
+          trackEvent('statement_analysis:password_protected');
+          results.push({cls:'warn', text:'"'+passwordProtectedFiles.map(escapeHtml).join('", "')+'" appears to be password-protected, so it was skipped — the figures above come only from your other file(s). Re-export an unprotected copy (many banking apps offer this) and upload it separately to include that statement too.'});
         }
         if (!columnsDetected){
           results.push({cls:'warn', text:"Couldn't recognise this statement's Debit/Credit/Balance column headers, so it fell back to a less reliable guessing method — the debit/credit split and balance figures above are more likely to be wrong. Please check every row in the table carefully, or fill it in manually from your real statement."});
