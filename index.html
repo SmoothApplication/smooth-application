@@ -1382,6 +1382,43 @@
        3. Redeploy. That's it — no other code changes needed.
      Leave it blank to keep analytics fully off; the tool works identically either way. */
   var ANALYTICS_SITE_CODE = 'smoothapplication'; // blank = analytics disabled
+
+  // Full list of tracked events — docs/privacy-policy-draft.md points here, so keep this in sync
+  // with every trackEvent()/logClientError() call in this file whenever one is added, removed, or
+  // renamed. Every event name is one of the fixed patterns below; none of them can ever contain a
+  // filename, a document's contents, a typed answer, or any other identifying detail — see the
+  // trackEvent()/logClientError() comments just below for how that's enforced in code, not just here.
+  //   session_started:<code>              — once, when a visa country is chosen (<code> is "UK" or "CA")
+  //   session_view:<key>                  — a session/category is opened; <key> is one of "trip",
+  //                                          "finance", "finance2", "review", or "cat:<category name>"
+  //                                          (e.g. "cat:Financial evidence")
+  //   reached_review                      — the applicant reaches the final "Are you ready?" session
+  //   marked_ready                        — once per session, the first time every required checklist
+  //                                          item is checked
+  //   email_summary_clicked               — "Email myself this summary" was clicked
+  //   doc_scan:attempted:<kind>           — a single-file document scan begins
+  //   doc_scanned:<kind>                  — that scan produced a result
+  //   doc_scan_multi:attempted:<kind>     — a multi-file scan begins (e.g. several old visa/stamp photos)
+  //   doc_scan_multi:completed:<kind>     — that multi-file scan finished
+  //                                          <kind> above is one of: passport, employmentLetter,
+  //                                          bankStatement, businessStatement, accommodation,
+  //                                          flightItinerary, invitationLetter, medicalLetter, oldVisa,
+  //                                          refusalLetter
+  //   statement_analysis:attempted / :libs_failed / :zero_txns / :password_protected / :completed
+  //                                        — the personal bank-statement analyzer funnel (Income &
+  //                                          bank statement analysis session)
+  //   business_statement_analysis:attempted / :libs_failed / :zero_txns / :password_protected /
+  //   :completed                          — same funnel, for the business bank-statement analyzer
+  //   stmt_file_selected                  — a bank statement file is chosen, before "Analyze" is even
+  //                                          clicked — separates "never picked a file" from "picked a
+  //                                          file but never attempted analysis" in the funnel above
+  //   error:<context>:<kind>              — an anonymous client-side error signal. <context> is one of:
+  //                                          global, promise, doc_scan, doc_scan_image, doc_scan_pdf,
+  //                                          doc_scan_multi, statement_analysis, statement_analysis_setup,
+  //                                          business_statement_analysis, business_statement_analysis_setup.
+  //                                          <kind> is only ever a JS error constructor name (e.g.
+  //                                          "TypeError") — never err.message, err.stack, or anything
+  //                                          that could echo back typed/uploaded content.
   var analyticsLoaded = false;
   function loadAnalytics(){
     if (!ANALYTICS_SITE_CODE || analyticsLoaded) return;

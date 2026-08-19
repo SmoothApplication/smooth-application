@@ -3,6 +3,21 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Docs: the analytics code now actually contains the event list the privacy policy points to
+
+`docs/privacy-policy-draft.md` tells a lawyer to go read "the comment block above
+`ANALYTICS_SITE_CODE` in `index.html`" for the full list of tracked events — but no such list
+existed in the code. Added one: every event name/pattern this file can ever send, and exactly what
+each `<placeholder>` in it can be, kept next to the analytics code itself so it has to be updated
+in the same place any new tracked event gets added. No behavior change — this is documentation
+only, added while looking into a separately-reported (and, on investigation, unfounded) concern
+that a passport quick-check widget wasn't recording its "attempted" event: tracing the actual code
+path showed that's structurally impossible (the "attempted" event always fires synchronously
+before the "scanned" one, from the same function, for every entry point that scans a passport) —
+the real explanation was almost certainly two analytics numbers read off different date ranges,
+not a tracking gap. Nothing to fix there; noting it here so it isn't re-investigated later as if it
+were still open.
+
 ## The "explained inflows" and itemized matched-inflow lists can now be collapsed once done
 
 Real feedback, off screenshots of a fully-completed "All 7 inflow(s) explained" list and a 28-item
