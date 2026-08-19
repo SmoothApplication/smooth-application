@@ -2025,6 +2025,7 @@
     f_name: 'Your full name (as on passport)', f_purpose: 'Main purpose of visit',
     f_traveldate: 'Planned travel date', f_returndate: 'Planned return date',
     f_appdate: 'Planned application/submission date',
+    f_workStatus: 'Work status',
     f_employerName: 'Employer / company name', f_businessName: 'Business name'
   };
   var FINANCE_FIELD_LABELS = {
@@ -2043,7 +2044,13 @@
       return {percent: Math.round(checked/items.length*100), points: checked, total: items.length, missing: missingItems};
     }
     if (key === 'trip'){
-      var tripFields = ['f_name','f_purpose','f_traveldate','f_returndate','f_appdate'];
+      // "Work status" drives everything below it (employer/business name requirements, student
+      // sponsor, child docs) but is its own dropdown, not part of the original 5-field list — a user
+      // reported this session reading "100% of this section filled (5 of 5)" while "Work status"
+      // still sat on its unselected "Select your status…" placeholder. Same bug class as the
+      // employer/business name fix right below: count it here so 100% only shows once it's genuinely
+      // answered.
+      var tripFields = ['f_name','f_purpose','f_traveldate','f_returndate','f_appdate','f_workStatus'];
       // Employer/business name become required (marked with a red *) the moment their checkbox is
       // ticked — without counting them here, this could read "100% filled" while a required field
       // sat empty right below it, which is exactly the confusing state a user reported ("100%

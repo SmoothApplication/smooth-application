@@ -3,6 +3,22 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fix: "Your trip details" could read 100% filled while "Work status" still sat unanswered
+
+Real report, with a screenshot: the "Your trip details" session showed "100% of this section filled
+(5 of 5)" with every visible field green, while the "Work status" dropdown right there on the same
+page was still sitting on its unselected "Select your status…" placeholder.
+
+The progress calculation for this session only ever counted 5 specific fields (name, purpose, travel
+date, return date, application date) — "Work status" was never one of them, even though it lives in
+the same card and everything below it (whether an employer or business name is required, whether
+student-sponsor or child-related documents get requested) depends on it being answered. This is the
+same bug class as an earlier fix for the employer/business name fields in this same session: a
+required-looking field could sit empty while the session claimed to be fully done.
+
+"Work status" is now counted alongside the other 5 fields, so this session can no longer read 100%
+until it's actually been answered.
+
 ## Fix: a genuine passport now passes its checksum check even when its name line reads badly
 
 Real report: a passport photo came back "MRZ checksum: not detected" even though the document was
