@@ -3,6 +3,20 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fix: closed the same silent-failure gap in business-statement analysis and document scanning
+
+The recent fix that stopped personal bank-statement analysis from failing silently (see below) only
+covered that one flow — three close relatives had the identical gap and didn't get touched at the
+time. All three are now covered the same way: business bank-statement analysis (used by self-employed
+applicants to show a personal salary/drawing from their business), single-document scanning (the
+passport reader and every other "Scan (beta)" checklist item), and its multi-file variant. Each now
+has a safety-net error handler so a bug partway through — an unfamiliar statement layout, a corrupted
+scan, anything unforeseen — shows a plain-language message and a one-tap way to report it with real
+context, instead of leaving the "Loading…" message stuck on screen with no explanation. Business
+statement analysis also gets the same "no transaction rows detected" reporting path already added to
+its personal-statement twin, plus attempted/completed tracking so its failure counts become an actual
+rate, matching what personal statements already had.
+
 ## New: statement analysis now tracks attempts, not just failures
 
 The existing anonymous, aggregate analytics (off by default; see the block near the top of the

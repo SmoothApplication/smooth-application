@@ -4891,6 +4891,7 @@
       setScanMsg(id,'err','File is larger than 20MB — please pick a smaller copy to scan.');
       return;
     }
+    trackEvent('doc_scan:attempted:' + (it.checkKind || 'unknown'));
     setScanMsg(id,'info','Loading local scanning tools… (nothing leaves your browser)');
     ensureLibs().then(function(){
       var answers = getAnswers();
@@ -4963,7 +4964,8 @@
           // instead of just "unknown error" with no further trail.
           var detail = (err && err.message) ? err.message : 'unknown error';
           if (detail === 'unknown error' && err) console.error('PDF scan failed with no error message:', err);
-          setScanMsg(id,'err','Couldn\'t read this PDF automatically ('+detail+'). You can still mark it as ready manually.');
+          logClientError('doc_scan_pdf', err);
+          setScanMsg(id,'err','Couldn\'t read this PDF automatically ('+detail+'). You can still mark it as ready manually. '+reportProblemLinksHtml('document scan (PDF)'));
         });
       } else if (file.type.indexOf('image/') === 0){
         if (!libsLoaded.tesseract){
@@ -4981,11 +4983,20 @@
           }
           applyScanResult(it, id, text, answers, file.name);
         }).catch(function(err){
-          setScanMsg(id,'err','Couldn\'t read this image automatically. You can still mark it as ready manually.');
+          logClientError('doc_scan_image', err);
+          setScanMsg(id,'err','Couldn\'t read this image automatically. You can still mark it as ready manually. '+reportProblemLinksHtml('document scan (image)'));
         });
       } else {
         setScanMsg(id,'err','Unsupported file type for scanning — please upload a PDF or an image (JPG/PNG).');
       }
+    }).catch(function(err){
+      // Safety net for anything OUTSIDE the two already-caught branches above (e.g. a failure in
+      // ensureLibs() itself, or a bug in code that runs before either branch) — same fix as the
+      // bank-statement analyzer: a plain-language message and a report path, instead of the
+      // "Loading local scanning tools…" message just sitting there forever with no explanation.
+      console.error('Document scan failed', err);
+      logClientError('doc_scan', err);
+      setScanMsg(id,'err','Something went wrong while scanning this file — sorry about that. '+reportProblemLinksHtml('document scan')+' You can still mark this item as ready manually.');
     });
   }
 
@@ -5001,6 +5012,7 @@
         return;
       }
     }
+    trackEvent('doc_scan_multi:attempted:' + (it.checkKind || 'unknown'));
     setScanMsg(id,'info','Loading local scanning tools… (nothing leaves your browser)');
     ensureLibs().then(function(){
       var answers = getAnswers();
@@ -5026,7 +5038,15 @@
       chain.then(function(){
         state[id].scan = results;
         setScanMsg(id, results);
+        trackEvent('doc_scan_multi:completed:' + (it.checkKind || 'unknown'));
       });
+    }).catch(function(err){
+      // Same safety net as runScan() above — anything outside the per-file catches (which already
+      // handle one bad file among several) now surfaces a message and a report path instead of
+      // leaving the "Loading local scanning tools…" message stuck forever.
+      console.error('Multi-file document scan failed', err);
+      logClientError('doc_scan_multi', err);
+      setScanMsg(id,'err','Something went wrong while scanning these files — sorry about that. '+reportProblemLinksHtml('document scan (multiple files)')+' You can still mark this item as ready manually.');
     });
   }
 
@@ -6172,9 +6192,13 @@
         return;
       }
     }
+    // Same reasoning as the personal-statement analyzer: pairs with 'business_statement_analysis:completed'
+    // below to turn the failure counts into an actual rate, not just a raw count.
+    trackEvent('business_statement_analysis:attempted');
     onMessage('info','Loading local analysis tools… (nothing leaves your browser)');
     ensureLibs().then(function(){
       if (!libsLoaded.pdf && !libsLoaded.tesseract && !libsLoaded.xlsx){
+        trackEvent('business_statement_analysis:libs_failed');
         onMessage('err','Analysis tools failed to load (offline or blocked). Review the statement yourself for a recurring personal salary/drawing.');
         return;
       }
@@ -6193,7 +6217,8 @@
       chain.then(function(){
         var txns = parseStatementLinesWithFallback(allLines);
         if (!txns.length){
-          onMessage('err','Couldn\'t automatically detect transaction rows in this business statement — the format may be unusual. Review it yourself for a recurring personal salary/drawing to you.');
+          trackEvent('business_statement_analysis:zero_txns');
+          onMessage('err','Couldn\'t automatically detect transaction rows in this business statement — the format may be unusual. Review it yourself for a recurring personal salary/drawing to you. '+reportProblemLinksHtml('business statement analysis (no rows detected)')+' — telling us which bank this statement is from helps us support more formats.');
           return;
         }
         var months = aggregateTransactions(txns);
@@ -6219,8 +6244,18 @@
         } else {
           appendCrossCheckMessage(results);
         }
+        trackEvent('business_statement_analysis:completed');
         onMessage(results);
+      }).catch(function(err){
+        // Same silent-failure gap the personal-statement analyzer had, now closed the same way here.
+        console.error('Business statement analysis failed', err);
+        logClientError('business_statement_analysis', err);
+        onMessage('err','Something went wrong while reading this business statement — sorry about that. This can happen with an unusual statement layout or a very large scan. '+reportProblemLinksHtml('business statement analysis')+' In the meantime, you can review the statement yourself for a recurring personal salary/drawing.');
       });
+    }).catch(function(err){
+      console.error('Business statement analysis setup failed', err);
+      logClientError('business_statement_analysis_setup', err);
+      onMessage('err','Something went wrong before this business statement could even be read — sorry about that. '+reportProblemLinksHtml('business statement analysis')+' In the meantime, you can review the statement yourself for a recurring personal salary/drawing.');
     });
   }
 
