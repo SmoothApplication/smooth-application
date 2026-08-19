@@ -3,6 +3,23 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fix: bank/loan system codes and split-month salary narrations no longer masquerade as a "sender"
+
+Proactive follow-up to the First Bank column-collision fix below, digging further into the same real
+statement: even with the numbers now correct, "Most frequent inflow source" was reporting the nonsense
+name "Pdc Loan Disbural...Fmobampc" — a loan-servicing system/product code, not a person or company.
+Two compounding causes, both fixed. First, real recurring salary narrations from that statement's
+payroll processor ("NEFT FROM:SAL FEB 26 LNSC", "...SAL MAR 26 LNSC", ...) embed the month name right
+in the middle of the text, so every month's salary read as a different "sender" and never accumulated
+enough of the same name to be recognised as recurring — while an unrelated, lower-count cluster of
+loan-servicing codes won by default instead. Second, those loan-servicing codes ("PDC", "LOAN",
+"DISBURAL", "FMOBAMPC", and related fee/interest/repayment terms) weren't filtered as bank jargon the
+way channel codes like "NIP"/"TRF" already are. Both are now added to the narration stopword list, so
+a statement in this format either surfaces a real, human-readable sender or honestly says it couldn't
+find one — never a system code dressed up as a name. New regression test with a fictional statement
+reproducing the same pattern (a louder, more frequent loan-code cluster against a real recurring
+employer) confirms the real sender wins.
+
 ## Fix: a real First Bank statement was silently misreading every debit as a credit
 
 User report, with a real (unprotected) First Bank statement to reproduce it against: the statement

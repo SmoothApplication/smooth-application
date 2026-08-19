@@ -5754,7 +5754,27 @@
     // sender name itself ("Rolez Crisp N Clean Exclusive Solutions" instead of just "Crisp N Clean
     // Exclusive Solutions"), splitting what should be one recognised sender into a differently-named,
     // unmerged group. See BANK_NARRATION_GLOSSARY below for what each of these actually means.
-    'ETI','VFD','WBP','ROLEZ','ROLEX','STBC','ABN','FD','FDP','ISW','QTELLER','PBNL','ZIB','NXG','AFB'];
+    'ETI','VFD','WBP','ROLEZ','ROLEX','STBC','ABN','FD','FDP','ISW','QTELLER','PBNL','ZIB','NXG','AFB',
+    // Real-data finding, off a real First Bank statement: recurring monthly salary narrations there
+    // read "NEFT FROM:SAL FEB 26 LNSC", "...SAL MAR 26 LNSC", "...SAL APRIL 26 LNSC" — the SAME
+    // payroll processor ("LNSC") every month, but with the month name embedded right in the middle of
+    // the narration. Without these, that one word makes each month's salary extract as a DIFFERENT
+    // candidate name ("Sal Feb Lnsc" vs "Sal Mar Lnsc" vs ...), so an obviously-recurring salary sender
+    // never accumulates enough of the SAME name to be recognised as "recurring" at all — while an
+    // unrelated cluster of same-named narrations (even a low one-off count) wins by default instead.
+    'JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','SEPT','OCT','NOV','DEC',
+    'JANUARY','FEBRUARY','MARCH','APRIL','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER',
+    // Same statement, a second finding: loan-servicing system narrations ("PDC:LOAN DISBURAL...FMOBAMPC",
+    // "PDC:MGMT_FEE...", "PDC:INTEREST_RATE...") are batch/product codes, not a person or company's
+    // name — but without these being stopworded, "Pdc Loan Disbural...Fmobampc" was winning as the
+    // "most frequent inflow source" over the applicant's actual (recurring, human-readable) salary,
+    // which is exactly the kind of nonsense name that undermines trust in an otherwise-correct reading.
+    'PDC','LOAN','DISBURSAL','DISBURAL','REPAYMENT','MGMT','MANAGEMENT','INSURE','INSURANCE','INTEREST',
+    'RATE','FEE','FMOBAMPC',
+    // Same statement, a third finding: "CPWInward:<ref>/<name>..." — a wallet/collections-channel
+    // inward-transfer code, not a sender's name — was itself surviving as part of the extracted
+    // candidate name, same class of problem as NIP/TRF/MOB above.
+    'CPWINWARD','CPW'];
 
   // User feedback, off a real statement: most applicants have no idea what "NIP", "ROLEZ" or "CIP"
   // actually mean in their own narration line. Best-effort glossary of the channel/processor/bank
