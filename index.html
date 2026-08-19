@@ -3200,14 +3200,26 @@
       }
     }
 
+    // User feedback: this badge (and the percentage under it) used to sit at "Enter your figures" until
+    // the SEPARATE, more detailed financial calculator further down was filled in (flight/accommodation/
+    // transport), even once a statement had already been analyzed and a closing balance detected. Falls
+    // back to the same rough, dates-only 2× buffer estimate already shown up in "Your trip details" and
+    // in the readiness box further down this page (qRecommended — one number, not a second one that could
+    // drift apart) whenever the detailed calculator hasn't been filled in yet, so this badge can reflect
+    // real evidence the moment a statement's analyzed, without requiring the rest of the calculator too.
+    var usingQuickBufferEstimate = !(anyCostEntered && totalCost > 0) && typeof qRecommended === 'number' && qRecommended > 0;
+    var effectiveRecommendedFunds = (anyCostEntered && totalCost > 0) ? recommendedFunds : (usingQuickBufferEstimate ? qRecommended : 0);
+    var effectiveClosingBalance = (cfLastBalance !== null && cfLastBalance !== undefined) ? cfLastBalance : totalFunds;
+    var haveBalanceFigure = (cfLastBalance !== null && cfLastBalance !== undefined) || totalFunds > 0;
+
     var balancePillEl = document.getElementById('balancePill');
-    if (!anyCostEntered || totalCost <= 0){
+    if (effectiveRecommendedFunds <= 0 || !haveBalanceFigure){
       balancePillEl.className = 'status-pill critical';
       balancePillEl.textContent = 'Enter your figures';
-    } else if (totalFunds >= recommendedFunds){
+    } else if (effectiveClosingBalance >= effectiveRecommendedFunds){
       balancePillEl.className = 'status-pill good';
       balancePillEl.textContent = 'Strong — covers the 2× buffer';
-    } else if (totalFunds >= FLOOR){
+    } else if (effectiveClosingBalance >= FLOOR){
       balancePillEl.className = 'status-pill warning';
       balancePillEl.textContent = 'Needs attention — below 2× buffer';
     } else {
@@ -3221,17 +3233,21 @@
     // self-typed figure, since that's real evidence rather than a number anyone could type in — falls
     // back to the self-typed closing balance (the same totalFunds already used to grade this very badge)
     // only when no statement has been analyzed yet. "Amount needed to travel" is the recommended 2× buffer
-    // on the estimated trip cost — the same bar this badge itself uses to decide Strong/Needs attention/
-    // Weak, so the percentage shown here always matches the badge's own wording above it.
+    // (detailed calculator once it's filled in, otherwise the rough dates-only estimate above) — the same
+    // bar this badge itself uses to decide Strong/Needs attention/Weak, so the percentage shown here always
+    // matches the badge's own wording above it.
     var balancePillPctEl = document.getElementById('balancePillPct');
     if (balancePillPctEl){
-      if (!anyCostEntered || totalCost <= 0){
+      if (effectiveRecommendedFunds <= 0 || !haveBalanceFigure){
         balancePillPctEl.textContent = '';
       } else {
-        var pctSourceBalance = (cfLastBalance !== null && cfLastBalance !== undefined) ? cfLastBalance : totalFunds;
+        var pctSourceBalance = effectiveClosingBalance;
         var pctSourceLabel = (cfLastBalance !== null && cfLastBalance !== undefined) ? 'detected from your bank statement' : 'as entered';
-        var balanceOfNeededPct = recommendedFunds > 0 ? Math.max(0, Math.min(100, Math.round(pctSourceBalance / recommendedFunds * 100))) : 0;
-        balancePillPctEl.innerHTML = '<b>'+fmtN(pctSourceBalance)+'</b> closing balance ('+pctSourceLabel+') — <b>'+balanceOfNeededPct+'%</b> of the '+fmtN(recommendedFunds)+' recommended (2× buffer on your '+fmtN(totalCost)+' estimated trip cost).';
+        var balanceOfNeededPct = effectiveRecommendedFunds > 0 ? Math.max(0, Math.min(100, Math.round(pctSourceBalance / effectiveRecommendedFunds * 100))) : 0;
+        var recommendedBasisText = usingQuickBufferEstimate
+          ? 'a rough, dates-only trip-cost estimate — fill in the financial calculator below for a more accurate figure'
+          : 'your '+fmtN(totalCost)+' estimated trip cost';
+        balancePillPctEl.innerHTML = '<b>'+fmtN(pctSourceBalance)+'</b> closing balance ('+pctSourceLabel+') — <b>'+balanceOfNeededPct+'%</b> of the '+fmtN(effectiveRecommendedFunds)+' recommended (2× buffer on '+recommendedBasisText+').';
       }
     }
 
@@ -7084,6 +7100,23 @@
           }
         }
 
+        // User feedback: the financial calculator's own "Current closing balance" field was never
+        // auto-filled from an analyzed statement — the applicant had to notice the figure on their own
+        // statement and retype it by hand, even though the tool already detects it (it's the same
+        // number that lands in the cash-flow table's last "Balance" column above). Only fills it in
+        // when the field is still empty, so a figure the applicant deliberately typed themselves is
+        // never silently overwritten.
+        var fcClosingInput = document.getElementById('fc_closing');
+        var latestDetectedClosing = recent.length ? recent[recent.length - 1].lastBalance : null;
+        // Tracked so the "detected balance matches what you entered" cross-check further below (which
+        // exists to reassure the applicant that a figure THEY typed lines up with the statement) doesn't
+        // fire a trivially-true "matches" message off a value this code itself just filled in moments ago.
+        var fcClosingAutoFilledJustNow = false;
+        if (fcClosingInput && !fcClosingInput.value && latestDetectedClosing != null){
+          fcClosingInput.value = Math.round(latestDetectedClosing);
+          fcClosingAutoFilledJustNow = true;
+        }
+
         var flagged = findUnexplainedLargeInflows(txns);
         renderUnexplainedInflows(flagged);
 
@@ -7306,7 +7339,7 @@
 
         statementAnalysisRun = true;
         var declaredClosing = parseNum(document.getElementById('fc_closing').value);
-        if (perFileClosing.length && declaredClosing){
+        if (perFileClosing.length && declaredClosing && !fcClosingAutoFilledJustNow){
           var totalDetected = perFileClosing.reduce(function(s,f){ return s + (f.balance||0); }, 0);
           statementClosingVerified = Math.abs(totalDetected - declaredClosing) < 1000;
           if (statementClosingVerified){

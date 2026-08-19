@@ -3,6 +3,23 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## New: closing balance auto-fills from your statement, and shows a % even before the full calculator's filled in
+
+User feedback: the financial calculator's own "Current closing balance" field never picked up the
+figure from an analyzed bank statement — even though the tool already detects it (it's the same
+number shown in the cash-flow table's last "Balance" column), the applicant had to notice it
+themselves and retype it by hand. It now auto-fills the moment a statement's analyzed, without ever
+overwriting a figure typed in deliberately beforehand.
+
+Separately, "Closing balance strength" (and the percentage under it, right where it's most useful —
+before you scroll down to the rest of the calculator) used to sit stuck on "Enter your figures"
+until the separate, more detailed flight/accommodation/transport cost fields further down were
+filled in, even once a statement had already been scanned and a real closing balance detected. It
+now falls back to the same rough, dates-only 2× buffer estimate already shown up in "Your trip
+details" whenever the detailed calculator hasn't been filled in yet, so this badge reflects real
+evidence as soon as it exists — clearly labelled as a rough estimate, with a nudge to fill in the
+detailed calculator for a more accurate figure.
+
 ## New: fill-progress % now also shows right above Save/Next, not just up in the pill nav
 
 User feedback: the "X% filled" indicator only lived up in the session pill navigation at the top
