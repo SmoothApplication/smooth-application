@@ -4104,8 +4104,16 @@
   // commonly mangles the run of "<" padding at the end of an MRZ line (misreading both which characters
   // are there AND how many of them there are), and that padding is meaningless filler anyway. Returns
   // null if the line is too far off in length or has too many non-MRZ characters to trust.
+  //
+  // User report, off a real passport photographed on a low-end phone: the padding tail read as
+  // "K<<« «44K" instead of clean "<" filler — 9 characters short of 44 (some padding characters were
+  // dropped entirely, not just misread), well outside the old ±6 tolerance, so the whole line — and
+  // with it, the auto-filled name — was silently dropped even though the name/surname portion earlier
+  // in the same line read perfectly. Widened to ±10: still comfortably rejects the "Holder's Signature"
+  // false-positive documented below (30 chars, 14 short of 44 — stays well outside even this wider
+  // tolerance), while accepting this real, otherwise-clean read.
   function normalizeMrzLine(l, targetLen){
-    if (l.length < targetLen - 6 || l.length > targetLen + 6) return null;
+    if (l.length < targetLen - 10 || l.length > targetLen + 10) return null;
     if (l.length < targetLen) l = l + new Array(targetLen - l.length + 1).join('<');
     else if (l.length > targetLen) l = l.slice(0, targetLen);
     var badCount = (l.match(/[^A-Z0-9<]/g) || []).length;
@@ -4134,7 +4142,22 @@
     // 44 characters; the "Holder's Signature" garbage line above was only 30, well outside the
     // tolerance, so it's naturally skipped in favor of trying the next candidate instead of being
     // trusted just because it matched first.
-    var re = /^.{0,2}?(P[A-Z<][A-Z]{3}[A-Z0-9<]{20,})$/;
+    // The lookahead requires a genuine run of 15+ clean MRZ-alphabet characters RIGHT AFTER the "P"
+    // + country-code prefix — that's where the actual name data lives, which reads reliably even on a
+    // rough OCR pass — but everything from there to the end of line is then captured as-is (any
+    // character), not restricted to the MRZ alphabet. First attempt at this fix captured the tail with
+    // a plain [A-Z0-9<]-restricted run all the way to end of line, same as before, which was too
+    // strict: it rejected an otherwise-good read outright the moment a single stray OCR character
+    // showed up in the padding tail, before normalizeMrzLine (see above) ever got the chance to apply
+    // its own, more forgiving bad-character cleanup. But dropping that restriction entirely (tried
+    // second) went too far the other way and broke two existing passport fixtures: an ordinary printed
+    // "Passport No./No du passeport B50338594" label line now satisfied the prefix pattern too and got
+    // treated as a candidate MRZ line ahead of the real one, reintroducing the exact "unrelated line
+    // spuriously matches" false-positive this function's length check was already built to guard
+    // against. The lookahead is what a plain label line fails that a real (even corrupted) MRZ line
+    // passes: a label line hits a "/" or "." within the first few characters, well short of 15 clean
+    // ones in a row.
+    var re = /^.{0,2}?(P[A-Z<][A-Z]{3}(?=[A-Z0-9<]{15,}).{20,})$/;
     for (var i=0;i<rawLines.length;i++){
       var m = re.exec(rawLines[i]);
       if (!m) continue;
@@ -4229,6 +4252,13 @@
     var segments = namePart.split('<<');
     var surname = (segments[0] || '').replace(/</g,' ').trim();
     var given = (segments[1] || '').replace(/</g,' ').trim();
+    // Same low-end-phone case as normalizeMrzLine above: a stray character surviving in what should
+    // have been pure "<" padding can land right after the real given name and get read as a second
+    // "<<" boundary, tacking a bare, meaningless single letter onto the end (e.g. "ADAEZE CHIOMA K"
+    // instead of "ADAEZE CHIOMA"). A genuine given-name field essentially never legitimately ends in
+    // a standalone single letter with nothing else after it, so drop one if present — the applicant can
+    // still edit the auto-filled name afterward either way, same as any other auto-fill in this app.
+    given = given.replace(/\s[A-Z]$/, '');
 
     // validateMrz() applies the same checksum-verified digit correction described above to the birth/
     // expiry date fields — reuse its (possibly corrected) values here rather than the raw, uncorrected
@@ -4820,6 +4850,59 @@
     ctx.drawImage(canvas, -canvas.width/2, -canvas.height/2);
     return out;
   }
+  // User report: a passport photo taken on a low-end phone came back "MRZ checksum: not detected"
+  // and the name never auto-filled, even though the photo was perfectly legible to a person — the
+  // MRZ is small, dense text, and a phone with a modest camera/no real focus assist tends to produce
+  // it at lower effective resolution and lower contrast than a proper scan, which is exactly what
+  // trips up OCR. Applied right before every OCR pass (purely in-memory — never stored, never shown):
+  // (1) upscale small images so the text has more real pixels to be read from, since Tesseract's
+  // accuracy drops sharply once character height gets small; (2) grayscale + a contrast STRETCH
+  // ("auto levels"), deliberately NOT hard black/white thresholding — a phone photo is often unevenly
+  // lit (a shadow across half the page, a glare spot on the laminate), and a single global threshold
+  // can blow out an entire section to solid black or white, whereas a stretch preserves that
+  // unevenness while still making genuinely light/dark pixels more distinct.
+  function preprocessCanvasForOcr(canvas){
+    var MIN_WIDTH = 1600;
+    var out = canvas;
+    if (canvas.width && canvas.width < MIN_WIDTH){
+      var scale = MIN_WIDTH / canvas.width;
+      var scaled = document.createElement('canvas');
+      scaled.width = Math.round(canvas.width * scale);
+      scaled.height = Math.round(canvas.height * scale);
+      var sctx = scaled.getContext('2d');
+      sctx.imageSmoothingEnabled = true;
+      if ('imageSmoothingQuality' in sctx) sctx.imageSmoothingQuality = 'high';
+      sctx.drawImage(canvas, 0, 0, scaled.width, scaled.height);
+      out = scaled;
+    }
+    var ctx = out.getContext('2d');
+    var imgData;
+    try {
+      imgData = ctx.getImageData(0, 0, out.width, out.height);
+    } catch (e) {
+      // Can't read pixels back (e.g. a tainted canvas) — extremely unlikely here since every image
+      // comes from a local file the person picked themselves, but fail open rather than throw.
+      return out;
+    }
+    var data = imgData.data;
+    var min = 255, max = 0;
+    for (var i = 0; i < data.length; i += 4){
+      var gray = 0.299*data[i] + 0.587*data[i+1] + 0.114*data[i+2];
+      data[i] = data[i+1] = data[i+2] = gray;
+      if (gray < min) min = gray;
+      if (gray > max) max = gray;
+    }
+    var range = max - min;
+    if (range > 10){ // skip stretching a near-blank/uniform image — nothing to gain, and dividing by
+                      // a near-zero range would amplify noise instead of real contrast.
+      for (var j = 0; j < data.length; j += 4){
+        var v = (data[j] - min) * 255 / range;
+        data[j] = data[j+1] = data[j+2] = v;
+      }
+    }
+    ctx.putImageData(imgData, 0, 0);
+    return out;
+  }
   // Tries straight-up first (the common case, so most scans only pay for one OCR pass), and only tries
   // sideways/upside-down rotations if that first pass doesn't look like a good read (no MRZ found and
   // very little text extracted). Stops as soon as a rotation's result contains a recognizable MRZ, since
@@ -4845,7 +4928,7 @@
     order.forEach(function(deg){
       chain = chain.then(function(){
         if (stopped) return;
-        var testCanvas = deg === 0 ? canvas : rotateCanvas(canvas, deg);
+        var testCanvas = preprocessCanvasForOcr(deg === 0 ? canvas : rotateCanvas(canvas, deg));
         return window.Tesseract.recognize(testCanvas, 'eng', TESSERACT_OPTS).then(function(result){
           var text = (result && result.data && result.data.text) || '';
           var hasMrz = !!findMrzLines(text);
@@ -5196,7 +5279,7 @@
       for (var p2=1; p2<=ocrMaxPages; p2++){
         ocrPromises.push(pdf.getPage(p2).then(function(page){
           return pdfPageToCanvas(page, 2).then(function(canvas){
-            return window.Tesseract.recognize(canvas, 'eng', TESSERACT_OPTS).then(function(res){
+            return window.Tesseract.recognize(preprocessCanvasForOcr(canvas), 'eng', TESSERACT_OPTS).then(function(res){
               return linesFromPlainText(res.data.text);
             });
           });
@@ -5251,7 +5334,12 @@
       });
     } else if (file.type.indexOf('image/') === 0){
       if (!libsLoaded.tesseract) return Promise.resolve([]);
-      return window.Tesseract.recognize(file, 'eng', TESSERACT_OPTS).then(function(res){ return linesFromPlainText(res.data.text); });
+      // Same low-end-phone-photo preprocessing as the document scanner (see preprocessCanvasForOcr)
+      // — a statement photographed on a modest camera benefits from it exactly the same way an ID
+      // photo does, so route through a canvas instead of handing Tesseract the raw file directly.
+      return loadFileToCanvas(file).then(function(canvas){
+        return window.Tesseract.recognize(preprocessCanvasForOcr(canvas), 'eng', TESSERACT_OPTS);
+      }).then(function(res){ return linesFromPlainText(res.data.text); });
     }
     return Promise.reject(new Error('Unsupported file type: ' + file.name));
   }

@@ -3,6 +3,25 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fix: passport photos from low-end phones now read reliably, and the name auto-fills again
+
+User report, with an actual passport photo to reproduce it against: a passport photographed on a
+modest phone camera came back "MRZ checksum: not detected," and the applicant's name never
+auto-filled — even though the photo was perfectly legible to a person. Replaying the real photo
+through the scanner traced this to two compounding issues, both now fixed. First, the OCR itself:
+a lower-resolution, lower-contrast phone photo is exactly what trips up text recognition on the
+MRZ's small, dense print, so every scan now runs through a preprocessing pass first — upscaling a
+small image so there are more real pixels to read from, and a contrast stretch (not a hard
+black/white threshold, which would misfire on the uneven lighting a phone photo commonly has)
+— before Tesseract ever sees it. Second, and the bigger factor in this specific case: the MRZ's
+trailing padding read as a handful of stray characters instead of clean filler, landing a few
+characters short of the expected length — comfortably within what should be readable, but outside
+the old tolerance for that check, so an otherwise-perfectly-good read got silently thrown out
+altogether. That tolerance is now wider (still well clear of a past false-positive case it was
+guarding against), and the line no longer needs to already be spotless before its own cleanup step
+gets a chance to run. Same fix applied everywhere this app runs OCR — passport/document scanning
+and photographed bank statements alike.
+
 ## Fix: closed the same silent-failure gap in business-statement analysis and document scanning
 
 The recent fix that stopped personal bank-statement analysis from failing silently (see below) only
