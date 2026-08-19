@@ -3,6 +3,17 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fix: stopped flagging the current month's salary as "missing" before it's even due
+
+User report, filling this in mid-August: "August Salary" was flagged as a missing month even though
+August wasn't over yet — real salary for a month typically isn't due until month-end or the first
+week of the following month, and simply hadn't failed to show up at all. The statement just happened
+to have other, non-salary activity in August, which was enough to drag the missing-month check's
+window forward into a month still in progress. Fixed two ways: the CURRENT calendar month (and
+anything after it) is never flagged — it can't have "failed" to arrive yet — and the month right
+before it gets a short grace window during the first week of a new month too, since payroll commonly
+posts a few days into the following month rather than landing exactly on the 1st.
+
 ## New: "inflow(s) need an explanation" now counts down live, and tells you when you're done
 
 User feedback: "as I start filling each let the number 7 reduce until I fill the last one, then it

@@ -5843,9 +5843,20 @@
     if (salaryKeys.length < 2) return null; // not enough of a pattern yet to assume monthly recurrence
     var minKey = Math.min.apply(null, salaryKeys);
     var maxKey = Math.max(Math.max.apply(null, salaryKeys), Math.max.apply(null, allKeys));
+    // User report: the CURRENT calendar month was getting flagged "missing" purely because the statement
+    // had other (non-salary) activity in it — e.g. filling this in on August 19th, when salary for August
+    // isn't due until month-end or the first week of September, and hasn't failed to show up yet at all.
+    // Never flag the month still in progress right now, or anything after it — those genuinely can't have
+    // a payment yet. Also give last month a short grace window early in a new month, since payroll commonly
+    // posts a few days into the following month rather than landing exactly on the 1st.
+    var now = new Date();
+    var todayKey = now.getFullYear() * 12 + now.getMonth();
+    var withinPayrollGraceWindow = now.getDate() <= 7;
     var missing = [];
     for (var k = minKey; k <= maxKey; k++){
       if (seen[k]) continue;
+      if (k >= todayKey) continue; // the current month (still in progress) or any month after it
+      if (withinPayrollGraceWindow && k === todayKey - 1) continue; // give last month's payroll a few days' grace
       var mIdx = ((k % 12) + 12) % 12;
       missing.push(FULL_MONTH_NAMES[mIdx]);
     }
