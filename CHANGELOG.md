@@ -3,6 +3,22 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## New: statement-analysis failures now surface a message and a way to report them, instead of failing silently
+
+Until now, if anything went wrong partway through reading a bank statement — a bug triggered by an
+unfamiliar layout from a bank this tool hasn't been tested against, for instance — the "Reading
+file(s)…" message just sat on screen forever. Nothing told the applicant anything had gone wrong, and
+the only place it was recorded at all was as an anonymous, undifferentiated error count, with no way
+for anyone to actually flag what happened. Two changes: (1) the whole statement-analysis flow is now
+wrapped so any failure shows a plain-language error instead of hanging silently, and still leaves the
+cash-flow table open for manual entry so nobody's stuck; and (2) that message — along with the
+existing "couldn't detect any transaction rows" message, the most common real failure mode for an
+unfamiliar statement format — now includes a one-tap way to email or WhatsApp us what happened, with
+the step, timestamp and browser already filled in, so a report arrives with real context attached
+instead of a bare screenshot with no description. Reuses the same email/WhatsApp addresses as the
+general feedback links already in the footer — nothing new to set up, and nothing sent unless the
+applicant actually presses send themselves.
+
 ## Fix: stopped flagging the current month's salary as "missing" before it's even due
 
 User report, filling this in mid-August: "August Salary" was flagged as a missing month even though

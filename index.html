@@ -1441,6 +1441,37 @@
     logClientError('promise', e && e.reason);
   });
 
+  // A small, reusable "report this" nudge for error messages shown right where the person is
+  // looking (e.g. "couldn't read this statement") — so a bug report arrives already carrying real
+  // context (which step, roughly when, what browser) instead of a bare screenshot with no
+  // description. Reuses the SAME mailto:/wa.me addresses as the general feedback links in the
+  // footer — no new contact channel, no form service, nothing sent unless the person presses send
+  // in their own mail/WhatsApp app. contextLabel is always a short, fixed, developer-authored
+  // string passed in at the call site (e.g. "statement analysis") — never anything derived from a
+  // document or a typed answer — so it's safe to interpolate without escaping. Never includes the
+  // statement's own text/figures or any answer typed into the form, on purpose.
+  function reportProblemLinksHtml(contextLabel){
+    var when = new Date().toLocaleString('en-GB', {day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'});
+    var body = [
+      'Hi — something went wrong while using the ' + contextLabel + ' step.',
+      '',
+      'What I was trying to do:',
+      '',
+      'What happened / what I saw on screen:',
+      '',
+      "(No need to attach your statement or personal details — just describe what you saw. If it's easy, mentioning which bank the statement is from helps a lot.)",
+      '',
+      '--- for reference ---',
+      'Step: ' + contextLabel,
+      'When: ' + when,
+      'Browser: ' + navigator.userAgent
+    ].join('\n');
+    var subject = 'Smooth Application — problem with ' + contextLabel;
+    var mailHref = 'mailto:lalasionline@gmail.com?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+    var waHref = 'https://wa.me/2349081389969?text=' + encodeURIComponent(subject + '\n\n' + body);
+    return '<span class="report-problem-links">Please <a href="'+mailHref+'">email us</a> or <a href="'+waHref+'" target="_blank" rel="noopener">WhatsApp us</a> what happened — that helps a lot.</span>';
+  }
+
   function escapeHtml(str){
     return String(str).replace(/[&<>"']/g, function(c){
       return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
@@ -7086,6 +7117,7 @@
     onMessage('info','Loading local analysis tools… (nothing leaves your browser)');
     ensureLibs().then(function(){
       if (!libsLoaded.pdf && !libsLoaded.tesseract && !libsLoaded.xlsx){
+        trackEvent('statement_analysis:libs_failed');
         onMessage('err','Analysis tools failed to load (offline or blocked). Please fill in the cash-flow table manually.');
         return;
       }
@@ -7113,7 +7145,8 @@
       chain.then(function(){
         var txns = parseStatementLinesWithFallback(allLines);
         if (!txns.length){
-          onMessage('err','Couldn\'t automatically detect transaction rows in these file(s) — the format may be unusual, or the scan quality too low. Please fill in the cash-flow table manually using your own statement.');
+          trackEvent('statement_analysis:zero_txns');
+          onMessage('err','Couldn\'t automatically detect transaction rows in these file(s) — the format may be unusual, or the scan quality too low. Please fill in the cash-flow table manually using your own statement. '+reportProblemLinksHtml('statement analysis (no rows detected)')+' — telling us which bank this statement is from helps us support more formats.');
           return;
         }
         var columnsDetected = !!detectColumns(allLines);
@@ -7419,7 +7452,21 @@
         if (typeof applySessionVisibility === 'function') applySessionVisibility();
 
         onMessage(results);
+      }).catch(function(err){
+        // Before this, a bug anywhere in the parsing/rendering above (e.g. an unusual statement
+        // layout from a bank this tool hasn't seen before) failed completely silently: the
+        // "Reading file(s)…" message just sat there forever, with nothing telling the applicant
+        // anything had gone wrong, let alone a way to tell us. Now it surfaces a plain-language
+        // error, a way to report it with real context attached, and still leaves the cash-flow
+        // table open for manual entry so the applicant isn't stuck.
+        console.error('Statement analysis failed', err);
+        logClientError('statement_analysis', err);
+        onMessage('err','Something went wrong while reading this statement — sorry about that. This can happen with an unusual statement layout or a very large scan. '+reportProblemLinksHtml('statement analysis')+' In the meantime, you can fill in the cash-flow table further down manually from your own statement.');
       });
+    }).catch(function(err){
+      console.error('Statement analysis setup failed', err);
+      logClientError('statement_analysis_setup', err);
+      onMessage('err','Something went wrong before this statement could even be read — sorry about that. '+reportProblemLinksHtml('statement analysis')+' In the meantime, you can fill in the cash-flow table further down manually from your own statement.');
     });
   }
 
