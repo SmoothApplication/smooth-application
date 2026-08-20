@@ -38,6 +38,11 @@ exports.run = async function(ctx){
     var kanoLgas = await page.$eval('#rs_lga', function(el){ return Array.from(el.options).map(function(o){ return o.value; }); });
     assert.strictEqual(kanoLgas.indexOf('Ikeja'), -1, 'Switching states should replace the LGA list, not append to it — Lagos\'s Ikeja should be gone');
 
+    // The state change above triggers its own render() pass; give it a beat to settle before the
+    // next interaction (same reasoning as goToSessionByPill's blur+wait — clicking mid-render can
+    // occasionally race a layout shift and miss the target, seen intermittently here otherwise).
+    await page.waitForTimeout(100);
+
     // Married Y/N reveal.
     var spouseRowBefore = await page.$eval('#rs_spouseRow', function(el){ return el.style.display !== 'none'; });
     assert.strictEqual(spouseRowBefore, false, 'Spouse name field should be hidden before "married" is ticked');

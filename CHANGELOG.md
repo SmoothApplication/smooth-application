@@ -3,6 +3,33 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Three live-bug fixes on Sessions 1–3
+
+Reported directly against the live site shortly after Sessions 1–3 shipped (see the entry below).
+
+- **Session 1: "0% of this section filled" after a passport scan** — the passport number and
+  expiry boxes were visibly auto-filled by the scan, and the Congratulations message showed, but
+  the session's own progress footer stayed stuck at "0 of 2". Cause: the scan's auto-fill sets
+  those two fields' values directly (no change event dispatched, and deliberately no full
+  `render()` call either, to avoid orphaning the scan-result box mid-write — see the comment in
+  `renderPassportCard()`), so nothing ever told the session-nav pill or footer to recompute. Fixed
+  by also calling `applySessionVisibility()` right after the auto-fill, which refreshes the
+  nav/footer progress text without touching the DOM subtree the scan result is being written into.
+- **Session 2: travel-history date picker's year was static** — "2026 is static. it should have a
+  drop down for 20 years." The native `<input type="month">` picker showed the year as plain text
+  with no way to jump to a different one beyond clicking through months. Replaced with two real
+  `<select>` dropdowns — Month, and Year (this year back 19 more, 20 years total, no future years,
+  since travel history is always in the past). The underlying stored value is still a single
+  `"YYYY-MM"` string, for export/import/autosave compatibility — the two dropdowns just get
+  recombined into that same shape on change.
+- **Session 3: aged-parents section couldn't handle a deceased parent** — "For some people either
+  the father or mother is dead. consider this." Previously, ticking "I have aged parents I
+  support" unconditionally required both a father's name and a mother's name, so an applicant with
+  one deceased parent could never reach 100% filled. Added a "Father/Mother has passed away / not
+  applicable" checkbox next to each name field — ticking it excuses that name from the section's
+  required-field count, and disables + clears that name box so a stale name can't linger in the
+  saved payload.
+
 ## Three new sessions: passport validation, travel experience, and your responsibilities
 
 Adds three new sessions ahead of everything that already existed, per a requested session order

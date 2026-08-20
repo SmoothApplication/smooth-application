@@ -912,10 +912,12 @@
             <div>
               <label class="field" for="rs_fatherName">Father's name</label>
               <input type="text" id="rs_fatherName" placeholder="e.g. Emeka Okafor">
+              <div class="checkrow" style="margin-top:4px;"><input type="checkbox" id="rs_fatherDeceased"><label for="rs_fatherDeceased">Father has passed away / not applicable</label></div>
             </div>
             <div>
               <label class="field" for="rs_motherName">Mother's name</label>
               <input type="text" id="rs_motherName" placeholder="e.g. Ngozi Okafor">
+              <div class="checkrow" style="margin-top:4px;"><input type="checkbox" id="rs_motherDeceased"><label for="rs_motherDeceased">Mother has passed away / not applicable</label></div>
             </div>
           </div>
           <label class="field" for="rs_remittance">How much do you send them (per month, ₦)?</label>
@@ -2234,6 +2236,8 @@
       agedParents: document.getElementById('rs_agedParents').checked,
       fatherName: document.getElementById('rs_fatherName').value.trim(),
       motherName: document.getElementById('rs_motherName').value.trim(),
+      fatherDeceased: document.getElementById('rs_fatherDeceased').checked,
+      motherDeceased: document.getElementById('rs_motherDeceased').checked,
       remittanceAmount: document.getElementById('rs_remittance').value,
       remittanceVerifyConsent: document.getElementById('rs_verifyConsent').checked
     };
@@ -2460,7 +2464,14 @@
     if (key === 'responsibilities'){
       var rsFields = ['rs_numKids','rs_state','rs_lga','rs_addressNumber','rs_addressName'];
       if (document.getElementById('rs_married').checked) rsFields.push('rs_spouseName');
-      if (document.getElementById('rs_agedParents').checked) rsFields.push('rs_fatherName','rs_motherName','rs_remittance');
+      if (document.getElementById('rs_agedParents').checked){
+        rsFields.push('rs_remittance');
+        // A parent who has passed away / isn't applicable shouldn't block 100% — only require a
+        // name for a parent who isn't marked that way. (If both are marked, only remittance +
+        // the earlier fields are required.)
+        if (!document.getElementById('rs_fatherDeceased').checked) rsFields.push('rs_fatherName');
+        if (!document.getElementById('rs_motherDeceased').checked) rsFields.push('rs_motherName');
+      }
       var rsMissing = [];
       var rsFilled = rsFields.filter(function(id){
         var el = document.getElementById(id);
@@ -2653,6 +2664,16 @@
     // Session 3: Your responsibilities
     document.getElementById('rs_spouseRow').style.display = a.married ? 'block' : 'none';
     document.getElementById('rs_parentsRow').style.display = a.agedParents ? 'block' : 'none';
+    // A parent marked "passed away / not applicable" gets their name field disabled and cleared —
+    // keeps a stale name from lingering in the payload once someone ticks the box, and matches
+    // sessionProgress() no longer requiring that name (see the user report that a deceased parent
+    // was incorrectly keeping this section below 100%).
+    var fatherNameEl = document.getElementById('rs_fatherName');
+    var motherNameEl = document.getElementById('rs_motherName');
+    fatherNameEl.disabled = a.fatherDeceased;
+    motherNameEl.disabled = a.motherDeceased;
+    if (a.fatherDeceased && fatherNameEl.value) fatherNameEl.value = '';
+    if (a.motherDeceased && motherNameEl.value) motherNameEl.value = '';
 
     // Session 1: Validate your International Passport — keep its read-only name mirror and
     // status message in sync with whatever the trip session's own f_name field currently holds
@@ -2987,7 +3008,7 @@
    // Session 3: Your responsibilities
    // rs_state has its own dedicated change listener (repopulates the LGA dropdown, then renders) —
    // left out of this generic list to avoid double-rendering on every state change.
-   'rs_married','rs_spouseName','rs_numKids','rs_lga','rs_addressNumber','rs_addressName','rs_agedParents','rs_fatherName','rs_motherName','rs_remittance','rs_verifyConsent']
+   'rs_married','rs_spouseName','rs_numKids','rs_lga','rs_addressNumber','rs_addressName','rs_agedParents','rs_fatherName','rs_motherName','rs_fatherDeceased','rs_motherDeceased','rs_remittance','rs_verifyConsent']
     .forEach(function(id){
       var el = document.getElementById(id);
       el.addEventListener('change', render);
@@ -3122,6 +3143,26 @@
       return '<option value="'+escapeHtml(c)+'"'+(c === selected ? ' selected' : '')+'>'+escapeHtml(c)+'</option>';
     }).join('');
   }
+  var TE_MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  // A native <input type="month"> renders its OWN picker (year shown as static text with no way to
+  // jump to a different one beyond clicking through months one at a time) — real dropdowns for both
+  // month and year are far faster to use for something that's usually years in the past. Travel
+  // history is always in the past, so the year list runs from this year back 19 more (20 years total)
+  // rather than including any future years.
+  var TE_CURRENT_YEAR = new Date().getFullYear();
+  function travelMonthOptionsHtml(selectedMonth){
+    return '<option value="">Month…</option>' + TE_MONTH_NAMES.map(function(name, i){
+      var val = String(i+1).padStart(2,'0');
+      return '<option value="'+val+'"'+(val === selectedMonth ? ' selected' : '')+'>'+name+'</option>';
+    }).join('');
+  }
+  function travelYearOptionsHtml(selectedYear){
+    var html = '<option value="">Year…</option>';
+    for (var y = TE_CURRENT_YEAR; y >= TE_CURRENT_YEAR - 19; y--){
+      html += '<option value="'+y+'"'+(String(y) === selectedYear ? ' selected' : '')+'>'+y+'</option>';
+    }
+    return html;
+  }
   function renderTravelHistoryTable(){
     var tbody = document.getElementById('travelHistoryBody');
     if (!tbody) return;
@@ -3130,9 +3171,17 @@
       return;
     }
     tbody.innerHTML = travelHistoryRows.map(function(r, i){
+      // r.date is stored as "YYYY-MM" (same shape the old <input type="month"> produced) — split it
+      // back out for these two selects, and recombined on change (see wiring below).
+      var datePart = (r.date||'').split('-');
+      var selMonth = datePart[1] || '';
+      var selYear = datePart[0] || '';
       return '<tr>'
         + '<td><select data-idx="'+i+'" data-field="country">'+travelCountryOptionsHtml(r.country)+'</select></td>'
-        + '<td><input type="month" data-idx="'+i+'" data-field="date" value="'+escapeHtml(r.date||'')+'"></td>'
+        + '<td style="white-space:nowrap;">'
+          + '<select data-idx="'+i+'" data-field="dateMonth" style="width:auto; display:inline-block;">'+travelMonthOptionsHtml(selMonth)+'</select> '
+          + '<select data-idx="'+i+'" data-field="dateYear" style="width:auto; display:inline-block;">'+travelYearOptionsHtml(selYear)+'</select>'
+          + '</td>'
         + '<td><input type="text" data-idx="'+i+'" data-field="reason" placeholder="e.g. Tourism" value="'+escapeHtml(r.reason||'')+'"></td>'
         + '<td><input type="number" min="1" data-idx="'+i+'" data-field="days" placeholder="days" value="'+escapeHtml(r.days||'')+'" style="width:70px;"></td>'
         + '<td><button type="button" class="btn ghost te-remove-row" data-idx="'+i+'" title="Remove">✕</button></td>'
@@ -3142,7 +3191,18 @@
       el.addEventListener('change', function(){
         var idx = parseInt(el.getAttribute('data-idx'), 10);
         var field = el.getAttribute('data-field');
-        if (travelHistoryRows[idx]) travelHistoryRows[idx][field] = el.value;
+        var row = travelHistoryRows[idx];
+        if (!row) return;
+        if (field === 'dateMonth' || field === 'dateYear'){
+          // Recombine month+year into the same "YYYY-MM" shape the rest of the app (export/import,
+          // payload persistence) already expects, without needing its own migration.
+          var parts = (row.date||'').split('-');
+          var year = parts[0] || '', month = parts[1] || '';
+          if (field === 'dateYear') year = el.value; else month = el.value;
+          row.date = (year && month) ? (year + '-' + month) : '';
+        } else {
+          row[field] = el.value;
+        }
         render();
       });
     });
@@ -5072,8 +5132,14 @@
     // NOT a full render() here — render() rebuilds #checklistRoot (which is where the `box` element
     // this function is about to write into actually lives), which would orphan our `box` reference
     // mid-function and make the result silently invisible. updatePassportValidateStatus() only
-    // touches Session 1's own name-mirror/status elements, so it's safe to call directly.
+    // touches Session 1's own name-mirror/status elements, so it's safe to call directly — but
+    // without a render() pass, the session-nav pill and footer's "X% filled" text never found out
+    // these two fields just got auto-filled, and stayed stuck at "0 of 2" until some unrelated
+    // input elsewhere triggered a render(). applySessionVisibility() re-renders the nav/footer
+    // (it reads sessionProgress() fresh) without touching #checklistRoot, so it's equally safe to
+    // call directly here.
     if (typeof updatePassportValidateStatus === 'function') updatePassportValidateStatus(getAnswers());
+    if (typeof applySessionVisibility === 'function') applySessionVisibility();
 
     var expiryDate = (fields && fields.expiryDate) ? fields.expiryDate : (function(){
       var future = dates.filter(function(d){ return d.getTime() > Date.now(); });
@@ -8697,6 +8763,8 @@
       document.getElementById('rs_agedParents').checked = !!payload.answers.agedParents;
       document.getElementById('rs_fatherName').value = payload.answers.fatherName || '';
       document.getElementById('rs_motherName').value = payload.answers.motherName || '';
+      document.getElementById('rs_fatherDeceased').checked = !!payload.answers.fatherDeceased;
+      document.getElementById('rs_motherDeceased').checked = !!payload.answers.motherDeceased;
       document.getElementById('rs_remittance').value = payload.answers.remittanceAmount || '';
       document.getElementById('rs_verifyConsent').checked = !!payload.answers.remittanceVerifyConsent;
     }
@@ -8901,6 +8969,8 @@
     document.getElementById('rs_agedParents').checked = false;
     document.getElementById('rs_fatherName').value = '';
     document.getElementById('rs_motherName').value = '';
+    document.getElementById('rs_fatherDeceased').checked = false;
+    document.getElementById('rs_motherDeceased').checked = false;
     document.getElementById('rs_remittance').value = '';
     document.getElementById('rs_verifyConsent').checked = false;
     Object.keys(state).forEach(function(k){ state[k] = {checked:false, fileName:null, fileNames:null, scan:null}; });
