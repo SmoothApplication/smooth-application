@@ -22,21 +22,18 @@ exports.run = async function(ctx){
     assert.strictEqual(noHistoryVisible0, false, 'Recommendation box should be hidden before the question is answered');
     assert.strictEqual(historyVisible0, false, 'History table should be hidden before the question is answered');
 
-    // "No" (first-time traveller, no history) -> recommendation box, with named countries.
+    // "No" (first-time traveller, no history) -> recommendation box. Copy was trimmed down to just
+    // the reassurance line (the country-suggestion paragraph was removed per user feedback), and
+    // "Click here for more assistance" is now a direct WhatsApp link rather than a reveal-toggle.
     await page.selectOption('#te_firstTime', 'no');
     await page.waitForFunction(function(){
       var el = document.getElementById('te_noHistoryBox');
       return el && el.style.display !== 'none';
     }, { timeout: 3000 });
     var recoText = await page.$eval('#te_noHistoryBox', function(el){ return el.textContent; });
-    ['Ghana','Kenya','Ethiopia','Morocco','Egypt'].forEach(function(c){
-      assert.ok(recoText.indexOf(c) !== -1, 'Recommendation box should mention ' + c + ', got: ' + recoText);
-    });
-    var assistanceMsgBefore = await page.$eval('#travelAssistanceMsg', function(el){ return el.style.display; });
-    assert.strictEqual(assistanceMsgBefore, 'none', '"Click here for more assistance" detail should start collapsed');
-    await page.click('#btnTravelAssistance');
-    var assistanceMsgAfter = await page.$eval('#travelAssistanceMsg', function(el){ return el.style.display; });
-    assert.notStrictEqual(assistanceMsgAfter, 'none', 'Clicking the assistance button should reveal the extra guidance');
+    assert.ok(/plenty of successful applicants start here/.test(recoText), 'Recommendation box should show the reassurance line, got: ' + recoText);
+    var assistanceHref = await page.$eval('#btnTravelAssistance', function(el){ return el.getAttribute('href'); });
+    assert.ok(/^https:\/\/wa\.me\/2349081389969/.test(assistanceHref), '"Click here for more assistance" should link to the WhatsApp number, got: ' + assistanceHref);
 
     // "Yes" (has travelled before) -> history table + overstay question, not the recommendation box.
     await page.selectOption('#te_firstTime', 'yes');

@@ -3,6 +3,19 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Trimmed the "no travel history" box and turned its assistance button into a WhatsApp link
+
+User feedback, straight off the live Travel Experience section: the "no travel history yet" box's
+second paragraph (the country-suggestion copy — "building some travel history first... places like
+Ghana, Kenya, Ethiopia, Morocco, and Egypt") was removed, keeping just the short reassurance line
+("No travel history yet — that's fine, plenty of successful applicants start here."). The "Click
+here for more assistance" control used to be a button that revealed a hidden tip; it's now a direct
+link to WhatsApp (the same support number already used by the feedback links elsewhere in the app),
+with a pre-filled message so someone can just tap through and start a conversation instead of
+reading more static text. Removed the now-unused `travelAssistanceMsg` element and its toggle/reset
+JS along with it. No behavior changed elsewhere; all 60 tests still pass (`travel-experience-branching`
+updated to match).
+
 ## Softened Session 2's country-visit language to remove eligibility-prediction phrasing
 
 Resolves the standing lawyer note in `docs/terms-of-service-draft.md`: the Travel Experience

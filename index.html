@@ -853,10 +853,8 @@
         </select>
 
         <div id="te_noHistoryBox" class="doc-reminder" style="display:none; margin-top:10px;">
-          <p style="margin:0 0 6px; font-weight:600;">No travel history yet — that's fine, plenty of successful applicants start here.</p>
-          <p style="margin:0 0 8px;">One thing that genuinely helps a first application is building some travel history first, ideally with countries that have a reputation for straightforward visa processes for Nigerian travellers — places like <b>Ghana, Kenya, Ethiopia, Morocco</b>, and <b>Egypt</b> are commonly suggested for this. It's not required, but it can strengthen a future application.</p>
-          <button type="button" class="btn ghost" id="btnTravelAssistance">Click here for more assistance</button>
-          <div id="travelAssistanceMsg" class="item-tip" style="margin-top:8px; display:none;">Consider applying for a visa to one of these countries first, spending a genuine trip there, and keeping your boarding passes, stamps, and hotel bookings as evidence. Returning home on time (no overstay) matters more than the destination — a clean travel history is what future visa officers are actually looking for. This is general guidance, not a guarantee of any outcome.</div>
+          <p style="margin:0 0 8px; font-weight:600;">No travel history yet — that's fine, plenty of successful applicants start here.</p>
+          <a class="btn ghost" id="btnTravelAssistance" href="https://wa.me/2349081389969?text=Hi%21%20I%20don%27t%20have%20travel%20history%20yet%20and%20could%20use%20some%20guidance%20before%20applying%20for%20my%20UK/Canada%20visa." target="_blank" rel="noopener">Click here for more assistance</a>
         </div>
 
         <div id="te_historyBox" style="display:none; margin-top:10px;">
@@ -3317,11 +3315,6 @@
     overstayRows.push({country:'', days:''});
     renderOverstayTable();
     render();
-  });
-
-  document.getElementById('btnTravelAssistance').addEventListener('click', function(){
-    var msg = document.getElementById('travelAssistanceMsg');
-    if (msg) msg.style.display = msg.style.display === 'none' ? 'block' : 'none';
   });
 
   // "Income & bank statement analysis" internal step tabs — see the CSS comment above .fin-steps-nav
@@ -9139,8 +9132,6 @@
     overstayRows = [];
     renderTravelHistoryTable();
     renderOverstayTable();
-    var travelAssistanceMsgEl = document.getElementById('travelAssistanceMsg');
-    if (travelAssistanceMsgEl) travelAssistanceMsgEl.style.display = 'none';
     // Session 3: Your responsibilities
     document.getElementById('rs_married').checked = false;
     document.getElementById('rs_spouseName').value = '';
