@@ -65,11 +65,14 @@ exports.run = async function(ctx){
       'The single largest inflow (₦500,000, John Doe Ventures) should rank #1 by amount, got: ' + JSON.stringify(topInflowNarrations));
 
     // --- Item 9: surname-matched sender grouped as "Family" with a narrower reason dropdown ---------
+    // Each box now also has a "same reason for all / different reasons per payment" mode toggle
+    // (a separate <select>, id="srcmode_N") ahead of the actual category dropdown — select the
+    // category one specifically (id="srccat_N") rather than just "the first select in the box".
     var boxInfo = await page.evaluate(function(){
       var boxes = Array.from(document.querySelectorAll('#incomeBreakdownBox .explain-box'));
       return boxes.map(function(b){
         var nameEl = b.querySelector('.tx-line b');
-        var sel = b.querySelector('select');
+        var sel = b.querySelector('select[id^="srccat_"]');
         return {
           id: b.id,
           name: nameEl ? nameEl.textContent : '',
