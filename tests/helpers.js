@@ -106,4 +106,14 @@ async function goToSessionByLabel(page, label){
   await page.click('.session-pill[data-idx="' + idx + '"]');
 }
 
-module.exports = { startServer, launchBrowser, newPageAt, passConsentGate, goToSessionByPill, goToSessionByLabel, PORT, ROOT };
+// Clicks one of the "Income & bank statement analysis" session's own internal step tabs (1 Upload,
+// 2 Cash flow & scores, 3 Detailed reports — see .fin-steps-nav in index.html). Needed any time a
+// test interacts with an element that lives in a step other than whichever one is currently active,
+// e.g. filling the cash-flow table directly (step 2) without first uploading a statement, or
+// re-uploading a second statement after the first analysis auto-advanced away from step 1.
+async function goToFinanceStep(page, n){
+  await page.click('.fin-step-tab[data-fin-step="' + n + '"]');
+  await page.waitForTimeout(50);
+}
+
+module.exports = { startServer, launchBrowser, newPageAt, passConsentGate, goToSessionByPill, goToSessionByLabel, goToFinanceStep, PORT, ROOT };

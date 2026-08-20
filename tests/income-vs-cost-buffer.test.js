@@ -11,13 +11,17 @@
 // This is a companion check to the funds buffer, not a replacement — it only appears once the full
 // 6-month cash-flow table is filled in, and never overrides the funds-buffer message, it just adds to it.
 const assert = require('assert');
-const { newPageAt, passConsentGate, goToSessionByPill } = require('./helpers');
+const { newPageAt, passConsentGate, goToSessionByPill, goToFinanceStep } = require('./helpers');
 
 // The cash-flow table lives in session index 1 ("Income & bank statement analysis"), not session 2
 // (the detailed financial calculator, where fc_flight/fc_accom/fc_closing live) — has to be the active
-// session for Playwright's .fill() to treat the inputs as visible/interactable.
+// session for Playwright's .fill() to treat the inputs as visible/interactable. Within that session,
+// the table itself is on step 2 (Cash flow & scores) of the session's own internal step tabs — step 1
+// (Upload) is the default, so typing straight into the table without uploading anything first needs
+// an explicit tab switch.
 async function fillCashFlowMonths(page, monthlyInflow){
   await goToSessionByPill(page, 4);
+  await goToFinanceStep(page, 2);
   for (var i = 1; i <= 6; i++){
     await page.fill('#cf_month_' + i, 'Month ' + i);
     await page.fill('#cf_in_' + i, String(monthlyInflow));
@@ -81,6 +85,7 @@ exports.run = async function(ctx){
     await page3.fill('#fc_accom', '100000');
     await page3.fill('#fc_closing', '3000000');
     await goToSessionByPill(page3, 4);
+    await goToFinanceStep(page3, 2);
     await page3.fill('#cf_month_1', 'Month 1');
     await page3.fill('#cf_in_1', '100000');
     await page3.fill('#cf_month_2', 'Month 2');

@@ -6,12 +6,16 @@
 // accepting a statement that isn't theirs.
 const assert = require('assert');
 const path = require('path');
-const { newPageAt, passConsentGate, goToSessionByPill } = require('./helpers');
+const { newPageAt, passConsentGate, goToSessionByPill, goToFinanceStep } = require('./helpers');
 
 var MATCHING_STATEMENT = path.join(__dirname, 'fixtures', 'account-holder-matching-name.pdf');
 var WRONG_NAME_STATEMENT = path.join(__dirname, 'fixtures', 'account-holder-wrong-name.pdf');
 
 async function analyzeAndReadMsg(page, fixturePath){
+  // A successful analysis auto-advances the session from step 1 (Upload) to step 2 (Cash flow &
+  // scores) — harmless the first time (already on step 1), but necessary before a second/third
+  // upload+analyze in the same test, since the file inputs and Analyze button only live on step 1.
+  await goToFinanceStep(page, 1);
   await page.setInputFiles('#stmtFile1', fixturePath);
   await page.click('#btnAnalyzeStatements');
   // The first message to land is a transient "Loading local analysis tools…" notice -- wait for

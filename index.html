@@ -294,11 +294,12 @@
   .subcat-heading { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); margin: 18px 0 8px; padding-top: 12px; border-top: 1px solid var(--border); }
   .subcat-heading:first-of-type { border-top: none; padding-top: 0; margin-top: 4px; }
 
-  /* Visually separates "here's what the tool worked out for you" (read-only reports) from the
-     editable form content above it — real feedback was that a whole session of stacked messages,
-     an editable table, and several report tables all ran together with nothing but a small label
-     between them, reading as one long undifferentiated scroll. A shaded, bordered sub-card gives
-     this cluster of related reports its own visual boundary without a full page redesign. */
+  /* Originally wrapped the whole "here's what the tool worked out for you" section of the Income &
+     bank statement analysis session as a stopgap for "this session looks clumsy" feedback — that
+     session has since been split into its own step tabs (see .fin-steps-nav below), which replaced
+     that top-level wrapper. This class lives on as a smaller, reusable "show N of these individually"
+     collapsible group used within the per-inflow explanation lists (see unexplainedInflowsGroup /
+     matchGroup_* below). */
   .report-group {
     background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px;
     padding: 14px 16px 16px; margin-top: 20px;
@@ -371,6 +372,25 @@
   @media print { .session-nav { display: none !important; } }
   /* Print must show every session's card regardless of which one is currently on screen. */
   @media print { [data-session-key], #checklistRoot > [data-cat] { display: block !important; } }
+
+  /* ---------------- Income & bank statement analysis: internal step tabs ---------------- */
+  /* A small tab bar *within* the finance2 session, same visual language as the outer session
+     wizard's pills — this session does three genuinely different jobs (upload, automatic-analysis
+     results, deep-dive report) and used to run them all together in one long scroll. Tabs are freely
+     clickable in any order — nothing here is validation-gated, since a returning applicant might
+     only want the report, or might skip upload entirely and type totals into the cash-flow table
+     by hand. */
+  .fin-steps-nav { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .fin-step-tab {
+    border: 1px solid var(--border); background: var(--surface-1); color: var(--text-secondary);
+    border-radius: 999px; padding: 6px 14px; font-size: 12px; font-weight: 700; cursor: pointer;
+    transition: background .15s ease, color .15s ease;
+  }
+  .fin-step-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .fin-step { display: none; }
+  .fin-step.active { display: block; }
+  /* Print (Save full report as PDF) must include all three steps regardless of which tab is active. */
+  @media print { .fin-step { display: block !important; } .fin-steps-nav { display: none !important; } }
 
   /* A Save + Next bar directly below whichever session's card is currently on screen — same idea as
      .session-nav up top, but placed where the applicant's hands already are after filling in a page,
@@ -1268,26 +1288,23 @@
           <span class="chevron">▸</span>
         </summary>
         <div class="card-body">
-        <h2 style="margin-top:0;">Income vs. closing balance — two different things</h2>
-        <p class="fin-note">Scored separately below, since they're not the same thing.</p>
-        <details style="margin:-4px 0 8px;"><summary style="cursor:pointer; font-size:12px; color:var(--text-secondary);">Why separately?</summary><p class="fin-note" style="margin-top:4px;">A strong closing balance isn't the same as strong evidence — some applicants have a healthy balance but income that's irregular or impossible to explain.</p></details>
-        <div class="score-mini">
-          <div>
-            <div class="label">Income generation</div>
-            <div id="incomePill" class="status-pill neutral">Enter your figures</div>
-            <div id="incomePillPct" class="fin-note" style="margin-top:4px;"></div>
-          </div>
-          <div>
-            <div class="label">Closing balance strength</div>
-            <div id="balancePill" class="status-pill neutral">Enter your figures</div>
-            <div id="balancePillPct" class="fin-note" style="margin-top:4px;"></div>
-          </div>
+        <!-- User feedback (repeated, across two rounds): this whole session reads as "information
+             overload" / "clumsy". The underlying problem was structural, not cosmetic — this one
+             session does three genuinely different jobs (upload data, show automatic analysis
+             results, show a deep-dive report) stacked in a single continuous scroll, while every
+             other session in the flow is a short Q&A or a checklist. Split into three tabs — freely
+             clickable in any order (nothing here is gated behind completing a previous tab, since a
+             returning user might only want to re-check the report, or might skip upload entirely and
+             type cash-flow totals in by hand) so only one job's worth of content is on screen at once. -->
+        <div class="fin-steps-nav no-print" role="tablist">
+          <button type="button" class="fin-step-tab" data-fin-step="1" role="tab">1. Upload statements</button>
+          <button type="button" class="fin-step-tab" data-fin-step="2" role="tab">2. Cash flow &amp; scores</button>
+          <button type="button" class="fin-step-tab" data-fin-step="3" role="tab">3. Detailed reports</button>
         </div>
-        <div id="incomeSourcePersonal"></div>
-        <div id="incomeSourceBusiness"></div>
 
-        <h2 style="margin-top:18px;">Monthly cash flow (last 6 months)</h2>
-        <p class="fin-note">Upload a bank statement below to auto-fill this table, or type the totals in yourself.</p>
+        <div class="fin-step" data-fin-step="1">
+        <h2 style="margin-top:0;">Upload your bank statement(s)</h2>
+        <p class="fin-note">Upload here to auto-fill the cash-flow table and detailed reports in the next two steps — or skip ahead to Step 2 and type your totals in by hand instead.</p>
         <div class="row no-print" style="margin-bottom:4px;">
           <div>
             <label class="field" for="stmtFile1">Bank statement 1</label>
@@ -1305,10 +1322,34 @@
         <div class="upload-row no-print" style="margin-bottom:4px;">
           <button class="btn primary" id="btnAnalyzeStatements" disabled>🔍 Analyze statement(s) — beta</button>
         </div>
-        <p class="fin-note no-print" style="margin-bottom:10px;">Up to 3 separate statement files (e.g. one per account, or one per date range) — PDF, a photo/scan, or an Excel export (.xlsx/.xls). Processed entirely in your browser — nothing is uploaded anywhere. This is a best-effort reader: bank formats vary, so always check the auto-filled numbers below against your real statement.</p>
+        <p class="fin-note no-print" style="margin-bottom:10px;">Up to 3 separate statement files (e.g. one per account, or one per date range) — PDF, a photo/scan, or an Excel export (.xlsx/.xls). Processed entirely in your browser — nothing is uploaded anywhere. This is a best-effort reader: bank formats vary, so always check the auto-filled numbers in the next step against your real statement.</p>
         <div id="stmtAnalyzeMsg"></div>
+        <button type="button" class="btn no-print fin-step-next" data-fin-next="2" style="margin-top:10px;">Next: Cash flow &amp; scores →</button>
+        </div>
+
+        <div class="fin-step" data-fin-step="2">
+        <h2 style="margin-top:0;">Income vs. closing balance — two different things</h2>
+        <p class="fin-note">Scored separately below, since they're not the same thing.</p>
+        <details style="margin:-4px 0 8px;"><summary style="cursor:pointer; font-size:12px; color:var(--text-secondary);">Why separately?</summary><p class="fin-note" style="margin-top:4px;">A strong closing balance isn't the same as strong evidence — some applicants have a healthy balance but income that's irregular or impossible to explain.</p></details>
+        <div class="score-mini">
+          <div>
+            <div class="label">Income generation</div>
+            <div id="incomePill" class="status-pill neutral">Enter your figures</div>
+            <div id="incomePillPct" class="fin-note" style="margin-top:4px;"></div>
+          </div>
+          <div>
+            <div class="label">Closing balance strength</div>
+            <div id="balancePill" class="status-pill neutral">Enter your figures</div>
+            <div id="balancePillPct" class="fin-note" style="margin-top:4px;"></div>
+          </div>
+        </div>
+        <div id="incomeSourcePersonal"></div>
+        <div id="incomeSourceBusiness"></div>
         <div id="matchedIncomeInflowsBox"></div>
         <div id="unexplainedInflowsBox"></div>
+
+        <h2 style="margin-top:18px;">Monthly cash flow (last 6 months)</h2>
+        <p class="fin-note">Didn't upload a statement in Step 1? Type the totals in directly below instead.</p>
         <table class="cf-table" id="cashFlowTable">
           <thead><tr><th>Month</th><th>Total inflow (₦)</th><th>Total outflow (₦)</th><th>Closing balance (₦)</th></tr></thead>
           <tbody></tbody>
@@ -1321,31 +1362,33 @@
         </table>
         <div id="cashFlowSummary"></div>
         <div id="statementReadinessBox"></div>
+        <div class="session-nav-btns no-print" style="margin-top:12px;">
+          <button type="button" class="btn ghost fin-step-prev" data-fin-prev="1">← Back</button>
+          <button type="button" class="btn fin-step-next" data-fin-next="3">Next: Detailed reports →</button>
+        </div>
+        </div>
 
-        <!-- User feedback: this whole session "looks too clumsy" — before this wrapper, these three
-             read-only reports ran directly on from the editable cash-flow table above with nothing
-             but a small uppercase label between them, so the page read as one long undifferentiated
-             scroll. Grouping them in their own visually distinct block signals "this part is what the
-             tool worked out for you, not something to type into" (aside from the short per-source
-             notes at the bottom, which stay editable same as before). -->
-        <details class="report-group" id="statementReportGroup">
-          <summary class="report-group-heading">📊 What your statement(s) show</summary>
-          <p class="fin-note" style="margin-top:8px;">Automatically detected from your upload(s) above — nothing to fill in here except the short notes per source at the bottom.</p>
+        <div class="fin-step" data-fin-step="3">
+        <h2 style="margin-top:0;">📊 What your statement(s) show</h2>
+        <p class="fin-note" style="margin-top:8px;">Automatically detected from your upload(s) in Step 1 — nothing to fill in here except the short notes per source at the bottom.</p>
 
-          <h4 class="subcat-heading" style="margin-top:18px;">Top 10 inflows</h4>
-          <p class="fin-note" style="margin-top:0;">The 10 largest individual credits detected in your uploaded statement(s), ranked by amount — a quick way to see at a glance what a reviewer's eye will land on first.</p>
-          <div id="topInflowsBox"></div>
+        <h4 class="subcat-heading" style="margin-top:18px;">Top 10 inflows</h4>
+        <p class="fin-note" style="margin-top:0;">The 10 largest individual credits detected in your uploaded statement(s), ranked by amount — a quick way to see at a glance what a reviewer's eye will land on first.</p>
+        <div id="topInflowsBox"></div>
 
-          <h4 class="subcat-heading">Top 10 most consistent senders</h4>
-          <p class="fin-note" style="margin-top:0;">Ranked by how many separate months each sender's name recurs across, not by amount — a sender you hear from steadily month after month is the kind of pattern a reviewer finds reassuring, even if no single payment from them is the biggest one on the statement.</p>
-          <div id="topConsistentSendersBox"></div>
+        <h4 class="subcat-heading">Top 10 most consistent senders</h4>
+        <p class="fin-note" style="margin-top:0;">Ranked by how many separate months each sender's name recurs across, not by amount — a sender you hear from steadily month after month is the kind of pattern a reviewer finds reassuring, even if no single payment from them is the biggest one on the statement.</p>
+        <div id="topConsistentSendersBox"></div>
 
-          <h4 class="subcat-heading">Income sources breakdown</h4>
-          <p class="fin-note" style="margin-top:0;">Groups every inflow by who sent it — salary, named senders/companies, and a catch-all for anything with no clear sender — the same approach experienced applicants use to pre-empt "income not explained" refusals. Add a short note per source; it's kept with your progress.</p>
-          <div id="incomeBreakdownBox"></div>
-          <button type="button" class="btn ghost no-print" id="btnDownloadBreakdown" style="display:none; margin-top:8px;">⬇️ Download breakdown as spreadsheet</button>
-          <div class="item-tip no-print" id="downloadBreakdownNote" style="display:none; margin-top:4px;">The spreadsheet always reflects your latest explanations — from the "inflow(s) need an explanation" boxes above and from the notes you add per source below — so fill those in first, then download.</div>
-        </details>
+        <h4 class="subcat-heading">Income sources breakdown</h4>
+        <p class="fin-note" style="margin-top:0;">Groups every inflow by who sent it — salary, named senders/companies, and a catch-all for anything with no clear sender — the same approach experienced applicants use to pre-empt "income not explained" refusals. Add a short note per source; it's kept with your progress.</p>
+        <div id="incomeBreakdownBox"></div>
+        <button type="button" class="btn ghost no-print" id="btnDownloadBreakdown" style="display:none; margin-top:8px;">⬇️ Download breakdown as spreadsheet</button>
+        <div class="item-tip no-print" id="downloadBreakdownNote" style="display:none; margin-top:4px;">The spreadsheet always reflects your latest explanations — from the "inflow(s) need an explanation" boxes above and from the notes you add per source below — so fill those in first, then download.</div>
+        <div class="session-nav-btns no-print" style="margin-top:12px;">
+          <button type="button" class="btn ghost fin-step-prev" data-fin-prev="2">← Back</button>
+        </div>
+        </div>
         </div>
       </details>
 
@@ -3260,6 +3303,39 @@
     var msg = document.getElementById('travelAssistanceMsg');
     if (msg) msg.style.display = msg.style.display === 'none' ? 'block' : 'none';
   });
+
+  // "Income & bank statement analysis" internal step tabs — see the CSS comment above .fin-steps-nav
+  // for why this session is split into three tabs instead of one long scroll. Purely a view-state
+  // toggle (which of the three .fin-step blocks is visible) — none of the underlying data, IDs, or
+  // computation functions changed, so this stays deliberately simple rather than plumbed through the
+  // outer session/getAnswers()/render() machinery.
+  var financeStep = 1;
+  // scrollToTop defaults true (used by the tab/Next/Back click handlers below) but is passed false
+  // for the initial call and for the auto-advance-on-analysis call, neither of which should yank the
+  // page around — the applicant hasn't asked to move anywhere in either case.
+  function setFinanceStep(n, scrollToTop){
+    financeStep = n;
+    document.querySelectorAll('.fin-step').forEach(function(el){
+      el.classList.toggle('active', el.getAttribute('data-fin-step') === String(n));
+    });
+    document.querySelectorAll('.fin-step-tab').forEach(function(el){
+      el.classList.toggle('active', el.getAttribute('data-fin-step') === String(n));
+    });
+    if (scrollToTop !== false){
+      var card = document.querySelector('[data-session-key="finance2"]');
+      if (card) card.scrollIntoView({behavior:'smooth', block:'start'});
+    }
+  }
+  document.querySelectorAll('.fin-step-tab').forEach(function(el){
+    el.addEventListener('click', function(){ setFinanceStep(parseInt(el.getAttribute('data-fin-step'), 10)); });
+  });
+  document.querySelectorAll('.fin-step-next').forEach(function(el){
+    el.addEventListener('click', function(){ setFinanceStep(parseInt(el.getAttribute('data-fin-next'), 10)); });
+  });
+  document.querySelectorAll('.fin-step-prev').forEach(function(el){
+    el.addEventListener('click', function(){ setFinanceStep(parseInt(el.getAttribute('data-fin-prev'), 10)); });
+  });
+  setFinanceStep(1, false);
 
   // Country-visit "grading" summary — informal guidance copy, not an eligibility prediction, built
   // from the tiers the applicant specified (African-country count, EU-country count, named
@@ -8365,9 +8441,12 @@
         renderTopInflows(getTopInflows(recentTxns, 10));
         renderTopConsistentSenders(getTopConsistentSenders(recentTxns, 10));
         renderIncomeBreakdown(buildIncomeSourceBreakdown(recentTxns, getAnswers().name));
-        // Closed by default (see CSS), so nobody has to remember to expand it after uploading.
-        var reportGroupEl = document.getElementById('statementReportGroup');
-        if (reportGroupEl) reportGroupEl.open = true;
+        // Auto-advance from the Upload tab to the Cash flow & scores tab so the applicant sees the
+        // direct result of what they just uploaded without an extra click — same "nobody has to
+        // remember to go find it" idea as the old auto-opening report group this replaced. Step 3's
+        // detailed report is one more click away (Next) rather than also jumped to automatically,
+        // since two auto-jumps in a row would feel like the page is driving, not the applicant.
+        if (typeof setFinanceStep === 'function') setFinanceStep(2, false);
 
         computeFinancials();
 

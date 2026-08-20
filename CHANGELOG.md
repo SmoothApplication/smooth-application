@@ -3,6 +3,32 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Income & bank statement analysis session split into step tabs
+
+User feedback (repeated, across two rounds): this session — the one with the bank statement
+upload, the editable cash-flow table, and the detailed income report — reads as "information
+overload" and "clumsy". The underlying problem was structural: this one session does three
+genuinely different jobs (upload data, show automatic analysis results, show a deep-dive report)
+stacked in a single continuous scroll, while every other session in the flow is a short Q&A or a
+checklist.
+
+- Split into three tabs within the session — **1. Upload statements**, **2. Cash flow & scores**,
+  **3. Detailed reports** — so only one job's worth of content is on screen at a time. Tabs are
+  freely clickable in any order; nothing is validation-gated, since a returning applicant might
+  only want to re-check the report, or might skip upload entirely and type cash-flow totals in by
+  hand on step 2.
+- A successful statement analysis auto-advances from step 1 to step 2, so the applicant sees the
+  direct result of what they just uploaded without an extra click. Step 3's deeper report is one
+  more click away rather than also auto-opened, so the page isn't jumping twice in a row.
+- "Save full report as PDF" is unaffected — print styles show all three steps regardless of which
+  tab is active on screen, same as before.
+- The old `#statementReportGroup` collapsible wrapper (a stopgap from an earlier round of the same
+  "too clumsy" feedback) is gone, replaced by step 3 itself. `.report-group` as a class lives on for
+  the smaller, unrelated "show these N inflows individually" collapsible lists used elsewhere in
+  this session's report output.
+- Nothing about the underlying data, computation, or persistence changed — this was a structural/
+  presentational change only, so all figures, scans, and cross-checks behave exactly as before.
+
 ## Three live-bug fixes on Sessions 1–3
 
 Reported directly against the live site shortly after Sessions 1–3 shipped (see the entry below).

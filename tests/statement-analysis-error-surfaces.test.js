@@ -28,11 +28,14 @@ exports.run = async function(ctx){
 
     // Make the ONE getElementById call this flow makes mid-processing (well after transactions have
     // already parsed successfully) throw, to simulate an unforeseen bug — everything else keeps
-    // working normally so this doesn't just break page setup itself.
+    // working normally so this doesn't just break page setup itself. Targets renderTopInflows()'s
+    // lookup of #topInflowsBox — a real, single-purpose call inside the same post-parse report
+    // pipeline that used to be hooked via #statementReportGroup before the "Income & bank statement
+    // analysis" session was split into step tabs (which removed that particular element/ID).
     await page.evaluate(function(){
       var original = document.getElementById.bind(document);
       document.getElementById = function(id){
-        if (id === 'statementReportGroup') throw new TypeError('simulated mid-processing failure');
+        if (id === 'topInflowsBox') throw new TypeError('simulated mid-processing failure');
         return original(id);
       };
     });
