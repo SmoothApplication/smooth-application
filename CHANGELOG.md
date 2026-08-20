@@ -3,6 +3,46 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Income sources breakdown split into its own tab, plus five live-bug/feedback fixes
+
+User feedback, direct from the live site, on the freshly-split "Income & bank statement analysis"
+session (see the step-tabs entry below):
+
+- **"Income sources breakdown" is now its own, 4th tab** ("I think this page is where most
+  decisions about your income is decided by the visa officer. make it a separate page.") — it
+  previously shared step 3 with "Top 10 inflows" and "Top 10 most consistent senders". Now: step 1
+  Upload, step 2 Cash flow & scores, step 3 Detailed reports (top inflows/senders), step 4 Income
+  sources breakdown. Print styles show all four steps regardless of the active tab.
+- **"Top 10 inflows" table is now collapsible** ("Make it collapsible. so that it can be user
+  friendly.") — reuses the same `.report-group` collapsible pattern already used elsewhere in this
+  session's reports, collapsed by default.
+- **Closing balance figure now shows even with no comparison target yet** ("Closing balance figure
+  from bank statement is missing.") — the "Closing balance strength" badge and its detail line used
+  to hide the real, already-detected balance whenever there was nothing yet to compare it against
+  (e.g. trip dates/cost not filled in). Both now show the actual detected/entered figure straight
+  away, with a plain note to add trip details for a Strong/Weak verdict, instead of hiding real
+  evidence behind an unrelated blocker.
+- **Fixed a false "Salary" misattribution bug** ("All these are not SALARY" — flagged with the real
+  recurring sender's name and payment count/total, cross-checked against the applicant's own
+  manually-reconciled spreadsheet). Bank narrations typically name both sides of a transfer ("...TRF
+  TO `<applicant>` FROM `<sender>`..."). The name-extraction step had no notion of which side is
+  which, so the applicant's own typed name — present in nearly every inflow narration, since they're
+  the recipient of every one — kept winning the "most recurring sender" vote, crowding out the real,
+  distinct, actually-recurring sender and occasionally producing garbled concatenated names in the
+  "Top 10 most consistent senders" table. The applicant's own name is now excluded up front,
+  everywhere a "dominant sender" gets identified (the recurring-amount check, the most-frequent-
+  source check, and the consistent-senders ranking).
+- **Fixed the income-source explanation box collapsing while it's being reviewed** ("Once I edit the
+  menu does close up back.") — after saving a reason, the box already tidies itself away to a
+  one-line summary ~1.2s later by design. But if the applicant had "Show individual payment(s)" open
+  reviewing the specific transactions behind their choice, that same tidy-away used to yank the box
+  closed (and reset that panel) right out from under them. It now waits until the applicant closes
+  that panel themselves before collapsing.
+- **"What looks good" confirmations are now a real bulleted list** ("bullet each point and make
+  neat. people have low attention span.") — each confirmation (e.g. the recurring-income read, the
+  most-frequent-source read) now renders as its own list item instead of a stacked paragraph, so
+  it's scannable at a glance.
+
 ## Income & bank statement analysis session split into step tabs
 
 User feedback (repeated, across two rounds): this session — the one with the bank statement
@@ -1016,10 +1056,10 @@ regression test) passed.
 
 ## Fixed three real-user bugs: a misread passport name, and two bank statements that wouldn't read
 
-A real applicant hit three separate problems in the same session, reported together: "After the name
-is generated from the passport, the o in Oluwafunmilayo read as zero '0'. Also, Her GTB bank statement
-showed [an] error message. She tried her sterling bank account but it did not read." All three are
-fixed.
+A real applicant hit three separate problems in the same session, reported together: after the name
+was generated from a family member's passport, a letter "o" in the name read as digit "0". Also, that
+family member's GTB bank statement showed an error message, and her Sterling bank account statement
+did not read either. All three are fixed.
 
 **Passport name — "O" misread as "0":** the MRZ's name field is letters and "<" filler only per spec —
 a digit can never legitimately appear there, so any digit found is always a misread, never a genuine

@@ -606,10 +606,15 @@
   .scan-msg-good summary::-webkit-details-marker { display: none; }
   .scan-msg-good summary::before { content: '▸ '; }
   .scan-msg-good[open] summary::before { content: '▾ '; }
+  /* User feedback: "bullet each point and make neat. people have low attention span." — these used
+     to stack as plain paragraph divs (separated only by a thin top border), which read as one dense
+     block of prose. Now rendered as a real bulleted list (see setStmtMsg) so each confirmation is a
+     visually distinct, scannable point instead of a wall of text. */
+  .scan-msg-good-list { margin: 8px 0 0 0; padding-left: 20px; }
   .scan-msg-good-item {
-    margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border);
-    line-height: 1.5; color: var(--text-secondary);
+    margin-top: 6px; line-height: 1.5; color: var(--text-secondary);
   }
+  .scan-msg-good-item::marker { color: var(--good); }
 
   .avoid-note { font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
 
@@ -1290,16 +1295,20 @@
         <div class="card-body">
         <!-- User feedback (repeated, across two rounds): this whole session reads as "information
              overload" / "clumsy". The underlying problem was structural, not cosmetic — this one
-             session does three genuinely different jobs (upload data, show automatic analysis
-             results, show a deep-dive report) stacked in a single continuous scroll, while every
-             other session in the flow is a short Q&A or a checklist. Split into three tabs — freely
+             session does several genuinely different jobs (upload data, show automatic analysis
+             results, show deep-dive reports) stacked in a single continuous scroll, while every
+             other session in the flow is a short Q&A or a checklist. Split into tabs — freely
              clickable in any order (nothing here is gated behind completing a previous tab, since a
-             returning user might only want to re-check the report, or might skip upload entirely and
-             type cash-flow totals in by hand) so only one job's worth of content is on screen at once. -->
+             returning user might only want to re-check one report, or might skip upload entirely and
+             type cash-flow totals in by hand) so only one job's worth of content is on screen at once.
+             The income-sources breakdown (tab 4) later got split out of tab 3 into its own tab too,
+             per direct feedback that it's usually the single most consequential report of the bunch —
+             see the comment on data-fin-step="4" below. -->
         <div class="fin-steps-nav no-print" role="tablist">
           <button type="button" class="fin-step-tab" data-fin-step="1" role="tab">1. Upload statements</button>
           <button type="button" class="fin-step-tab" data-fin-step="2" role="tab">2. Cash flow &amp; scores</button>
           <button type="button" class="fin-step-tab" data-fin-step="3" role="tab">3. Detailed reports</button>
+          <button type="button" class="fin-step-tab" data-fin-step="4" role="tab">4. Income sources breakdown</button>
         </div>
 
         <div class="fin-step" data-fin-step="1">
@@ -1370,7 +1379,7 @@
 
         <div class="fin-step" data-fin-step="3">
         <h2 style="margin-top:0;">📊 What your statement(s) show</h2>
-        <p class="fin-note" style="margin-top:8px;">Automatically detected from your upload(s) in Step 1 — nothing to fill in here except the short notes per source at the bottom.</p>
+        <p class="fin-note" style="margin-top:8px;">Automatically detected from your upload(s) in Step 1.</p>
 
         <h4 class="subcat-heading" style="margin-top:18px;">Top 10 inflows</h4>
         <p class="fin-note" style="margin-top:0;">The 10 largest individual credits detected in your uploaded statement(s), ranked by amount — a quick way to see at a glance what a reviewer's eye will land on first.</p>
@@ -1379,14 +1388,25 @@
         <h4 class="subcat-heading">Top 10 most consistent senders</h4>
         <p class="fin-note" style="margin-top:0;">Ranked by how many separate months each sender's name recurs across, not by amount — a sender you hear from steadily month after month is the kind of pattern a reviewer finds reassuring, even if no single payment from them is the biggest one on the statement.</p>
         <div id="topConsistentSendersBox"></div>
-
-        <h4 class="subcat-heading">Income sources breakdown</h4>
-        <p class="fin-note" style="margin-top:0;">Groups every inflow by who sent it — salary, named senders/companies, and a catch-all for anything with no clear sender — the same approach experienced applicants use to pre-empt "income not explained" refusals. Add a short note per source; it's kept with your progress.</p>
-        <div id="incomeBreakdownBox"></div>
-        <button type="button" class="btn ghost no-print" id="btnDownloadBreakdown" style="display:none; margin-top:8px;">⬇️ Download breakdown as spreadsheet</button>
-        <div class="item-tip no-print" id="downloadBreakdownNote" style="display:none; margin-top:4px;">The spreadsheet always reflects your latest explanations — from the "inflow(s) need an explanation" boxes above and from the notes you add per source below — so fill those in first, then download.</div>
         <div class="session-nav-btns no-print" style="margin-top:12px;">
           <button type="button" class="btn ghost fin-step-prev" data-fin-prev="2">← Back</button>
+          <button type="button" class="btn fin-step-next" data-fin-next="4">Next: Income sources breakdown →</button>
+        </div>
+        </div>
+
+        <!-- User feedback: "I think this page is where most decisions about your income is decided
+             by the visa officer." Split into its own tab (previously the last section of step 3,
+             sharing a screen with the top-inflows/top-senders reports) so this — arguably the single
+             most consequential report in the whole session — gets its own uncluttered screen rather
+             than being the third thing on a page someone might stop reading partway down. -->
+        <div class="fin-step" data-fin-step="4">
+        <h2 style="margin-top:0;">Income sources breakdown</h2>
+        <p class="fin-note" style="margin-top:0;">Groups every inflow by who sent it — salary, named senders/companies, and a catch-all for anything with no clear sender — the same approach experienced applicants use to pre-empt "income not explained" refusals, and generally the report a visa officer's own read on your income leans on most. Add a short note per source; it's kept with your progress.</p>
+        <div id="incomeBreakdownBox"></div>
+        <button type="button" class="btn ghost no-print" id="btnDownloadBreakdown" style="display:none; margin-top:8px;">⬇️ Download breakdown as spreadsheet</button>
+        <div class="item-tip no-print" id="downloadBreakdownNote" style="display:none; margin-top:4px;">The spreadsheet always reflects your latest explanations — from the "inflow(s) need an explanation" boxes on the previous tab and from the notes you add per source below — so fill those in first, then download.</div>
+        <div class="session-nav-btns no-print" style="margin-top:12px;">
+          <button type="button" class="btn ghost fin-step-prev" data-fin-prev="3">← Back</button>
         </div>
         </div>
         </div>
@@ -1453,7 +1473,7 @@
         <div class="card-body">
         <p class="item-tip" style="margin-top:-6px;">This is a personal record for your own use, confirming the information above is accurate to your knowledge — it isn't part of any official government form, nothing is sent anywhere, and no account or sign-in is needed. Fill it in whenever suits you: before you start, or once your report is ready.</p>
         <div class="row">
-          <div><label class="field" for="decl_name">Full name</label><input type="text" id="decl_name" placeholder="e.g. Oluwaseyi Adegboyega Afeni"></div>
+          <div><label class="field" for="decl_name">Full name</label><input type="text" id="decl_name" placeholder="e.g. Adaeze Grace Nnamdi"></div>
           <div><label class="field" for="decl_date">Date</label><input type="date" id="decl_date"></div>
         </div>
         <div class="checkrow"><input type="checkbox" id="decl_confirm"><label for="decl_confirm">I confirm the information I've entered in this checklist is accurate to the best of my knowledge.</label></div>
@@ -4040,11 +4060,22 @@
     var effectiveClosingBalance = (cfLastBalance !== null && cfLastBalance !== undefined) ? cfLastBalance : totalFunds;
     var haveBalanceFigure = (cfLastBalance !== null && cfLastBalance !== undefined) || totalFunds > 0;
 
+    // User feedback: "Closing balance figure from bank statement is missing" — this badge used to
+    // show the same "Enter your figures" placeholder whenever effectiveRecommendedFunds was 0
+    // (typically because the applicant hasn't filled in travel/return dates on the trip session yet,
+    // or the financial calculator below), even when a real closing balance HAD already been detected
+    // from an uploaded statement — hiding real evidence just because the OTHER half of the comparison
+    // (the recommended-funds side) wasn't ready yet. Now these are checked separately: a detected/
+    // entered balance with nothing to compare it against still shows the actual figure (just without
+    // a Strong/Weak verdict, since there's genuinely nothing to grade it against yet).
     var balancePillEl = document.getElementById('balancePill');
-    if (effectiveRecommendedFunds <= 0 || !haveBalanceFigure){
+    if (!haveBalanceFigure){
       // Same "nothing entered yet isn't a failure" reasoning as incomePillEl above.
       balancePillEl.className = 'status-pill neutral';
       balancePillEl.textContent = 'Enter your figures';
+    } else if (effectiveRecommendedFunds <= 0){
+      balancePillEl.className = 'status-pill neutral';
+      balancePillEl.textContent = 'Detected — add a trip cost to compare';
     } else if (effectiveClosingBalance >= effectiveRecommendedFunds){
       balancePillEl.className = 'status-pill good';
       balancePillEl.textContent = 'Strong — covers the 2× buffer';
@@ -4067,16 +4098,23 @@
     // matches the badge's own wording above it.
     var balancePillPctEl = document.getElementById('balancePillPct');
     if (balancePillPctEl){
-      if (effectiveRecommendedFunds <= 0 || !haveBalanceFigure){
+      if (!haveBalanceFigure){
         balancePillPctEl.textContent = '';
       } else {
         var pctSourceBalance = effectiveClosingBalance;
         var pctSourceLabel = (cfLastBalance !== null && cfLastBalance !== undefined) ? 'detected from your bank statement' : 'as entered';
-        var balanceOfNeededPct = effectiveRecommendedFunds > 0 ? Math.max(0, Math.min(100, Math.round(pctSourceBalance / effectiveRecommendedFunds * 100))) : 0;
-        var recommendedBasisText = usingQuickBufferEstimate
-          ? 'a rough, dates-only trip-cost estimate — fill in the financial calculator below for a more accurate figure'
-          : 'your '+fmtN(totalCost)+' estimated trip cost';
-        balancePillPctEl.innerHTML = '<b>'+fmtN(pctSourceBalance)+'</b> closing balance ('+pctSourceLabel+') — <b>'+balanceOfNeededPct+'%</b> of the '+fmtN(effectiveRecommendedFunds)+' recommended (2× buffer on '+recommendedBasisText+').';
+        if (effectiveRecommendedFunds <= 0){
+          // A balance was detected/entered, but there's nothing yet to compare it against (no trip
+          // cost and no dates-only estimate) — still show the real figure rather than hiding it,
+          // just without a percentage-of-target verdict.
+          balancePillPctEl.innerHTML = '<b>'+fmtN(pctSourceBalance)+'</b> closing balance ('+pctSourceLabel+') — add your trip dates/cost to see how this compares to the recommended buffer.';
+        } else {
+          var balanceOfNeededPct = Math.max(0, Math.min(100, Math.round(pctSourceBalance / effectiveRecommendedFunds * 100)));
+          var recommendedBasisText = usingQuickBufferEstimate
+            ? 'a rough, dates-only trip-cost estimate — fill in the financial calculator below for a more accurate figure'
+            : 'your '+fmtN(totalCost)+' estimated trip cost';
+          balancePillPctEl.innerHTML = '<b>'+fmtN(pctSourceBalance)+'</b> closing balance ('+pctSourceLabel+') — <b>'+balanceOfNeededPct+'%</b> of the '+fmtN(effectiveRecommendedFunds)+' recommended (2× buffer on '+recommendedBasisText+').';
+        }
       }
     }
 
@@ -5073,10 +5111,10 @@
   }
   // ICAO Doc 9303's MRZ alphabet technically includes digits 0-9, but the NAME portion of line 1 is
   // letters-and-"<" filler only — a real passport holder's name is never spelled with digits. Reported
-  // real-world case: "OLUWAFUNMILAYO" OCR'd with one of its "O"s read as digit "0". Any digit found here
-  // is therefore always an OCR misread of a similar-looking letter, never a genuine value — safe to
-  // "correct" on sight. Deliberately NOT applied anywhere else (passport number, dates, etc. are real
-  // digits and must be left alone).
+  // real-world case: a name's "O" OCR'd as digit "0". Any digit found here is therefore always an OCR
+  // misread of a similar-looking letter, never a genuine value — safe to "correct" on sight.
+  // Deliberately NOT applied anywhere else (passport number, dates, etc. are real digits and must be
+  // left alone).
   var MRZ_NAME_DIGIT_FIX = {'0':'O','1':'I','2':'Z','5':'S','6':'G','8':'B'};
   function fixMrzNameDigits(str){
     return str.replace(/[0-9]/g, function(d){ return MRZ_NAME_DIGIT_FIX[d] || d; });
@@ -6008,9 +6046,13 @@
     var confirmations = arr.filter(function(r){ return r.cls === 'ok'; });
     var html = actionable.map(function(r){ return '<div class="scan-msg '+r.cls+'">'+r.text+'</div>'; }).join('');
     if (confirmations.length){
+      // User feedback: "bullet each point and make neat. people have low attention span." — each
+      // confirmation now renders as its own <li> in a real bulleted list instead of a stacked
+      // paragraph div, so it's scannable at a glance rather than reading as one block of prose.
       html += '<details class="scan-msg-good"><summary>✓ What looks good ('+confirmations.length+')</summary>' +
-        confirmations.map(function(r){ return '<div class="scan-msg-good-item">'+r.text+'</div>'; }).join('') +
-        '</details>';
+        '<ul class="scan-msg-good-list">' +
+        confirmations.map(function(r){ return '<li class="scan-msg-good-item">'+r.text+'</li>'; }).join('') +
+        '</ul></details>';
     }
     document.getElementById('stmtAnalyzeMsg').innerHTML = html;
   }
@@ -7129,10 +7171,10 @@
   // User feedback: "If you find any Surname similar to applicant from the bank statement group as
   // Family then ask for the reason." Nigerian full names on this form are typically typed as First
   // Middle Last, so the LAST word of the applicant's own typed name is taken as their likely surname —
-  // e.g. "Oluwaseyi Adegboyega Afeni" -> "Afeni", which is exactly what recurs in real family-sender
-  // narrations like "Mosunmola Abeke Afeni". Deliberately conservative: requires the applicant to have
-  // typed at least two words (so a lone single name never becomes a match-anything surname), and skips
-  // very short words that would produce false positives.
+  // e.g. "Adaeze Grace Nnamdi" -> "Nnamdi", which is exactly the kind of shared surname that recurs in
+  // real family-sender narrations (e.g. a payment from "Chika Obi Nnamdi"). Deliberately conservative:
+  // requires the applicant to have typed at least two words (so a lone single name never becomes a
+  // match-anything surname), and skips very short words that would produce false positives.
   function surnameOf(fullName){
     var words = (fullName || '').trim().split(/\s+/).filter(function(w){ return w.length >= 3; });
     return words.length >= 2 ? words[words.length - 1] : '';
@@ -7174,13 +7216,36 @@
   function toTitleCase(s){
     return s.toLowerCase().replace(/\b[a-z]/g, function(c){ return c.toUpperCase(); });
   }
-  function identifyIncomeSourceName(txns, targetAmount){
+  // User report (with their own manually-reconciled spreadsheet cross-check confirming the real
+  // answer): a recurring ₦100,000 "Salary" bucket was attributed to the APPLICANT'S OWN name, not any
+  // real sender. Bank narrations name both sides of a transfer ("...TRF TO <applicant> FROM
+  // <sender>..."), and extractNameCandidates has no notion of which side is which — it just returns
+  // every name-shaped word run in the line. Since the applicant is the recipient on every single
+  // inflow, their own name is the one candidate guaranteed to recur across almost every narration, so
+  // it kept winning the "most months seen" vote for whichever recurring amount, crowding out the real
+  // (and genuinely inconsistent-looking) sender. Excluded here before any name gets to compete for
+  // "dominant sender."
+  function isLikelyApplicantsOwnName(candidate, applicantName){
+    if (!applicantName) return false;
+    var nameWords = applicantName.trim().split(/\s+/).filter(function(w){ return w.length >= 2; });
+    // A one-word typed name isn't a safe enough signal to exclude candidates by — every family
+    // member sharing that one word would get wrongly excluded too. Real applicant names entered here
+    // are expected to be at least first + last, matching the same >=2-word assumption surnameOf uses.
+    if (nameWords.length < 2) return false;
+    // Requires the candidate to contain EVERY word of the applicant's own full typed name — a family
+    // member who merely shares a surname (e.g. "Chika Obi Nnamdi", sharing the applicant's "Nnamdi")
+    // only shares ONE of those words, so this stays narrowly scoped to "the applicant's own name
+    // leaked into the sender list," not "anyone who happens to share a surname."
+    return namesLooselyMatch(applicantName, candidate) === 'ok';
+  }
+  function identifyIncomeSourceName(txns, targetAmount, applicantName){
     var buckets = {};
     txns.forEach(function(t){
       if (!t.credit || isReversalNarration(t.narration)) return;
       if (Math.round(t.credit / 5000) * 5000 !== targetAmount) return;
       var monthKey = t.date.getFullYear() + '-' + t.date.getMonth();
       extractNameCandidates(t.narration).forEach(function(name){
+        if (isLikelyApplicantsOwnName(name, applicantName)) return;
         if (!buckets[name]) buckets[name] = {};
         buckets[name][monthKey] = true;
       });
@@ -7199,11 +7264,14 @@
   // a client/employer who pays the same person repeatedly but with varying amounts each time (e.g. a
   // contractor invoiced 42 times at different figures) — identifyIncomeSourceName above would miss that
   // because it only ever looks inside one specific amount-bucket.
-  function identifyTopIncomeSource(txns){
+  function identifyTopIncomeSource(txns, applicantName){
     var buckets = {}; // name -> {count, totalAmount, months:{}, companyHits}
     txns.forEach(function(t){
       if (!t.credit || isReversalNarration(t.narration)) return;
-      var candidates = extractNameCandidates(t.narration);
+      // Same fix as identifyIncomeSourceName/getTopConsistentSenders above — the applicant's own name
+      // is on the "TO" side of nearly every narration, so left unfiltered it wins "most frequent
+      // source" against itself almost every time.
+      var candidates = extractNameCandidates(t.narration).filter(function(c){ return !isLikelyApplicantsOwnName(c, applicantName); });
       if (!candidates.length) return;
       // Use the longest candidate from this narration (most specific / least likely to be a stray fragment)
       // so one transaction only contributes once, rather than once per overlapping substring.
@@ -7854,6 +7922,13 @@
       .slice().sort(function(a,b){ return b.credit - a.credit; }).slice(0, n || 10);
   }
 
+  // User feedback: "Make it collapsible. so that it can be user friendly" — the Top 10 inflows table
+  // used to render open and fully expanded on the page by default, adding to the same "information
+  // overload" complaint that drove the whole session's step-tab split. Wrapped in the same
+  // .report-group <details> pattern already used elsewhere on this page (unexplainedInflowsGroup /
+  // matchGroup_*), collapsed by default here since — unlike those, which start open because they need
+  // the applicant's attention — this is a reference table someone opens on purpose, not something
+  // that needs to interrupt the page every time it's re-rendered.
   function renderTopInflows(list){
     var box = document.getElementById('topInflowsBox');
     if (!box) return;
@@ -7869,7 +7944,8 @@
       }
       return '<tr><td>'+(idx+1)+'</td><td>'+t.date.toDateString()+'</td><td>'+fmtN(t.credit)+'</td><td>'+(t.narration ? escapeHtml(t.narration) : '<i>(none)</i>')+tag+'</td></tr>';
     }).join('');
-    box.innerHTML = '<table class="cf-table"><thead><tr><th>#</th><th>Date</th><th>Amount (₦)</th><th>Narration</th></tr></thead><tbody>'+rows+'</tbody></table>';
+    var table = '<table class="cf-table"><thead><tr><th>#</th><th>Date</th><th>Amount (₦)</th><th>Narration</th></tr></thead><tbody>'+rows+'</tbody></table>';
+    box.innerHTML = '<details class="report-group" id="topInflowsGroup"><summary class="report-group-heading">Show top '+list.length+' inflow'+(list.length===1?'':'s')+'</summary>'+table+'</details>';
   }
 
   // ---- Top 10 most consistent senders ----
@@ -7879,11 +7955,16 @@
   // finds reassuring, even when no single payment from them is the biggest amount on the statement.
   // Reuses the same name-extraction/merging as the Income sources breakdown below, so the two lists
   // stay consistent with each other about what counts as "the same sender".
-  function getTopConsistentSenders(txns, n){
+  function getTopConsistentSenders(txns, n, applicantName){
     var namedGroups = {};
     txns.forEach(function(t){
       if (!t.credit || isReversalNarration(t.narration)) return;
-      var candidates = extractNameCandidates(t.narration);
+      // Same fix as buildIncomeSourceBreakdown/identifyIncomeSourceName below — the applicant's own
+      // name appears on the "TO" side of nearly every narration (they're the recipient of every
+      // inflow), so without this it reliably wins "most consistent sender" against itself, and also
+      // tends to get concatenated into whatever garbled run-on candidate a messy narration produces
+      // (see isLikelyApplicantsOwnName's substring match, which catches that case too).
+      var candidates = extractNameCandidates(t.narration).filter(function(c){ return !isLikelyApplicantsOwnName(c, applicantName); });
       if (!candidates.length) return;
       var name = toTitleCase(candidates.reduce(function(a,b){ return b.length > a.length ? b : a; }));
       (namedGroups[name] = namedGroups[name] || []).push(t);
@@ -7959,7 +8040,7 @@
     // sender at all, which most genuine salary narrations don't ("SALARY PAYMENT" with no employer name) — are
     // trusted as "Salary"; a transaction with a name candidate that doesn't match the dominant sender is routed
     // to its own named group instead, exactly like any other identified sender.
-    var stableSourceName = stable ? identifyIncomeSourceName(txns, stable.amount) : null;
+    var stableSourceName = stable ? identifyIncomeSourceName(txns, stable.amount, applicantName) : null;
     var salaryTxns = [], otherTxns = [], reversalTxns = [];
     var namedGroups = {}; // titleCasedName -> txns[]
     var applicantSurname = surnameOf(applicantName);
@@ -7970,7 +8051,10 @@
         reversalTxns.push(t);
         return;
       }
-      var candidates = extractNameCandidates(t.narration);
+      // The applicant's own name showing up on the "TO" side of a transfer narration isn't a sender —
+      // filtered out here so it can never become a bogus "dominant sender" match nor a nonsensical
+      // named group titled after the applicant themselves (see isLikelyApplicantsOwnName above).
+      var candidates = extractNameCandidates(t.narration).filter(function(c){ return !isLikelyApplicantsOwnName(c, applicantName); });
       if (stable && Math.round(t.credit / 5000) * 5000 === stable.amount){
         var matchesDominantSender = !candidates.length || (stableSourceName && candidates.some(function(cand){
           var a = cand.toLowerCase(), b = stableSourceName.name.toLowerCase();
@@ -8184,7 +8268,7 @@
         : (g.type === 'reversal' ? '<div class="item-tip" style="margin-top:4px;">Detected from "RVSL"/"reversal" in the narration — this is your own money coming back (e.g. a failed payment refunded), not new income, so it needs no explanation.</div>' : '');
     return '<div class="explain-box'+(explained ? ' explained' : '')+'" id="srcbox_'+idx+'">'
       + '<div class="tx-line">'+headLine+'</div>'
-      + '<details style="margin:4px 0;"><summary style="cursor:pointer; font-size:12px; color:var(--text-secondary);">Show individual payment(s)</summary>'+txList+'</details>'
+      + '<details style="margin:4px 0;" id="srcpayments_'+idx+'"><summary style="cursor:pointer; font-size:12px; color:var(--text-secondary);">Show individual payment(s)</summary>'+txList+'</details>'
       + noteBlock
       + '</div>';
   }
@@ -8221,8 +8305,26 @@
         if (typeof applySessionVisibility === 'function') applySessionVisibility();
         // Same "save & tidy away" pattern as the unexplained-inflow boxes above — a beat to see the
         // confirmation, then collapse to a one-line summary; click "Edit" any time to reopen it.
+        //
+        // User feedback: "Once I edit the menu does close up back" — this used to collapse the whole
+        // box unconditionally, even while someone had "Show individual payment(s)" open reviewing the
+        // specific transactions behind their choice, yanking that context away right after they'd
+        // picked a reason. Now it checks first: if that detail panel is open, it waits for the person
+        // to close it themselves before tidying the box away, instead of doing it out from under them.
         if (filled){
-          collapseTimer = setTimeout(function(){ collapseSourceBox(groups, g, idx); }, 1200);
+          collapseTimer = setTimeout(function collapseWhenReady(){
+            var paymentsDetailsEl = document.getElementById('srcpayments_'+idx);
+            if (paymentsDetailsEl && paymentsDetailsEl.open){
+              paymentsDetailsEl.addEventListener('toggle', function onPaymentsToggle(){
+                if (!paymentsDetailsEl.open){
+                  paymentsDetailsEl.removeEventListener('toggle', onPaymentsToggle);
+                  collapseSourceBox(groups, g, idx);
+                }
+              });
+              return;
+            }
+            collapseSourceBox(groups, g, idx);
+          }, 1200);
         }
       }, 500);
     }
@@ -8439,7 +8541,7 @@
         recent.forEach(function(m){ if (m) recentMonthKeys[m.year+'-'+m.month] = true; });
         var recentTxns = txns.filter(function(t){ return recentMonthKeys[t.date.getFullYear()+'-'+t.date.getMonth()]; });
         renderTopInflows(getTopInflows(recentTxns, 10));
-        renderTopConsistentSenders(getTopConsistentSenders(recentTxns, 10));
+        renderTopConsistentSenders(getTopConsistentSenders(recentTxns, 10, getAnswers().name));
         renderIncomeBreakdown(buildIncomeSourceBreakdown(recentTxns, getAnswers().name));
         // Auto-advance from the Upload tab to the Cash flow & scores tab so the applicant sees the
         // direct result of what they just uploaded without an extra click — same "nobody has to
@@ -8629,7 +8731,7 @@
           results.push({cls:'err', text:'Total detected outflow ('+fmtN(totalOutAll)+') is far higher than total detected inflow ('+fmtN(totalInAll)+') across these months — that\'s an unusual pattern and often means debit/credit got mixed up somewhere. Treat the auto-filled numbers with real suspicion and check them line-by-line against your statement.'});
         }
         var stable = identifyStableIncome(txns);
-        var incomeSource = stable ? identifyIncomeSourceName(txns, stable.amount) : null;
+        var incomeSource = stable ? identifyIncomeSourceName(txns, stable.amount, workAnswers.name) : null;
         if (stable){
           results.push({cls:'ok', text:'Recurring monthly income detected: about '+fmtN(stable.amount)+', appearing in '+stable.monthsSeen+' of '+months.length+' month(s) — this looks like a stable salary.'
             + (incomeSource ? ' It looks like it consistently comes from the same source — best-effort read: "'+escapeHtml(incomeSource.name)+'", seen in '+incomeSource.monthsSeen+' of those month(s). Make sure this matches the employer/company named on your employment letter.' : ' Couldn\'t confidently pin down a consistent sender name from the narration text — double-check by eye that it\'s the same employer/company each month.')});
@@ -8641,7 +8743,7 @@
         // of individual inflows, even if the amounts varied each time (e.g. a client paying a contractor
         // irregular invoice amounts many times over). Also classifies it as a company or a personal name —
         // a reviewer generally reads a registered business as more stable/credible than a personal payer.
-        var topSource = identifyTopIncomeSource(txns);
+        var topSource = identifyTopIncomeSource(txns, workAnswers.name);
         if (topSource){
           var sourceTypeAdvice = topSource.type === 'company'
             ? 'This reads as a company/business name rather than an individual — recurring income from a registered business generally comes across as more stable and credible to a visa officer than payments from a personal account.'
