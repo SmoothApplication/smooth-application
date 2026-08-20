@@ -8321,6 +8321,23 @@
   // Same idea as explainBoxCollapsed above, for the "Income sources breakdown" boxes — keyed by
   // sourceKey(g) so it survives re-scans/re-renders.
   var sourceBoxCollapsed = {};
+  // User feedback: "all these inflow from the same person might not carry the same [reason] —
+  // why not ask the applicant if it's the same narration or different narration, and if different,
+  // let them set the reason payment-by-payment." A recurring sender's payments default to ONE
+  // shared reason (unchanged existing behavior, sourceExplanations[key]) — this only ever
+  // opts a specific sender group INTO itemizing every one of its payments individually once the
+  // applicant explicitly says they're different, keyed the same way as sourceExplanations so it
+  // survives re-scans/re-renders. Per-payment answers themselves reuse the SAME inflowExplanations
+  // store (keyed by inflowKey(t)) as every other per-payment reason in the app — nothing new to
+  // learn, and the XLSX download's "Your explanation" column already prefers a per-payment answer
+  // over the group note, so switching modes needs no changes there either.
+  var sourcePerPaymentMode = {};
+  function sourceGroupExplainedCount(g){
+    return g.txns.filter(function(t){ return inflowExplanationIsFilled(inflowExplanations[inflowKey(t)]); }).length;
+  }
+  function sourceGroupAllPaymentsExplained(g){
+    return g.txns.length > 0 && sourceGroupExplainedCount(g) === g.txns.length;
+  }
   // Company-classified sources get an explanation box too — not just "personal"/"other". A payment
   // from a company name alone doesn't tell a visa officer WHY that company pays you; if it's your own
   // business, that connection has to be stated explicitly (ownership/role), since that's the actual
@@ -8334,13 +8351,17 @@
   }
   function renderSourceBoxHtml(idx, key, g, collapsed){
     var needsNote = sourceNeedsNote(g.type);
+    var perPayment = !!sourcePerPaymentMode[key];
     var existing = normalizeSourceExplanation(sourceExplanations[key]);
-    var explained = sourceExplanationIsFilled(existing);
+    var explained = perPayment ? sourceGroupAllPaymentsExplained(g) : sourceExplanationIsFilled(existing);
     var headLine = '<b>'+escapeHtml(g.name)+'</b> '+sourceTypeBadge(g.type)+' — '+g.count+' payment(s), '+fmtN(g.total)+' total ('+g.firstDate.toDateString()+' – '+g.lastDate.toDateString()+')';
     if (collapsed){
+      var summaryText = perPayment
+        ? sourceGroupExplainedCount(g)+'/'+g.count+' payments explained individually'
+        : escapeHtml(sourceExplanationSummary(existing));
       return '<div class="explain-box explained collapsed" id="srcbox_'+idx+'">'
         + '<div class="explain-collapsed-row" id="srccollapsed_'+idx+'" tabindex="0" role="button">'
-        + '<span class="tx-line">✅ '+headLine+' — <i>'+escapeHtml(sourceExplanationSummary(existing))+'</i></span>'
+        + '<span class="tx-line">✅ '+headLine+' — <i>'+summaryText+'</i></span>'
         + '<span class="explain-edit-link">✏️ Edit</span>'
         + '</div></div>';
     }
@@ -8352,24 +8373,68 @@
     // the label "Salary" — so nothing is excluded as "the sender's own name" for that bucket specifically;
     // for every other group, the group's own name IS excluded so it doesn't get echoed back as the reason.
     var nameWords = (g.name && g.type !== 'salary') ? g.name.toUpperCase().split(/\s+/) : [];
-    var txList = g.txns.map(function(t){
-      var txExplained = inflowExplanationIsFilled(inflowExplanations[inflowKey(t)]);
-      var reason = extractNarrationReason(t.narration, nameWords);
-      var isSalaryReason = reason && /\bsalary\b/i.test(reason);
-      var reasonHtml = reason
-        ? ' — <b>'+escapeHtml(reason)+'</b>'+(isSalaryReason ? ' <span class="src-tag salary" style="font-size:10px; padding:1px 6px;">Salary</span>' : '')
-        : (t.narration ? ' ("'+escapeHtml(t.narration)+'")' : ' (no narration)');
-      return '<div class="tx-line" style="font-size:12px; color:var(--text-secondary);">'+(txExplained ? '✅ ' : '')+t.date.toDateString()+' — '+fmtN(t.credit)+reasonHtml+(txExplained ? ' — explained above' : '')+'</div>';
-    }).join('');
+    // Surname-matched "Family" senders get the narrower, purpose-built dropdown (gift / sale of
+    // property / rental income / others) instead of the full general-purpose category list. Reused
+    // below for BOTH the single group-level dropdown and, in per-payment mode, every individual
+    // payment's own dropdown — same list either way, just applied at a different granularity.
+    var categoryList = g.type === 'family' ? FAMILY_INCOME_CATEGORIES : INCOME_SOURCE_CATEGORIES;
+
+    var txList;
+    if (perPayment && needsNote){
+      // Different reasons for different payments, per the applicant's own choice below — each
+      // payment gets its own reason dropdown, reusing the SAME inflowExplanations store (keyed by
+      // inflowKey(t)) as every other per-payment explanation in the app, rather than one shared
+      // reason for the whole group.
+      txList = g.txns.map(function(t, ti){
+        var tExisting = normalizeInflowExplanation(inflowExplanations[inflowKey(t)]);
+        var tSelectedCat = tExisting ? tExisting.category : '';
+        var tDetailVal = tExisting ? (tExisting.detail || '') : '';
+        var tFilled = inflowExplanationIsFilled(tExisting);
+        var tOptions = categoryList.map(function(c){
+          return '<option value="'+c.value+'"'+(tSelectedCat === c.value ? ' selected' : '')+'>'+c.label+'</option>';
+        }).join('');
+        return '<div class="tx-line" style="font-size:12px; color:var(--text-secondary); margin-bottom:10px;">'
+          + (tFilled ? '✅ ' : '')+t.date.toDateString()+' — '+fmtN(t.credit)+(t.narration ? ' ("'+escapeHtml(t.narration)+'")' : ' (no narration)')
+          + '<select id="srctxcat_'+idx+'_'+ti+'" style="margin-top:4px; display:block;">'
+          + '<option value=""'+(tSelectedCat ? '' : ' selected')+'>Choose a reason…</option>'
+          + tOptions
+          + '</select>'
+          + '<div id="srctxothers_'+idx+'_'+ti+'" style="margin-top:4px; display:'+(tSelectedCat === 'others' ? 'block' : 'none')+';">'
+          + '<textarea id="srctxdetail_'+idx+'_'+ti+'" rows="2" placeholder="Please specify…">'+escapeHtml(tDetailVal)+'</textarea>'
+          + '</div>'
+          + '</div>';
+      }).join('');
+    } else {
+      txList = g.txns.map(function(t){
+        var txExplained = inflowExplanationIsFilled(inflowExplanations[inflowKey(t)]);
+        var reason = extractNarrationReason(t.narration, nameWords);
+        var isSalaryReason = reason && /\bsalary\b/i.test(reason);
+        var reasonHtml = reason
+          ? ' — <b>'+escapeHtml(reason)+'</b>'+(isSalaryReason ? ' <span class="src-tag salary" style="font-size:10px; padding:1px 6px;">Salary</span>' : '')
+          : (t.narration ? ' ("'+escapeHtml(t.narration)+'")' : ' (no narration)');
+        return '<div class="tx-line" style="font-size:12px; color:var(--text-secondary);">'+(txExplained ? '✅ ' : '')+t.date.toDateString()+' — '+fmtN(t.credit)+reasonHtml+(txExplained ? ' — explained above' : '')+'</div>';
+      }).join('');
+    }
+
     var selectedCat = existing ? existing.category : '';
     var detailVal = existing ? (existing.detail || '') : '';
-    // Surname-matched "Family" senders get the narrower, purpose-built dropdown (gift / sale of
-    // property / rental income / others) instead of the full general-purpose category list.
-    var categoryList = g.type === 'family' ? FAMILY_INCOME_CATEGORIES : INCOME_SOURCE_CATEGORIES;
     var options = categoryList.map(function(c){
       return '<option value="'+c.value+'"'+(selectedCat === c.value ? ' selected' : '')+'>'+c.label+'</option>';
     }).join('');
-    var noteBlock = needsNote
+
+    // Ask once, up front — do these payments all serve the same purpose, or different ones for
+    // different payments? Only offered when there's more than one payment to actually differ.
+    // Defaults to "same" (today's behavior, unchanged) until the applicant explicitly says
+    // otherwise, so nothing changes for anyone who doesn't need this.
+    var modeToggleHtml = (needsNote && g.count > 1)
+      ? '<div class="item-tip" style="margin-top:6px;">Do these payments all serve the same purpose, or different ones for different payments?</div>'
+        + '<select id="srcmode_'+idx+'" style="margin-top:4px;">'
+        + '<option value="same"'+(perPayment ? '' : ' selected')+'>Same reason for all '+g.count+' payments</option>'
+        + '<option value="different"'+(perPayment ? ' selected' : '')+'>Different reasons — let me set each one individually</option>'
+        + '</select>'
+      : '';
+
+    var groupNoteBlock = (needsNote && !perPayment)
         ? '<div class="item-tip" style="margin-top:4px;">'+sourceCategoryPrompt(g.type)+'</div>'
           + '<select id="srccat_'+idx+'" style="margin-top:4px;">'
           + '<option value=""'+(selectedCat ? '' : ' selected')+'>Choose a reason…</option>'
@@ -8378,6 +8443,12 @@
           + '<div id="srcothers_'+idx+'" style="margin-top:6px; display:'+(selectedCat === 'others' ? 'block' : 'none')+';">'
           + '<textarea id="srcdetail_'+idx+'" rows="2" placeholder="Please specify…">'+escapeHtml(detailVal)+'</textarea>'
           + '</div>'
+        : (needsNote && perPayment
+          ? '<div class="item-tip" style="margin-top:4px;">Set each payment\'s reason below, under "Show individual payment(s)".</div>'
+          : '');
+
+    var noteBlock = needsNote
+        ? modeToggleHtml + groupNoteBlock
           + '<div id="srcexplain_status_'+idx+'">'+(explained ? '<div class="scan-msg ok compact">Saved — auto-saved in this browser, and included if you export it.</div>' : '')+'</div>'
         : (g.type === 'reversal' ? '<div class="item-tip" style="margin-top:4px;">Detected from "RVSL"/"reversal" in the narration — this is your own money coming back (e.g. a failed payment refunded), not new income, so it needs no explanation.</div>' : '');
     return '<div class="explain-box'+(explained ? ' explained' : '')+'" id="srcbox_'+idx+'">'
@@ -8385,6 +8456,27 @@
       + '<details style="margin:4px 0;" id="srcpayments_'+idx+'"><summary style="cursor:pointer; font-size:12px; color:var(--text-secondary);">Show individual payment(s)</summary>'+txList+'</details>'
       + noteBlock
       + '</div>';
+  }
+  // Same "save & tidy away" pattern used by every explain-box in the app — a beat to see the
+  // confirmation, then collapse to a one-line summary; click "Edit" any time to reopen it. Waits
+  // for the "Show individual payment(s)" detail panel to be closed first if it's open (see the
+  // "Once I edit the menu does close up back" user feedback this was originally built for), rather
+  // than yanking that context away out from under someone still reviewing it. Shared by both the
+  // single group-level dropdown and, in per-payment mode, the last of the individual dropdowns.
+  function scheduleSourceBoxCollapse(groups, g, idx){
+    return setTimeout(function collapseWhenReady(){
+      var paymentsDetailsEl = document.getElementById('srcpayments_'+idx);
+      if (paymentsDetailsEl && paymentsDetailsEl.open){
+        paymentsDetailsEl.addEventListener('toggle', function onPaymentsToggle(){
+          if (!paymentsDetailsEl.open){
+            paymentsDetailsEl.removeEventListener('toggle', onPaymentsToggle);
+            collapseSourceBox(groups, g, idx);
+          }
+        });
+        return;
+      }
+      collapseSourceBox(groups, g, idx);
+    }, 1200);
   }
   function wireSourceBox(groups, g, idx){
     var key = sourceKey(g);
@@ -8395,17 +8487,79 @@
       return;
     }
     if (!sourceNeedsNote(g.type)) return;
+
+    // "Same reason for all" vs "different reasons per payment" toggle — switching it re-renders
+    // just this one box (same surgical outerHTML-replace pattern as expand/collapse) rather than
+    // the whole breakdown, and auto-opens the payments panel when switching to "different" so the
+    // new per-payment dropdowns are immediately visible instead of hidden behind another click.
+    var modeSel = document.getElementById('srcmode_'+idx);
+    if (modeSel){
+      modeSel.addEventListener('change', function(){
+        sourcePerPaymentMode[key] = modeSel.value === 'different';
+        scheduleAutoSave();
+        var boxEl = document.getElementById('srcbox_'+idx);
+        if (!boxEl) return;
+        boxEl.outerHTML = renderSourceBoxHtml(idx, key, g, false);
+        wireSourceBox(groups, g, idx);
+        if (sourcePerPaymentMode[key]){
+          var paymentsDetailsEl = document.getElementById('srcpayments_'+idx);
+          if (paymentsDetailsEl) paymentsDetailsEl.open = true;
+        }
+      });
+    }
+
+    if (sourcePerPaymentMode[key]){
+      var statusEl = document.getElementById('srcexplain_status_'+idx);
+      var boxEl2 = document.getElementById('srcbox_'+idx);
+      var collapseTimer2 = null;
+      g.txns.forEach(function(t, ti){
+        var tKey = inflowKey(t);
+        var tSel = document.getElementById('srctxcat_'+idx+'_'+ti);
+        var tOthersBox = document.getElementById('srctxothers_'+idx+'_'+ti);
+        var tDetailTa = document.getElementById('srctxdetail_'+idx+'_'+ti);
+        if (!tSel) return;
+        var tSaveTimer = null;
+        function saveTxNow(){
+          if (tSaveTimer) clearTimeout(tSaveTimer);
+          if (collapseTimer2) clearTimeout(collapseTimer2);
+          tSaveTimer = setTimeout(function(){
+            var cat = tSel.value;
+            var detail = tDetailTa ? tDetailTa.value : '';
+            var exp = cat ? {category: cat, detail: detail} : null;
+            if (inflowExplanationIsFilled(exp)) inflowExplanations[tKey] = exp; else delete inflowExplanations[tKey];
+            var allFilled = sourceGroupAllPaymentsExplained(g);
+            if (boxEl2) boxEl2.classList.toggle('explained', allFilled);
+            if (statusEl){
+              statusEl.innerHTML = allFilled
+                ? '<div class="scan-msg ok compact">Saved — auto-saved in this browser, and included if you export it.</div>'
+                : '<div class="item-tip" style="margin-top:4px;">'+sourceGroupExplainedCount(g)+' of '+g.count+' payments explained so far.</div>';
+            }
+            scheduleAutoSave();
+            if (typeof applySessionVisibility === 'function') applySessionVisibility();
+            if (allFilled) collapseTimer2 = scheduleSourceBoxCollapse(groups, g, idx);
+          }, 500);
+        }
+        tSel.addEventListener('change', function(){
+          if (tOthersBox) tOthersBox.style.display = (tSel.value === 'others') ? 'block' : 'none';
+          if (tSel.value === 'others' && tDetailTa) tDetailTa.focus();
+          saveTxNow();
+        });
+        if (tDetailTa) tDetailTa.addEventListener('input', saveTxNow);
+      });
+      return;
+    }
+
     var sel = document.getElementById('srccat_'+idx);
     var othersBox = document.getElementById('srcothers_'+idx);
     var detailTa = document.getElementById('srcdetail_'+idx);
-    var statusEl = document.getElementById('srcexplain_status_'+idx);
+    var statusEl2 = document.getElementById('srcexplain_status_'+idx);
     var boxEl = document.getElementById('srcbox_'+idx);
     if (!sel) return;
     var saveTimer = null, collapseTimer = null;
     function saveNow(){
       if (saveTimer) clearTimeout(saveTimer);
       if (collapseTimer) clearTimeout(collapseTimer);
-      statusEl.innerHTML = '<div class="item-tip" style="margin-top:4px;">Saving…</div>';
+      statusEl2.innerHTML = '<div class="item-tip" style="margin-top:4px;">Saving…</div>';
       saveTimer = setTimeout(function(){
         var cat = sel.value;
         var detail = detailTa ? detailTa.value : '';
@@ -8413,33 +8567,11 @@
         var filled = sourceExplanationIsFilled(exp);
         if (filled) sourceExplanations[key] = exp; else delete sourceExplanations[key];
         if (boxEl) boxEl.classList.toggle('explained', filled);
-        statusEl.innerHTML = filled ? '<div class="scan-msg ok compact">Saved — auto-saved in this browser, and included if you export it.</div>' : '';
+        statusEl2.innerHTML = filled ? '<div class="scan-msg ok compact">Saved — auto-saved in this browser, and included if you export it.</div>' : '';
         scheduleAutoSave();
         // Refresh the session pill/progress % live, same reasoning as the unexplained-inflow boxes.
         if (typeof applySessionVisibility === 'function') applySessionVisibility();
-        // Same "save & tidy away" pattern as the unexplained-inflow boxes above — a beat to see the
-        // confirmation, then collapse to a one-line summary; click "Edit" any time to reopen it.
-        //
-        // User feedback: "Once I edit the menu does close up back" — this used to collapse the whole
-        // box unconditionally, even while someone had "Show individual payment(s)" open reviewing the
-        // specific transactions behind their choice, yanking that context away right after they'd
-        // picked a reason. Now it checks first: if that detail panel is open, it waits for the person
-        // to close it themselves before tidying the box away, instead of doing it out from under them.
-        if (filled){
-          collapseTimer = setTimeout(function collapseWhenReady(){
-            var paymentsDetailsEl = document.getElementById('srcpayments_'+idx);
-            if (paymentsDetailsEl && paymentsDetailsEl.open){
-              paymentsDetailsEl.addEventListener('toggle', function onPaymentsToggle(){
-                if (!paymentsDetailsEl.open){
-                  paymentsDetailsEl.removeEventListener('toggle', onPaymentsToggle);
-                  collapseSourceBox(groups, g, idx);
-                }
-              });
-              return;
-            }
-            collapseSourceBox(groups, g, idx);
-          }, 1200);
-        }
+        if (filled) collapseTimer = scheduleSourceBoxCollapse(groups, g, idx);
       }, 500);
     }
     sel.addEventListener('change', function(){
@@ -8451,7 +8583,8 @@
   }
   function collapseSourceBox(groups, g, idx){
     var key = sourceKey(g);
-    if (!sourceExplanationIsFilled(sourceExplanations[key])) return;
+    var stillExplained = sourcePerPaymentMode[key] ? sourceGroupAllPaymentsExplained(g) : sourceExplanationIsFilled(sourceExplanations[key]);
+    if (!stillExplained) return;
     sourceBoxCollapsed[key] = true;
     var boxEl = document.getElementById('srcbox_'+idx);
     if (!boxEl) return;
@@ -8490,9 +8623,10 @@
     }
     groups.forEach(function(g, idx){
       var key = sourceKey(g);
-      var existing = normalizeSourceExplanation(sourceExplanations[key]);
       var needsNote = sourceNeedsNote(g.type);
-      var filled = sourceExplanationIsFilled(existing);
+      var filled = sourcePerPaymentMode[key]
+        ? sourceGroupAllPaymentsExplained(g)
+        : sourceExplanationIsFilled(normalizeSourceExplanation(sourceExplanations[key]));
       if (!sourceBoxCollapsed.hasOwnProperty(key)) sourceBoxCollapsed[key] = needsNote && filled;
       var collapsed = needsNote && filled && sourceBoxCollapsed[key];
       html += renderSourceBoxHtml(idx, key, g, collapsed);
@@ -8999,7 +9133,7 @@
       date: document.getElementById('decl_date').value,
       confirmed: document.getElementById('decl_confirm').checked
     };
-    return { country: currentCountry, answers: getAnswers(), state: state, financials: getFinancials(), inflowExplanations: inflowExplanations, sourceExplanations: sourceExplanations, declaration: declaration, travelHistoryRows: travelHistoryRows, overstayRows: overstayRows, exportedAt: new Date().toISOString() };
+    return { country: currentCountry, answers: getAnswers(), state: state, financials: getFinancials(), inflowExplanations: inflowExplanations, sourceExplanations: sourceExplanations, sourcePerPaymentMode: sourcePerPaymentMode, declaration: declaration, travelHistoryRows: travelHistoryRows, overstayRows: overstayRows, exportedAt: new Date().toISOString() };
   }
 
   document.getElementById('btnExport').addEventListener('click', function(){
@@ -9100,6 +9234,13 @@
         if (n) normalized[k] = n;
       });
       sourceExplanations = normalized;
+    }
+    if (payload.sourcePerPaymentMode && typeof payload.sourcePerPaymentMode === 'object'){
+      var normalizedModes = {};
+      Object.keys(payload.sourcePerPaymentMode).forEach(function(k){
+        if (payload.sourcePerPaymentMode[k]) normalizedModes[k] = true;
+      });
+      sourcePerPaymentMode = normalizedModes;
     }
     if (payload.financials){
       ['fc_nights','fc_flight','fc_accom','fc_transport','fc_shopping','fc_shoppingPlace','fc_sightseeing','fc_opening','fc_closing','fc_forexSavings','fc_airline','fc_depDate','fc_arrDate','fc_accomAddress'].forEach(function(id){
@@ -9234,6 +9375,7 @@
     window.__lastIncomeBreakdown = [];
     inflowExplanations = {};
     sourceExplanations = {};
+    sourcePerPaymentMode = {};
     lastBusinessDrawings = null;
     lastPersonalCredits = null;
     currentSessionIndex = 0;

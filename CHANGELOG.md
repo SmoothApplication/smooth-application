@@ -3,6 +3,26 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Income-source boxes can now take a different reason per payment, not just one for the whole group
+
+User feedback, off a real income-source breakdown box showing 16 separate payments from one
+sender: "There is a high possibility that all these inflow from the same person might not carry
+the same [reason]. Why not ask the applicant if it carries the same narration or a different
+narration. If it is a different narration, allow the applicant to [set] the narration one after
+the other from the drop down menu." Every income-source box that needs a reason (a recurring
+sender, a family-surname match, etc.) now offers an explicit "Same reason for all N payments" /
+"Different reasons — let me set each one individually" choice. It defaults to "same," so nothing
+changes for anyone who doesn't touch it. Switching to "different" swaps in one reason dropdown per
+individual payment and auto-opens the payments panel so they're all visible right away; the box
+tracks how many of the payments have been answered ("2 of 3 payments explained so far") and only
+collapses once every payment has a reason and the applicant has closed the panel themselves — same
+"don't collapse out from under someone mid-edit" pattern used elsewhere in this section. Built on
+the existing per-transaction explanation store already used for matched-inflow boxes, so the XLSX
+download's "Your explanation" column picks up per-payment answers correctly with no separate
+changes needed. New test `source-box-per-payment-reasons`; `consistent-senders-family-and-decode`
+updated for the new toggle control that now renders ahead of the category dropdown in each box.
+All 62 tests pass.
+
 ## Added an "Estimated yearly cost of living" summary to Session 3 (Your responsibilities)
 
 User feedback: "Depending on the local government do a price research on house rent and school
