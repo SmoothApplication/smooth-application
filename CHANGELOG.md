@@ -3,6 +3,20 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## "Income & bank statement analysis" reads calmer before anything's been entered
+
+User feedback, off a screenshot of the section straight after opening it, before typing or
+uploading anything: "it looks too busy." Two changes, both scoped to the empty/not-yet-started
+state specifically — nothing changes once real data is entered:
+
+- The "Enter your figures" pills (Income generation, Closing balance strength — also the sidebar's
+  "Financial readiness" and "Document readiness score" pills in their equivalent starting states)
+  used to render in the same alarming red as a genuinely bad score, before the applicant had any
+  chance to enter anything. They now use a new neutral gray style for "nothing entered yet,"
+  keeping red for when something's actually wrong.
+- The two intro paragraphs in this section were trimmed to one short line each, with the fuller
+  explanation tucked behind a small "Why separately?" toggle instead of always taking up the room.
+
 ## Docs: the analytics code now actually contains the event list the privacy policy points to
 
 `docs/privacy-policy-draft.md` tells a lawyer to go read "the comment block above

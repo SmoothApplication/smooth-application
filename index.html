@@ -41,6 +41,12 @@
     --serious-wash: #fbe8e0;
     --critical:  #b93d34;
     --critical-wash: #f8dedc;
+    /* Plain "nothing entered yet" state — distinct from --critical, which should mean "you looked at
+       this and it's genuinely a problem." A blank section reading in the same alarming red as an
+       actual failing score reads as an error before the applicant has had any chance to do anything;
+       see .status-pill.neutral below. */
+    --neutral:      #55636c;
+    --neutral-wash: #e7ebed;
   }
   @media (prefers-color-scheme: dark) {
     :root:where(:not([data-theme="light"])) {
@@ -65,6 +71,8 @@
       --serious-wash: #3b2318;
       --critical: #e2685c;
       --critical-wash: #3b1917;
+      --neutral:      #9fb0b8;
+      --neutral-wash: #26363f;
     }
   }
   :root[data-theme="dark"] {
@@ -89,6 +97,8 @@
     --serious-wash: #3b2318;
     --critical: #e2685c;
     --critical-wash: #3b1917;
+    --neutral:      #9fb0b8;
+    --neutral-wash: #26363f;
   }
 
   * { box-sizing: border-box; }
@@ -623,6 +633,7 @@
   .status-pill.serious  { background: var(--serious-wash); color: var(--serious); }
   .status-pill.warning  { background: var(--warning-wash); color: var(--warning-text); }
   .status-pill.good     { background: var(--good-wash); color: var(--good); }
+  .status-pill.neutral  { background: var(--neutral-wash); color: var(--neutral); }
 
   .meter { height: 10px; border-radius: 999px; background: var(--accent-wash); overflow: hidden; margin: 12px 0 4px; }
   .meter .fill { height: 100%; border-radius: 999px; transition: width .3s ease; }
@@ -1104,16 +1115,17 @@
         </summary>
         <div class="card-body">
         <h2 style="margin-top:0;">Income vs. closing balance — two different things</h2>
-        <p class="fin-note">A strong closing balance isn't the same as strong evidence — some applicants have a healthy balance but income that's irregular or impossible to explain. These are scored separately.</p>
+        <p class="fin-note">Scored separately below, since they're not the same thing.</p>
+        <details style="margin:-4px 0 8px;"><summary style="cursor:pointer; font-size:12px; color:var(--text-secondary);">Why separately?</summary><p class="fin-note" style="margin-top:4px;">A strong closing balance isn't the same as strong evidence — some applicants have a healthy balance but income that's irregular or impossible to explain.</p></details>
         <div class="score-mini">
           <div>
             <div class="label">Income generation</div>
-            <div id="incomePill" class="status-pill critical">Enter your figures</div>
+            <div id="incomePill" class="status-pill neutral">Enter your figures</div>
             <div id="incomePillPct" class="fin-note" style="margin-top:4px;"></div>
           </div>
           <div>
             <div class="label">Closing balance strength</div>
-            <div id="balancePill" class="status-pill critical">Enter your figures</div>
+            <div id="balancePill" class="status-pill neutral">Enter your figures</div>
             <div id="balancePillPct" class="fin-note" style="margin-top:4px;"></div>
           </div>
         </div>
@@ -1121,7 +1133,7 @@
         <div id="incomeSourceBusiness"></div>
 
         <h2 style="margin-top:18px;">Monthly cash flow (last 6 months)</h2>
-        <p class="fin-note">Upload your bank statement(s) below and this fills in the table automatically — or skip the upload and just type the totals in yourself, straight from your statement.</p>
+        <p class="fin-note">Upload a bank statement below to auto-fill this table, or type the totals in yourself.</p>
         <div class="row no-print" style="margin-bottom:4px;">
           <div>
             <label class="field" for="stmtFile1">Bank statement 1</label>
@@ -1286,14 +1298,14 @@
         <div class="label">Document readiness score</div>
         <div class="value" id="scoreValue">0%</div>
         <div class="meter"><div class="fill" id="scoreFill" style="width:0%"></div></div>
-        <div id="statusPill" class="status-pill critical">Getting started</div>
+        <div id="statusPill" class="status-pill neutral">Getting started</div>
       </div>
 
       <div class="card stat-tile">
         <div class="label">Financial readiness</div>
         <div class="value" id="finScoreValue">0%</div>
         <div class="meter"><div class="fill" id="finScoreFill" style="width:0%"></div></div>
-        <div id="finStatusPill" class="status-pill critical">Enter your figures</div>
+        <div id="finStatusPill" class="status-pill neutral">Enter your figures</div>
         <div class="item-tip" id="finScoreCapNote" style="margin-top:6px; display:none;"></div>
       </div>
 
@@ -2500,7 +2512,7 @@
 
     var pill = document.getElementById('statusPill');
     var color, label, cls;
-    if (pct === 0){ color='var(--critical)'; label='Getting started'; cls='critical'; }
+    if (pct === 0){ color='var(--neutral)'; label='Getting started'; cls='neutral'; }
     else if (pct < 50){ color='var(--critical)'; label='Just getting going'; cls='critical'; }
     else if (pct < 80){ color='var(--serious)'; label='Making progress'; cls='serious'; }
     else if (pct < 100){ color='var(--warning)'; label='Almost there'; cls='warning'; }
@@ -3227,7 +3239,9 @@
     var finPill = document.getElementById('finStatusPill');
     var pillMap = {
       good: {cls:'good', label:'Looking solid'},
-      info: {cls:'critical', label:'Enter your figures'},
+      // 'info' only ever means "nothing entered yet" (see the two bump('info') call sites above) —
+      // not an actual problem, so it shouldn't read in the same red as a genuine 'err' state.
+      info: {cls:'neutral', label:'Enter your figures'},
       warn: {cls:'warning', label:'Needs attention'},
       err:  {cls:'critical', label:'Below threshold'}
     };
@@ -3281,7 +3295,10 @@
     }).length;
     var incomePillEl = document.getElementById('incomePill');
     if (!hasCashFlowData){
-      incomePillEl.className = 'status-pill critical';
+      // Neutral, not critical — nothing's actually wrong yet, the applicant just hasn't gotten here.
+      // A blank section reading in the same alarming red as a genuine failing score is exactly the
+      // "too busy/alarming before I've even started" feedback this was changed for.
+      incomePillEl.className = 'status-pill neutral';
       incomePillEl.textContent = 'Enter your figures';
     } else if (!incomeIssue && unexplainedCount === 0){
       incomePillEl.className = 'status-pill good';
@@ -3329,7 +3346,8 @@
 
     var balancePillEl = document.getElementById('balancePill');
     if (effectiveRecommendedFunds <= 0 || !haveBalanceFigure){
-      balancePillEl.className = 'status-pill critical';
+      // Same "nothing entered yet isn't a failure" reasoning as incomePillEl above.
+      balancePillEl.className = 'status-pill neutral';
       balancePillEl.textContent = 'Enter your figures';
     } else if (effectiveClosingBalance >= effectiveRecommendedFunds){
       balancePillEl.className = 'status-pill good';
