@@ -18,6 +18,7 @@ exports.run = async function(ctx){
 
     await page.fill('#f_name', 'Test Applicant');
     await page.selectOption('#f_purpose', 'tourism');
+    await page.selectOption('#f_workStatus', 'student');
     await page.fill('#f_traveldate', '2026-10-26');
     await page.fill('#f_returndate', '2026-09-14'); // BEFORE the travel date — invalid
     await page.fill('#f_appdate', '2026-08-24');
@@ -39,10 +40,10 @@ exports.run = async function(ctx){
     assert.strictEqual(tripLengthNoteIsError, true, 'Trip length note should carry the error style while the dates are invalid');
 
     // 3) The trip session's own progress % should NOT count the invalid return date as filled — with
-    // name/purpose/traveldate/appdate filled (purpose has a default) and returndate invalid, that's
-    // 4 of 5 fields, i.e. 80%, not the 100% it would wrongly show if the raw non-empty value counted.
+    // name/purpose/workStatus/traveldate/appdate filled (purpose has a default) and returndate invalid,
+    // that's 5 of 6 fields, i.e. 83%, not the 100% it would wrongly show if the raw non-empty value counted.
     var progressText = await page.$eval('#sessionProgressPct', function(el){ return el.textContent; });
-    assert.ok(/80% filled/.test(progressText), 'Trip session should read 80% filled (return date not counted) while dates are invalid, got: ' + progressText);
+    assert.ok(/83% filled/.test(progressText), 'Trip session should read 83% filled (return date not counted) while dates are invalid, got: ' + progressText);
 
     // 4) Fixing the return date to a valid, later one should clear the invalid state and bring the
     // session back to 100%.

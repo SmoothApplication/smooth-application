@@ -23,9 +23,11 @@ exports.run = async function(ctx){
     await page.fill('#f_returndate', '2026-12-06');
     await page.fill('#f_appdate', '2026-10-01');
 
-    // Before ticking self-employed, the five base fields above are all that's required -- 100%.
-    var beforeTick = await readTripHeader(page);
-    assert.ok(beforeTick && /100% filled/.test(beforeTick), 'Should read 100% before self-employed is ticked, got: ' + beforeTick);
+    // With "Work status" still on its unselected placeholder, this should NOT read 100% -- same bug
+    // class as the employer/business name check below: a user reported "100% complete" while "Work
+    // status" itself sat unanswered.
+    var beforeWorkStatus = await readTripHeader(page);
+    assert.ok(beforeWorkStatus && !/100% filled/.test(beforeWorkStatus), 'Should NOT read 100% while Work status is still unselected, got: ' + beforeWorkStatus);
 
     await page.selectOption('#f_workStatus', 'selfEmployed');
     await page.waitForTimeout(300);

@@ -56,6 +56,7 @@ exports.run = async function(ctx){
 
     // Fill in the rest of the required trip fields, then Next should advance without any nudge at all.
     await page.selectOption('#f_purpose', { index: 1 });
+    await page.selectOption('#f_workStatus', 'student');
     await page.fill('#f_traveldate', '2026-12-01');
     await page.fill('#f_returndate', '2026-12-06');
     await page.fill('#f_appdate', '2026-10-01');
