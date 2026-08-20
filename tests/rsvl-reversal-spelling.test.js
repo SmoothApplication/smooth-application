@@ -1,7 +1,7 @@
 'use strict';
 // Real-data finding, off the real Zenith statement used throughout this project: isReversalNarration
 // only recognised "RVSL" as a reversal marker, but the SAME real statement uses "RSVL" (letters
-// transposed) far more often — e.g. "***RSVL NIP CR/MOB/JAMES DANIEL/FBN / MFM LYC WEDDING SUPPORT",
+// transposed) far more often — e.g. "***RSVL NIP CR/MOB/JAMES DANIEL/FBN / Grace CYC WEDDING SUPPORT",
 // reversing an earlier failed outgoing transfer. Missing that spelling meant several reversed/bounced-
 // back transfers were being counted as genuine new income on top of whatever eventually did go through —
 // in one traced case, wrongly inflating a matched employer inflow total by ₦1,500,050 across 2 phantom
@@ -20,7 +20,7 @@ exports.run = async function(ctx){
     await goToSessionByPill(page, 3);
     await page.fill('#f_name', 'Test Applicant');
     await page.selectOption('#f_workStatus', 'selfEmployed');
-    await page.fill('#f_businessName', 'Crisp N Clean Exclusive Solutions Ltd');
+    await page.fill('#f_businessName', 'Bright Homes Cleaning Solutions Ltd');
 
     await goToSessionByPill(page, 4);
     await page.setInputFiles('#stmtFile1', FIXTURE);
@@ -33,7 +33,7 @@ exports.run = async function(ctx){
     var html = await page.$eval('#stmtAnalyzeMsg', function(el){ return el.innerHTML; });
 
     // Only the genuine (non-"***RSVL") payment should count.
-    assert.ok(/Found "Crisp N Clean Exclusive Solutions Ltd" as the sender on 1 inflow/i.test(html),
+    assert.ok(/Found "Bright Homes Cleaning Solutions Ltd" as the sender on 1 inflow/i.test(html),
       'A "***RSVL"-marked reversal credit should NOT be counted as a genuine inflow, got: ' + html);
     assert.ok(/totaling ₦300,000/.test(html), 'Only the genuine ₦300,000 payment should be totaled, got: ' + html);
     assert.ok(!/₦600,000/.test(html), 'Should not double-count the reversed payment, got: ' + html);

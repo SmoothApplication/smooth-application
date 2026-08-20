@@ -1,5 +1,5 @@
 'use strict';
-// User feedback, off a real Zenith/Crisp N Clean bank statement: individual payments from a
+// User feedback, off a real Zenith/Bright Homes Cleaning bank statement: individual payments from a
 // recurring income source should keep the bank's own specific narration (e.g. "February Salary",
 // "March Salary") rather than being flattened to a generic "Salary" label — that's what lets a
 // reviewer see salary was actually collected for each named month. And once a monthly salary

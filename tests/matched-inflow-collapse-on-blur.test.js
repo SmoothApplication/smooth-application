@@ -21,8 +21,8 @@ exports.run = async function(ctx){
     await goToSessionByPill(page, 3);
     await page.fill('#f_name', 'Test Applicant');
     await page.selectOption('#f_workStatus', 'both');
-    await page.fill('#f_employerName', 'MFM Lekki Youth Church');
-    await page.fill('#f_businessName', 'Crisp N Clean Exclusive Solutions Ltd');
+    await page.fill('#f_employerName', 'Grace Covenant Youth Church');
+    await page.fill('#f_businessName', 'Bright Homes Cleaning Solutions Ltd');
 
     await goToSessionByPill(page, 4);
     await page.setInputFiles('#stmtFile1', INFLOW_STATEMENT);

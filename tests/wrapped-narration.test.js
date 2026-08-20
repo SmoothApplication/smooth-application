@@ -22,7 +22,7 @@ exports.run = async function(ctx){
     await goToSessionByPill(page, 3);
     await page.fill('#f_name', 'Test Applicant');
     await page.selectOption('#f_workStatus', 'selfEmployed');
-    await page.fill('#f_businessName', 'Crisp N Clean Exclusive Solutions Ltd');
+    await page.fill('#f_businessName', 'Bright Homes Cleaning Solutions Ltd');
 
     await goToSessionByPill(page, 4);
     await page.setInputFiles('#stmtFile1', FIXTURE);
@@ -36,7 +36,7 @@ exports.run = async function(ctx){
 
     // Both business inflows should still be found (2 payments, ₦700,000 total) — the wrap-merge must not
     // disturb the amount/date figures, which live entirely on the FIRST physical line of each row.
-    assert.ok(/Found "Crisp N Clean Exclusive Solutions Ltd" as the sender on 2 inflows/i.test(html),
+    assert.ok(/Found "Bright Homes Cleaning Solutions Ltd" as the sender on 2 inflows/i.test(html),
       'Should still find both business inflows despite the wrapped narration, got: ' + html);
     assert.ok(/totaling ₦700,000/.test(html), 'Should still total the 2 inflows correctly, got: ' + html);
 

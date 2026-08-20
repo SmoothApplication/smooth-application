@@ -31,7 +31,7 @@ exports.run = async function(ctx){
     var html = await page.$eval('#stmtAnalyzeMsg', function(el){ return el.innerHTML; });
 
     assert.ok(/Detected 5 transaction\(s\)/.test(html), 'Should detect all 5 transactions, got: ' + html.slice(0, 500));
-    assert.ok(/Most frequent inflow source.{0,60}"Crisp N Clear Ventures"/is.test(html),
+    assert.ok(/Most frequent inflow source.{0,60}"Golden Star Ventures"/is.test(html),
       'The real, more human-readable (though less frequent) employer should win over the loan-servicing code cluster, got: ' + html.slice(0, 700));
     assert.ok(!/Pdc|Loan|Disbural|Fmobampc/i.test(html),
       'A loan-servicing system code should never surface as an inflow source name, got: ' + html.slice(0, 700));

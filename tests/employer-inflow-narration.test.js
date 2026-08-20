@@ -20,8 +20,8 @@ exports.run = async function(ctx){
     await goToSessionByPill(page, 3); // trip session — "Work status" dropdown lives here
     await page.fill('#f_name', 'Test Applicant');
     await page.selectOption('#f_workStatus', 'both');
-    await page.fill('#f_employerName', 'MFM Lekki Youth Church');
-    await page.fill('#f_businessName', 'Crisp N Clean Exclusive Solutions Ltd');
+    await page.fill('#f_employerName', 'Grace Covenant Youth Church');
+    await page.fill('#f_businessName', 'Bright Homes Cleaning Solutions Ltd');
 
     await goToSessionByPill(page, 4); // finance2 session — statement upload lives here
     await page.setInputFiles('#stmtFile1', INFLOW_STATEMENT);
@@ -34,13 +34,13 @@ exports.run = async function(ctx){
     var html = await page.$eval('#stmtAnalyzeMsg', function(el){ return el.innerHTML; });
 
     // Employer: 3 matching credit inflows (Jan/Feb/Mar "... Allowance"), ₦100,000 each.
-    assert.ok(/Found "MFM Lekki Youth Church" as the sender on 3 inflows/i.test(html),
+    assert.ok(/Found "Grace Covenant Youth Church" as the sender on 3 inflows/i.test(html),
       'Should report 3 inflows for the employer, got: ' + html);
     assert.ok(/totaling ₦300,000/.test(html), 'Should total the employer inflows to ₦300,000, got: ' + html);
 
     // Business: matched despite the statement's narration truncating "LIMITED" to "LIMITE" (word-based
-    // match on CRISP/CLEAN/EXCLUSIVE/SOLUTIONS, not the whole name intact) — 3 inflows, ₦350,000 each.
-    assert.ok(/Found "Crisp N Clean Exclusive Solutions Ltd" as the sender on 3 inflows/i.test(html),
+    // match on BRIGHT/HOMES/CLEANING/SOLUTIONS, not the whole name intact) — 3 inflows, ₦350,000 each.
+    assert.ok(/Found "Bright Homes Cleaning Solutions Ltd" as the sender on 3 inflows/i.test(html),
       'Should report 3 inflows for the business despite the truncated "LIMITE" suffix in the narration, got: ' + html);
     assert.ok(/totaling ₦1,050,000/.test(html), 'Should total the business inflows to ₦1,050,000, got: ' + html);
 
@@ -56,7 +56,7 @@ exports.run = async function(ctx){
       'Should recognise "Salary" as the majority reason once per-month variants are canonicalized together, got: ' + html);
 
     // Narration-consistency check (percentage) and the "inconsistent salary" / 6-month red-flag messages.
-    assert.ok(/Inconsistent salary narration: none of the 3 inflows from "MFM Lekki Youth Church"/.test(html),
+    assert.ok(/Inconsistent salary narration: none of the 3 inflows from "Grace Covenant Youth Church"/.test(html),
       'Employer inflows narrated "Allowance" (never "Salary") should be flagged as inconsistent salary narration, got: ' + html);
     assert.ok(/Narration consistency: 100% of these inflows \(3 of 3\) are explicitly narrated "Salary"/.test(html),
       'Business inflows all narrated "Salary" should show 100% narration consistency, got: ' + html);

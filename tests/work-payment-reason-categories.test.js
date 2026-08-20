@@ -1,6 +1,6 @@
 'use strict';
-// User feedback, off a real manual extraction of every inflow from a declared employer ("Crisp N Clean
-// Exclusive Solutions Ltd"), in two rounds:
+// User feedback, off a real manual extraction of every inflow from a declared employer
+// ("Bright Homes Cleaning Solutions Ltd"), in two rounds:
 //   1. Several genuinely matched inflows carry a narration that never states a specific reason at all —
 //      just "…TRANSFER TO <applicant> FROM <employer>…", no "Salary"/"Allowance"/etc. For those, offer a
 //      narrower Salary/Allowance-type dropdown (WORK_PAYMENT_REASON_CATEGORIES) instead of the general
@@ -29,7 +29,7 @@ exports.run = async function(ctx){
     await goToSessionByPill(page, 3);
     await page.fill('#f_name', 'Test Applicant');
     await page.selectOption('#f_workStatus', 'employed');
-    await page.fill('#f_employerName', 'Crisp N Clean Exclusive Solutions Ltd');
+    await page.fill('#f_employerName', 'Bright Homes Cleaning Solutions Ltd');
 
     await goToSessionByPill(page, 4);
     await page.setInputFiles('#stmtFile1', FIXTURE);
@@ -82,7 +82,7 @@ exports.run = async function(ctx){
     await goToSessionByPill(page2, 3);
     await page2.fill('#f_name', 'Test Applicant');
     await page2.selectOption('#f_workStatus', 'selfEmployed');
-    await page2.fill('#f_businessName', 'Crisp N Clean Exclusive Solutions Ltd');
+    await page2.fill('#f_businessName', 'Bright Homes Cleaning Solutions Ltd');
 
     await goToSessionByPill(page2, 4);
     await page2.setInputFiles('#stmtFile1', FIXTURE);

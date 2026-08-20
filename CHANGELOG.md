@@ -3,6 +3,16 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Internal cleanup: replaced a real business name used as a test fixture with a fictional one
+
+Several test fixtures and code comments (added across earlier rounds while documenting real bug
+reports) reused a real business name and a real church name as example/test data. Neither is a
+natural person's identity, but both are real, identifiable organizations, so they've been replaced
+throughout with fully fictional stand-ins ("Bright Homes Cleaning Solutions" and "Grace Covenant
+Youth Church") — across 7 test fixtures, 11 test files, this changelog, and code comments in
+index.html. No behavior changed; all 60 tests still pass. (Companion to the personal-name/passport
+cleanup in the previous batch below.)
+
 ## Income sources breakdown split into its own tab, plus five live-bug/feedback fixes
 
 User feedback, direct from the live site, on the freshly-split "Income & bank statement analysis"
@@ -515,7 +525,7 @@ fields are filled in — no separate scroll back up required.
 ## Fix: two real bugs found on a live "Income sources breakdown," off the app's own export
 
 User report, off the app's own "Download breakdown as spreadsheet" export: a genuine ₦100,000
-payment from a declared business ("Crisp N Clean Exclusive Solutions," narrated "office") wasn't
+payment from a declared business ("Bright Homes Cleaning Solutions," narrated "office") wasn't
 showing up under that business's group at all — and separately, two already-explained "matched
 income inflow" boxes stayed expanded instead of tidying away like the rest of the list.
 
@@ -524,7 +534,7 @@ rounded payment amount that recurs across 2+ months anywhere in the whole statem
 check that the *same sender* was actually behind those payments. On a real statement, that meant
 several completely unrelated people's one-off ₦100,000 payments — a gift, a condolence transfer, a
 laundry-money reimbursement, and this business's own payment — coincidentally shared a round number
-and got swept into one fake "Salary" bucket together, hiding the real Crisp N Clean payment from
+and got swept into one fake "Salary" bucket together, hiding the real Bright Homes Cleaning payment from
 its rightful group. The detector now also requires a genuinely recurring, identifiable sender name
 behind the amount before trusting it as one stable income source; a payment that names its own
 distinct sender — and that sender doesn't match — is grouped under its own name instead, exactly
@@ -546,7 +556,7 @@ up to its max-width, so this only adds breathing room on screens that have the s
 
 ## New: individual payments keep their own narration, and a missing salary month gets flagged
 
-User feedback, off a real Zenith/Crisp N Clean statement: in the "Income sources breakdown," every
+User feedback, off a real Zenith/Bright Homes Cleaning statement: in the "Income sources breakdown," every
 payment from the same source used to read as just "Salary" — a visa officer wants to see that
 salary was actually collected for each specific month ("February Salary," "March Salary," etc.),
 not just a generic category label. Each payment under "Show individual payment(s)" now shows the
@@ -716,7 +726,7 @@ pill's own existing "Enter your figures" state), so nothing shows a misleading 0
 
 Direct follow-up, off screenshots of the live matched-inflow boxes: several payments were showing the
 generic "Business" pre-tag even though their own narration clearly stated what they were for — e.g.
-"07/03/2026 NIP/ROLEZ/CRISP N CLEAN EXCLUSIVE ... SOLUTIONS LIMITE/February Salary/AT68 TRF..." was tagged
+"07/03/2026 NIP/ROLEZ/BRIGHT HOMES CLEANING ... SOLUTIONS LIMITE/February Salary/AT68 TRF..." was tagged
 "Business" instead of "Salary", and a similar one narrated "allowance" was also tagged "Business." The
 narrower dropdown added just below (for narration-blank employer inflows) only solved half the problem —
 inflows that DO already state a reason were still being defaulted off which field they matched (employer
@@ -738,10 +748,10 @@ service fee), not necessarily payroll.
 
 ## New: narrower payment-type dropdown for narration-blank employer inflows
 
-Applicant uploaded their own manual extraction of every inflow from their declared employer ("Crisp N
-Clean Exclusive Solutions Ltd"), narration column included. Several of those genuine, already-matched
+Applicant uploaded their own manual extraction of every inflow from their declared employer ("Bright Homes
+Cleaning Solutions Ltd"), narration column included. Several of those genuine, already-matched
 payments carry a narration that never states a specific reason at all — just "…AFB NIP TRANSFER TO
-<applicant> FROM CRISP N CLEAN EXCL…", no "Salary"/"Allowance"/etc. anywhere in it. Until now, every
+<applicant> FROM BRIGHT HOMES CLEAN…", no "Salary"/"Allowance"/etc. anywhere in it. Until now, every
 matched employer/business inflow got the same general reason dropdown (Salary/Business/Family/
 Contribution/Work/Bonus/Sales/Gift/Self/Reversal/Others) — technically usable, but most of those options
 make no sense once the sender is already confirmed as the applicant's own declared employer, and the list
@@ -777,13 +787,13 @@ it's scoped to one person's own declared employer/business, not baked into the s
 ## Fix: reversed/bounced-back transfers double-counted as new income ("RSVL" vs "RVSL")
 
 Direct follow-up to the "also known as" feature below — the applicant checked the 4 newly-matched
-"MFM Lekki Youth Church" inflows against their own manual analysis and flagged that one of them had
+"Grace Covenant Youth Church" inflows against their own manual analysis and flagged that one of them had
 actually been reversed. Traced this by reading the raw statement columns (DATE / DESCRIPTION / DEBIT /
 CREDIT / VALUE DATE / BALANCE, confirmed from the statement's own header) line by line around each
 flagged entry, rather than trusting either narration wording or an earlier guess at debit/credit
 direction — and found two separate real issues, not one:
 
-1. Two entries narrated "NIP CR/MOB/JAMES DANIEL/FBN / MFM LYC WEDDING SUPPORT" are actually a DEBIT
+1. Two entries narrated "NIP CR/MOB/JAMES DANIEL/FBN / Grace CYC WEDDING SUPPORT" are actually a DEBIT
    (₦1,500,000 sent OUT, presumably by/via the church, to an individual) that failed and was reversed —
    the reversal shows up as its own separate line marked "***RSVL", crediting the ₦1,500,000 (plus a
    ₦50 stamp-duty reversal) back into the account. `isReversalNarration` only recognised the spelling
@@ -799,7 +809,7 @@ direction — and found two separate real issues, not one:
    statement, since "CR" is apparently just part of Zenith's fixed channel-code template, not a live
    indicator of which way the money moved). These 2 are correctly kept.
 
-Net effect: "MFM Lekki Youth Church" now shows 2 genuine matched inflows totaling ₦2,250,000 (down from
+Net effect: "Grace Covenant Youth Church" now shows 2 genuine matched inflows totaling ₦2,250,000 (down from
 the previously-reported 4 inflows / ₦3,750,050, which included the ₦1,500,050 that had bounced back).
 This reversal-detection fix isn't specific to the alt-name feature — it affects every part of the tool
 that reads narrations to decide what counts as real income (top inflows, income-source breakdown,
@@ -811,15 +821,15 @@ reversal credit, confirming it's excluded from the matched-inflow count and tota
 
 ## New: "also known as" name for employer/business, plus another bank-code narration fix
 
-Follow-up investigation, prompted directly by the previous fix's honest caveat: "MFM Lekki Youth Church"
+Follow-up investigation, prompted directly by the previous fix's honest caveat: "Grace Covenant Youth Church"
 still showed zero direct inflow matches even after the wrapping fix. Traced this by grepping the real
 statement's own raw text (not just the app's output) for "MFM"/"Lekki"/"Youth" — the statement never
-spells the name out at all. It abbreviates it as **"MFM LYC"** (once even glued together as "MFMLYC").
+spells the name out at all. It abbreviates it as **"Grace CYC"** (once even glued together as "MFMLYC").
 Since the applicant's typed name only ever shares ONE literal word ("MFM") with what the statement
 actually prints, the 2-distinctive-word safety threshold (added a couple of batches ago to stop "Clean
-Deals Ventures" wrongly matching "Crisp N Clean...") correctly declined to treat that as a match — a
+Deals Ventures" wrongly matching "Bright Homes Cleaning...") correctly declined to treat that as a match — a
 single shared word still isn't enough evidence on its own. That threshold was doing its job; the real
-gap was that the tool had no way to know "MFM LYC" and "MFM Lekki Youth Church" are the same thing.
+gap was that the tool had no way to know "Grace CYC" and "Grace Covenant Youth Church" are the same thing.
 
 Added an optional **"Also known as / abbreviation used in your statement"** field under both Employer
 and Business name. Whatever's typed there is folded into the SAME word-matching pass as the full name
@@ -828,9 +838,9 @@ message shown still displays the full name you originally typed, never the abbre
 appearing in both the full name and the alias (e.g. "MFM" in both) is deduplicated before counting, so a
 single repeated word still can't satisfy the 2-word threshold on its own — the safety fix stays intact.
 
-Re-verified against the real statement with "MFM LYC" entered as the alias: "MFM Lekki Youth Church" now
+Re-verified against the real statement with "Grace CYC" entered as the alias: "Grace Covenant Youth Church" now
 shows 4 matched inflows (₦3,750,050). Worth flagging honestly: those 4 payments are narrated as coming
-from an individual ("James Daniel") with "MFM LYC Wedding Support" mentioned in passing, rather than
+from an individual ("James Daniel") with "Grace CYC Wedding Support" mentioned in passing, rather than
 looking like a direct payroll transfer from the church itself, and none are narrated "Salary" — which is
 exactly why the existing "Inconsistent salary narration" and "only found in 2 distinct months" warnings
 still correctly flag these for your own double-checking rather than treating them as a clean match.
@@ -863,11 +873,11 @@ phrase ("Page 3 of 31", "continued", etc). It caps how many trailing lines it wi
 transaction. Deliberately conservative, in keeping with how the rest of this parser backs off rather
 than guesses — a candidate line that fails any of these checks is left alone.
 
-Re-verified against the real statement: the business ("Crisp N Clean Exclusive Solutions Ltd") inflow
+Re-verified against the real statement: the business ("Bright Homes Cleaning Solutions Ltd") inflow
 count went from 27 to 28 (recovering one more genuine payment whose distinctive words were split across
 the wrap), and narration consistency for "Salary" went from 0% to 18% (5 of 28 inflows now correctly
 show their recovered "Salary" narration, up from none). One thing worth flagging honestly: the employer
-("MFM Lekki Youth Church") still shows zero direct-sender matches after this fix — that one doesn't
+("Grace Covenant Youth Church") still shows zero direct-sender matches after this fix — that one doesn't
 appear to be caused by the wrapping issue this fix addresses, so it's left as a separate open question
 rather than something this change claims to have resolved.
 
@@ -878,22 +888,22 @@ recovered and that amount/date figures (which live entirely on the first line) a
 ## Fix: unrelated payer wrongly matched to a declared employer/business on one shared word
 
 Follow-up to the previous batch below. On the real 928-transaction Zenith statement used for testing,
-an unrelated payment narrated `NIP/PBNL/CLEAN DEALS VENTURES/...` was being wrongly counted as an
-inflow from "Crisp N Clean Exclusive Solutions Ltd" — purely because both names happen to share the
-single ordinary word "CLEAN". The employer/business inflow matcher (`findInflowsMatchingName`) only
+an unrelated payment narrated `NIP/PBNL/HOMES DEALS VENTURES/...` was being wrongly counted as an
+inflow from "Bright Homes Cleaning Solutions Ltd" — purely because both names happen to share the
+single ordinary word "HOMES". The employer/business inflow matcher (`findInflowsMatchingName`) only
 ever required ONE shared distinctive word between the declared name and a transaction's narration,
 which is too weak a bar: any two genuinely unrelated payers can innocently share one ordinary word.
 
 It now requires at least 2 of the declared name's distinctive words to appear in the narration (or all
 of them, when the name only has 1 distinctive word to begin with — e.g. a short name like "GTB") before
-counting a transaction as a match. A genuine "Crisp N Clean Exclusive Solutions" payment still matches
-easily (it shares CRISP + CLEAN + EXCLUSIVE + SOLUTIONS — 4 words, not 1), while "Clean Deals Ventures"
+counting a transaction as a match. A genuine "Bright Homes Cleaning Solutions" payment still matches
+easily (it shares BRIGHT + HOMES + CLEANING + SOLUTIONS — 4 words, not 1), while "Homes Deals Ventures"
 — sharing only "CLEAN" — no longer does. Re-verified against the real statement: the business inflow
 count correctly dropped from 28 to 27 (removing exactly the one false positive), and "Clean Deals
 Ventures" no longer appears among the itemized matched-inflow boxes.
 
 One side effect worth flagging honestly: on the same real statement, this stricter matching also
-dropped "MFM Lekki Youth Church" from a small number of directly-matched inflows down to zero (it
+dropped "Grace Covenant Youth Church" from a small number of directly-matched inflows down to zero (it
 still shows as "referenced in this bank statement," just not confirmed as the direct sender of any
 individual payment). This traces back to the already-disclosed multi-line PDF narration-wrapping
 limitation (see the batch below) — when a narration's later words get cut off because they wrapped
@@ -932,7 +942,7 @@ analysis spreadsheet of it:
    Wema Bank, ROLEZ = Moniepoint MFB, STBC = Stanbic IBTC, ABN = Access Bank, FD/FDP = Fidelity Bank,
    ISW/QTeller = Interswitch, and more), shown right on each inflow's own explain-box. The same codes
    are now also excluded from the automatic sender-NAME extraction (they used to leak into extracted
-   names, e.g. "Rolez Crisp N Clean Exclusive Solutions" instead of just "Crisp N Clean Exclusive
+   names, e.g. "Rolez Bright Homes Cleaning Solutions" instead of just "Bright Homes Cleaning
    Solutions") and from the automatic REASON extraction (a bare channel code like "ROLEZ" could
    previously get wrongly reported as if it were the payment's reason).
 9. **Family detection**: a sender sharing the applicant's own surname is now grouped and badged
@@ -950,14 +960,14 @@ wraps across multiple lines in the source PDF, only the first wrapped line is cu
 the narration — so a genuine "...February Salary/..." reason further down the wrapped cell can be lost
 entirely, which will understate the narration-consistency percentage on statements laid out this way;
 and (b) the employer/business name match is word-based, so a genuinely different company sharing one
-distinctive word (e.g. "Clean" in both "Crisp N Clean..." and an unrelated "Clean Deals Ventures") can
+distinctive word (e.g. "Homes" in both "Bright Homes Cleaning..." and an unrelated "Homes Deals Ventures") can
 occasionally get swept in as a false-positive match. Neither is new to this change, but both are worth
 a dedicated follow-up if you'd like them tightened up.
 
 ## Employer/business-matched bank inflows are now listed and explained individually, not grouped
 
 User request, off a real statement with 19 credits matching a declared employer/business: "Instead
-of grouping the 19 transactions from Crisp N Clean Exclusive Ltd must be explained." The "Work
+of grouping the 19 transactions from Bright Homes Cleaning Ltd must be explained." The "Work
 status" cross-check used to fold every matching inflow into one summary sentence ("Found X as the
 sender on 19 inflows... totaling Y"). Every matched inflow now ALSO gets its own explain-box —
 the same UI already used for "needs an explanation" inflows — listed individually with its own
@@ -1129,7 +1139,7 @@ Full test suite (15/15) passed.
 ## Recognize truncated "Limited" company suffixes ("Limite", etc.) from different bank apps
 User feedback: "Limited can be Ltd or LTD or Limite because some can be shortened by different bank
 apps" — different banks' narration fields truncate the "Limited" company suffix differently, and a
-mid-word cut like "Limite" (as seen in the earlier "CRISP N CLEAN EXCLUSIVE SOLUTIONS LIMITE" report)
+mid-word cut like "Limite" (as seen in the earlier "BRIGHT HOMES CLEANING SOLUTIONS LIMITE" report)
 wasn't recognized anywhere this file specifically looks for the literal words "LTD"/"LIMITED". Two
 places were affected: the company-vs-personal classifier used to tag each top inflow as "Company" or
 "Personal" (a truncated suffix could be the ONLY company signal in a narration, e.g. "ABC LIMITE" —
@@ -1143,11 +1153,11 @@ company signal is a truncated "LIMITE" suffix, confirming both inflows are now c
 "Company". Full test suite (14/14) passed.
 
 ## Employer/business bank statement cross-check now counts inflows and reads the payment reason
-User feedback, after seeing "Found 'MFM Lekki Youth Church', 'Crisp N Clean Exclusive Solutions Ltd'
+User feedback, after seeing "Found 'Grace Covenant Youth Church', 'Bright Homes Cleaning Solutions Ltd'
 referenced in this bank statement": "the place you work is where the visa officer wants to see at
 least monthly inflows from, state how many inflow comes in from the employer or business name
 extracted from the bank statement... [also] check for the narration" — pointing to a real narration
-line like "NIP/ROLEZ/CRISP N CLEAN EXCLUSIVE SOLUTIONS LIMITE/February Salary/AT68TRF2...", noting
+line like "NIP/ROLEZ/BRIGHT HOMES CLEANING SOLUTIONS LIMITE/February Salary/AT68TRF2...", noting
 the company name is printed with a truncated suffix ("LIMITE" instead of "LIMITED"/"LTD") immediately
 followed by the payment reason ("February Salary"). Simply saying a name was "found somewhere in the
 statement" was weaker evidence than what a reviewer actually wants: money genuinely, regularly

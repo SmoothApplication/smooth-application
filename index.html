@@ -1076,7 +1076,7 @@
           <input type="text" id="f_employerName" placeholder="e.g. Zenith Bank Plc" style="max-width:340px;">
           <div class="item-tip" style="margin-top:4px;">Used below to check this name actually turns up on your bank statement — a strong, expected signal to a reviewer.</div>
           <label class="field" style="margin-top:6px;" for="f_employerAltName">Also known as / abbreviation used in your statement (optional)</label>
-          <input type="text" id="f_employerAltName" placeholder="e.g. MFM LYC" style="max-width:340px;">
+          <input type="text" id="f_employerAltName" placeholder="e.g. Grace CYC" style="max-width:340px;">
           <div class="item-tip" style="margin-top:4px;">Banks often shorten a name in the narration (initials, an acronym, a branch code). If your statement doesn't spell out the full name above, add the short form actually used so this check can still find it.</div>
         </div>
         <div id="employedUploadRow" style="display:none; padding-left:24px; margin:-2px 0 8px;">
@@ -6745,8 +6745,8 @@
   }
 
   // Different bank apps truncate/abbreviate the "Limited" company suffix differently in their narration
-  // text — "LTD", "LTD.", "Limited", or a mid-word truncation like "Limite" (as reported: "CRISP N CLEAN
-  // EXCLUSIVE SOLUTIONS LIMITE" instead of "...LIMITED") when a fixed-width narration field just gets cut
+  // text — "LTD", "LTD.", "Limited", or a mid-word truncation like "Limite" (as reported: "BRIGHT HOMES
+  // CLEANING SOLUTIONS LIMITE" instead of "...LIMITED") when a fixed-width narration field just gets cut
   // off. Rather than hardcoding every specific truncation seen so far, this matches ANY word that starts
   // with "LIMIT" (LIMIT, LIMITE, LIMITED, and any other bank's own variant) — used everywhere "LTD"/
   // "LIMITED" are already treated as a company-suffix stopword/keyword, so a truncated suffix is treated
@@ -6767,10 +6767,10 @@
     // "CASH DEP:", "REV/MOB/UTO/") — without these, the SAME sender ends up split into multiple groups
     // purely because one narration line happened to carry a prefix and another didn't.
     'TNF','NFT','NIBSS','LASG','PAYRO','ACTIVE','REV','UTO','CASH','DEP','CASHDEP','CASHDEPOSIT',
-    // Real-world channel/processor/aggregator codes off an actual statement (e.g. "NIP/ROLEZ/CRISP N
-    // CLEAN.../February Salary") — without these, a code like "ROLEZ" gets swept into the extracted
-    // sender name itself ("Rolez Crisp N Clean Exclusive Solutions" instead of just "Crisp N Clean
-    // Exclusive Solutions"), splitting what should be one recognised sender into a differently-named,
+    // Real-world channel/processor/aggregator codes off an actual statement (e.g. "NIP/ROLEZ/BRIGHT
+    // HOMES.../February Salary") — without these, a code like "ROLEZ" gets swept into the extracted
+    // sender name itself ("Rolez Bright Homes Cleaning Solutions" instead of just "Bright Homes
+    // Cleaning Solutions"), splitting what should be one recognised sender into a differently-named,
     // unmerged group. See BANK_NARRATION_GLOSSARY below for what each of these actually means.
     'ETI','VFD','WBP','ROLEZ','ROLEX','STBC','ABN','FD','FDP','ISW','QTELLER','PBNL','ZIB','NXG','AFB',
     // Real-data finding, off a real First Bank statement: recurring monthly salary narrations there
@@ -6958,9 +6958,9 @@
   function findInflowsMatchingName(name, txns){
     var words = nameMatchWords(name);
     if (!words.length) return {words: words, matches: []};
-    // User feedback, off a real 928-transaction statement: an unrelated payment narrated "NIP/PBNL/CLEAN
-    // DEALS VENTURES/..." was wrongly counted as an inflow from "Crisp N Clean Exclusive Solutions Ltd"
-    // purely because both share the single ordinary word "CLEAN". A lone shared word isn't strong enough
+    // User feedback, off a real 928-transaction statement: an unrelated payment narrated "NIP/PBNL/HOMES
+    // DEALS VENTURES/..." was wrongly counted as an inflow from "Bright Homes Cleaning Solutions Ltd"
+    // purely because both share the single ordinary word "HOMES". A lone shared word isn't strong enough
     // evidence to attribute a whole transaction to a specific employer/business — two genuinely unrelated
     // payers can innocently share one word. Require at least 2 of the name's distinctive words to appear
     // in the narration (or all of them, when the name only has 1 distinctive word to begin with, e.g.
@@ -6975,7 +6975,7 @@
     return {words: words, matches: matches};
   }
   // Bank narrations for a NIP/electronic transfer are commonly slash-delimited, roughly:
-  // CHANNEL/PRODUCT-CODE/SENDER NAME/REASON/REFERENCE (e.g. "NIP/ROLEZ/CRISP N CLEAN EXCLUSIVE
+  // CHANNEL/PRODUCT-CODE/SENDER NAME/REASON/REFERENCE (e.g. "NIP/ROLEZ/BRIGHT HOMES CLEANING
   // SOLUTIONS LIMITE/February Salary/AT68TRF2MPTj92cg2030304544496898048"). This pulls out the
   // human-readable "reason" segment (e.g. "February Salary") so it can be shown alongside the
   // inflow count — skipping the segment that's actually the matched employer/business name itself,
@@ -7048,7 +7048,7 @@
     return reason;
   }
 
-  // User feedback, off a real Zenith/Crisp N Clean statement: several of the recurring salary
+  // User feedback, off a real Zenith/Bright Homes Cleaning statement: several of the recurring salary
   // payments from the same employer spell out exactly which month they're for right in their own
   // narration ("...February Salary...", "...March Salary..."), and the statement kept going for
   // months afterwards (other payments from the same employer in July) without a matching "July
@@ -7204,7 +7204,7 @@
       } else if (w.length >= 3){
         current.push(w);
       } else if (current.length > 0){
-        // A short word (1-2 letters, e.g. "N" as in "Crisp N Clean") that isn't a known stopword — keep it
+        // A short word (1-2 letters, e.g. a connector like "N" or "&" inside a longer registered name) that isn't a known stopword — keep it
         // as a connector INSIDE an already-started name run, but don't let it start a run on its own
         // (avoids picking up stray single letters/initials from narration noise).
         current.push(w);
@@ -8000,8 +8000,8 @@
   }
 
   // Bank narrations often name the same sender slightly differently between transactions — e.g. a fuller
-  // registered name on some rows ("Rolez Crisp N Clean Exclusive") and a shorter/truncated version on
-  // others ("Crisp N Clean Exclusive"). Left ungrouped, that splits one real income source into two boxes
+  // registered name on some rows ("Rolez Bright Homes Cleaning Exclusive") and a shorter/truncated version on
+  // others ("Bright Homes Cleaning Exclusive"). Left ungrouped, that splits one real income source into two boxes
   // and forces a business owner to write the same explanation twice. Merge any name that's a substring of
   // another (case-insensitive) into the longer, more complete version — guarded by a minimum length so we
   // don't accidentally merge two genuinely different short/generic names into one.
@@ -8033,7 +8033,7 @@
     // A recurring rounded amount only means "stable income from one source" if the transactions making it
     // up actually share a consistent, identifiable sender — otherwise it's just several DIFFERENT people or
     // companies whose one-off payments happen to land on the same round number (real user report: a genuine
-    // Crisp N Clean Exclusive Solutions payment was swept into a false "Salary" bucket alongside 8 unrelated
+    // Bright Homes Cleaning Solutions payment was swept into a false "Salary" bucket alongside 8 unrelated
     // senders' unrelated ₦100,000 gifts/payments purely because the amounts coincided). identifyIncomeSourceName
     // looks for a sender name that itself recurs across 2+ distinct months among just the stable-amount
     // transactions. If one exists, only transactions whose own narration names THAT sender — or that name no
@@ -8147,7 +8147,7 @@
     {value:'others', label:'Others'}
   ];
   // User feedback, off a real Zenith statement's own manual extraction of every inflow from a declared
-  // employer ("Crisp N Clean Exclusive Solutions Ltd"): several of the genuine salary-source payments
+  // employer ("Bright Homes Cleaning Solutions Ltd"): several of the genuine salary-source payments
   // carry no narration at all beyond "…TRANSFER TO <applicant> FROM <employer>…" — no clue what that
   // specific payment actually was. The general INCOME_SOURCE_CATEGORIES list (Salary/Business/Family/
   // Gift/Self/Reversal/…) doesn't fit here — the sender is already confirmed as the applicant's own
@@ -8600,7 +8600,7 @@
           var nameChecks = namesToCheck.map(function(n){
             // User feedback: a bank statement's narration commonly shortens a name to initials, an
             // acronym, or a branch code that never spells out the full name typed above (e.g. a real
-            // case — "MFM Lekki Youth Church" narrated only as "MFM LYC") — so the optional "also known
+            // case — "Grace Covenant Youth Church" narrated only as "Grace CYC") — so the optional "also known
             // as" name is folded into the SAME word-matching pass as the full name, not checked
             // separately, since both refer to the one entity a reviewer would recognise as the same
             // source. The applicant's own typed n.name is still what's SHOWN in every message below —
