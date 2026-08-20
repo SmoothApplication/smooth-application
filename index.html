@@ -929,6 +929,26 @@
           </div>
         </div>
 
+        <div id="rs_costBox" class="doc-reminder" style="margin-top:10px;">
+          <p style="margin:0 0 6px; font-weight:600;">Estimated yearly cost of living</p>
+          <p class="item-tip" style="margin:0 0 10px;">Rent is pre-filled with a typical range for your state/LGA, and upkeep/school fees with common starting figures — not a guarantee of what you actually pay. Check every number below and correct it to match your real costs.</p>
+          <div class="row">
+            <div>
+              <label class="field" for="rs_annualRent">Annual rent (₦)</label>
+              <input type="text" inputmode="numeric" id="rs_annualRent" placeholder="e.g. 1500000">
+            </div>
+            <div>
+              <label class="field" for="rs_monthlyUpkeep">Monthly upkeep / feeding (₦)</label>
+              <input type="text" inputmode="numeric" id="rs_monthlyUpkeep" placeholder="e.g. 120000">
+            </div>
+          </div>
+          <div id="rs_schoolFeeRow" style="display:none;">
+            <label class="field" for="rs_schoolFeePerTerm">School fees per child, per term (₦)</label>
+            <input type="text" inputmode="numeric" id="rs_schoolFeePerTerm" placeholder="e.g. 300000">
+          </div>
+          <div id="rs_yearlySummary" style="margin-top:8px;"></div>
+        </div>
+
         <div class="checkrow"><input type="checkbox" id="rs_agedParents"><label for="rs_agedParents">I have aged parents I support</label></div>
         <div id="rs_parentsRow" style="display:none; padding-left:24px; margin:-2px 0 8px;">
           <div class="row">
@@ -2229,6 +2249,50 @@
     'Federal Capital Territory': ['Abaji','Abuja Municipal','Bwari','Gwagwalada','Kuje','Kwali']
   };
 
+  // User feedback: "do a price research on house rent and school fees within the area, then give a
+  // yearly summary" — used to pre-fill starting figures for the "Estimated yearly cost of living"
+  // box below (see rs_annualRent/rs_monthlyUpkeep/rs_schoolFeePerTerm). Sourced from public
+  // real-estate listing aggregates (Nigeria Property Centre, PropertyPro, and rent-tracking sites,
+  // e.g. mushrooms.ng's Lagos rent guide and theafricanvestor.com's Abuja/Nigeria rent guides),
+  // current as of mid-2026. These are broad, INDICATIVE ranges for a typical 2-3 bedroom home, not
+  // appraisals — actual rent varies enormously street-to-street even within one LGA, so this is
+  // only ever a STARTING number; the applicant is expected to check and correct it against what
+  // they actually pay (or will pay). Lagos is estimated at LGA level, since Lagos rents vary widely
+  // enough that a single state-wide number would be nearly useless and reasonably good LGA-level
+  // public data exists. Every other state falls back to a broader tier (STATE_RENT_TIER below)
+  // rather than claiming false precision for all 774 Nigerian LGAs, which isn't realistically
+  // sourceable — treat those as a rougher starting point than the Lagos figures.
+  var LAGOS_LGA_ANNUAL_RENT = {
+    'Eti Osa': [3000000, 15000000], 'Lagos Island': [2500000, 8000000],
+    'Ikeja': [2000000, 4500000], 'Lagos Mainland': [1800000, 3500000],
+    'Amuwo-Odofin': [1500000, 3000000], 'Apapa': [1500000, 3000000],
+    'Kosofe': [1200000, 2800000], 'Surulere': [1200000, 2500000],
+    'Shomolu': [1200000, 1800000], 'Ifako-Ijaiye': [1000000, 2200000],
+    'Ibeju-Lekki': [800000, 2500000], 'Oshodi-Isolo': [800000, 1800000],
+    'Mushin': [700000, 1500000], 'Ikorodu': [700000, 1500000], 'Alimosho': [700000, 1800000],
+    'Ojo': [600000, 1400000], 'Ajeromi-Ifelodun': [600000, 1300000], 'Agege': [600000, 1200000],
+    'Badagry': [500000, 1200000], 'Epe': [500000, 1200000]
+  };
+  // Non-Lagos states, grouped into broad cost tiers rather than claimed per-state precision.
+  var STATE_RENT_TIER = {
+    'Federal Capital Territory': 'capital',
+    'Rivers': 'secondaryCityHigh',
+    'Oyo': 'majorUrban', 'Kaduna': 'majorUrban', 'Kano': 'majorUrban', 'Enugu': 'majorUrban',
+    'Delta': 'majorUrban', 'Edo': 'majorUrban', 'Ogun': 'majorUrban', 'Anambra': 'majorUrban',
+    'Cross River': 'majorUrban', 'Akwa Ibom': 'majorUrban'
+    // Every other state not listed here falls back to the 'other' tier below.
+  };
+  var RENT_TIER_ANNUAL = {
+    capital: [1800000, 5000000], secondaryCityHigh: [1200000, 3000000],
+    majorUrban: [700000, 2000000], other: [400000, 1200000]
+  };
+  function getEstimatedAnnualRent(state, lga){
+    if (state === 'Lagos' && lga && LAGOS_LGA_ANNUAL_RENT[lga]) return LAGOS_LGA_ANNUAL_RENT[lga];
+    if (state === 'Lagos') return [700000, 3000000]; // Lagos picked, LGA not yet — wide citywide range
+    var tier = STATE_RENT_TIER[state] || 'other';
+    return RENT_TIER_ANNUAL[tier];
+  }
+
   // ---------------- Session 2 ("Travel Experience") — country lists used for the destination
   // dropdown and the grading summary below it. Kept as small curated lists (not exhaustive) since
   // they only need to support the specific grading rules the applicant asked for.
@@ -2294,6 +2358,9 @@
       livingLga: document.getElementById('rs_lga').value,
       addressNumber: document.getElementById('rs_addressNumber').value.trim(),
       addressName: document.getElementById('rs_addressName').value.trim(),
+      annualRent: document.getElementById('rs_annualRent').value,
+      monthlyUpkeep: document.getElementById('rs_monthlyUpkeep').value,
+      schoolFeePerTerm: document.getElementById('rs_schoolFeePerTerm').value,
       agedParents: document.getElementById('rs_agedParents').checked,
       fatherName: document.getElementById('rs_fatherName').value.trim(),
       motherName: document.getElementById('rs_motherName').value.trim(),
@@ -2735,6 +2802,7 @@
     motherNameEl.disabled = a.motherDeceased;
     if (a.fatherDeceased && fatherNameEl.value) fatherNameEl.value = '';
     if (a.motherDeceased && motherNameEl.value) motherNameEl.value = '';
+    updateYearlyResponsibilitiesSummary(a);
 
     // Session 1: Validate your International Passport — keep its read-only name mirror and
     // status message in sync with whatever the trip session's own f_name field currently holds
@@ -3069,7 +3137,7 @@
    // Session 3: Your responsibilities
    // rs_state has its own dedicated change listener (repopulates the LGA dropdown, then renders) —
    // left out of this generic list to avoid double-rendering on every state change.
-   'rs_married','rs_spouseName','rs_numKids','rs_lga','rs_addressNumber','rs_addressName','rs_agedParents','rs_fatherName','rs_motherName','rs_fatherDeceased','rs_motherDeceased','rs_remittance','rs_verifyConsent']
+   'rs_married','rs_spouseName','rs_numKids','rs_lga','rs_addressNumber','rs_addressName','rs_annualRent','rs_monthlyUpkeep','rs_schoolFeePerTerm','rs_agedParents','rs_fatherName','rs_motherName','rs_fatherDeceased','rs_motherDeceased','rs_remittance','rs_verifyConsent']
     .forEach(function(id){
       var el = document.getElementById(id);
       el.addEventListener('change', render);
@@ -3384,6 +3452,57 @@
     var summaryHtml = lines.length ? lines.map(function(l){ return '<div class="scan-msg '+(l.indexOf('⚠️')===0?'warn':'info')+'">'+l+'</div>'; }).join('') : '';
     var successHtml = '<div class="scan-msg ok" style="margin-top:6px;">✅ You\'ve completed this section. Continue to <b>Session 3: Your responsibilities</b>.</div>';
     box.innerHTML = summaryHtml + successHtml;
+  }
+
+  // "Estimated yearly cost of living" — user feedback: "do a price research on house rent and
+  // school fees within the area... give a yearly summary." Pre-fills rent/upkeep/school-fee fields
+  // with starting estimates (rent from getEstimatedAnnualRent, see the LAGOS_LGA_ANNUAL_RENT/
+  // STATE_RENT_TIER comment above for sourcing and caveats) the FIRST time enough is known to
+  // estimate them, but NEVER overwrites a value the applicant has already typed themselves — this
+  // only ever proposes a starting point, never silently corrects a real number with a guess.
+  function updateYearlyResponsibilitiesSummary(a){
+    var schoolRow = document.getElementById('rs_schoolFeeRow');
+    var numKids = parseInt(a.numKids, 10) || 0;
+    if (schoolRow) schoolRow.style.display = numKids > 0 ? 'block' : 'none';
+
+    var rentEl = document.getElementById('rs_annualRent');
+    var upkeepEl = document.getElementById('rs_monthlyUpkeep');
+    var schoolEl = document.getElementById('rs_schoolFeePerTerm');
+    // Rent gets MORE specific once an LGA is picked (state alone only gives a wide citywide/state
+    // range) — so unlike upkeep/school fee below, it's safe to refine, but ONLY while the field
+    // still holds exactly what we last auto-filled it with (tracked via data-autofilled). The
+    // moment it differs, the applicant has typed their own number and it's never touched again.
+    if (rentEl && a.livingState && (!rentEl.value || rentEl.value === rentEl.dataset.autofilled)){
+      var range = getEstimatedAnnualRent(a.livingState, a.livingLga);
+      var estimate = String(Math.round((range[0] + range[1]) / 2));
+      rentEl.value = estimate;
+      rentEl.dataset.autofilled = estimate;
+    }
+    if (upkeepEl && !upkeepEl.value && a.livingState){
+      upkeepEl.value = '120000'; // generic starting point — not location-researched, just a common figure to adjust
+    }
+    if (schoolEl && !schoolEl.value && numKids > 0){
+      schoolEl.value = '300000'; // mid-range private termly fee, per public school-fee guides — see comment above
+    }
+
+    var summaryEl = document.getElementById('rs_yearlySummary');
+    if (!summaryEl) return;
+    var rent = parseNum(rentEl ? rentEl.value : '');
+    var upkeep = parseNum(upkeepEl ? upkeepEl.value : '');
+    var schoolPerTerm = parseNum(schoolEl ? schoolEl.value : '');
+    if (!a.livingState && !rent && !upkeep){ summaryEl.innerHTML = ''; return; }
+
+    var total = rent + (upkeep * 12) + (schoolPerTerm * 3 * numKids);
+    var lines = [];
+    lines.push('Rent: <b>'+fmtN(rent)+'</b>/year');
+    lines.push('Upkeep: <b>'+fmtN(upkeep)+'</b>/month ('+fmtN(upkeep * 12)+'/year)');
+    if (numKids > 0){
+      lines.push('School fees: <b>'+fmtN(schoolPerTerm)+'</b>/term × 3 terms × '+numKids+' child'+(numKids === 1 ? '' : 'ren')+' = '+fmtN(schoolPerTerm * 3 * numKids)+'/year');
+    }
+    summaryEl.innerHTML = '<div class="scan-msg info">' +
+      lines.map(function(l){ return '<div>'+l+'</div>'; }).join('') +
+      '<div style="margin-top:6px; font-weight:600;">Estimated total: '+fmtN(total)+'/year</div>' +
+      '</div>';
   }
 
   /* ---------------- Session 3: Your responsibilities — State → LGA dependent dropdown ---------------- */
@@ -8936,6 +9055,9 @@
       renderLgaOptions(payload.answers.livingState || '', payload.answers.livingLga || '');
       document.getElementById('rs_addressNumber').value = payload.answers.addressNumber || '';
       document.getElementById('rs_addressName').value = payload.answers.addressName || '';
+      document.getElementById('rs_annualRent').value = payload.answers.annualRent || '';
+      document.getElementById('rs_monthlyUpkeep').value = payload.answers.monthlyUpkeep || '';
+      document.getElementById('rs_schoolFeePerTerm').value = payload.answers.schoolFeePerTerm || '';
       document.getElementById('rs_agedParents').checked = !!payload.answers.agedParents;
       document.getElementById('rs_fatherName').value = payload.answers.fatherName || '';
       document.getElementById('rs_motherName').value = payload.answers.motherName || '';
@@ -9140,6 +9262,11 @@
     renderLgaOptions('', '');
     document.getElementById('rs_addressNumber').value = '';
     document.getElementById('rs_addressName').value = '';
+    var rsAnnualRentEl = document.getElementById('rs_annualRent');
+    rsAnnualRentEl.value = '';
+    delete rsAnnualRentEl.dataset.autofilled;
+    document.getElementById('rs_monthlyUpkeep').value = '';
+    document.getElementById('rs_schoolFeePerTerm').value = '';
     document.getElementById('rs_agedParents').checked = false;
     document.getElementById('rs_fatherName').value = '';
     document.getElementById('rs_motherName').value = '';

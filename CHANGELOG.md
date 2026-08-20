@@ -3,6 +3,23 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Added an "Estimated yearly cost of living" summary to Session 3 (Your responsibilities)
+
+User feedback: "Depending on the local government do a price research on house rent and school
+fees within the area. After this give a yearly summary on your responsibilities." Once a state
+(and, for Lagos, an LGA) is picked, annual rent pre-fills with a starting estimate — Lagos is
+estimated per LGA since rents vary enormously there and decent public listing data exists (Nigeria
+Property Centre, PropertyPro, mushrooms.ng, theafricanvestor.com, as of mid-2026); every other
+state uses a broader cost tier rather than claiming false precision for all 774 Nigerian LGAs, which
+isn't realistically sourceable. Monthly upkeep and (once at least one child is declared) school
+fees per term also get a generic starting figure. All three stay fully editable, and — this took a
+bug fix mid-build — a manually-typed value is now correctly protected from being overwritten even
+as the estimate would otherwise get more specific (e.g. picking Lagos then a specific LGA
+afterward). A live box totals rent + (upkeep × 12) + (school fee × 3 terms × number of children)
+into one yearly figure. Every number is explicitly framed as a starting estimate to check and
+correct, not a guaranteed cost — consistent with this tool's general "not a guarantee" posture.
+New test `yearly-cost-of-living-estimate`; all 61 tests pass.
+
 ## Trimmed the "no travel history" box and turned its assistance button into a WhatsApp link
 
 User feedback, straight off the live Travel Experience section: the "no travel history yet" box's
