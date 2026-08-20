@@ -3,6 +3,21 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Softened Session 2's country-visit language to remove eligibility-prediction phrasing
+
+Resolves the standing lawyer note in `docs/terms-of-service-draft.md`: the Travel Experience
+grading summary used to say things like "very good prospect for another Schengen or other-country
+visa," "that travel history works in your favor," and "✅ Success: you are qualified for the next
+level" — phrasing that reads as a prediction of visa outcome, in tension with this tool's own "does
+not assess your individual eligibility... or guarantee any outcome" disclaimer. This had been
+flagged before the section was built; the product owner initially chose to keep it as specified,
+accepting the risk pending review. On review, asked for it to be softened. Now reads as
+informational-only framing — "this is commonly seen as a positive factor," not "you qualify" — and
+the closing message reads "You've completed this section. Continue to Session 3" instead of
+declaring "Success"/"qualified." No behavior changed, only copy; all 60 tests still pass (one test,
+`travel-experience-branching`, updated to match the new wording). `docs/terms-of-service-draft.md`
+and the code comment above `updateTravelExperienceGrade()` both updated to mark this resolved.
+
 ## Internal: automated PII-leak scanner, plus one more real leak it found and fixed on its first run
 
 Follow-up to the two PII cleanup rounds just below. Both of those were found by hand, which means

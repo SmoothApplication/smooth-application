@@ -53,13 +53,16 @@ exports.run = async function(ctx){
     await page.selectOption('#travelHistoryBody select[data-idx="0"][data-field="country"]', 'Ghana');
     await page.fill('#travelHistoryBody input[data-idx="0"][data-field="days"]', '10');
 
-    // Country grading + the closing "Success" message should appear once at least one country is filled.
+    // Country grading + the closing "section complete" message should appear once at least one
+    // country is filled. (Copy softened to informational-only framing — see
+    // docs/terms-of-service-draft.md's resolved lawyer note — so this checks for the current
+    // "Continue to Session 3" wording rather than the old "qualified for the next level" phrasing.)
     await page.waitForFunction(function(){
       var el = document.getElementById('travelExperienceGrade');
-      return el && /Success/.test(el.textContent);
+      return el && /Continue to/.test(el.textContent);
     }, { timeout: 3000 });
     var gradeText = await page.$eval('#travelExperienceGrade', function(el){ return el.textContent; });
-    assert.ok(/qualified for the next level/.test(gradeText), 'Should show the "qualified for the next level" success copy, got: ' + gradeText);
+    assert.ok(/completed this section/.test(gradeText), 'Should show the "completed this section" copy, got: ' + gradeText);
     assert.ok(/African country/.test(gradeText), 'Should mention the 1-African-country grading tier, got: ' + gradeText);
 
     // Overstay Y/N -> its own table only shows once "Yes" is ticked.

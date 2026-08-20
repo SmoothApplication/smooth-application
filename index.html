@@ -3360,10 +3360,12 @@
   // Country-visit "grading" summary — informal guidance copy, not an eligibility prediction, built
   // from the tiers the applicant specified (African-country count, EU-country count, named
   // high-value/GDP countries, and the South Africa/Morocco/Kenya-without-overstay case).
-  // [Lawyer note: this section's language ("Congratulations", "qualified for the next level", "high
-  // chance of success") reads as an eligibility/outcome prediction — flagged to the applicant against
-  // docs/terms-of-service-draft.md before building, who explicitly asked to keep it as specified. See
-  // that doc for the standing note to review this section before any formal legal sign-off.]
+  // [Lawyer note, resolved: this section's language used to include "Congratulations", "qualified
+  // for the next level", "high chance of success" — phrasing that read as an eligibility/outcome
+  // prediction. Flagged to the product owner, who initially chose to keep it as specified pending
+  // review; on review, the product owner asked for it to be softened to informational-only framing
+  // ("commonly seen as a positive factor" rather than "you qualify"/"very good prospect"). Done —
+  // see docs/terms-of-service-draft.md for the resolved note.]
   function updateTravelExperienceGrade(a){
     var box = document.getElementById('travelExperienceGrade');
     if (!box) return;
@@ -3380,14 +3382,14 @@
     if (africanCount >= 3) lines.push('You\'ve visited 3 or more African countries — a solid, well-rounded travel history.');
     else if (africanCount === 2) lines.push('You\'ve visited 2 African countries — a good, growing travel history.');
     else if (africanCount === 1) lines.push('You\'ve visited 1 African country — a start to building your travel history.');
-    if (euCount >= 2) lines.push('You\'ve visited 2 or more EU countries — very good prospect for another Schengen or other-country visa.');
-    else if (euCount === 1) lines.push('You\'ve visited 1 EU country — good prospect for another Schengen or other-country visa.');
-    if (visitedHighValue) lines.push('You\'ve visited a major/high-GDP destination (US, Canada, UK, China, Ireland, Singapore, or another Asian country) — as long as your finances can show you can afford this visit, that travel history works in your favor.');
+    if (euCount >= 2) lines.push('You\'ve visited 2 or more EU countries — this is commonly seen as a positive factor for another Schengen or similar visa.');
+    else if (euCount === 1) lines.push('You\'ve visited 1 EU country — this is commonly seen as a positive factor too.');
+    if (visitedHighValue) lines.push('You\'ve visited a major/high-GDP destination (US, Canada, UK, China, Ireland, Singapore, or another Asian country) — that travel history is generally considered a positive factor, provided your finances show you can afford this visit.');
     if (visitedHighSuccess && !overstayedAny) lines.push('You\'ve visited South Africa, Morocco, and/or Kenya without overstaying — this is generally viewed as a positive sign for a UK visa application.');
     if (overstayedAny) lines.push('⚠️ An overstay on your record is a real concern reviewers weigh heavily — being upfront about it, with a clear explanation, matters more than trying to leave it out.');
 
     var summaryHtml = lines.length ? lines.map(function(l){ return '<div class="scan-msg '+(l.indexOf('⚠️')===0?'warn':'info')+'">'+l+'</div>'; }).join('') : '';
-    var successHtml = '<div class="scan-msg ok" style="margin-top:6px;">✅ <b>Success:</b> you are qualified for the next level. Welcome to <b>Session 3: Your responsibilities</b>.</div>';
+    var successHtml = '<div class="scan-msg ok" style="margin-top:6px;">✅ You\'ve completed this section. Continue to <b>Session 3: Your responsibilities</b>.</div>';
     box.innerHTML = summaryHtml + successHtml;
   }
 
