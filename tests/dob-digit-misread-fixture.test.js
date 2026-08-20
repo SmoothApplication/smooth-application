@@ -20,17 +20,17 @@ exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page);
-    await page.setInputFiles('#file_passportInline', DOB_MISREAD_FIXTURE);
-    await page.click('#btnPassportInlineAttach');
+    await page.setInputFiles('#file_passportValidate', DOB_MISREAD_FIXTURE);
+    await page.click('#btnPassportValidateAttach');
     await page.waitForFunction(function(){
-      var el = document.getElementById('passportInlineResult');
+      var el = document.getElementById('passportValidateResult');
       return el && el.innerHTML.indexOf('passport-card') !== -1;
     }, { timeout: 20000 });
     await page.waitForTimeout(300);
 
-    var html = await page.$eval('#passportInlineResult', function(el){ return el.innerHTML; });
+    var html = await page.$eval('#passportValidateResult', function(el){ return el.innerHTML; });
 
-    var dobRowText = await page.$eval('#passportInlineResult', function(el){
+    var dobRowText = await page.$eval('#passportValidateResult', function(el){
       var rows = el.querySelectorAll('.passport-row');
       for (var i=0;i<rows.length;i++){
         if (/DOB/.test(rows[i].textContent)) return rows[i].textContent;

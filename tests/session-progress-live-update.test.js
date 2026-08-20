@@ -9,7 +9,7 @@ exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page);
-    await goToSessionByPill(page, 2); // 'finance' is now session index 2: ['trip','finance2','finance',...]
+    await goToSessionByPill(page, 5); // 'finance' is now session index 5: ['passport','travelExperience','responsibilities','trip','finance2','finance',...]
 
     var pctText = function(){
       return page.$eval('#sessionProgressPct', function(el){ return el.textContent; }).catch(function(){ return null; });

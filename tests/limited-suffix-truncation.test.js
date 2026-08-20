@@ -17,7 +17,7 @@ exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page);
-    await goToSessionByPill(page, 1); // finance2 session — statement upload lives here
+    await goToSessionByPill(page, 4); // finance2 session — statement upload lives here
 
     // This fixture's narration is "...ABC LIMITE/April Salary/..." — "ABC" alone isn't a recognized
     // company keyword, so the truncated "LIMITE" is the ONLY signal that this is a company payment,

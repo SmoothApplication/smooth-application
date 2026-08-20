@@ -26,15 +26,15 @@ exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page);
-    await page.setInputFiles('#file_passportInline', FIXTURE);
-    await page.click('#btnPassportInlineAttach');
+    await page.setInputFiles('#file_passportValidate', FIXTURE);
+    await page.click('#btnPassportValidateAttach');
     await page.waitForFunction(function(){
-      var el = document.getElementById('passportInlineResult');
+      var el = document.getElementById('passportValidateResult');
       return el && el.innerHTML.indexOf('passport-card') !== -1;
     }, { timeout: 20000 });
     await page.waitForTimeout(300);
 
-    var html = await page.$eval('#passportInlineResult', function(el){ return el.innerHTML; });
+    var html = await page.$eval('#passportValidateResult', function(el){ return el.innerHTML; });
     assert.ok(!/MRZ checksum[\s\S]*?not detected/.test(html),
       'A garbled line 1 should no longer sink the checksum check on an otherwise-clean line 2, got: ' + html.slice(0, 800));
     assert.ok(/4\/4 digit\(s\) matched/.test(html),

@@ -20,13 +20,13 @@ exports.run = async function(ctx){
 
     // Enter trip dates so the rough, dates-only cost estimate (and its 2x recommended-funds figure)
     // exists — same setup as statement-readiness.test.js.
-    await goToSessionByPill(page, 0);
+    await goToSessionByPill(page, 3);
     await page.fill('#f_traveldate', '2026-12-01');
     await page.fill('#f_returndate', '2026-12-06');
     await page.waitForTimeout(300);
 
     // Before scanning anything, the badge should still read "Enter your figures" — nothing to compare yet.
-    await goToSessionByPill(page, 1);
+    await goToSessionByPill(page, 4);
     var beforePill = await page.$eval('#balancePill', function(el){ return el.textContent; });
     assert.strictEqual(beforePill, 'Enter your figures', 'Should start unfilled before any statement is scanned');
 
@@ -64,10 +64,10 @@ exports.run = async function(ctx){
     var page2 = await newPageAt(ctx.browser, '/index.html');
     try {
       await passConsentGate(page2);
-      await goToSessionByPill(page2, 2); // finance session — fc_closing lives here
+      await goToSessionByPill(page2, 5); // finance session — fc_closing lives here
       await page2.evaluate(function(){ document.querySelectorAll('details').forEach(function(d){ d.open = true; }); });
       await page2.fill('#fc_closing', '9999999');
-      await goToSessionByPill(page2, 1);
+      await goToSessionByPill(page2, 4);
       await page2.setInputFiles('#stmtFile1', SAMPLE_STATEMENT);
       await page2.click('#btnAnalyzeStatements');
       await page2.waitForSelector('#unexplainedInflowsBox .explain-box', { timeout: 20000 });

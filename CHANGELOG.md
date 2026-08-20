@@ -3,6 +3,54 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Three new sessions: passport validation, travel experience, and your responsibilities
+
+Adds three new sessions ahead of everything that already existed, per a requested session order
+(Session 1 through Session 11, with the pre-existing sessions renumbered around the new ones —
+nothing about the existing trip/finance/checklist/review sessions changed beyond their position).
+
+- **Session 1: Validate your International Passport** — scan your passport's bio page and see your
+  name, passport number, and expiry date filled into their own boxes; verify or correct the expiry
+  date yourself. If it has more than 6 months' validity remaining (checked against today, since the
+  trip's travel date hasn't been entered yet at this point in the flow), you get a "Congratulations"
+  message and a prompt to move on. Reuses the exact same scan pipeline as the existing "Valid
+  passport" checklist item — nothing about that scan changed, this just adds two more places its
+  result gets used. The passport quick-scan widget that used to sit inline on "Your trip details"
+  moved into this session, so passport scanning only happens in one place now instead of two.
+- **Session 2: Travel Experience** — asks whether you've travelled outside Nigeria before. If not,
+  shows a recommendation to build travel history first (Ghana, Kenya, Ethiopia, Morocco, Egypt are
+  suggested, with a "Click here for more assistance" expander) — general guidance, not a
+  requirement. If you have, fill in a table of countries visited (with date, reason, and days
+  spent), plus a separate Yes/No for any past overstay (with its own table if so). A summary grades
+  your travel history against the tiers requested — African-country count, EU-country count, major
+  destinations (US/Canada/UK/China/Ireland/Singapore/another Asian country), and the specific
+  South-Africa/Morocco/Kenya-without-overstay case — ending in a "Success — you are qualified for
+  the next level" message once at least one country is filled in.
+  - *A note on how the Yes/No question is asked*: the original spec framed this as a "1st time
+    traveler: YES/NO" checkbox with the recommendation/history boxes tied to that literal wording,
+    but read literally the two branches come out backward — a first-time traveller is the one with
+    no history (who needs the recommendation), not the one with a table to fill in. This ships with
+    the un-inverted version instead — a plain "Have you travelled outside Nigeria before?" Yes/No
+    question — so "Yes" always means "show me the history table" and "No" always means "show me the
+    recommendation." Flagging this plainly here rather than silently guessing.
+  - *A note on this session's language*: "Congratulations," "qualified for the next level," and
+    "high chance of success" read as an eligibility/outcome prediction, which sits in tension with
+    this tool's own terms-of-service draft ("does not assess your individual eligibility... or
+    guarantee any outcome"). This was raised before building; the product owner explicitly chose to
+    keep the language as specified, accepting that risk pending a lawyer review — see the added note
+    in `docs/terms-of-service-draft.md`.
+- **Session 3: Your responsibilities** — married Yes/No (with spouse's name if yes), number of
+  children (dropdown of 0/None through 10 — the spec asked for 1–10; 0/None was added so someone
+  with no children isn't forced to pick a wrong answer), where you live (a dependent Nigerian
+  state → local government area dropdown, all 36 states + FCT, plus house/street number and name),
+  aged parents Yes/No (with father's and mother's names, monthly remittance amount, and a consent
+  checkbox to cross-check the remittance figure against your bank statement).
+- Every existing session (Your trip details, Income & bank statement analysis, Financial readiness
+  calculator, the document checklist categories, Final review) is unchanged — only its position in
+  the session order shifted to make room for the three new ones ahead of it.
+- New progress-tracking, autosave/export/import, and reset support for all three sessions, matching
+  the existing per-session pattern.
+
 ## Checklist items now tidy themselves away once ticked
 
 User feedback: "the pages are too long" — narrowed down to individual sessions in general, not

@@ -17,15 +17,15 @@ exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page);
-    await page.setInputFiles('#file_passportInline', MRZ_DIGIT_FIXTURE);
-    await page.click('#btnPassportInlineAttach');
+    await page.setInputFiles('#file_passportValidate', MRZ_DIGIT_FIXTURE);
+    await page.click('#btnPassportValidateAttach');
     await page.waitForFunction(function(){
-      var el = document.getElementById('passportInlineResult');
+      var el = document.getElementById('passportValidateResult');
       return el && el.innerHTML.indexOf('passport-card') !== -1;
     }, { timeout: 20000 });
     await page.waitForTimeout(300);
 
-    var nameRowText = await page.$eval('#passportInlineResult', function(el){
+    var nameRowText = await page.$eval('#passportValidateResult', function(el){
       var rows = el.querySelectorAll('.passport-row');
       for (var i=0;i<rows.length;i++){
         if (/Name \(from MRZ\)/.test(rows[i].textContent)) return rows[i].textContent;

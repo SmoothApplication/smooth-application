@@ -14,7 +14,7 @@ exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page);
-    await goToSessionByPill(page, 0); // trip session
+    await goToSessionByPill(page, 3); // trip session
 
     await page.fill('#f_name', 'Test Applicant');
     await page.selectOption('#f_purpose', 'tourism');

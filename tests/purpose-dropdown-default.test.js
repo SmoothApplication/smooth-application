@@ -3,13 +3,15 @@
 // pre-select the first real purpose — an unnoticed default here would apply the wrong
 // purpose-specific document requirements without the applicant ever having chosen anything.
 const assert = require('assert');
-const { newPageAt, passConsentGate } = require('./helpers');
+const { newPageAt, passConsentGate, goToSessionByPill } = require('./helpers');
 
 exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page);
-    // Trip details is session index 0, the default landing session — no navigation needed.
+    // "Your trip details" is session index 3 (0: passport, 1: travelExperience,
+    // 2: responsibilities, 3: trip).
+    await goToSessionByPill(page, 3);
     await page.waitForSelector('#f_purpose');
 
     var value = await page.$eval('#f_purpose', function(el){ return el.value; });

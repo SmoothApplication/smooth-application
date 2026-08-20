@@ -1,11 +1,13 @@
 'use strict';
-// The "Attach & check expiry" quick-scan on Your trip details and the "Valid passport" checklist
-// item under Identity & application share the same underlying attachment state (via
+// The passport scan on Session 1 ("Validate your International Passport") and the "Valid passport"
+// checklist item under Identity & application share the same underlying attachment state (via
 // attachFileToItem). Before this fix, the checklist item always showed a raw, always-empty
 // "Choose File" input next to the "Attached: ..." note even once a passport was on file, which
 // read as asking the applicant to upload the same document twice ("repetition kills user
 // attention"). Once a file is attached, the raw upload row should collapse behind a
 // "Replace file" toggle instead.
+// (The scan widget used to live inline on Your trip details — it moved into its own Session 1
+// once that session was added, so this test attaches via Session 1 instead.)
 const assert = require('assert');
 const path = require('path');
 const { newPageAt, passConsentGate, goToSessionByPill } = require('./helpers');
@@ -22,9 +24,10 @@ exports.run = async function(ctx){
   try {
     await passConsentGate(page);
 
-    // Identity & application is the first checklist category, i.e. session index 3 (0: trip,
-    // 1: finance2, 2: finance, 3: cat:Identity & application).
-    await goToSessionByPill(page, 3);
+    // Identity & application is the first checklist category, i.e. session index 6 (0: passport,
+    // 1: travelExperience, 2: responsibilities, 3: trip, 4: finance2, 5: finance,
+    // 6: cat:Identity & application).
+    await goToSessionByPill(page, 6);
 
     // Before attaching anything, the checklist item's own upload row should show normally (no
     // file attached yet, so nothing to collapse) and there should be no "Replace file" toggle.
@@ -33,11 +36,11 @@ exports.run = async function(ctx){
     var replaceBtnBefore = await page.$('#btnReplace_passport');
     assert.strictEqual(replaceBtnBefore, null, 'Replace-file toggle should not exist before a passport is attached');
 
-    // Attach a passport via the trip-session quick-scan (the same path a real applicant uses,
-    // and the one that shares state with the checklist item).
+    // Attach a passport via Session 1's own scan (the same path a real applicant uses, and the
+    // one that shares state with the checklist item).
     await goToSessionByPill(page, 0);
-    await page.setInputFiles('#file_passportInline', SAMPLE_PASSPORT);
-    await page.click('#btnPassportInlineAttach');
+    await page.setInputFiles('#file_passportValidate', SAMPLE_PASSPORT);
+    await page.click('#btnPassportValidateAttach');
 
     // attachFileToItem() sets state + calls render() synchronously (scanning happens after), so
     // the checklist item should already reflect the attachment without waiting on OCR.
@@ -46,7 +49,7 @@ exports.run = async function(ctx){
       return row && row.style.display === 'none';
     }, { timeout: 5000 });
 
-    await goToSessionByPill(page, 3);
+    await goToSessionByPill(page, 6);
 
     var uploadRowVisibleAfter = await page.$eval('#uploadRow_passport', function(el){ return el.style.display; });
     assert.strictEqual(uploadRowVisibleAfter, 'none', 'Upload row should be hidden once a passport is attached, got display: "' + uploadRowVisibleAfter + '"');

@@ -18,7 +18,7 @@ exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page);
-    await goToSessionByPill(page, 1);
+    await goToSessionByPill(page, 4);
     await page.setInputFiles('#stmtFile1', FIXTURE);
     await page.waitForTimeout(300);
     await page.click('#btnAnalyzeStatements');
@@ -41,10 +41,10 @@ exports.run = async function(ctx){
   var page2 = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page2);
-    await goToSessionByPill(page2, 0); // trip session — Work status lives here
+    await goToSessionByPill(page2, 3); // trip session — Work status lives here
     await page2.selectOption('#f_workStatus', 'selfEmployed');
     await page2.waitForTimeout(150);
-    await goToSessionByPill(page2, 4); // 0 trip, 1 finance2, 2 finance, 3 cat:Identity & application, 4 cat:Financial evidence
+    await goToSessionByPill(page2, 7); // 0 passport, 1 travelExperience, 2 responsibilities, 3 trip, 4 finance2, 5 finance, 6 cat:Identity & application, 7 cat:Financial evidence
     await page2.waitForSelector('#file_bizFinance', { timeout: 5000 });
     await page2.setInputFiles('#file_bizFinance', FIXTURE);
     await page2.waitForTimeout(300);

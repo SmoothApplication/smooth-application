@@ -37,6 +37,17 @@ advice"/"immigration consulting" activity under UK or Canadian law, and whether 
 wording changes (or feature restrictions) are needed to stay clearly on the "self-help tool" side
 of that line — this gets more important, not less, as the product adds more automated guidance.]*
 
+*[Lawyer note, added when Sessions 1–3 (passport validation, Travel Experience, Your
+responsibilities) were built: Session 2's country-visit "grading" summary uses language —
+"Congratulations," "you are qualified for the next level," "high chance of success" — that reads
+as an eligibility/outcome prediction, in direct tension with the "does not assess your individual
+eligibility... or guarantee any outcome" line above. This was flagged to the product owner before
+building; they explicitly chose to keep this language as specified, accepting the risk pending
+review. Needs a decision: either soften the copy to informational-only framing (e.g. "this is
+commonly seen as a positive sign," not "you qualify"/"you have a high chance"), or confirm the
+existing "not immigration advice" disclaimers are legally sufficient to cover it as-is. See
+index.html's updateTravelExperienceGrade() function for the exact copy in question.]*
+
 ## 3. No warranty / limitation of liability
 
 [Lawyer note: standard "as-is," no warranty of accuracy or fitness for a particular purpose,

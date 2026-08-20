@@ -11,7 +11,7 @@ exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page);
-    await goToSessionByPill(page, 2); // 'finance' is session index 2: ['trip','finance2','finance',...]
+    await goToSessionByPill(page, 5); // 'finance' is session index 5: ['passport','travelExperience','responsibilities','trip','finance2','finance',...]
 
     var footerPctText = function(){
       return page.$eval('#sessionFooterProgress', function(el){ return el.textContent; }).catch(function(){ return null; });

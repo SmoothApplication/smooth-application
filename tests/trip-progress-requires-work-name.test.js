@@ -4,11 +4,13 @@
 // required (marked with a red *) the moment "I'm self-employed" or "I'm currently employed" is
 // checked. That let the session read 100% filled while a required field sat empty.
 const assert = require('assert');
-const { newPageAt, passConsentGate } = require('./helpers');
+const { newPageAt, passConsentGate, goToSessionByPill } = require('./helpers');
 
 async function readTripHeader(page){
   return page.evaluate(function(){
-    var m = document.body.innerText.match(/Session 1 of \d+.*?filled/);
+    // "Your trip details" is session index 3 (0: passport, 1: travelExperience,
+    // 2: responsibilities, 3: trip), i.e. "Session 4" in the 1-based header text.
+    var m = document.body.innerText.match(/Session 4 of \d+.*?filled/);
     return m ? m[0] : null;
   });
 }
@@ -17,6 +19,7 @@ exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page);
+    await goToSessionByPill(page, 3);
     await page.fill('#f_name', 'Test Applicant');
     await page.selectOption('#f_purpose', { index: 1 });
     await page.fill('#f_traveldate', '2026-12-01');

@@ -19,19 +19,19 @@ exports.run = async function(ctx){
 
     // Before any statement is scanned, the box should explain what's missing rather than show a
     // bogus 0%.
-    await goToSessionByPill(page, 1);
+    await goToSessionByPill(page, 4);
     var emptyState = await page.$eval('#statementReadinessBox', function(el){ return el.textContent; });
     assert.ok(/scan a bank statement/i.test(emptyState), 'Should prompt to scan a statement first, got: "' + emptyState + '"');
 
     // Enter trip dates so the rough cost estimate (and therefore the 2× recommended-funds figure
     // this box compares against) actually exists.
-    await goToSessionByPill(page, 0);
+    await goToSessionByPill(page, 3);
     await page.fill('#f_traveldate', '2026-12-01');
     await page.fill('#f_returndate', '2026-12-06');
     await page.waitForTimeout(300);
 
     // Scan the fixture statement — its last row has a closing balance of exactly 1,823,000.
-    await goToSessionByPill(page, 1);
+    await goToSessionByPill(page, 4);
     await page.setInputFiles('#stmtFile1', SAMPLE_STATEMENT);
     await page.click('#btnAnalyzeStatements');
     await page.waitForSelector('#unexplainedInflowsBox .explain-box', { timeout: 20000 });

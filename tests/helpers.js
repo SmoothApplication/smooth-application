@@ -87,4 +87,23 @@ async function goToSessionByPill(page, idx){
   await page.click('.session-pill[data-idx="' + idx + '"]');
 }
 
-module.exports = { startServer, launchBrowser, newPageAt, passConsentGate, goToSessionByPill, PORT, ROOT };
+// Jumps to a session by its display label (e.g. 'Validate your International Passport') instead of
+// a hardcoded numeric index — added when 3 new sessions were prepended ahead of the existing ones,
+// which shifted every previously-hardcoded index by +3. Index-based navigation is still fine for
+// existing tests (all shifted in one pass), but new tests should prefer this where practical so a
+// future reorder doesn't require another repo-wide shift.
+async function goToSessionByLabel(page, label){
+  await page.evaluate(function(){ document.activeElement && document.activeElement.blur(); });
+  await page.waitForTimeout(50);
+  var idx = await page.$$eval('.session-pill', function(pills, label){
+    for (var i = 0; i < pills.length; i++){
+      var title = pills[i].getAttribute('title') || '';
+      if (title.indexOf(label) === 0) return i;
+    }
+    return -1;
+  }, label);
+  if (idx === -1) throw new Error('No session pill found with label "' + label + '"');
+  await page.click('.session-pill[data-idx="' + idx + '"]');
+}
+
+module.exports = { startServer, launchBrowser, newPageAt, passConsentGate, goToSessionByPill, goToSessionByLabel, PORT, ROOT };

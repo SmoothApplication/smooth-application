@@ -6,7 +6,7 @@
 // with a scroll straight to the first one, so the applicant doesn't have to hunt for it themselves.
 const assert = require('assert');
 const path = require('path');
-const { launchBrowser, PORT } = require('./helpers');
+const { launchBrowser, PORT, goToSessionByPill } = require('./helpers');
 
 exports.run = async function(ctx){
   var context = await ctx.browser.newContext();
@@ -31,6 +31,9 @@ exports.run = async function(ctx){
     // Fresh trip session: only the name filled in, everything else still blank. Blur the field first
     // (same reasoning as goToSessionByPill in helpers.js) so the render() triggered on blur settles
     // before the click, instead of racing a mid-rebuild DOM node.
+    // "Your trip details" is session index 3 (0: passport, 1: travelExperience,
+    // 2: responsibilities, 3: trip).
+    await goToSessionByPill(page, 3);
     await page.fill('#f_name', 'Test Applicant');
     await page.evaluate(function(){ document.activeElement && document.activeElement.blur(); });
     await page.waitForTimeout(150);
@@ -45,7 +48,7 @@ exports.run = async function(ctx){
     // Dismissing should keep the applicant on the same (still incomplete) session, with the missing
     // fields visibly outlined right on the page.
     var stillOnTrip = await page.$eval('.session-pill.active', function(el){ return el.getAttribute('data-idx'); });
-    assert.strictEqual(stillOnTrip, '0', 'Dismissing the nudge should keep the applicant on the trip session');
+    assert.strictEqual(stillOnTrip, '3', 'Dismissing the nudge should keep the applicant on the trip session');
 
     var purposeFlagged = await page.$eval('#f_purpose', function(el){ return el.classList.contains('field-invalid'); });
     assert.strictEqual(purposeFlagged, true, 'The empty "Main purpose of visit" field should be outlined in red');
@@ -68,7 +71,7 @@ exports.run = async function(ctx){
     await page.waitForTimeout(200);
     assert.strictEqual(dialogMessages.length, 0, 'A fully-filled session should advance with no nudge dialog at all');
     var nowOnSession = await page.$eval('.session-pill.active', function(el){ return el.getAttribute('data-idx'); });
-    assert.notStrictEqual(nowOnSession, '0', 'Should have actually advanced past the trip session');
+    assert.notStrictEqual(nowOnSession, '3', 'Should have actually advanced past the trip session');
   } finally {
     await page.context().close();
   }

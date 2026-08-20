@@ -778,21 +778,159 @@
 
       <div class="session-nav no-print" id="sessionNav"></div>
 
-      <details class="card collapsible" data-session-key="trip" style="border-left-color:#1b6fa8;" open>
+      <details class="card collapsible" data-session-key="passport" style="border-left-color:#8a4baf;" open>
+        <summary class="card-summary">
+          <h2><span class="card-icon-badge" style="background:#8a4baf1f; color:#8a4baf;">🛂</span> Validate your International Passport</h2>
+          <span class="chevron">▸</span>
+        </summary>
+        <div class="card-body">
+        <p class="item-tip" style="margin-top:0;">Scan your passport's bio page below — your name, passport number, and expiry date will be read straight off it and filled in automatically. Check each one against your physical passport and correct anything that's wrong before moving on.</p>
+        <div class="upload-row no-print" style="margin:4px 0 14px;">
+          <input type="file" id="file_passportValidate" accept="image/*,application/pdf">
+          <button type="button" class="btn" id="btnPassportValidateAttach" disabled>📎 Scan passport</button>
+        </div>
+        <div id="passportValidateMsg" class="item-tip no-print" style="margin:2px 0 10px;"></div>
+        <div id="passportValidateResult"></div>
+        <div class="row" style="margin-top:14px;">
+          <div>
+            <label class="field" for="pv_name">Full name (from your passport)</label>
+            <input type="text" id="pv_name" placeholder="Scan your passport, or fill this in on the trip-details session" readonly>
+            <div class="item-tip">This mirrors "Your full name (as on passport)" on the trip-details session further along — edit it there if it needs correcting.</div>
+          </div>
+          <div>
+            <label class="field" for="f_passportNumber">Passport number</label>
+            <input type="text" id="f_passportNumber" placeholder="e.g. A12345678">
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label class="field" for="f_passportExpiry">Passport expiry date</label>
+            <input type="date" id="f_passportExpiry">
+            <div class="item-tip">Verify this is right against your physical passport. If the scan got it wrong, or nothing was detected, type the correct date in yourself.</div>
+          </div>
+          <div></div>
+        </div>
+        <div id="passportValidateStatus"></div>
+        </div>
+      </details>
+
+      <details class="card collapsible" data-session-key="travelExperience" style="border-left-color:#c1436b;">
+        <summary class="card-summary">
+          <h2><span class="card-icon-badge" style="background:#c1436b1f; color:#c1436b;">🌍</span> Travel Experience</h2>
+          <span class="chevron">▸</span>
+        </summary>
+        <div class="card-body">
+        <label class="field" style="margin-top:0;" for="te_firstTime">Have you travelled outside Nigeria before?</label>
+        <select id="te_firstTime">
+          <option value="" selected>Select…</option>
+          <option value="yes">Yes — I've travelled before</option>
+          <option value="no">No — this would be my first time</option>
+        </select>
+
+        <div id="te_noHistoryBox" class="doc-reminder" style="display:none; margin-top:10px;">
+          <p style="margin:0 0 6px; font-weight:600;">No travel history yet — that's fine, plenty of successful applicants start here.</p>
+          <p style="margin:0 0 8px;">One thing that genuinely helps a first application is building some travel history first, ideally with countries that have a reputation for straightforward visa processes for Nigerian travellers — places like <b>Ghana, Kenya, Ethiopia, Morocco</b>, and <b>Egypt</b> are commonly suggested for this. It's not required, but it can strengthen a future application.</p>
+          <button type="button" class="btn ghost" id="btnTravelAssistance">Click here for more assistance</button>
+          <div id="travelAssistanceMsg" class="item-tip" style="margin-top:8px; display:none;">Consider applying for a visa to one of these countries first, spending a genuine trip there, and keeping your boarding passes, stamps, and hotel bookings as evidence. Returning home on time (no overstay) matters more than the destination — a clean travel history is what future visa officers are actually looking for. This is general guidance, not a guarantee of any outcome.</div>
+        </div>
+
+        <div id="te_historyBox" style="display:none; margin-top:10px;">
+          <label class="field" style="margin-top:0;">Countries you've travelled to</label>
+          <table class="cf-table" id="travelHistoryTable">
+            <thead><tr><th>Country</th><th>Date travelled</th><th>Reason</th><th>Days spent</th><th></th></tr></thead>
+            <tbody id="travelHistoryBody"></tbody>
+          </table>
+          <button type="button" class="btn ghost" id="btnAddTravelRow">+ Add a country</button>
+
+          <div class="checkrow" style="margin-top:16px;"><input type="checkbox" id="te_hasOverstayed"><label for="te_hasOverstayed">I've overstayed a visa at some point in the past</label></div>
+          <div id="te_overstayBox" style="display:none; margin-top:10px;">
+            <label class="field" style="margin-top:0;">Where, and for how long</label>
+            <table class="cf-table" id="overstayTable">
+              <thead><tr><th>Country</th><th>Days overstayed</th><th></th></tr></thead>
+              <tbody id="overstayBody"></tbody>
+            </table>
+            <button type="button" class="btn ghost" id="btnAddOverstayRow">+ Add a country</button>
+          </div>
+
+          <div id="travelExperienceGrade"></div>
+        </div>
+        </div>
+      </details>
+
+      <details class="card collapsible" data-session-key="responsibilities" style="border-left-color:#3e7bb0;">
+        <summary class="card-summary">
+          <h2><span class="card-icon-badge" style="background:#3e7bb01f; color:#3e7bb0;">🏡</span> Your responsibilities</h2>
+          <span class="chevron">▸</span>
+        </summary>
+        <div class="card-body">
+        <div class="checkrow"><input type="checkbox" id="rs_married"><label for="rs_married">I'm married</label></div>
+        <div id="rs_spouseRow" style="display:none; padding-left:24px; margin:-2px 0 8px;">
+          <label class="field" for="rs_spouseName">Spouse's full name</label>
+          <input type="text" id="rs_spouseName" placeholder="e.g. Chidinma Okafor">
+        </div>
+
+        <div class="row">
+          <div>
+            <label class="field" for="rs_numKids">How many children do you have?</label>
+            <select id="rs_numKids">
+              <option value="">Select…</option>
+              <option value="0">0 / None</option>
+              <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+              <option value="4">4</option><option value="5">5</option><option value="6">6</option>
+              <option value="7">7</option><option value="8">8</option><option value="9">9</option>
+              <option value="10">10</option>
+            </select>
+          </div>
+          <div></div>
+        </div>
+
+        <label class="field">Where do you live?</label>
+        <div class="row">
+          <div>
+            <label class="field" for="rs_state">State</label>
+            <select id="rs_state"></select>
+          </div>
+          <div>
+            <label class="field" for="rs_lga">Local government area</label>
+            <select id="rs_lga"><option value="">Select a state first…</option></select>
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label class="field" for="rs_addressNumber">House/street number</label>
+            <input type="text" id="rs_addressNumber" placeholder="e.g. 14">
+          </div>
+          <div>
+            <label class="field" for="rs_addressName">Street/address name</label>
+            <input type="text" id="rs_addressName" placeholder="e.g. Adeola Odeku Street">
+          </div>
+        </div>
+
+        <div class="checkrow"><input type="checkbox" id="rs_agedParents"><label for="rs_agedParents">I have aged parents I support</label></div>
+        <div id="rs_parentsRow" style="display:none; padding-left:24px; margin:-2px 0 8px;">
+          <div class="row">
+            <div>
+              <label class="field" for="rs_fatherName">Father's name</label>
+              <input type="text" id="rs_fatherName" placeholder="e.g. Emeka Okafor">
+            </div>
+            <div>
+              <label class="field" for="rs_motherName">Mother's name</label>
+              <input type="text" id="rs_motherName" placeholder="e.g. Ngozi Okafor">
+            </div>
+          </div>
+          <label class="field" for="rs_remittance">How much do you send them (per month, ₦)?</label>
+          <input type="text" inputmode="numeric" id="rs_remittance" placeholder="e.g. 50000">
+          <div class="checkrow" style="margin-top:6px;"><input type="checkbox" id="rs_verifyConsent"><label for="rs_verifyConsent">This is fine to cross-check against my bank statement above</label></div>
+        </div>
+        </div>
+      </details>
+
+      <details class="card collapsible" data-session-key="trip" style="border-left-color:#1b6fa8;">
         <summary class="card-summary">
           <h2><span class="card-icon-badge" style="background:#1b6fa81f; color:#1b6fa8;">🧳</span> Your trip details</h2>
           <span class="chevron">▸</span>
         </summary>
         <div class="card-body">
-        <div class="doc-reminder" id="passportInlineBox" style="margin:0 0 14px; padding-left:12px;">
-          <label class="field" style="margin-bottom:6px;" for="file_passportInline">📘 Check your passport first — upload the bio page to check its expiry date</label>
-          <div class="upload-row no-print" style="margin:4px 0;">
-            <input type="file" id="file_passportInline" accept="image/*,application/pdf">
-            <button type="button" class="btn" id="btnPassportInlineAttach" disabled>📎 Attach &amp; check expiry</button>
-          </div>
-          <div id="passportInlineMsg" class="item-tip no-print" style="margin:2px 0 0;">An expired or soon-to-expire passport is the single biggest reason an application goes to waste, so it's worth checking first — takes 10 seconds. This is optional, and either way it won't stop you from carrying on with the rest of the checklist and your bank statement analysis below.</div>
-          <div id="passportInlineResult"></div>
-        </div>
         <div class="row">
           <div>
             <label class="field" for="f_name">Your full name (as on passport)</label>
@@ -1983,6 +2121,69 @@
   var itemCollapsed = {};
   var itemCollapseTimers = {};
 
+  // ---------------- Session 3 ("Your responsibilities") — Nigeria state → LGA lookup ----------------
+  // The 36 states + FCT, each with their official local government areas — used to populate the
+  // dependent "Local government area" dropdown once a state is picked. No existing dependent-dropdown
+  // pattern lived in this file before, so this follows the same "keyed data object, rebuilt on trigger
+  // change" idiom already used for buildSightseeingAttractionRows.
+  var NIGERIA_STATES_LGA = {
+    'Abia': ['Aba North','Aba South','Arochukwu','Bende','Ikwuano','Isiala Ngwa North','Isiala Ngwa South','Isuikwuato','Obi Ngwa','Ohafia','Osisioma','Ugwunagbo','Ukwa East','Ukwa West','Umuahia North','Umuahia South','Umu Nneochi'],
+    'Adamawa': ['Demsa','Fufure','Ganye','Girei','Gombi','Guyuk','Hong','Jada','Lamurde','Madagali','Maiha','Mayo Belwa','Michika','Mubi North','Mubi South','Numan','Shelleng','Song','Toungo','Yola North','Yola South'],
+    'Akwa Ibom': ['Abak','Eastern Obolo','Eket','Esit Eket','Essien Udim','Etim Ekpo','Etinan','Ibeno','Ibesikpo Asutan','Ibiono Ibom','Ika','Ikono','Ikot Abasi','Ikot Ekpene','Ini','Itu','Mbo','Mkpat Enin','Nsit Atai','Nsit Ibom','Nsit Ubium','Obot Akara','Okobo','Onna','Oron','Oruk Anam','Udung Uko','Ukanafun','Uruan','Urue-Offong/Oruko','Uyo'],
+    'Anambra': ['Aguata','Anambra East','Anambra West','Anaocha','Awka North','Awka South','Ayamelum','Dunukofia','Ekwusigo','Idemili North','Idemili South','Ihiala','Njikoka','Nnewi North','Nnewi South','Ogbaru','Onitsha North','Onitsha South','Orumba North','Orumba South','Oyi'],
+    'Bauchi': ['Alkaleri','Bauchi','Bogoro','Damban','Darazo','Dass','Gamawa','Ganjuwa','Giade','Itas/Gadau','Jama\'are','Katagum','Kirfi','Misau','Ningi','Shira','Tafawa Balewa','Toro','Warji','Zaki'],
+    'Bayelsa': ['Brass','Ekeremor','Kolokuma/Opokuma','Nembe','Ogbia','Sagbama','Southern Ijaw','Yenagoa'],
+    'Benue': ['Ado','Agatu','Apa','Buruku','Gboko','Guma','Gwer East','Gwer West','Katsina-Ala','Konshisha','Kwande','Logo','Makurdi','Obi','Ogbadibo','Ohimini','Oju','Okpokwu','Otukpo','Tarka','Ukum','Ushongo','Vandeikya'],
+    'Borno': ['Abadam','Askira/Uba','Bama','Bayo','Biu','Chibok','Damboa','Dikwa','Gubio','Guzamala','Gwoza','Hawul','Jere','Kaga','Kala/Balge','Konduga','Kukawa','Kwaya Kusar','Mafa','Magumeri','Maiduguri','Marte','Mobbar','Monguno','Ngala','Nganzai','Shani'],
+    'Cross River': ['Abi','Akamkpa','Akpabuyo','Bakassi','Bekwarra','Biase','Boki','Calabar Municipal','Calabar South','Etung','Ikom','Obanliku','Obubra','Obudu','Odukpani','Ogoja','Yakuur','Yala'],
+    'Delta': ['Aniocha North','Aniocha South','Bomadi','Burutu','Ethiope East','Ethiope West','Ika North East','Ika South','Isoko North','Isoko South','Ndokwa East','Ndokwa West','Okpe','Oshimili North','Oshimili South','Patani','Sapele','Udu','Ughelli North','Ughelli South','Ukwuani','Uvwie','Warri North','Warri South','Warri South West'],
+    'Ebonyi': ['Abakaliki','Afikpo North','Afikpo South','Ebonyi','Ezza North','Ezza South','Ikwo','Ishielu','Ivo','Izzi','Ohaozara','Ohaukwu','Onicha'],
+    'Edo': ['Akoko-Edo','Egor','Esan Central','Esan North-East','Esan South-East','Esan West','Etsako Central','Etsako East','Etsako West','Igueben','Ikpoba Okha','Orhionmwon','Oredo','Ovia North-East','Ovia South-West','Owan East','Owan West','Uhunmwonde'],
+    'Ekiti': ['Ado Ekiti','Efon','Ekiti East','Ekiti South-West','Ekiti West','Emure','Gbonyin','Ido Osi','Ijero','Ikere','Ikole','Ilejemeje','Irepodun/Ifelodun','Ise/Orun','Moba','Oye'],
+    'Enugu': ['Aninri','Awgu','Enugu East','Enugu North','Enugu South','Ezeagu','Igbo Etiti','Igbo Eze North','Igbo Eze South','Isi Uzo','Nkanu East','Nkanu West','Nsukka','Oji River','Udenu','Udi','Uzo Uwani'],
+    'Gombe': ['Akko','Balanga','Billiri','Dukku','Funakaye','Gombe','Kaltungo','Kwami','Nafada','Shongom','Yamaltu/Deba'],
+    'Imo': ['Aboh Mbaise','Ahiazu Mbaise','Ehime Mbano','Ezinihitte','Ideato North','Ideato South','Ihitte/Uboma','Ikeduru','Isiala Mbano','Isu','Mbaitoli','Ngor Okpala','Njaba','Nkwerre','Nwangele','Obowo','Oguta','Ohaji/Egbema','Okigwe','Orlu','Orsu','Oru East','Oru West','Owerri Municipal','Owerri North','Owerri West','Unuimo'],
+    'Jigawa': ['Auyo','Babura','Biriniwa','Birnin Kudu','Buji','Dutse','Gagarawa','Garki','Gumel','Guri','Gwaram','Gwiwa','Hadejia','Jahun','Kafin Hausa','Kazaure','Kiri Kasama','Kiyawa','Maigatari','Malam Madori','Miga','Ringim','Roni','Sule Tankarkar','Taura','Yankwashi'],
+    'Kaduna': ['Birnin Gwari','Chikun','Giwa','Igabi','Ikara','Jaba','Jema\'a','Kachia','Kaduna North','Kaduna South','Kagarko','Kajuru','Kaura','Kauru','Kubau','Kudan','Lere','Makarfi','Sabon Gari','Sanga','Soba','Zangon Kataf','Zaria'],
+    'Kano': ['Ajingi','Albasu','Bagwai','Bebeji','Bichi','Bunkure','Dala','Dambatta','Dawakin Kudu','Dawakin Tofa','Doguwa','Fagge','Gabasawa','Garko','Garun Mallam','Gaya','Gezawa','Gwale','Gwarzo','Kabo','Kano Municipal','Karaye','Kibiya','Kiru','Kumbotso','Kunchi','Kura','Madobi','Makoda','Minjibir','Nasarawa','Rano','Rimin Gado','Rogo','Shanono','Sumaila','Takai','Tarauni','Tofa','Tsanyawa','Tudun Wada','Ungogo','Warawa','Wudil'],
+    'Katsina': ['Bakori','Batagarawa','Batsari','Baure','Bindawa','Charanchi','Dan Musa','Dandume','Danja','Daura','Dutsi','Dutsin-Ma','Faskari','Funtua','Ingawa','Jibia','Kafur','Kaita','Kankara','Kankia','Katsina','Kurfi','Kusada','Mai\'Adua','Malumfashi','Mani','Mashi','Matazu','Musawa','Rimi','Sabuwa','Safana','Sandamu','Zango'],
+    'Kebbi': ['Aleiro','Arewa Dandi','Argungu','Augie','Bagudo','Birnin Kebbi','Bunza','Dandi','Fakai','Gwandu','Jega','Kalgo','Koko/Besse','Maiyama','Ngaski','Sakaba','Shanga','Suru','Wasagu/Danko','Yauri','Zuru'],
+    'Kogi': ['Adavi','Ajaokuta','Ankpa','Bassa','Dekina','Ibaji','Idah','Igalamela Odolu','Ijumu','Kabba/Bunu','Kogi','Lokoja','Mopa Muro','Ofu','Ogori/Magongo','Okehi','Okene','Olamaboro','Omala','Yagba East','Yagba West'],
+    'Kwara': ['Asa','Baruten','Edu','Ekiti','Ifelodun','Ilorin East','Ilorin South','Ilorin West','Irepodun','Isin','Kaiama','Moro','Offa','Oke Ero','Oyun','Pategi'],
+    'Lagos': ['Agege','Ajeromi-Ifelodun','Alimosho','Amuwo-Odofin','Apapa','Badagry','Epe','Eti Osa','Ibeju-Lekki','Ifako-Ijaiye','Ikeja','Ikorodu','Kosofe','Lagos Island','Lagos Mainland','Mushin','Ojo','Oshodi-Isolo','Shomolu','Surulere'],
+    'Nasarawa': ['Akwanga','Awe','Doma','Karu','Keana','Keffi','Kokona','Lafia','Nasarawa','Nasarawa Egon','Obi','Toto','Wamba'],
+    'Niger': ['Agaie','Agwara','Bida','Borgu','Bosso','Chanchaga','Edati','Gbako','Gurara','Katcha','Kontagora','Lapai','Lavun','Magama','Mariga','Mashegu','Mokwa','Moya','Paikoro','Rafi','Rijau','Shiroro','Suleja','Tafa','Wushishi'],
+    'Ogun': ['Abeokuta North','Abeokuta South','Ado-Odo/Ota','Egbado North','Egbado South','Ewekoro','Ifo','Ijebu East','Ijebu North','Ijebu North East','Ijebu Ode','Ikenne','Imeko Afon','Ipokia','Obafemi Owode','Odeda','Odogbolu','Ogun Waterside','Remo North','Shagamu'],
+    'Ondo': ['Akoko North-East','Akoko North-West','Akoko South-East','Akoko South-West','Akure North','Akure South','Ese Odo','Idanre','Ifedore','Ilaje','Ile Oluji/Okeigbo','Irele','Odigbo','Okitipupa','Ondo East','Ondo West','Ose','Owo'],
+    'Osun': ['Atakunmosa East','Atakunmosa West','Aiyedaade','Aiyedire','Boluwaduro','Boripe','Ede North','Ede South','Egbedore','Ejigbo','Ife Central','Ife East','Ife North','Ife South','Ifedayo','Ifelodun','Ila','Ilesa East','Ilesa West','Irepodun','Irewole','Isokan','Iwo','Obokun','Odo Otin','Ola Oluwa','Olorunda','Oriade','Orolu','Osogbo'],
+    'Oyo': ['Afijio','Akinyele','Atiba','Atisbo','Egbeda','Ibadan North','Ibadan North-East','Ibadan North-West','Ibadan South-East','Ibadan South-West','Ibarapa Central','Ibarapa East','Ibarapa North','Ido','Irepo','Iseyin','Itesiwaju','Iwajowa','Kajola','Lagelu','Ogbomosho North','Ogbomosho South','Ogo Oluwa','Olorunsogo','Oluyole','Ona Ara','Orelope','Ori Ire','Oyo East','Oyo West','Saki East','Saki West','Surulere'],
+    'Plateau': ['Bokkos','Barkin Ladi','Bassa','Jos East','Jos North','Jos South','Kanam','Kanke','Langtang North','Langtang South','Mangu','Mikang','Pankshin','Qua\'an Pan','Riyom','Shendam','Wase'],
+    'Rivers': ['Abua/Odual','Ahoada East','Ahoada West','Akuku-Toru','Andoni','Asari-Toru','Bonny','Degema','Emuoha','Eleme','Etche','Gokana','Ikwerre','Khana','Obio/Akpor','Ogba/Egbema/Ndoni','Ogu/Bolo','Okrika','Omuma','Opobo/Nkoro','Oyigbo','Port Harcourt','Tai'],
+    'Sokoto': ['Binji','Bodinga','Dange Shuni','Gada','Goronyo','Gudu','Gwadabawa','Illela','Isa','Kebbe','Kware','Rabah','Sabon Birni','Shagari','Silame','Sokoto North','Sokoto South','Tambuwal','Tangaza','Tureta','Wamako','Wurno','Yabo'],
+    'Taraba': ['Ardo Kola','Bali','Donga','Gashaka','Gassol','Ibi','Jalingo','Karim Lamido','Kurmi','Lau','Sardauna','Takum','Ussa','Wukari','Yorro','Zing'],
+    'Yobe': ['Bade','Bursari','Damaturu','Fika','Fune','Geidam','Gujba','Gulani','Jakusko','Karasuwa','Machina','Nangere','Nguru','Potiskum','Tarmuwa','Yunusari','Yusufari'],
+    'Zamfara': ['Anka','Bakura','Birnin Magaji/Kiyaw','Bukkuyum','Bungudu','Gummi','Gusau','Kaura Namoda','Maradun','Maru','Shinkafi','Talata Mafara','Chafe','Zurmi'],
+    'Federal Capital Territory': ['Abaji','Abuja Municipal','Bwari','Gwagwalada','Kuje','Kwali']
+  };
+
+  // ---------------- Session 2 ("Travel Experience") — country lists used for the destination
+  // dropdown and the grading summary below it. Kept as small curated lists (not exhaustive) since
+  // they only need to support the specific grading rules the applicant asked for.
+  var TE_AFRICAN_COUNTRIES = ['Ghana','Kenya','Ethiopia','Morocco','Egypt','South Africa','Senegal','Rwanda','Tanzania','Uganda','Ivory Coast','Cameroon','Benin','Togo','Zambia','Botswana','Namibia','Tunisia'];
+  var TE_EU_COUNTRIES = ['France','Germany','Italy','Spain','Portugal','Netherlands','Belgium','Luxembourg','Austria','Sweden','Denmark','Finland','Poland','Czechia','Greece','Hungary','Romania','Bulgaria','Croatia','Slovakia','Slovenia','Estonia','Latvia','Lithuania','Malta','Cyprus'];
+  // Named individually per the applicant's grading spec (each treated as a strong "1st-world" /
+  // high-GDP signal on its own, distinct from the African/EU groupings above).
+  var TE_NAMED_HIGH_VALUE_COUNTRIES = ['United States','Canada','United Kingdom','China','Ireland','Singapore'];
+  var TE_ASIAN_COUNTRIES = ['Japan','South Korea','United Arab Emirates','Qatar','India','Malaysia','Thailand','Saudi Arabia','Turkey','Indonesia','Vietnam'];
+  // "high chance of success" trio called out explicitly in the applicant's spec.
+  var TE_HIGH_SUCCESS_COUNTRIES = ['South Africa','Morocco','Kenya'];
+  var TE_COUNTRY_LIST = (function(){
+    var seen = {}, out = [];
+    [].concat(TE_AFRICAN_COUNTRIES, TE_EU_COUNTRIES, TE_NAMED_HIGH_VALUE_COUNTRIES, TE_ASIAN_COUNTRIES, ['Australia','New Zealand','Brazil','Other'])
+      .forEach(function(c){ if (!seen[c]){ seen[c] = true; out.push(c); } });
+    return out.sort(function(a,b){ return a === 'Other' ? 1 : (b === 'Other' ? -1 : a.localeCompare(b)); });
+  })();
+
   function getAnswers(){
     return {
       name: document.getElementById('f_name').value.trim(),
@@ -2013,7 +2214,28 @@
       accomPerNight: parseNum(document.getElementById('fc_accom').value),
       flightAirline: document.getElementById('fc_airline').value.trim(),
       flightDepDate: document.getElementById('fc_depDate').value,
-      flightArrDate: document.getElementById('fc_arrDate').value
+      flightArrDate: document.getElementById('fc_arrDate').value,
+      // Session 1: Validate your International Passport
+      passportNumber: document.getElementById('f_passportNumber').value.trim(),
+      passportExpiry: document.getElementById('f_passportExpiry').value,
+      // Session 2: Travel Experience. te_firstTime holds 'yes'/'no' answering "Have you travelled
+      // outside Nigeria before?" — travelledBefore true means there IS history to fill in below.
+      firstTimeAnswer: document.getElementById('te_firstTime').value,
+      travelledBefore: document.getElementById('te_firstTime').value === 'yes',
+      hasOverstayed: document.getElementById('te_hasOverstayed').checked,
+      // Session 3: Your responsibilities
+      married: document.getElementById('rs_married').checked,
+      spouseName: document.getElementById('rs_spouseName').value.trim(),
+      numKids: document.getElementById('rs_numKids').value,
+      livingState: document.getElementById('rs_state').value,
+      livingLga: document.getElementById('rs_lga').value,
+      addressNumber: document.getElementById('rs_addressNumber').value.trim(),
+      addressName: document.getElementById('rs_addressName').value.trim(),
+      agedParents: document.getElementById('rs_agedParents').checked,
+      fatherName: document.getElementById('rs_fatherName').value.trim(),
+      motherName: document.getElementById('rs_motherName').value.trim(),
+      remittanceAmount: document.getElementById('rs_remittance').value,
+      remittanceVerifyConsent: document.getElementById('rs_verifyConsent').checked
     };
   }
 
@@ -2066,7 +2288,11 @@
     // sooner, instead of first working through a full manual cost estimate. All session ordering
     // lives in this one array; labels, progress, and pill numbering are all computed from it, so
     // this is the only line that needed to change.
-    var keys = ['trip', 'finance2', 'finance'];
+    // 'passport' / 'travelExperience' / 'responsibilities' were added on top, ahead of everything
+    // else, per an explicit numbered session order the applicant asked for (Session 1: passport
+    // validation, Session 2: travel experience, Session 3: responsibilities, Session 4 onward: the
+    // sessions that already existed, unchanged and in their existing relative order).
+    var keys = ['passport', 'travelExperience', 'responsibilities', 'trip', 'finance2', 'finance'];
     var a = getAnswers();
     var byCat = {};
     CHECKLIST.forEach(function(it){
@@ -2078,6 +2304,9 @@
     return keys;
   }
   function sessionLabel(key){
+    if (key === 'passport') return 'Validate your International Passport';
+    if (key === 'travelExperience') return 'Travel Experience';
+    if (key === 'responsibilities') return 'Your responsibilities';
     if (key === 'trip') return 'Your trip details';
     if (key === 'finance') return 'Financial readiness calculator';
     if (key === 'finance2') return 'Income & bank statement analysis';
@@ -2101,6 +2330,15 @@
   var FINANCE_FIELD_LABELS = {
     fc_flight: 'Flight cost estimate', fc_accom: 'Accommodation cost estimate',
     fc_transport: 'Local transport cost estimate', fc_closing: 'Closing balance'
+  };
+  var PASSPORT_FIELD_LABELS = {
+    f_passportNumber: 'Passport number', f_passportExpiry: 'Passport expiry date'
+  };
+  var RESPONSIBILITIES_FIELD_LABELS = {
+    rs_numKids: 'Number of children', rs_state: 'State', rs_lga: 'Local government area',
+    rs_addressNumber: 'House/street number', rs_addressName: 'Street/address name',
+    rs_spouseName: "Spouse's full name", rs_fatherName: "Father's name", rs_motherName: "Mother's name",
+    rs_remittance: 'How much you send them'
   };
   function sessionProgress(key){
     var a = getAnswers();
@@ -2195,6 +2433,42 @@
         f2Missing.push({id: null, label: unexplainedGroupCount + ' income source(s) below still need a note'});
       }
       return {percent: Math.round(f2Points/f2Total*100), points: f2Points, total: f2Total, missing: f2Missing};
+    }
+    if (key === 'passport'){
+      var pFields = ['f_passportNumber','f_passportExpiry'];
+      var pMissing = [];
+      var pFilled = pFields.filter(function(id){
+        var el = document.getElementById(id);
+        if (el && String(el.value||'').trim()) return true;
+        pMissing.push({id: id, label: PASSPORT_FIELD_LABELS[id] || id});
+        return false;
+      }).length;
+      return {percent: Math.round(pFilled/pFields.length*100), points: pFilled, total: pFields.length, missing: pMissing};
+    }
+    if (key === 'travelExperience'){
+      // Whether there's anything left to "fill" here depends entirely on the branch: a first-time
+      // traveller with no history has nothing further required (the recommendation box is just
+      // guidance), while someone with travel history needs at least one row filled in. Until the
+      // Yes/No question itself is answered, there's nothing to score yet.
+      var teAnswer = document.getElementById('te_firstTime').value;
+      if (!teAnswer) return {percent:0, points:0, total:1, missing:[{id:'te_firstTime', label:'Have you travelled outside Nigeria before?'}]};
+      if (teAnswer === 'no') return {percent:100, points:1, total:1, missing:[]};
+      var filledRows = travelHistoryRows.filter(function(r){ return r.country; }).length;
+      var teMissing = filledRows ? [] : [{id:'btnAddTravelRow', label:'At least one country you\'ve travelled to'}];
+      return {percent: filledRows ? 100 : 0, points: filledRows ? 1 : 0, total: 1, missing: teMissing};
+    }
+    if (key === 'responsibilities'){
+      var rsFields = ['rs_numKids','rs_state','rs_lga','rs_addressNumber','rs_addressName'];
+      if (document.getElementById('rs_married').checked) rsFields.push('rs_spouseName');
+      if (document.getElementById('rs_agedParents').checked) rsFields.push('rs_fatherName','rs_motherName','rs_remittance');
+      var rsMissing = [];
+      var rsFilled = rsFields.filter(function(id){
+        var el = document.getElementById(id);
+        if (el && String(el.value||'').trim()) return true;
+        rsMissing.push({id: id, label: RESPONSIBILITIES_FIELD_LABELS[id] || id});
+        return false;
+      }).length;
+      return {percent: Math.round(rsFilled/rsFields.length*100), points: rsFilled, total: rsFields.length, missing: rsMissing};
     }
     return {percent:0, points:0, total:0, missing:[]}; // 'review' isn't a fill-in section
   }
@@ -2368,6 +2642,22 @@
     document.getElementById('refusalRow').style.display = a.hasRefusal ? 'block' : 'none';
     document.getElementById('studentSponsorBlock').style.display = a.student ? 'block' : 'none';
     document.getElementById('sponsorRelationshipRow').style.display = (a.student && a.studentSponsor) ? 'block' : 'none';
+
+    // Session 2: Travel Experience — nothing shows until the Yes/No question itself is answered
+    // (see PASSPORT_FIELD_LABELS/sessionProgress note above on why this is a select, not a checkbox).
+    document.getElementById('te_noHistoryBox').style.display = a.firstTimeAnswer === 'no' ? 'block' : 'none';
+    document.getElementById('te_historyBox').style.display = a.firstTimeAnswer === 'yes' ? 'block' : 'none';
+    document.getElementById('te_overstayBox').style.display = a.hasOverstayed ? 'block' : 'none';
+    updateTravelExperienceGrade(a);
+
+    // Session 3: Your responsibilities
+    document.getElementById('rs_spouseRow').style.display = a.married ? 'block' : 'none';
+    document.getElementById('rs_parentsRow').style.display = a.agedParents ? 'block' : 'none';
+
+    // Session 1: Validate your International Passport — keep its read-only name mirror and
+    // status message in sync with whatever the trip session's own f_name field currently holds
+    // (the applicant can edit it there even without re-scanning).
+    updatePassportValidateStatus(a);
 
     var byCat = {};
     CHECKLIST.forEach(function(it){
@@ -2689,7 +2979,15 @@
   wireEmailSummaryButton('btnEmailSummaryFinal');
   wireEmailSummaryButton('btnEmailSummarySidebar');
 
-  ['f_name','f_purpose','f_traveldate','f_returndate','f_appdate','f_travelerCount','f_adults','f_adolescents','f_children','f_hasHost','f_hostFunding','f_employed','f_employerName','f_employerAltName','f_selfEmployed','f_businessName','f_businessAltName','f_student','f_studentSponsor','f_sponsorRelationship','f_hasChild','f_translation','f_readyToSubmit','f_hasRefusal','f_refusalCount','f_refusalDetails']
+  ['f_name','f_purpose','f_traveldate','f_returndate','f_appdate','f_travelerCount','f_adults','f_adolescents','f_children','f_hasHost','f_hostFunding','f_employed','f_employerName','f_employerAltName','f_selfEmployed','f_businessName','f_businessAltName','f_student','f_studentSponsor','f_sponsorRelationship','f_hasChild','f_translation','f_readyToSubmit','f_hasRefusal','f_refusalCount','f_refusalDetails',
+   // Session 1: Validate your International Passport
+   'f_passportNumber','f_passportExpiry',
+   // Session 2: Travel Experience
+   'te_firstTime','te_hasOverstayed',
+   // Session 3: Your responsibilities
+   // rs_state has its own dedicated change listener (repopulates the LGA dropdown, then renders) —
+   // left out of this generic list to avoid double-rendering on every state change.
+   'rs_married','rs_spouseName','rs_numKids','rs_lga','rs_addressNumber','rs_addressName','rs_agedParents','rs_fatherName','rs_motherName','rs_remittance','rs_verifyConsent']
     .forEach(function(id){
       var el = document.getElementById(id);
       el.addEventListener('change', render);
@@ -2767,14 +3065,196 @@
     attachFileToItem('employmentLetter', file);
   });
 
-  document.getElementById('file_passportInline').addEventListener('change', function(){
-    document.getElementById('btnPassportInlineAttach').disabled = !this.files.length;
+  /* ---------------- Session 1: Validate your International Passport ----------------
+     Previously there was also a "Check your passport first" quick-scan widget right at the top of
+     Your trip details — moved here entirely once Session 1 was added, so the passport upload/scan
+     only happens in one place instead of two. Session 1's scan still auto-fills "Your full name (as
+     on passport)" on the trip session below (see renderPassportCard), same as it always did. */
+  document.getElementById('file_passportValidate').addEventListener('change', function(){
+    document.getElementById('btnPassportValidateAttach').disabled = !this.files.length;
   });
-  document.getElementById('btnPassportInlineAttach').addEventListener('click', function(){
-    var file = document.getElementById('file_passportInline').files[0];
+  document.getElementById('btnPassportValidateAttach').addEventListener('click', function(){
+    var file = document.getElementById('file_passportValidate').files[0];
     if (!file) return;
-    document.getElementById('passportInlineMsg').textContent = 'Reading "'+file.name+'" now (can take up to 30 seconds for a photo) — the result will appear right here…';
+    document.getElementById('passportValidateMsg').textContent = 'Reading "'+file.name+'" now (can take up to 30 seconds for a photo) — the result will appear right here…';
     attachFileToItem('passport', file, {skipReveal:true});
+  });
+  function dateToIsoStr(d){
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+  // Congratulations/warning message for Session 1 — deliberately checked against 6 months from
+  // TODAY, not the trip's travel date: at this point in the flow the applicant hasn't reached the
+  // trip-details session yet, so no travel date exists to check against. (The existing "Attach &
+  // check expiry" widget on the trip session still uses the travel-date-based 6-month check it
+  // always has — this is a separate, earlier, standalone read specific to this session.)
+  function updatePassportValidateStatus(a){
+    var pvNameEl = document.getElementById('pv_name');
+    if (pvNameEl) pvNameEl.value = a.name || '';
+    var box = document.getElementById('passportValidateStatus');
+    if (!box) return;
+    var expiryStr = a.passportExpiry;
+    if (!expiryStr){
+      box.innerHTML = '';
+      return;
+    }
+    var expiryDate = new Date(expiryStr);
+    if (isNaN(expiryDate.getTime())){ box.innerHTML = ''; return; }
+    var sixMonthsFromToday = new Date(); sixMonthsFromToday.setMonth(sixMonthsFromToday.getMonth()+6); sixMonthsFromToday.setHours(0,0,0,0);
+    var ok = expiryDate >= sixMonthsFromToday;
+    if (ok){
+      box.innerHTML = '<div class="scan-msg ok">🎉 <b>Congratulations</b> — your passport has more than 6 months\' validity remaining, which is enough for a visa application. You\'re ready to move on to <b>Session 2: Travel Experience</b>.</div>';
+    } else {
+      var expired = expiryDate < new Date();
+      box.innerHTML = '<div class="scan-msg warn">⚠️ Your passport '+(expired ? 'has expired' : 'has less than 6 months\' validity remaining')+' — most visa applications need at least 6 months left, so renewing it should be a priority. <a href="https://passport.immigration.gov.ng/" target="_blank" rel="noopener">Start your renewal on the official Nigeria Immigration Service site ↗</a> This doesn\'t have to stop you here though — feel free to carry on to Session 2 while you sort renewal out in parallel; none of that work goes to waste.</div>';
+    }
+  }
+
+  /* ---------------- Session 2: Travel Experience ----------------
+     No existing add/remove-row repeatable-table pattern lived in this file — both existing "table"
+     builders (buildCashFlowTable, buildSightseeingAttractionRows) are fixed-length, wholesale-
+     rebuilt on every change. These two follow the same wholesale-rebuild idiom, just with an
+     in-memory array that can grow/shrink instead of a fixed loop count. */
+  var travelHistoryRows = [];
+  var overstayRows = [];
+
+  function travelCountryOptionsHtml(selected){
+    return '<option value="">Select…</option>' + TE_COUNTRY_LIST.map(function(c){
+      return '<option value="'+escapeHtml(c)+'"'+(c === selected ? ' selected' : '')+'>'+escapeHtml(c)+'</option>';
+    }).join('');
+  }
+  function renderTravelHistoryTable(){
+    var tbody = document.getElementById('travelHistoryBody');
+    if (!tbody) return;
+    if (!travelHistoryRows.length){
+      tbody.innerHTML = '<tr><td colspan="5" style="color:var(--text-secondary);">No countries added yet — click "+ Add a country" below.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = travelHistoryRows.map(function(r, i){
+      return '<tr>'
+        + '<td><select data-idx="'+i+'" data-field="country">'+travelCountryOptionsHtml(r.country)+'</select></td>'
+        + '<td><input type="month" data-idx="'+i+'" data-field="date" value="'+escapeHtml(r.date||'')+'"></td>'
+        + '<td><input type="text" data-idx="'+i+'" data-field="reason" placeholder="e.g. Tourism" value="'+escapeHtml(r.reason||'')+'"></td>'
+        + '<td><input type="number" min="1" data-idx="'+i+'" data-field="days" placeholder="days" value="'+escapeHtml(r.days||'')+'" style="width:70px;"></td>'
+        + '<td><button type="button" class="btn ghost te-remove-row" data-idx="'+i+'" title="Remove">✕</button></td>'
+        + '</tr>';
+    }).join('');
+    tbody.querySelectorAll('select,input').forEach(function(el){
+      el.addEventListener('change', function(){
+        var idx = parseInt(el.getAttribute('data-idx'), 10);
+        var field = el.getAttribute('data-field');
+        if (travelHistoryRows[idx]) travelHistoryRows[idx][field] = el.value;
+        render();
+      });
+    });
+    tbody.querySelectorAll('.te-remove-row').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        travelHistoryRows.splice(parseInt(btn.getAttribute('data-idx'), 10), 1);
+        renderTravelHistoryTable();
+        render();
+      });
+    });
+  }
+  document.getElementById('btnAddTravelRow').addEventListener('click', function(){
+    travelHistoryRows.push({country:'', date:'', reason:'', days:''});
+    renderTravelHistoryTable();
+    render();
+  });
+
+  function renderOverstayTable(){
+    var tbody = document.getElementById('overstayBody');
+    if (!tbody) return;
+    if (!overstayRows.length){
+      tbody.innerHTML = '<tr><td colspan="3" style="color:var(--text-secondary);">No countries added yet.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = overstayRows.map(function(r, i){
+      return '<tr>'
+        + '<td><select data-idx="'+i+'" data-field="country">'+travelCountryOptionsHtml(r.country)+'</select></td>'
+        + '<td><input type="number" min="1" data-idx="'+i+'" data-field="days" placeholder="days" value="'+escapeHtml(r.days||'')+'" style="width:80px;"></td>'
+        + '<td><button type="button" class="btn ghost os-remove-row" data-idx="'+i+'" title="Remove">✕</button></td>'
+        + '</tr>';
+    }).join('');
+    tbody.querySelectorAll('select,input').forEach(function(el){
+      el.addEventListener('change', function(){
+        var idx = parseInt(el.getAttribute('data-idx'), 10);
+        var field = el.getAttribute('data-field');
+        if (overstayRows[idx]) overstayRows[idx][field] = el.value;
+        render();
+      });
+    });
+    tbody.querySelectorAll('.os-remove-row').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        overstayRows.splice(parseInt(btn.getAttribute('data-idx'), 10), 1);
+        renderOverstayTable();
+        render();
+      });
+    });
+  }
+  document.getElementById('btnAddOverstayRow').addEventListener('click', function(){
+    overstayRows.push({country:'', days:''});
+    renderOverstayTable();
+    render();
+  });
+
+  document.getElementById('btnTravelAssistance').addEventListener('click', function(){
+    var msg = document.getElementById('travelAssistanceMsg');
+    if (msg) msg.style.display = msg.style.display === 'none' ? 'block' : 'none';
+  });
+
+  // Country-visit "grading" summary — informal guidance copy, not an eligibility prediction, built
+  // from the tiers the applicant specified (African-country count, EU-country count, named
+  // high-value/GDP countries, and the South Africa/Morocco/Kenya-without-overstay case).
+  // [Lawyer note: this section's language ("Congratulations", "qualified for the next level", "high
+  // chance of success") reads as an eligibility/outcome prediction — flagged to the applicant against
+  // docs/terms-of-service-draft.md before building, who explicitly asked to keep it as specified. See
+  // that doc for the standing note to review this section before any formal legal sign-off.]
+  function updateTravelExperienceGrade(a){
+    var box = document.getElementById('travelExperienceGrade');
+    if (!box) return;
+    if (a.firstTimeAnswer !== 'yes'){ box.innerHTML = ''; return; }
+    var countries = travelHistoryRows.map(function(r){ return r.country; }).filter(Boolean);
+    if (!countries.length){ box.innerHTML = ''; return; }
+    var africanCount = countries.filter(function(c){ return TE_AFRICAN_COUNTRIES.indexOf(c) !== -1; }).length;
+    var euCount = countries.filter(function(c){ return TE_EU_COUNTRIES.indexOf(c) !== -1; }).length;
+    var visitedHighValue = countries.some(function(c){ return TE_NAMED_HIGH_VALUE_COUNTRIES.indexOf(c) !== -1 || TE_ASIAN_COUNTRIES.indexOf(c) !== -1; });
+    var visitedHighSuccess = countries.some(function(c){ return TE_HIGH_SUCCESS_COUNTRIES.indexOf(c) !== -1; });
+    var overstayedAny = overstayRows.some(function(r){ return r.country && parseNum(r.days) > 0; });
+
+    var lines = [];
+    if (africanCount >= 3) lines.push('You\'ve visited 3 or more African countries — a solid, well-rounded travel history.');
+    else if (africanCount === 2) lines.push('You\'ve visited 2 African countries — a good, growing travel history.');
+    else if (africanCount === 1) lines.push('You\'ve visited 1 African country — a start to building your travel history.');
+    if (euCount >= 2) lines.push('You\'ve visited 2 or more EU countries — very good prospect for another Schengen or other-country visa.');
+    else if (euCount === 1) lines.push('You\'ve visited 1 EU country — good prospect for another Schengen or other-country visa.');
+    if (visitedHighValue) lines.push('You\'ve visited a major/high-GDP destination (US, Canada, UK, China, Ireland, Singapore, or another Asian country) — as long as your finances can show you can afford this visit, that travel history works in your favor.');
+    if (visitedHighSuccess && !overstayedAny) lines.push('You\'ve visited South Africa, Morocco, and/or Kenya without overstaying — this is generally viewed as a positive sign for a UK visa application.');
+    if (overstayedAny) lines.push('⚠️ An overstay on your record is a real concern reviewers weigh heavily — being upfront about it, with a clear explanation, matters more than trying to leave it out.');
+
+    var summaryHtml = lines.length ? lines.map(function(l){ return '<div class="scan-msg '+(l.indexOf('⚠️')===0?'warn':'info')+'">'+l+'</div>'; }).join('') : '';
+    var successHtml = '<div class="scan-msg ok" style="margin-top:6px;">✅ <b>Success:</b> you are qualified for the next level. Welcome to <b>Session 3: Your responsibilities</b>.</div>';
+    box.innerHTML = summaryHtml + successHtml;
+  }
+
+  /* ---------------- Session 3: Your responsibilities — State → LGA dependent dropdown ---------------- */
+  (function initStateDropdown(){
+    var stateEl = document.getElementById('rs_state');
+    if (!stateEl) return;
+    stateEl.innerHTML = '<option value="">Select a state…</option>' + Object.keys(NIGERIA_STATES_LGA).map(function(s){
+      return '<option value="'+escapeHtml(s)+'">'+escapeHtml(s)+'</option>';
+    }).join('');
+  })();
+  function renderLgaOptions(stateName, selectedLga){
+    var lgaEl = document.getElementById('rs_lga');
+    if (!lgaEl) return;
+    var lgas = NIGERIA_STATES_LGA[stateName];
+    if (!lgas){ lgaEl.innerHTML = '<option value="">Select a state first…</option>'; return; }
+    lgaEl.innerHTML = '<option value="">Select…</option>' + lgas.map(function(l){
+      return '<option value="'+escapeHtml(l)+'"'+(l === selectedLga ? ' selected' : '')+'>'+escapeHtml(l)+'</option>';
+    }).join('');
+  }
+  document.getElementById('rs_state').addEventListener('change', function(){
+    renderLgaOptions(this.value, '');
+    render();
   });
 
   /* ---------------- Financial readiness calculator ---------------- */
@@ -4062,6 +4542,8 @@
 
   buildCashFlowTable();
   computeFinancials();
+  renderTravelHistoryTable();
+  renderOverstayTable();
 
   /* ---------------- Best-effort local document scan ---------------- */
   var libsLoaded = { pdf: false, tesseract: false, xlsx: false, loading: false };
@@ -4212,10 +4694,13 @@
   // Passport scans triggered from the "Attach & check expiry" quick-check on Your trip details write here
   // too (mirroring whatever went into the real checklist item's box), since that widget deliberately stays
   // on Your trip details instead of jumping the applicant over to "Identity & application" mid-scan.
+  // Historically mirrored the passport scan result into a second "quick check" widget that used to
+  // live at the top of Your trip details — that widget moved into its own Session 1 entirely (see
+  // above), so this now has exactly one mirror target: Session 1's own result box.
   function mirrorPassportInline(id, html){
     if (id !== 'passport') return;
-    var inlineBox = document.getElementById('passportInlineResult');
-    if (inlineBox) inlineBox.innerHTML = html;
+    var validateBox = document.getElementById('passportValidateResult');
+    if (validateBox) validateBox.innerHTML = html;
   }
   function setScanMsg(id, clsOrResult, text){
     var box = document.getElementById('scanmsg_'+id);
@@ -4576,6 +5061,19 @@
         computeFinancials();
       }
     }
+
+    // Session 1 ("Validate your International Passport") reuses this exact same scan to fill its
+    // own passport-number/expiry-date boxes — same guarded "never overwrite something already
+    // typed in" treatment as the name auto-fill just above.
+    var pnFieldEl = document.getElementById('f_passportNumber');
+    if (pnFieldEl && fields && fields.passportNumber && !pnFieldEl.value.trim()) pnFieldEl.value = fields.passportNumber;
+    var expFieldEl = document.getElementById('f_passportExpiry');
+    if (expFieldEl && fields && fields.expiryDate && !expFieldEl.value) expFieldEl.value = dateToIsoStr(fields.expiryDate);
+    // NOT a full render() here — render() rebuilds #checklistRoot (which is where the `box` element
+    // this function is about to write into actually lives), which would orphan our `box` reference
+    // mid-function and make the result silently invisible. updatePassportValidateStatus() only
+    // touches Session 1's own name-mirror/status elements, so it's safe to call directly.
+    if (typeof updatePassportValidateStatus === 'function') updatePassportValidateStatus(getAnswers());
 
     var expiryDate = (fields && fields.expiryDate) ? fields.expiryDate : (function(){
       var future = dates.filter(function(d){ return d.getTime() > Date.now(); });
@@ -8140,7 +8638,7 @@
       date: document.getElementById('decl_date').value,
       confirmed: document.getElementById('decl_confirm').checked
     };
-    return { country: currentCountry, answers: getAnswers(), state: state, financials: getFinancials(), inflowExplanations: inflowExplanations, sourceExplanations: sourceExplanations, declaration: declaration, exportedAt: new Date().toISOString() };
+    return { country: currentCountry, answers: getAnswers(), state: state, financials: getFinancials(), inflowExplanations: inflowExplanations, sourceExplanations: sourceExplanations, declaration: declaration, travelHistoryRows: travelHistoryRows, overstayRows: overstayRows, exportedAt: new Date().toISOString() };
   }
 
   document.getElementById('btnExport').addEventListener('click', function(){
@@ -8182,6 +8680,33 @@
       document.getElementById('f_hasRefusal').checked = !!payload.answers.hasRefusal;
       document.getElementById('f_refusalCount').value = payload.answers.refusalCount || '';
       document.getElementById('f_refusalDetails').value = payload.answers.refusalDetails || '';
+      // Session 1: Validate your International Passport
+      document.getElementById('f_passportNumber').value = payload.answers.passportNumber || '';
+      document.getElementById('f_passportExpiry').value = payload.answers.passportExpiry || '';
+      // Session 2: Travel Experience
+      document.getElementById('te_firstTime').value = payload.answers.firstTimeAnswer || '';
+      document.getElementById('te_hasOverstayed').checked = !!payload.answers.hasOverstayed;
+      // Session 3: Your responsibilities
+      document.getElementById('rs_married').checked = !!payload.answers.married;
+      document.getElementById('rs_spouseName').value = payload.answers.spouseName || '';
+      document.getElementById('rs_numKids').value = payload.answers.numKids || '';
+      document.getElementById('rs_state').value = payload.answers.livingState || '';
+      renderLgaOptions(payload.answers.livingState || '', payload.answers.livingLga || '');
+      document.getElementById('rs_addressNumber').value = payload.answers.addressNumber || '';
+      document.getElementById('rs_addressName').value = payload.answers.addressName || '';
+      document.getElementById('rs_agedParents').checked = !!payload.answers.agedParents;
+      document.getElementById('rs_fatherName').value = payload.answers.fatherName || '';
+      document.getElementById('rs_motherName').value = payload.answers.motherName || '';
+      document.getElementById('rs_remittance').value = payload.answers.remittanceAmount || '';
+      document.getElementById('rs_verifyConsent').checked = !!payload.answers.remittanceVerifyConsent;
+    }
+    if (Array.isArray(payload.travelHistoryRows)){
+      travelHistoryRows = payload.travelHistoryRows;
+      renderTravelHistoryTable();
+    }
+    if (Array.isArray(payload.overstayRows)){
+      overstayRows = payload.overstayRows;
+      renderOverstayTable();
     }
     if (payload.state){
       Object.keys(payload.state).forEach(function(k){
@@ -8350,6 +8875,34 @@
     document.getElementById('btnAnalyzeStatements').disabled = true;
     document.getElementById('stmtAnalyzeMsg').innerHTML = '';
     buildCashFlowTable();
+    // Session 1: Validate your International Passport
+    document.getElementById('f_passportNumber').value = '';
+    document.getElementById('f_passportExpiry').value = '';
+    document.getElementById('passportValidateResult').innerHTML = '';
+    document.getElementById('passportValidateStatus').innerHTML = '';
+    document.getElementById('passportValidateMsg').textContent = '';
+    // Session 2: Travel Experience
+    document.getElementById('te_firstTime').value = '';
+    document.getElementById('te_hasOverstayed').checked = false;
+    travelHistoryRows = [];
+    overstayRows = [];
+    renderTravelHistoryTable();
+    renderOverstayTable();
+    var travelAssistanceMsgEl = document.getElementById('travelAssistanceMsg');
+    if (travelAssistanceMsgEl) travelAssistanceMsgEl.style.display = 'none';
+    // Session 3: Your responsibilities
+    document.getElementById('rs_married').checked = false;
+    document.getElementById('rs_spouseName').value = '';
+    document.getElementById('rs_numKids').value = '';
+    document.getElementById('rs_state').value = '';
+    renderLgaOptions('', '');
+    document.getElementById('rs_addressNumber').value = '';
+    document.getElementById('rs_addressName').value = '';
+    document.getElementById('rs_agedParents').checked = false;
+    document.getElementById('rs_fatherName').value = '';
+    document.getElementById('rs_motherName').value = '';
+    document.getElementById('rs_remittance').value = '';
+    document.getElementById('rs_verifyConsent').checked = false;
     Object.keys(state).forEach(function(k){ state[k] = {checked:false, fileName:null, fileNames:null, scan:null}; });
     document.getElementById('decl_name').value = '';
     document.getElementById('decl_date').value = todayStr();
