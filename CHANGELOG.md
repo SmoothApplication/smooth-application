@@ -3,6 +3,25 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Checklist items now tidy themselves away once ticked
+
+User feedback: "the pages are too long" — narrowed down to individual sessions in general, not
+any one specific page. A long checklist category with a lot of already-handled items was always
+rendered in full (every item's full explanation and upload controls, whether it was done or not),
+which made an otherwise-finished session look just as long as one still in progress.
+
+- Same "collapse once done" treatment already used for the inflow-explanation boxes: once a
+  checklist item is ticked, it tidies itself away a moment later into a compact one-line summary
+  (with an "✏️ Edit" link to reopen it) instead of continuing to take up the same room as an item
+  still awaiting attention.
+- Unticking an item — whether from the full view or straight from the collapsed row's own checkbox
+  — always snaps it back open immediately, with no delay, since that's a sign you're actively
+  working on it again.
+- A session restored from a previous visit (already-ticked items loaded back in) starts with those
+  items already tucked away, since there's nothing new there to draw attention to; anything ticked
+  live during the current session gets the short delay first, so a just-completed item is still
+  visible long enough to register before it collapses.
+
 ## "Income & bank statement analysis" reads calmer before anything's been entered
 
 User feedback, off a screenshot of the section straight after opening it, before typing or

@@ -500,6 +500,20 @@
      outline instead of a border keeps this visible without disturbing the card's own inner layout. */
   .item.field-invalid { outline: 2px solid var(--critical); outline-offset: -1px; border-radius: 8px; }
 
+  /* Collapsed checklist item — same visual language as the collapsed explain-box above (a one-line
+     summary with an "Edit" pill), reused for already-ticked checklist items so a long, mostly-done
+     session doesn't read as one unbroken scroll. See wireChecklistItem/collapseChecklistItem. */
+  .item.collapsed { padding: 9px 14px; }
+  .item-collapsed-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px; cursor: pointer;
+    border-radius: 6px; margin: -2px -4px; padding: 2px 4px; transition: background .15s ease;
+  }
+  .item-collapsed-row:hover, .item-collapsed-row:focus-visible { background: rgba(0,0,0,0.04); outline: none; }
+  :root[data-theme="dark"] .item-collapsed-row:hover, :root[data-theme="dark"] .item-collapsed-row:focus-visible { background: rgba(255,255,255,0.06); }
+  .item-collapsed-main { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .item-collapsed-main input[type=checkbox] { width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--good); margin: 0; }
+  .item-collapsed-label { font-size: 12.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
   .upload-row { display: flex; align-items: center; gap: 10px; margin-top: 9px; flex-wrap: wrap; }
   /* min(230px, 60vw) instead of a flat 230px — native file inputs don't reliably shrink below their
      own content size the way normal text does, so a fixed cap can still push narrow phones a few
@@ -1961,6 +1975,13 @@
   /* ---------------- State ---------------- */
   var state = {}; // id -> {checked:false, fileName:null, fileNames:null, scan:null}
   CHECKLIST.forEach(function(it){ state[it.id] = {checked:false, fileName:null, fileNames:null, scan:null}; });
+  // User feedback: "individual sessions are too long." Same "collapse once done" pattern already used
+  // for the inflow-explanation boxes below — once a checklist item is ticked, it doesn't need to keep
+  // taking the same room as one that's still open. Reset/populated per-country in switchCountry();
+  // itemCollapseTimers tracks the pending delayed collapse (see wireChecklistItem) so a rapid
+  // check/uncheck doesn't leave a stale timer firing after the item's already back open.
+  var itemCollapsed = {};
+  var itemCollapseTimers = {};
 
   function getAnswers(){
     return {
@@ -2373,7 +2394,8 @@
           if (it.subcat) html += '<h3 class="subcat-heading">'+escapeHtml(it.subcat)+'</h3>';
           lastSubcat = it.subcat;
         }
-        html += renderItem(it, s);
+        var collapsed = !!(s.checked && itemCollapsed[it.id]);
+        html += renderItem(it, s, collapsed);
       });
       html += '</div></details>';
     });
@@ -2384,81 +2406,139 @@
     });
 
     // wire events
-    CHECKLIST.forEach(function(it){
-      var cb = document.getElementById('chk_'+it.id);
-      if (!cb) return;
-      cb.addEventListener('change', function(){
-        state[it.id].checked = cb.checked;
-        updateScore();
-        var card = document.getElementById('item_'+it.id);
-        if (card) card.classList.toggle('checked', cb.checked);
-        // Live-update the "X / Y" done-count in this item's category header — without this it only
-        // refreshes on the next full render() (e.g. editing a trip-detail field), which reads as broken
-        // now that each session shows a single category card front and center.
-        var catEl = card && card.closest ? card.closest('[data-cat]') : null;
-        if (catEl){
-          var countEl = catEl.querySelector('.cat-count');
-          if (countEl){
-            var a2 = getAnswers();
-            var catItems = CHECKLIST.filter(function(ci){ return ci.cat === it.cat && itemApplies(ci, a2); });
-            var doneN = catItems.filter(function(ci){ return state[ci.id].checked; }).length;
-            countEl.textContent = doneN + ' / ' + catItems.length;
-          }
-        }
-        // Also refreshes the session pills so a category's pill flips to "done" the moment its last
-        // item is ticked, rather than waiting for the next full render().
-        renderSessionNav(getVisibleSessionKeys(), currentSessionIndex);
-      });
-      var fileInput = document.getElementById('file_'+it.id);
-      var scanBtn = document.getElementById('scan_'+it.id);
-      if (fileInput && scanBtn){
-        fileInput.addEventListener('change', function(){
-          if (it.multiple){
-            state[it.id].fileNames = fileInput.files.length ? Array.prototype.map.call(fileInput.files, function(f){ return f.name; }) : null;
-          } else {
-            state[it.id].fileName = fileInput.files[0] ? fileInput.files[0].name : null;
-          }
-          scanBtn.disabled = !fileInput.files.length;
-          scheduleAutoSave();
-        });
-        scanBtn.addEventListener('click', function(){
-          if (it.checkKind === 'bankStatement'){
-            var files = Array.prototype.slice.call(fileInput.files);
-            runStatementAnalysis(files, function(clsOrArray, text){
-              setScanMsg(it.id, clsOrArray, text);
-              state[it.id].scan = Array.isArray(clsOrArray) ? clsOrArray : [{cls:clsOrArray, text:text}];
-            });
-          } else if (it.checkKind === 'businessStatement'){
-            var bizFiles = Array.prototype.slice.call(fileInput.files);
-            runBusinessStatementAnalysis(bizFiles, function(clsOrArray, text){
-              setScanMsg(it.id, clsOrArray, text);
-              state[it.id].scan = Array.isArray(clsOrArray) ? clsOrArray : [{cls:clsOrArray, text:text}];
-            });
-          } else if (it.multiple) {
-            runScanMultiple(it, fileInput.files);
-          } else {
-            runScan(it, fileInput.files[0]);
-          }
-        });
-      }
-      var replaceBtn = document.getElementById('btnReplace_'+it.id);
-      var uploadRowEl = document.getElementById('uploadRow_'+it.id);
-      if (replaceBtn && uploadRowEl){
-        replaceBtn.addEventListener('click', function(){
-          uploadRowEl.style.display = 'flex';
-          replaceBtn.parentElement.style.display = 'none';
-        });
-      }
-    });
+    CHECKLIST.forEach(wireChecklistItem);
 
     updateScore();
     applySessionVisibility();
   }
 
-  function renderItem(it, s){
+  // Handles a single checklist item's checkbox/upload/scan/replace controls, plus (once collapsed)
+  // its "✏️ Edit" affordance — factored out of render()'s wiring loop so collapseChecklistItem()/
+  // expandChecklistItem() can re-wire just the one item they swapped, without a full render().
+  function wireChecklistItem(it){
+    var cb = document.getElementById('chk_'+it.id);
+    if (!cb) return;
+    cb.addEventListener('change', function(){
+      state[it.id].checked = cb.checked;
+      updateScore();
+      var card = document.getElementById('item_'+it.id);
+      if (card) card.classList.toggle('checked', cb.checked);
+      // Live-update the "X / Y" done-count in this item's category header — without this it only
+      // refreshes on the next full render() (e.g. editing a trip-detail field), which reads as broken
+      // now that each session shows a single category card front and center.
+      var catEl = card && card.closest ? card.closest('[data-cat]') : null;
+      if (catEl){
+        var countEl = catEl.querySelector('.cat-count');
+        if (countEl){
+          var a2 = getAnswers();
+          var catItems = CHECKLIST.filter(function(ci){ return ci.cat === it.cat && itemApplies(ci, a2); });
+          var doneN = catItems.filter(function(ci){ return state[ci.id].checked; }).length;
+          countEl.textContent = doneN + ' / ' + catItems.length;
+        }
+      }
+      // Also refreshes the session pills so a category's pill flips to "done" the moment its last
+      // item is ticked, rather than waiting for the next full render().
+      renderSessionNav(getVisibleSessionKeys(), currentSessionIndex);
+      // Tidy this item away to a one-line summary a moment after it's ticked (same delayed-collapse
+      // pattern as the inflow-explanation boxes above) — long enough that checking it still reads as
+      // a deliberate, visible action, short enough that a session with lots of already-handled items
+      // doesn't stay one long scroll. Un-ticking always snaps straight back open with no delay.
+      if (itemCollapseTimers[it.id]){ clearTimeout(itemCollapseTimers[it.id]); itemCollapseTimers[it.id] = null; }
+      if (cb.checked){
+        itemCollapseTimers[it.id] = setTimeout(function(){ collapseChecklistItem(it); }, 1200);
+      } else if (itemCollapsed[it.id]){
+        expandChecklistItem(it);
+      }
+    });
+    var fileInput = document.getElementById('file_'+it.id);
+    var scanBtn = document.getElementById('scan_'+it.id);
+    if (fileInput && scanBtn){
+      fileInput.addEventListener('change', function(){
+        if (it.multiple){
+          state[it.id].fileNames = fileInput.files.length ? Array.prototype.map.call(fileInput.files, function(f){ return f.name; }) : null;
+        } else {
+          state[it.id].fileName = fileInput.files[0] ? fileInput.files[0].name : null;
+        }
+        scanBtn.disabled = !fileInput.files.length;
+        scheduleAutoSave();
+      });
+      scanBtn.addEventListener('click', function(){
+        if (it.checkKind === 'bankStatement'){
+          var files = Array.prototype.slice.call(fileInput.files);
+          runStatementAnalysis(files, function(clsOrArray, text){
+            setScanMsg(it.id, clsOrArray, text);
+            state[it.id].scan = Array.isArray(clsOrArray) ? clsOrArray : [{cls:clsOrArray, text:text}];
+          });
+        } else if (it.checkKind === 'businessStatement'){
+          var bizFiles = Array.prototype.slice.call(fileInput.files);
+          runBusinessStatementAnalysis(bizFiles, function(clsOrArray, text){
+            setScanMsg(it.id, clsOrArray, text);
+            state[it.id].scan = Array.isArray(clsOrArray) ? clsOrArray : [{cls:clsOrArray, text:text}];
+          });
+        } else if (it.multiple) {
+          runScanMultiple(it, fileInput.files);
+        } else {
+          runScan(it, fileInput.files[0]);
+        }
+      });
+    }
+    var replaceBtn = document.getElementById('btnReplace_'+it.id);
+    var uploadRowEl = document.getElementById('uploadRow_'+it.id);
+    if (replaceBtn && uploadRowEl){
+      replaceBtn.addEventListener('click', function(){
+        uploadRowEl.style.display = 'flex';
+        replaceBtn.parentElement.style.display = 'none';
+      });
+    }
+    var collapsedRow = document.getElementById('itemcollapsed_'+it.id);
+    if (collapsedRow){
+      // The checkbox lives inside this row too — let its own change/click handling run rather than
+      // also expanding the item out from under it.
+      collapsedRow.addEventListener('click', function(e){
+        if (e.target && e.target.tagName === 'INPUT') return;
+        expandChecklistItem(it);
+      });
+      collapsedRow.addEventListener('keydown', function(e){
+        if (e.target && e.target.tagName === 'INPUT') return;
+        if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); expandChecklistItem(it); }
+      });
+    }
+  }
+
+  function collapseChecklistItem(it){
+    itemCollapseTimers[it.id] = null;
+    if (!state[it.id].checked) return; // unticked again before the delay fired — nothing to tidy away
+    itemCollapsed[it.id] = true;
+    var el = document.getElementById('item_'+it.id);
+    if (!el) return;
+    el.outerHTML = renderItem(it, state[it.id], true);
+    wireChecklistItem(it);
+  }
+  function expandChecklistItem(it){
+    itemCollapsed[it.id] = false;
+    if (itemCollapseTimers[it.id]){ clearTimeout(itemCollapseTimers[it.id]); itemCollapseTimers[it.id] = null; }
+    var el = document.getElementById('item_'+it.id);
+    if (!el) return;
+    el.outerHTML = renderItem(it, state[it.id], false);
+    wireChecklistItem(it);
+  }
+
+  function renderItem(it, s, collapsed){
     var tagHtml = it.weight === 'required'
       ? '<span class="tag required">Required</span>'
       : '<span class="tag recommended">Recommended</span>';
+    if (collapsed){
+      var namesC = s.fileNames && s.fileNames.length ? s.fileNames : (s.fileName ? [s.fileName] : []);
+      var attachedInline = namesC.length ? ' — 📎 ' + namesC.map(escapeHtml).join(', ') : '';
+      return '<div class="item checked collapsed" id="item_'+it.id+'">'
+        + '<div class="item-collapsed-row" id="itemcollapsed_'+it.id+'" tabindex="0" role="button">'
+        + '<span class="item-collapsed-main">'
+        + '<input type="checkbox" id="chk_'+it.id+'" checked>'
+        + '<span class="item-collapsed-label">✅ '+it.label+attachedInline+'</span>'
+        + '</span>'
+        + '<span class="explain-edit-link">✏️ Edit</span>'
+        + '</div></div>';
+    }
     var tip = it.tip ? '<div class="item-tip">'+it.tip+'</div>' : '';
     var upload = '';
     if (it.accepts === 'file'){
@@ -8374,10 +8454,17 @@
     lastPersonalCredits = null;
     currentSessionIndex = 0;
     categoryOpenState = {};
+    itemCollapsed = {};
+    itemCollapseTimers = {};
     state = {};
     CHECKLIST.forEach(function(it){ state[it.id] = {checked:false, fileName:null, fileNames:null, scan:null}; });
     applyCountryText();
     var restored = loadAutoSaved();
+    // Anything already ticked at this point was restored from a previous session, not something the
+    // applicant just did — start those tucked away. Anything ticked live during this session instead
+    // goes through wireChecklistItem's delayed collapse, so a just-completed item stays visible long
+    // enough to register before it tidies itself away.
+    CHECKLIST.forEach(function(it){ itemCollapsed[it.id] = state[it.id].checked; });
     render();
     computeFinancials();
     // The attraction list (and its default exchange rate) is country-specific — reset the rate so it
