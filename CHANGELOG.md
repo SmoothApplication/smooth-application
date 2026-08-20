@@ -3,6 +3,37 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Internal: automated PII-leak scanner, plus one more real leak it found and fixed on its first run
+
+Follow-up to the two PII cleanup rounds just below. Both of those were found by hand, which means
+neither was a real control — just luck plus attention. Added `scripts/pii-scan.js`, which now runs
+automatically in CI (a new `pii-scan` job, alongside `test`) on every push and PR, and can be run
+locally with `npm run pii-scan`. It checks every tracked file — including PDF fixtures, extracted
+via `pdftotext` rather than raw bytes — against a denylist of every real name/business
+name/passport number already found leaking in this repo, plus warn-only structural checks for
+things that *look like* a real passport, phone, or BVN number. See `docs/PII-SAFETY.md` for the
+full intake policy going forward: real user data never gets typed into a committed file, fictional
+or not, without being fictionalized first.
+
+Its first run immediately found a leak both earlier manual sweeps had missed: a real applicant's
+full name, real passport number, and real date of birth, embedded in
+`tests/fixtures/dob-digit-misread-fixture.pdf` — invisible to a plain-text grep because PDF content
+streams are compressed, so the earlier sweeps' raw-byte search never actually saw it. The same
+real name and two other real third-party names (quoted in narration examples) were also still
+present in two places in this changelog and in a test-file comment. Fixed:
+
+- Regenerated `dob-digit-misread-fixture.pdf` with a fictional identity, preserving the exact bug
+  mechanic under test (a birth-year digit misread that's checksum-ambiguous by exactly 5) with
+  correctly recomputed MRZ check digits.
+- Replaced the same real passport number where it was also quoted in a code comment in index.html.
+- Replaced two real third-party names quoted in this changelog's narrative of the "RSVL"/alt-name
+  investigation, and the same name where it was quoted in `tests/rsvl-reversal-spelling.test.js`.
+- Added every one of these to the scanner's denylist so none of them can silently recur.
+
+No behavior changed; all affected tests re-verified passing individually
+(`dob-digit-misread-fixture.test.js`, `passport-scan-progress-refresh.test.js` — which reuses the
+same fixture — and `rsvl-reversal-spelling.test.js`), full suite green.
+
 ## Internal cleanup: replaced a real business name used as a test fixture with a fictional one
 
 Several test fixtures and code comments (added across earlier rounds while documenting real bug
@@ -777,8 +808,8 @@ decoded meaning. Added `'FD': 'Fidelity Bank.'`. Also tightened "NIP"'s descript
 industry name, NIBSS Instant Payment (NIBSS: Nigeria Inter-Bank Settlement System), rather than the
 looser "Nigeria Instant Payment" it said before.
 
-Two entries from the applicant's list were deliberately NOT added: "MFM" and "MFMLYC," decoded in their
-list as "MFM TMPM LYC REGION 3." That's correct for their own statement, but it's this one applicant's
+Two entries from the applicant's list were deliberately NOT added: "Grace" and "GraceCYC," decoded in their
+list as "GRACE TMPM CYC REGION 3." That's correct for their own statement, but it's this one applicant's
 own employer's abbreviation, not a generic Nigerian banking code — adding it to the shared glossary would
 mislead every other applicant using this tool whose statement happens to contain those same letters for
 an unrelated reason. That's exactly what the "also known as" field (added just above) is for instead —
@@ -793,7 +824,7 @@ CREDIT / VALUE DATE / BALANCE, confirmed from the statement's own header) line b
 flagged entry, rather than trusting either narration wording or an earlier guess at debit/credit
 direction — and found two separate real issues, not one:
 
-1. Two entries narrated "NIP CR/MOB/JAMES DANIEL/FBN / Grace CYC WEDDING SUPPORT" are actually a DEBIT
+1. Two entries narrated "NIP CR/MOB/TOBI BENSON/FBN / Grace CYC WEDDING SUPPORT" are actually a DEBIT
    (₦1,500,000 sent OUT, presumably by/via the church, to an individual) that failed and was reversed —
    the reversal shows up as its own separate line marked "***RSVL", crediting the ₦1,500,000 (plus a
    ₦50 stamp-duty reversal) back into the account. `isReversalNarration` only recognised the spelling
@@ -802,8 +833,8 @@ direction — and found two separate real issues, not one:
    looked like 2 genuine inflows but were really just a failed transfer bouncing back. Confirmed both
    spellings are real by finding an unrelated genuine "RVSL:Airtime..." reversal elsewhere in the same
    statement — banks are not internally consistent about this, so the check now accepts either ordering.
-2. Separately, "FRM MFM TMPM LYC REGION 3 = PRINTING" (₦1,450,000) and an "ETI NXG MOBILE TRF...FRM
-   EKIM HANNAH I" payment referencing "MFMLYC" (₦800,000) are genuinely real, non-reversed CREDIT
+2. Separately, "FRM GRACE TMPM CYC REGION 3 = PRINTING" (₦1,450,000) and an "ETI NXG MOBILE TRF...FRM
+   PETER OKON I" payment referencing "GraceCYC" (₦800,000) are genuinely real, non-reversed CREDIT
    inflows — confirmed from the DEBIT/CREDIT columns, not the narration wording (narration alone is a
    misleading guide here: e.g. "NIP CR/MOB/..." literally appears on plenty of DEBIT rows in this
    statement, since "CR" is apparently just part of Zenith's fixed channel-code template, not a live
@@ -823,9 +854,9 @@ reversal credit, confirming it's excluded from the matched-inflow count and tota
 
 Follow-up investigation, prompted directly by the previous fix's honest caveat: "Grace Covenant Youth Church"
 still showed zero direct inflow matches even after the wrapping fix. Traced this by grepping the real
-statement's own raw text (not just the app's output) for "MFM"/"Lekki"/"Youth" — the statement never
-spells the name out at all. It abbreviates it as **"Grace CYC"** (once even glued together as "MFMLYC").
-Since the applicant's typed name only ever shares ONE literal word ("MFM") with what the statement
+statement's own raw text (not just the app's output) for "Grace"/"Covenant"/"Youth" — the statement never
+spells the name out at all. It abbreviates it as **"Grace CYC"** (once even glued together as "GraceCYC").
+Since the applicant's typed name only ever shares ONE literal word ("Grace") with what the statement
 actually prints, the 2-distinctive-word safety threshold (added a couple of batches ago to stop "Clean
 Deals Ventures" wrongly matching "Bright Homes Cleaning...") correctly declined to treat that as a match — a
 single shared word still isn't enough evidence on its own. That threshold was doing its job; the real
@@ -833,14 +864,14 @@ gap was that the tool had no way to know "Grace CYC" and "Grace Covenant Youth C
 
 Added an optional **"Also known as / abbreviation used in your statement"** field under both Employer
 and Business name. Whatever's typed there is folded into the SAME word-matching pass as the full name
-(not checked separately) — so "MFM" + "LYC" together now clear the 2-word threshold — while every
+(not checked separately) — so "Grace" + "CYC" together now clear the 2-word threshold — while every
 message shown still displays the full name you originally typed, never the abbreviation itself. A word
-appearing in both the full name and the alias (e.g. "MFM" in both) is deduplicated before counting, so a
+appearing in both the full name and the alias (e.g. "Grace" in both) is deduplicated before counting, so a
 single repeated word still can't satisfy the 2-word threshold on its own — the safety fix stays intact.
 
 Re-verified against the real statement with "Grace CYC" entered as the alias: "Grace Covenant Youth Church" now
 shows 4 matched inflows (₦3,750,050). Worth flagging honestly: those 4 payments are narrated as coming
-from an individual ("James Daniel") with "Grace CYC Wedding Support" mentioned in passing, rather than
+from an individual ("Tobi Benson") with "Grace CYC Wedding Support" mentioned in passing, rather than
 looking like a direct payroll transfer from the church itself, and none are narrated "Salary" — which is
 exactly why the existing "Inconsistent salary narration" and "only found in 2 distinct months" warnings
 still correctly flag these for your own double-checking rather than treating them as a clean match.

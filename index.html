@@ -4992,7 +4992,7 @@
     // showed up in the padding tail, before normalizeMrzLine (see above) ever got the chance to apply
     // its own, more forgiving bad-character cleanup. But dropping that restriction entirely (tried
     // second) went too far the other way and broke two existing passport fixtures: an ordinary printed
-    // "Passport No./No du passeport B50338594" label line now satisfied the prefix pattern too and got
+    // "Passport No./No du passeport A87654321" label line now satisfied the prefix pattern too and got
     // treated as a candidate MRZ line ahead of the real one, reintroducing the exact "unrelated line
     // spuriously matches" false-positive this function's length check was already built to guard
     // against. The lookahead is what a plain label line fails that a real (even corrupted) MRZ line

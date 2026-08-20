@@ -4,7 +4,8 @@
   "private": true,
   "description": "Free, client-side visa document-readiness checklist for UK Standard Visitor and Canada visitor visa applicants. No build step for the app itself — this package.json exists only to run the Playwright regression test suite.",
   "scripts": {
-    "test": "node tests/run-all.js"
+    "test": "node tests/run-all.js",
+    "pii-scan": "node scripts/pii-scan.js"
   },
   "devDependencies": {
     "playwright": "^1.56.0"

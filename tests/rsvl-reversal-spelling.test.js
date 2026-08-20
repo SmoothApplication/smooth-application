@@ -1,7 +1,7 @@
 'use strict';
 // Real-data finding, off the real Zenith statement used throughout this project: isReversalNarration
 // only recognised "RVSL" as a reversal marker, but the SAME real statement uses "RSVL" (letters
-// transposed) far more often — e.g. "***RSVL NIP CR/MOB/JAMES DANIEL/FBN / Grace CYC WEDDING SUPPORT",
+// transposed) far more often — e.g. "***RSVL NIP CR/MOB/TOBI BENSON/FBN / Grace CYC WEDDING SUPPORT",
 // reversing an earlier failed outgoing transfer. Missing that spelling meant several reversed/bounced-
 // back transfers were being counted as genuine new income on top of whatever eventually did go through —
 // in one traced case, wrongly inflating a matched employer inflow total by ₦1,500,050 across 2 phantom
