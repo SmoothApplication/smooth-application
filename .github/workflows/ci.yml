@@ -7,6 +7,20 @@ on:
     branches: [main, master]
 
 jobs:
+  pii-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install poppler-utils (pdftotext, needed to scan PDF fixtures for leaked PII)
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils
+
+      - name: Scan for known PII leaks
+        run: npm run pii-scan
   test:
     runs-on: ubuntu-latest
     steps:
