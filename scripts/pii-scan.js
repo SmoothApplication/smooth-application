@@ -178,9 +178,22 @@ function scanFile(relPath){
   return findings;
 }
 
+// This scanner's own relative path, in git-style forward-slash form. The DENYLIST array above is
+// made of the literal known-real strings, written out as JavaScript source *in this very file* —
+// that's the whole point of a denylist. Without this exclusion, the scanner would match its own
+// definitions on every run and fail permanently the moment the first DENYLIST entry was added,
+// regardless of whether any actual leak exists elsewhere in the repo. (This is exactly what
+// happened: CI's first real pii-scan run failed, and a stale unrelated folder full of genuinely
+// leaked data got blamed and deleted — which was itself a real, correct fix — but the scan kept
+// failing afterwards because this self-match was never addressed.) Excluding this one file by path
+// is safe: it does not weaken the scan against real leaks anywhere else, because nowhere else
+// should ever legitimately contain these exact strings.
+var SELF_PATH = path.relative(REPO_ROOT, __filename).split(path.sep).join('/');
+
 function main(){
   var argFiles = process.argv.slice(2);
-  var files = argFiles.length ? argFiles : listTrackedFiles();
+  var files = (argFiles.length ? argFiles : listTrackedFiles())
+    .filter(function(f){ return f !== SELF_PATH; });
 
   var hardFails = [];
   var softWarnings = [];

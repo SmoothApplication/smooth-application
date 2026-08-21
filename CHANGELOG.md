@@ -3,6 +3,28 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fixed the PII scanner permanently failing on its own denylist, and removed a stale leaked-data folder
+
+CI's `pii-scan` job started failing the moment it first ran with real content to check, and stayed
+red even after the actual cause looked fixed. There were two separate problems layered on top of
+each other:
+
+1. A stale folder (`github-update-missing-field-highlights/`) — a leftover copy of an old delivery
+   batch, committed before this session, never caught until the scanner existed to check it — still
+   contained real applicant names, passport-adjacent data, and business/church names from an earlier
+   bug report that hadn't been scrubbed. Deleted outright (37 files) via github.dev, since the
+   classic GitHub web UI can only delete one file per commit and this needed a whole folder gone at
+   once.
+2. Even after that folder was gone, the scan kept failing — this time on `scripts/pii-scan.js`
+   itself. The scanner's `DENYLIST` array is, necessarily, made of the literal known-real strings
+   written out as JavaScript source ("olatunde", "mfm lekki", etc.) — that's what a denylist *is* —
+   but the scanner scans every git-tracked text file, including itself, so it always matched its own
+   definitions. This would have failed on every single run since the first entry was added,
+   independent of any other leak. Fixed by excluding the scanner's own file path from the files it
+   scans. New test `pii-scan-self-exclusion` covers both that the self-exclusion works and that it's
+   narrow — a real leak in any other file still hard-fails the scan, same as before. All 64 tests
+   pass.
+
 ## Fixed a real data-loss bug in the Travel Experience "countries you've travelled to" table
 
 User report, off the live site: "After typing my input on the 1st line .. once I move to the next
