@@ -3,6 +3,21 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fixed a real data-loss bug in the Travel Experience "countries you've travelled to" table
+
+User report, off the live site: "After typing my input on the 1st line .. once I move to the next
+line, everything in the 1st line clears except the country." Root cause: each row's travel date is
+built from two separate dropdowns (month, year) that get combined into one stored value — but the
+old code tried to recover "the other half" of the date by reading back its own already-combined
+value, which was empty the very first time either dropdown was touched. The date silently never
+actually saved, in either picking order, and reset to blank the moment a new row was added — which
+looked like the whole row had cleared, even though country/reason/days (simple, non-combined
+fields) were never actually affected. Fixed by reading both dropdowns' current values directly
+instead of trying to reconstruct one from the other. Root-caused by writing a reproduction script
+against a few different interaction patterns (normal use, real keystroke typing, a simulated mobile
+session, re-editing an already-set date) until the exact trigger surfaced, rather than guessing at
+a fix. New test `travel-history-date-persistence`; all 63 tests pass.
+
 ## Income-source boxes can now take a different reason per payment, not just one for the whole group
 
 User feedback, off a real income-source breakdown box showing 16 separate payments from one

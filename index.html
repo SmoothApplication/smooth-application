@@ -3325,9 +3325,22 @@
         if (field === 'dateMonth' || field === 'dateYear'){
           // Recombine month+year into the same "YYYY-MM" shape the rest of the app (export/import,
           // payload persistence) already expects, without needing its own migration.
-          var parts = (row.date||'').split('-');
-          var year = parts[0] || '', month = parts[1] || '';
-          if (field === 'dateYear') year = el.value; else month = el.value;
+          //
+          // BUG FIX (user report: "after typing my input on the 1st line, once I move to the next
+          // line, everything clears except the country"): this used to derive the OTHER half of the
+          // date from row.date.split('-') — but row.date is ONLY ever set by this same code, so the
+          // very first time either select changes, row.date is still '' and has nothing to recover.
+          // Selecting month then year (or year then month) each independently failed to combine,
+          // since each one could only see an empty row.date left behind by the other — the date
+          // silently stayed '' forever, then reset the boxes to "Month…"/"Year…" on the very next
+          // full-table rebuild ("+ Add a country"), which looked like the whole row had cleared.
+          // Fix: read both selects' CURRENT values straight from the DOM (always accurate at the
+          // moment 'change' fires) instead of trying to reconstruct one from the other via row.date.
+          var trEl = el.closest ? el.closest('tr') : null;
+          var monthEl = trEl ? trEl.querySelector('select[data-field="dateMonth"]') : null;
+          var yearEl = trEl ? trEl.querySelector('select[data-field="dateYear"]') : null;
+          var month = monthEl ? monthEl.value : '';
+          var year = yearEl ? yearEl.value : '';
           row.date = (year && month) ? (year + '-' + month) : '';
         } else {
           row[field] = el.value;
