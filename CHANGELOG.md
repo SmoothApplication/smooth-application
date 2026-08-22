@@ -3,11 +3,11 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
-## Fixed the PII scanner permanently failing on its own denylist, and removed a stale leaked-data folder
+## Fixed the PII scanner permanently failing on its own denylist, removed a stale leaked-data folder, and scrubbed two real leaks that had been sitting in the actual test fixtures
 
 CI's `pii-scan` job started failing the moment it first ran with real content to check, and stayed
-red even after the actual cause looked fixed. There were two separate problems layered on top of
-each other:
+red across three separate rounds of fixing, because there were three distinct problems layered on
+top of each other:
 
 1. A stale folder (`github-update-missing-field-highlights/`) — a leftover copy of an old delivery
    batch, committed before this session, never caught until the scanner existed to check it — still
@@ -17,13 +17,22 @@ each other:
    once.
 2. Even after that folder was gone, the scan kept failing — this time on `scripts/pii-scan.js`
    itself. The scanner's `DENYLIST` array is, necessarily, made of the literal known-real strings
-   written out as JavaScript source ("olatunde", "mfm lekki", etc.) — that's what a denylist *is* —
-   but the scanner scans every git-tracked text file, including itself, so it always matched its own
-   definitions. This would have failed on every single run since the first entry was added,
-   independent of any other leak. Fixed by excluding the scanner's own file path from the files it
-   scans. New test `pii-scan-self-exclusion` covers both that the self-exclusion works and that it's
-   narrow — a real leak in any other file still hard-fails the scan, same as before. All 64 tests
-   pass.
+   written out as JavaScript source — that's what a denylist *is* — but the scanner scans every
+   git-tracked text file, including itself, so it always matched its own definitions. This would have
+   failed on every single run since the first entry was added, independent of any other leak. Fixed
+   by excluding the scanner's own file path from the files it scans. New test
+   `pii-scan-self-exclusion` covers both that the self-exclusion works and that it's narrow — a real
+   leak in any other file still hard-fails the scan, same as before.
+3. With both of those cleared, the scan surfaced a third, genuinely separate, pre-existing leak: two
+   of the real functional-test PDF fixtures (`tests/fixtures/bank-statement-sample.pdf`, used by 7
+   different tests, and `tests/fixtures/employer-alt-name-fixture.pdf`) each had one real third-party
+   name embedded in them from before this session — sitting undetected in the actual test suite,
+   not some throwaway or stale file. Regenerated both fixtures with fictional names in place of the
+   real ones, keeping every date, amount, and narration line the tests actually assert on byte-for-
+   byte unchanged (confirmed neither leaked name was referenced by any of the 8 dependent tests
+   before touching either file).
+
+All 64 tests pass.
 
 ## Fixed a real data-loss bug in the Travel Experience "countries you've travelled to" table
 
