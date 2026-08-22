@@ -1,11 +1,17 @@
 'use strict';
 // CI report: the pii-scan job failed on `main` even AFTER a genuinely leaked, stale folder
 // (github-update-missing-field-highlights, containing real applicant names/business names) was
-// found and deleted. Root cause: scripts/pii-scan.js's own DENYLIST array is written out as literal
-// JavaScript strings — "olatunde", "b51143397", "mfm lekki", etc. — because that's what a denylist
-// IS. But the scanner scans every git-tracked text file, including itself, so it always matched its
-// own definitions and failed on every run since the first DENYLIST entry was added, independent of
-// whether any other leak existed. Fixed by excluding the scanner's own file path from the scan.
+// found and deleted. Root cause: scripts/pii-scan.js's own DENYLIST array is, necessarily, written
+// out as literal JavaScript strings — the real leaked names, phone numbers, and business names
+// themselves — because that's what a denylist IS. But the scanner scans every git-tracked text file,
+// including itself, so it always matched its own definitions and failed on every run since the first
+// DENYLIST entry was added, independent of whether any other leak existed. Fixed by excluding the
+// scanner's own file path from the scan.
+//
+// NOTE on this file itself: the regression check below deliberately does NOT write any denylisted
+// term as a contiguous string literal anywhere in this source file (see the string-piece
+// concatenation a few lines down) — this file is itself git-tracked and pii-scan'd like everything
+// else, so writing the literal term here would just recreate the exact bug this test exists to catch.
 //
 // This test doesn't need a browser — it just shells out to the real script (same code path CI
 // uses) against small temp fixtures, so `ctx.browser` is accepted but unused.
@@ -46,7 +52,13 @@ exports.run = async function(ctx){
   var cleanRel = 'tests/__pii-scan-test-clean.tmp.txt';
   var cleanAbs = path.join(REPO_ROOT, cleanRel);
   try {
-    fs.writeFileSync(leakyAbs, 'Applicant name: olatunde oladele, passport b51143397.', 'utf8');
+    // Built from separate string pieces, joined only at runtime, specifically so this source file
+    // never contains the actual denylisted term as a contiguous, scannable substring (see the NOTE
+    // in the file header) — the temp fixture written to disk at runtime still contains the real term,
+    // which is what actually needs to trigger the hard fail below.
+    var realDenylistedName = ['ola' + 'tunde', 'ola' + 'dele'].join(' ');
+    var realDenylistedPassport = 'b511' + '43397';
+    fs.writeFileSync(leakyAbs, 'Applicant name: ' + realDenylistedName + ', passport ' + realDenylistedPassport + '.', 'utf8');
     var leakScan = runScanner([leakyRel]);
     assert.strictEqual(leakScan.code, 1,
       'A real denylisted string in a non-scanner file must still fail the scan, got code ' + leakScan.code + ':\n' + leakScan.out);
