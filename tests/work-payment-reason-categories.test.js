@@ -15,9 +15,12 @@
 //      A blank-narration inflow matched to a declared BUSINESS (not an employer) is the one case that
 //      still keeps the general list — no specific reason stated, and a business's own income could be
 //      anything (a sale, a service fee), not necessarily payroll.
+// Further user request: employer-matched inflows now render on their own "Workplace income" tab
+// (Step 5), separate from business-matched inflows which stay on Step 2 — the employer-only block below
+// navigates there and uses the 'emp_'-prefixed element IDs; the business-only block is unaffected.
 const assert = require('assert');
 const path = require('path');
-const { newPageAt, passConsentGate, goToSessionByPill } = require('./helpers');
+const { newPageAt, passConsentGate, goToSessionByPill, goToFinanceStep } = require('./helpers');
 
 var FIXTURE = path.join(__dirname, 'fixtures', 'work-payment-reason-fixture.pdf');
 
@@ -40,12 +43,16 @@ exports.run = async function(ctx){
     }, { timeout: 20000 });
     await page.waitForTimeout(400);
 
+    // Only an employer was declared here, so these render on the "Workplace income" tab (Step 5).
+    await goToFinanceStep(page, 5);
+    await page.waitForSelector('#employerIncomeInflowsBox .explain-box', { timeout: 20000 });
+
     // Both matched inflows are auto-tagged on first sight, so their boxes start collapsed — expand both.
-    await page.click('#matchcollapsed_0');
-    await page.click('#matchcollapsed_1');
-    await page.waitForSelector('#match_cat_0');
-    await page.waitForSelector('#match_cat_1');
-    var boxes = await page.$$eval('#matchedIncomeInflowsBox select[id^="match_cat_"]', function(sels){
+    await page.click('#matchcollapsed_emp_0');
+    await page.click('#matchcollapsed_emp_1');
+    await page.waitForSelector('#match_cat_emp_0');
+    await page.waitForSelector('#match_cat_emp_1');
+    var boxes = await page.$$eval('#employerIncomeInflowsBox select[id^="match_cat_"]', function(sels){
       return sels.map(function(sel){ return {value: sel.value, options: Array.from(sel.options).map(function(o){ return o.value; })}; });
     });
     assert.strictEqual(boxes.length, 2, 'Expected 2 matched-inflow dropdowns, got: ' + JSON.stringify(boxes));
@@ -65,7 +72,7 @@ exports.run = async function(ctx){
     var salarySelected = boxes.filter(function(b){ return b.value === 'salary'; });
     assert.ok(salarySelected.length >= 1, 'Expected at least one dropdown pre-selected "salary" from its own narration, got: ' + JSON.stringify(boxes));
 
-    var promptTexts = await page.$$eval('#matchedIncomeInflowsBox .item-tip', function(els){ return els.map(function(e){ return e.textContent; }); });
+    var promptTexts = await page.$$eval('#employerIncomeInflowsBox .item-tip', function(els){ return els.map(function(e){ return e.textContent; }); });
     assert.ok(promptTexts.some(function(t){ return /already states what it was for/.test(t); }),
       'Expected the "read from narration" prompt text to appear for the "February Salary" txn, got: ' + JSON.stringify(promptTexts));
     assert.ok(promptTexts.some(function(t){ return /doesn't spell out a specific reason/.test(t); }),

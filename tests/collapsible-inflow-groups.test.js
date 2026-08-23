@@ -8,9 +8,13 @@
 // (matchedIncomeInflowsBox, one group per declared employer/business) now wrap their rows in a native
 // <details>, open by default so nothing looks different the moment it finishes — with a toggle so the
 // applicant can tuck a long, already-confirmed list away.
+//
+// Further user request: employer-matched inflows moved to their own "Workplace income" tab (Step 5),
+// separate from business-matched inflows on Step 2 — so each now gets its own single collapsible group
+// in its own box, instead of the two groups sharing one box.
 const assert = require('assert');
 const path = require('path');
-const { newPageAt, passConsentGate, goToSessionByPill } = require('./helpers');
+const { newPageAt, passConsentGate, goToSessionByPill, goToFinanceStep } = require('./helpers');
 
 var UNEXPLAINED_STATEMENT = path.join(__dirname, 'fixtures', 'bank-statement-sample.pdf');
 var MATCHED_STATEMENT = path.join(__dirname, 'fixtures', 'employer-inflow-narration.pdf');
@@ -33,28 +37,50 @@ exports.run = async function(ctx){
     await page1.waitForSelector('#matchedIncomeInflowsBox .explain-box', { timeout: 20000 });
     await page1.waitForTimeout(300);
 
-    var groupCount = await page1.$$eval('#matchedIncomeInflowsBox details.report-group', function(els){ return els.length; });
-    assert.strictEqual(groupCount, 2, 'Should wrap each declared name\'s matched inflows in its own collapsible group (employer + business), got: ' + groupCount);
+    // Business-matched inflows (Step 2) get their own single collapsible group.
+    var bizGroupCount = await page1.$$eval('#matchedIncomeInflowsBox details.report-group', function(els){ return els.length; });
+    assert.strictEqual(bizGroupCount, 1, 'Step 2 should wrap the business-matched inflows in one collapsible group, got: ' + bizGroupCount);
 
-    var startsOpen = await page1.$$eval('#matchedIncomeInflowsBox details.report-group', function(els){ return els.every(function(el){ return el.open; }); });
-    assert.strictEqual(startsOpen, true, 'Groups should start OPEN so nothing looks different than before this change');
+    var bizStartsOpen = await page1.$$eval('#matchedIncomeInflowsBox details.report-group', function(els){ return els.every(function(el){ return el.open; }); });
+    assert.strictEqual(bizStartsOpen, true, 'Business group should start OPEN so nothing looks different than before this change');
 
-    // All 6 boxes (3 employer + 3 business) are still visible and reachable, same as before.
-    var boxCount = await page1.$$eval('#matchedIncomeInflowsBox .explain-box', function(els){ return els.length; });
-    assert.strictEqual(boxCount, 6, 'All 6 individual matched-inflow boxes should still be present, got: ' + boxCount);
+    var bizBoxCount = await page1.$$eval('#matchedIncomeInflowsBox .explain-box', function(els){ return els.length; });
+    assert.strictEqual(bizBoxCount, 3, 'All 3 business-matched inflow boxes should still be present, got: ' + bizBoxCount);
 
-    // Collapsing the first group's <summary> should hide its boxes without touching the other group.
-    var firstGroupId = await page1.$eval('#matchedIncomeInflowsBox details.report-group', function(el){ return el.id; });
-    await page1.click('#' + firstGroupId + ' > summary');
-    var nowClosed = await page1.$eval('#' + firstGroupId, function(el){ return !el.open; });
-    assert.strictEqual(nowClosed, true, 'Clicking the summary should collapse that group');
-    var allBoxIds = await page1.$$eval('#matchedIncomeInflowsBox .explain-box', function(els){ return els.map(function(el){ return el.id; }); });
-    var visibleFlags = [];
-    for (var i = 0; i < allBoxIds.length; i++){
-      visibleFlags.push(await page1.locator('#' + allBoxIds[i]).isVisible());
+    // Collapsing the business group's <summary> should hide its own 3 boxes.
+    var bizGroupId = await page1.$eval('#matchedIncomeInflowsBox details.report-group', function(el){ return el.id; });
+    await page1.click('#' + bizGroupId + ' > summary');
+    var bizNowClosed = await page1.$eval('#' + bizGroupId, function(el){ return !el.open; });
+    assert.strictEqual(bizNowClosed, true, 'Clicking the summary should collapse the business group');
+    var bizBoxIds = await page1.$$eval('#matchedIncomeInflowsBox .explain-box', function(els){ return els.map(function(el){ return el.id; }); });
+    var bizVisibleFlags = [];
+    for (var i = 0; i < bizBoxIds.length; i++){
+      bizVisibleFlags.push(await page1.locator('#' + bizBoxIds[i]).isVisible());
     }
-    var visibleBoxesAfterCollapse = visibleFlags.filter(Boolean).length;
-    assert.strictEqual(visibleBoxesAfterCollapse, 3, 'Collapsing one group should hide only its own 3 boxes, leaving the other group\'s 3 visible, got: ' + visibleBoxesAfterCollapse);
+    assert.strictEqual(bizVisibleFlags.filter(Boolean).length, 0, 'Collapsing the business group should hide all 3 of its boxes, got visible count: ' + bizVisibleFlags.filter(Boolean).length);
+
+    // Employer-matched inflows now live on their own "Workplace income" tab (Step 5) — same
+    // collapsible-group behavior, checked on that tab.
+    await goToFinanceStep(page1, 5);
+    var empGroupCount = await page1.$$eval('#employerIncomeInflowsBox details.report-group', function(els){ return els.length; });
+    assert.strictEqual(empGroupCount, 1, 'Step 5 should wrap the employer-matched inflows in one collapsible group, got: ' + empGroupCount);
+
+    var empStartsOpen = await page1.$$eval('#employerIncomeInflowsBox details.report-group', function(els){ return els.every(function(el){ return el.open; }); });
+    assert.strictEqual(empStartsOpen, true, 'Employer group should start OPEN so nothing looks different than before this change');
+
+    var empBoxCount = await page1.$$eval('#employerIncomeInflowsBox .explain-box', function(els){ return els.length; });
+    assert.strictEqual(empBoxCount, 3, 'All 3 employer-matched inflow boxes should still be present, got: ' + empBoxCount);
+
+    var empGroupId = await page1.$eval('#employerIncomeInflowsBox details.report-group', function(el){ return el.id; });
+    await page1.click('#' + empGroupId + ' > summary');
+    var empNowClosed = await page1.$eval('#' + empGroupId, function(el){ return !el.open; });
+    assert.strictEqual(empNowClosed, true, 'Clicking the summary should collapse the employer group');
+    var empBoxIds = await page1.$$eval('#employerIncomeInflowsBox .explain-box', function(els){ return els.map(function(el){ return el.id; }); });
+    var empVisibleFlags = [];
+    for (var j = 0; j < empBoxIds.length; j++){
+      empVisibleFlags.push(await page1.locator('#' + empBoxIds[j]).isVisible());
+    }
+    assert.strictEqual(empVisibleFlags.filter(Boolean).length, 0, 'Collapsing the employer group should hide all 3 of its boxes, got visible count: ' + empVisibleFlags.filter(Boolean).length);
   } finally {
     await page1.context().close();
   }

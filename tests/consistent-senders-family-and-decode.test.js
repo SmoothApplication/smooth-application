@@ -10,9 +10,11 @@
 //      income, others."
 //   8/10. Decode common Nigerian bank narration shorthand (NIP, ROLEZ = Moniepoint MFB, WBP = Wema
 //      Bank, etc.) inline, right where each inflow's raw narration is shown.
+// Further user request: employer-matched inflows (exercised in items 8/10 below) now render on their
+// own "Workplace income" tab (Step 5) instead of alongside business inflows on Step 2.
 const assert = require('assert');
 const path = require('path');
-const { newPageAt, passConsentGate, goToSessionByPill } = require('./helpers');
+const { newPageAt, passConsentGate, goToSessionByPill, goToFinanceStep } = require('./helpers');
 
 var FIXTURE = path.join(__dirname, 'fixtures', 'consistent-senders-fixture.pdf');
 
@@ -94,11 +96,13 @@ exports.run = async function(ctx){
 
     // --- Items 8/10: bank narration code glossary, surfaced on the matched-employer inflow boxes ----
     // Matched inflows are auto-explained (and so start collapsed) — expand the first one to see the
-    // full box, including the narration decode toggle.
-    await page.waitForSelector('#matchcollapsed_0');
-    await page.click('#matchcollapsed_0');
-    await page.waitForSelector('#match_cat_0');
-    var decodeHtml = await page.$eval('#matchedIncomeInflowsBox', function(el){ return el.innerHTML; });
+    // full box, including the narration decode toggle. Employer-matched inflows live on their own
+    // "Workplace income" tab (Step 5) now.
+    await goToFinanceStep(page, 5);
+    await page.waitForSelector('#matchcollapsed_emp_0');
+    await page.click('#matchcollapsed_emp_0');
+    await page.waitForSelector('#match_cat_emp_0');
+    var decodeHtml = await page.$eval('#employerIncomeInflowsBox', function(el){ return el.innerHTML; });
     assert.ok(/What does this narration mean/i.test(decodeHtml), 'Matched inflow boxes should offer a narration decode toggle, got missing from: ' + decodeHtml.slice(0, 200));
     assert.ok(/NIBSS Instant Payment/i.test(decodeHtml), 'Should decode "NIP" as NIBSS Instant Payment, got: ' + decodeHtml);
     assert.ok(/Moniepoint MFB/i.test(decodeHtml), 'Should decode "ROLEZ" as Moniepoint MFB, got: ' + decodeHtml);

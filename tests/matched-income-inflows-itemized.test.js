@@ -14,9 +14,13 @@
 // payments "Allowance" and the BUSINESS's payments "Salary" — the wrong way round from the old blanket
 // assumption — specifically to prove the pre-tag now reads and uses each transaction's own stated reason
 // (see detectWorkPaymentCategory) rather than defaulting off which field it matched.
+//
+// Further user request: give employer-matched inflows their own "Workplace income" tab (Step 5),
+// separate from business-matched inflows which stay on Step 2 — previously both rendered together into
+// matchedIncomeInflowsBox. This test now checks each group lands in its own box, on its own step tab.
 const assert = require('assert');
 const path = require('path');
-const { newPageAt, passConsentGate, goToSessionByPill } = require('./helpers');
+const { newPageAt, passConsentGate, goToSessionByPill, goToFinanceStep } = require('./helpers');
 
 var INFLOW_STATEMENT = path.join(__dirname, 'fixtures', 'employer-inflow-narration.pdf');
 
@@ -37,42 +41,60 @@ exports.run = async function(ctx){
     await page.waitForSelector('#matchedIncomeInflowsBox .explain-box', { timeout: 20000 });
     await page.waitForTimeout(300);
 
-    // 3 employer inflows + 3 business inflows = 6 individual boxes, not one rolled-up sentence.
-    var boxCount = await page.$$eval('#matchedIncomeInflowsBox .explain-box', function(els){ return els.length; });
-    assert.strictEqual(boxCount, 6, 'Should render 6 individual matched-inflow boxes (3 employer + 3 business), got: ' + boxCount);
+    // 3 business inflows on Step 2, 3 employer inflows on Step 5 — split into separate boxes/tabs,
+    // not one rolled-up sentence and not mixed together.
+    var bizBoxCount = await page.$$eval('#matchedIncomeInflowsBox .explain-box', function(els){ return els.length; });
+    assert.strictEqual(bizBoxCount, 3, 'Step 2 should render 3 individual business-matched inflow boxes, got: ' + bizBoxCount);
 
-    var introHtml = await page.$eval('#matchedIncomeInflowsBox', function(el){ return el.innerHTML; });
-    assert.ok(/Instead of one lump total/.test(introHtml), 'Should explain these are itemized instead of a lump total, got: ' + introHtml);
-    assert.ok(/3 inflows matching "Grace Covenant Youth Church"/.test(introHtml), 'Should mention the 3 employer inflows by name, got: ' + introHtml);
-    assert.ok(/3 inflows matching "Bright Homes Cleaning Solutions Ltd"/.test(introHtml), 'Should mention the 3 business inflows by name, got: ' + introHtml);
+    var empBoxCount = await page.$$eval('#employerIncomeInflowsBox .explain-box', function(els){ return els.length; });
+    assert.strictEqual(empBoxCount, 3, 'Step 5 (Workplace income) should render 3 individual employer-matched inflow boxes, got: ' + empBoxCount);
+
+    var introHtmlBiz = await page.$eval('#matchedIncomeInflowsBox', function(el){ return el.innerHTML; });
+    assert.ok(/Instead of one lump total/.test(introHtmlBiz), 'Should explain these are itemized instead of a lump total, got: ' + introHtmlBiz);
+    assert.ok(/3 inflows matching "Bright Homes Cleaning Solutions Ltd"/.test(introHtmlBiz), 'Should mention the 3 business inflows by name, got: ' + introHtmlBiz);
+    assert.ok(!/Grace Covenant Youth Church/.test(introHtmlBiz), 'Employer inflows should not also appear in the Step 2 business box, got: ' + introHtmlBiz);
+
+    var introHtmlEmp = await page.$eval('#employerIncomeInflowsBox', function(el){ return el.innerHTML; });
+    assert.ok(/Instead of one lump total/.test(introHtmlEmp), 'Should explain these are itemized instead of a lump total, got: ' + introHtmlEmp);
+    assert.ok(/3 inflows matching "Grace Covenant Youth Church"/.test(introHtmlEmp), 'Should mention the 3 employer inflows by name, got: ' + introHtmlEmp);
+    assert.ok(!/Bright Homes Cleaning Solutions Ltd/.test(introHtmlEmp), 'Business inflows should not also appear in the Step 5 workplace-income box, got: ' + introHtmlEmp);
 
     // Every box should already be auto-tagged (collapsed, showing a checkmark + its category) rather
     // than sitting empty and demanding the applicant redo work the system already knows the answer to.
-    var allCollapsed = await page.$$eval('#matchedIncomeInflowsBox .explain-box', function(els){
+    var allCollapsedBiz = await page.$$eval('#matchedIncomeInflowsBox .explain-box', function(els){
       return els.every(function(el){ return el.classList.contains('collapsed') && el.classList.contains('explained'); });
     });
-    assert.strictEqual(allCollapsed, true, 'Every matched inflow should start auto-explained and collapsed');
+    assert.strictEqual(allCollapsedBiz, true, 'Every business-matched inflow should start auto-explained and collapsed');
+
+    var allCollapsedEmp = await page.$$eval('#employerIncomeInflowsBox .explain-box', function(els){
+      return els.every(function(el){ return el.classList.contains('collapsed') && el.classList.contains('explained'); });
+    });
+    assert.strictEqual(allCollapsedEmp, true, 'Every employer-matched inflow should start auto-explained and collapsed');
 
     // Match on the trailing "— <category>" summary specifically (not just anywhere in the line) —
     // the narration text itself can legitimately contain the word "Salary" too (e.g. "January Salary"),
     // so a bare /Salary/ search would over-match. This fixture deliberately narrates the EMPLOYER
     // (Grace Covenant Youth Church) payments "Allowance" and the BUSINESS (Bright Homes Cleaning) payments "Salary" —
     // the pre-tag should follow what each payment's own narration says, not which field it matched.
-    var summaries = await page.$$eval('#matchedIncomeInflowsBox .tx-line', function(els){ return els.map(function(e){ return e.textContent; }); });
-    assert.ok(summaries.filter(function(s){ return /— Allowance$/.test(s); }).length === 3, 'The 3 employer inflows, all narrated "Allowance", should be pre-tagged "Allowance" (read from their own narration, not defaulted to "Salary" just because they matched the employer), got: ' + JSON.stringify(summaries));
-    assert.ok(summaries.filter(function(s){ return /— Salary$/.test(s); }).length === 3, 'The 3 business inflows, all narrated "Salary", should be pre-tagged "Salary" (read from their own narration, not defaulted to "Business" just because they matched the business), got: ' + JSON.stringify(summaries));
+    var bizSummaries = await page.$$eval('#matchedIncomeInflowsBox .tx-line', function(els){ return els.map(function(e){ return e.textContent; }); });
+    assert.ok(bizSummaries.filter(function(s){ return /— Salary$/.test(s); }).length === 3, 'The 3 business inflows, all narrated "Salary", should be pre-tagged "Salary" (read from their own narration, not defaulted to "Business" just because they matched the business), got: ' + JSON.stringify(bizSummaries));
+
+    var empSummaries = await page.$$eval('#employerIncomeInflowsBox .tx-line', function(els){ return els.map(function(e){ return e.textContent; }); });
+    assert.ok(empSummaries.filter(function(s){ return /— Allowance$/.test(s); }).length === 3, 'The 3 employer inflows, all narrated "Allowance", should be pre-tagged "Allowance" (read from their own narration, not defaulted to "Salary" just because they matched the employer), got: ' + JSON.stringify(empSummaries));
 
     // Still fully editable — a wrongly-matched payment should be re-classifiable, same as any other
-    // inflow explanation on this page.
-    await page.click('#matchcollapsed_0');
-    await page.waitForSelector('#match_cat_0');
-    await page.selectOption('#match_cat_0', 'others');
-    await page.fill('#match_detail_0', 'Actually a one-off gift, not real salary');
+    // inflow explanation on this page. Employer inflows live on Step 5 now, so navigate there first —
+    // Step 2's content (and its own unprefixed matchbox_0) is hidden while Step 5 is active.
+    await goToFinanceStep(page, 5);
+    await page.click('#matchcollapsed_emp_0');
+    await page.waitForSelector('#match_cat_emp_0');
+    await page.selectOption('#match_cat_emp_0', 'others');
+    await page.fill('#match_detail_emp_0', 'Actually a one-off gift, not real salary');
     await page.waitForFunction(function(){
-      var box = document.getElementById('matchbox_0');
+      var box = document.getElementById('matchbox_emp_0');
       return box && box.classList.contains('collapsed');
     }, { timeout: 3000 });
-    var editedSummary = await page.$eval('#matchbox_0 .tx-line', function(el){ return el.textContent; });
+    var editedSummary = await page.$eval('#matchbox_emp_0 .tx-line', function(el){ return el.textContent; });
     assert.ok(/Others.*Actually a one-off gift/.test(editedSummary), 'Should allow correcting an individual matched inflow to a different reason, got: ' + editedSummary);
   } finally {
     await page.context().close();
