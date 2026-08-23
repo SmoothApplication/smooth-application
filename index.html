@@ -1327,6 +1327,7 @@
           <button type="button" class="fin-step-tab" data-fin-step="2" role="tab">2. Cash flow &amp; scores</button>
           <button type="button" class="fin-step-tab" data-fin-step="3" role="tab">3. Detailed reports</button>
           <button type="button" class="fin-step-tab" data-fin-step="4" role="tab">4. Income sources breakdown</button>
+          <button type="button" class="fin-step-tab" data-fin-step="5" role="tab">5. Workplace income</button>
         </div>
 
         <div class="fin-step" data-fin-step="1">
@@ -1425,6 +1426,25 @@
         <div class="item-tip no-print" id="downloadBreakdownNote" style="display:none; margin-top:4px;">The spreadsheet always reflects your latest explanations — from the "inflow(s) need an explanation" boxes on the previous tab and from the notes you add per source below — so fill those in first, then download.</div>
         <div class="session-nav-btns no-print" style="margin-top:12px;">
           <button type="button" class="btn ghost fin-step-prev" data-fin-prev="3">← Back</button>
+          <button type="button" class="btn fin-step-next" data-fin-next="5">Next: Workplace income →</button>
+        </div>
+        </div>
+
+        <!-- User request: a dedicated tab to address every inflow matched against a declared EMPLOYER
+             specifically, separate from the business/self-employed breakdown that stays on Step 2 —
+             previously employer-matched inflows rendered mixed in with business-matched ones inside
+             matchedIncomeInflowsBox on Step 2. Reuses the exact same per-transaction explain-box UI
+             (renderMatchedInflowBoxHtml et al.) via a second call to renderMatchedIncomeInflows, just
+             targeting this tab's own box + a distinct DOM-id prefix ('emp_') so the two renders never
+             collide on element IDs — see the prefix parameter added there. Only ever populated with
+             groups whose label is 'employer'; business groups still render into matchedIncomeInflowsBox
+             on Step 2 as before. -->
+        <div class="fin-step" data-fin-step="5">
+        <h2 style="margin-top:0;">Workplace income</h2>
+        <p class="fin-note" style="margin-top:0;">Every inflow in this statement matched against the employer you entered under "Work status" — pulled out into its own tab so you can go through and confirm each salary payment without it being mixed in with your business inflows or the rest of Step 2. If you're self-employed rather than employed, or your employer name found no matches, this tab will be empty.</p>
+        <div id="employerIncomeInflowsBox"></div>
+        <div class="session-nav-btns no-print" style="margin-top:12px;">
+          <button type="button" class="btn ghost fin-step-prev" data-fin-prev="4">← Back</button>
         </div>
         </div>
         </div>
@@ -7860,12 +7880,13 @@
   function inflowMatchPreviewLine(t, explained){
     return (explained ? '✅ ' : '') + t.date.toDateString() + ' — ' + fmtN(t.credit) + (t.narration ? ' ("'+escapeHtml(t.narration)+'")' : ' (no narration)');
   }
-  function renderMatchedInflowBoxHtml(idx, key, t, collapsed){
+  function renderMatchedInflowBoxHtml(idx, key, t, collapsed, prefix){
+    prefix = prefix || '';
     var existing = normalizeInflowExplanation(inflowExplanations[key]);
     var explained = inflowExplanationIsFilled(existing);
     if (collapsed){
-      return '<div class="explain-box explained collapsed" id="matchbox_'+idx+'">'
-        + '<div class="explain-collapsed-row" id="matchcollapsed_'+idx+'" tabindex="0" role="button">'
+      return '<div class="explain-box explained collapsed" id="matchbox_'+prefix+idx+'">'
+        + '<div class="explain-collapsed-row" id="matchcollapsed_'+prefix+idx+'" tabindex="0" role="button">'
         + '<span class="tx-line">'+inflowMatchPreviewLine(t, true)+' — <i>'+escapeHtml(inflowExplanationSummary(existing))+'</i></span>'
         + '<span class="explain-edit-link">✏️ Edit</span>'
         + '</div></div>';
@@ -7891,33 +7912,34 @@
       : useWorkCategories
       ? 'This payment\'s narration doesn\'t spell out a specific reason — please choose what type of employment payment this was'
       : 'This inflow\'s narration matched the name you entered under "Work status" — confirm the reason below, or change it if this particular payment isn\'t actually that.';
-    return '<div class="explain-box'+(explained?' explained':'')+'" id="matchbox_'+idx+'">'
+    return '<div class="explain-box'+(explained?' explained':'')+'" id="matchbox_'+prefix+idx+'">'
       + '<div class="tx-line">'+inflowMatchPreviewLine(t, explained)+'</div>'
       + renderNarrationDecodeHtml(t.narration)
       + '<div class="item-tip" style="margin-top:4px;">'+promptText+'</div>'
-      + '<select id="match_cat_'+idx+'" style="margin-top:4px;">'
+      + '<select id="match_cat_'+prefix+idx+'" style="margin-top:4px;">'
       + '<option value=""'+(selectedCat ? '' : ' selected')+'>Choose a reason…</option>'
       + options
       + '</select>'
-      + '<div id="match_others_'+idx+'" style="margin-top:6px; display:'+(selectedCat === 'others' ? 'block' : 'none')+';">'
-      + '<textarea id="match_detail_'+idx+'" rows="2" placeholder="Please specify…">'+escapeHtml(detailVal)+'</textarea>'
+      + '<div id="match_others_'+prefix+idx+'" style="margin-top:6px; display:'+(selectedCat === 'others' ? 'block' : 'none')+';">'
+      + '<textarea id="match_detail_'+prefix+idx+'" rows="2" placeholder="Please specify…">'+escapeHtml(detailVal)+'</textarea>'
       + '</div>'
-      + '<div id="match_status_'+idx+'">'+(explained ? '<div class="scan-msg ok compact">Saved — auto-saved in this browser, and included if you export it.</div>' : '')+'</div>'
+      + '<div id="match_status_'+prefix+idx+'">'+(explained ? '<div class="scan-msg ok compact">Saved — auto-saved in this browser, and included if you export it.</div>' : '')+'</div>'
       + '</div>';
   }
-  function wireMatchedInflowBox(list, t, idx){
+  function wireMatchedInflowBox(list, t, idx, prefix){
+    prefix = prefix || '';
     var key = inflowKey(t);
-    var collapsedRow = document.getElementById('matchcollapsed_'+idx);
+    var collapsedRow = document.getElementById('matchcollapsed_'+prefix+idx);
     if (collapsedRow){
-      collapsedRow.addEventListener('click', function(){ expandMatchedInflowBox(list, t, idx); });
-      collapsedRow.addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); expandMatchedInflowBox(list, t, idx); } });
+      collapsedRow.addEventListener('click', function(){ expandMatchedInflowBox(list, t, idx, prefix); });
+      collapsedRow.addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); expandMatchedInflowBox(list, t, idx, prefix); } });
       return;
     }
-    var sel = document.getElementById('match_cat_'+idx);
-    var othersBox = document.getElementById('match_others_'+idx);
-    var detailTa = document.getElementById('match_detail_'+idx);
-    var statusEl = document.getElementById('match_status_'+idx);
-    var boxEl = document.getElementById('matchbox_'+idx);
+    var sel = document.getElementById('match_cat_'+prefix+idx);
+    var othersBox = document.getElementById('match_others_'+prefix+idx);
+    var detailTa = document.getElementById('match_detail_'+prefix+idx);
+    var statusEl = document.getElementById('match_status_'+prefix+idx);
+    var boxEl = document.getElementById('matchbox_'+prefix+idx);
     if (!sel) return;
     var saveTimer = null, collapseTimer = null;
     function saveNow(){
@@ -7935,7 +7957,7 @@
         computeFinancials();
         if (typeof applySessionVisibility === 'function') applySessionVisibility();
         if (filled){
-          collapseTimer = setTimeout(function(){ collapseMatchedInflowBox(list, t, idx); }, 1200);
+          collapseTimer = setTimeout(function(){ collapseMatchedInflowBox(list, t, idx, prefix); }, 1200);
         }
       }, 500);
     }
@@ -7957,40 +7979,51 @@
       boxEl.addEventListener('focusout', function(){
         setTimeout(function(){
           if (!boxEl.contains(document.activeElement) && inflowExplanationIsFilled(inflowExplanations[key])){
-            collapseMatchedInflowBox(list, t, idx);
+            collapseMatchedInflowBox(list, t, idx, prefix);
           }
         }, 150);
       });
     }
   }
-  function collapseMatchedInflowBox(list, t, idx){
+  function collapseMatchedInflowBox(list, t, idx, prefix){
+    prefix = prefix || '';
     var key = inflowKey(t);
     if (!inflowExplanationIsFilled(inflowExplanations[key])) return;
     explainBoxCollapsed[key] = true;
-    var boxEl = document.getElementById('matchbox_'+idx);
+    var boxEl = document.getElementById('matchbox_'+prefix+idx);
     if (!boxEl) return;
-    boxEl.outerHTML = renderMatchedInflowBoxHtml(idx, key, t, true);
-    wireMatchedInflowBox(list, t, idx);
+    boxEl.outerHTML = renderMatchedInflowBoxHtml(idx, key, t, true, prefix);
+    wireMatchedInflowBox(list, t, idx, prefix);
   }
-  function expandMatchedInflowBox(list, t, idx){
+  function expandMatchedInflowBox(list, t, idx, prefix){
+    prefix = prefix || '';
     var key = inflowKey(t);
     explainBoxCollapsed[key] = false;
-    var boxEl = document.getElementById('matchbox_'+idx);
+    var boxEl = document.getElementById('matchbox_'+prefix+idx);
     if (!boxEl) return;
-    boxEl.outerHTML = renderMatchedInflowBoxHtml(idx, key, t, false);
-    wireMatchedInflowBox(list, t, idx);
-    var sel = document.getElementById('match_cat_'+idx);
+    boxEl.outerHTML = renderMatchedInflowBoxHtml(idx, key, t, false, prefix);
+    wireMatchedInflowBox(list, t, idx, prefix);
+    var sel = document.getElementById('match_cat_'+prefix+idx);
     if (sel) sel.focus();
   }
   // groups: [{label:'employer'|'business', name, category, txns:[...]}] — one entry per declared
   // name that had at least one matching inflow. Renders every transaction across every group as its
   // own explain-box, auto-tagging (but never re-tagging) each one the first time it's seen.
-  function renderMatchedIncomeInflows(groups){
-    var box = document.getElementById('matchedIncomeInflowsBox');
+  //
+  // boxId/prefix let this same renderer target two independent tabs without any DOM-id collisions:
+  // employer-matched groups render into their own "Workplace income" tab (boxId
+  // 'employerIncomeInflowsBox', prefix 'emp_') separate from business-matched groups, which keep
+  // rendering into 'matchedIncomeInflowsBox' on Step 2 with no prefix (unchanged from before). idx is
+  // purely a per-render DOM-id counter (not persisted — inflowExplanations is keyed by inflowKey(t)
+  // instead), so reusing 0..N in both calls is safe as long as the prefixes themselves never collide.
+  function renderMatchedIncomeInflows(groups, boxId, prefix){
+    boxId = boxId || 'matchedIncomeInflowsBox';
+    prefix = prefix || '';
+    var box = document.getElementById(boxId);
     if (!box) return;
     var allTxns = [];
     (groups || []).forEach(function(g){ g.txns.forEach(function(t){ allTxns.push(t); }); });
-    window.__lastMatchedIncomeInflows = allTxns;
+    if (boxId === 'matchedIncomeInflowsBox') window.__lastMatchedIncomeInflows = allTxns;
     if (!allTxns.length){ box.innerHTML = ''; return; }
     var html = '';
     groups.forEach(function(g){
@@ -8025,13 +8058,13 @@
       // genuinely still needs attention (e.g. manually re-tagged "Others" with no detail typed in
       // yet), it renders unwrapped instead, same as before this change.
       var groupAllExplained = g.txns.every(function(t){ return inflowExplanationIsFilled(inflowExplanations[inflowKey(t)]); });
-      if (groupAllExplained) html += '<details class="report-group" id="matchGroup_'+gIdx+'" open><summary class="report-group-heading">Show these '+g.txns.length+' inflow'+(g.txns.length===1?'':'s')+' matching "'+escapeHtml(g.name)+'" individually</summary>';
+      if (groupAllExplained) html += '<details class="report-group" id="matchGroup_'+prefix+gIdx+'" open><summary class="report-group-heading">Show these '+g.txns.length+' inflow'+(g.txns.length===1?'':'s')+' matching "'+escapeHtml(g.name)+'" individually</summary>';
       g.txns.forEach(function(t){
         var key = inflowKey(t);
         var explained = inflowExplanationIsFilled(inflowExplanations[key]);
         if (!explainBoxCollapsed.hasOwnProperty(key)) explainBoxCollapsed[key] = explained;
         var collapsed = explained && explainBoxCollapsed[key];
-        html += renderMatchedInflowBoxHtml(idx, key, t, collapsed);
+        html += renderMatchedInflowBoxHtml(idx, key, t, collapsed, prefix);
         idx++;
       });
       if (groupAllExplained) html += '</details>';
@@ -8039,7 +8072,7 @@
     box.innerHTML = html;
     idx = 0;
     groups.forEach(function(g){
-      g.txns.forEach(function(t){ wireMatchedInflowBox(allTxns, t, idx); idx++; });
+      g.txns.forEach(function(t){ wireMatchedInflowBox(allTxns, t, idx, prefix); idx++; });
     });
   }
 
@@ -8953,9 +8986,17 @@
               results.push({cls:'ok', text:'Found "'+escapeHtml(c.name)+'" referenced in this bank statement — matches what you entered under "Work status," a good consistency signal for a reviewer. It doesn\'t look like the direct sender on any individual inflow though — worth double-checking by eye that this statement actually shows your '+c.label+' income landing here, not just a mention elsewhere (e.g. a fee or a reference to it in passing).'});
             }
           });
-          renderMatchedIncomeInflows(matchedIncomeGroups);
+          // Split by declared source: employer-matched groups get their own "Workplace income" tab
+          // (Step 5), business-matched groups keep rendering on Step 2 as before — see the user
+          // request that added the employer tab, and the boxId/prefix comment on
+          // renderMatchedIncomeInflows above.
+          var businessIncomeGroups = matchedIncomeGroups.filter(function(g){ return g.label !== 'employer'; });
+          var employerIncomeGroups = matchedIncomeGroups.filter(function(g){ return g.label === 'employer'; });
+          renderMatchedIncomeInflows(businessIncomeGroups, 'matchedIncomeInflowsBox');
+          renderMatchedIncomeInflows(employerIncomeGroups, 'employerIncomeInflowsBox', 'emp_');
         } else {
-          renderMatchedIncomeInflows([]);
+          renderMatchedIncomeInflows([], 'matchedIncomeInflowsBox');
+          renderMatchedIncomeInflows([], 'employerIncomeInflowsBox', 'emp_');
         }
         if (truncatedFiles.length){
           results.push({cls:'warn', text:truncatedFiles.map(function(f){ return '"'+escapeHtml(f.name)+'" has '+f.info.total+' pages — only the first '+f.info.processed+' were read'; }).join('; ')+'. A busy account can run to many pages for 6 months; if your statement covers more than that, the earliest month(s) may be missing from this analysis. Consider splitting it into shorter date ranges and uploading each separately.'});
@@ -9375,6 +9416,7 @@
     });
     document.getElementById('unexplainedInflowsBox').innerHTML = '';
     document.getElementById('matchedIncomeInflowsBox').innerHTML = '';
+    document.getElementById('employerIncomeInflowsBox').innerHTML = '';
     document.getElementById('statementReadinessBox').innerHTML = '';
     document.getElementById('incomeSourcePersonal').innerHTML = '';
     document.getElementById('incomeSourceBusiness').innerHTML = '';

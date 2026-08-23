@@ -3,6 +3,23 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Added a dedicated "Workplace income" tab for employer-matched inflows
+
+User request, off a real bank statement where the employer/business matched-inflow list was getting
+crowded: split employer-matched inflows out into their own numbered step ("5. Workplace income") in the
+Income & bank statement analysis session, separate from business/self-employed-matched inflows, which
+stay on Step 2 as before. Previously both rendered together, mixed, into the same box.
+
+- Applicants who declared themselves "Employed" (or "Both") under Work status now get every inflow
+  matched against their employer name shown on its own tab, with the same per-transaction explain-box
+  UI (pre-tagged reason, narration decode, still fully editable) used everywhere else on this page —
+  just no longer sharing space with business inflows.
+- Applicants who are self-employed only, or whose employer name found no matches, see an empty (but
+  clearly labeled) tab rather than a missing feature.
+- No change to the underlying matching, auto-tagging, or narration-reading logic — this is purely a
+  presentation split. All 64 tests pass (5 updated to reflect the new tab; one new element-ID scheme —
+  a `prefix` parameter — keeps the two tabs' DOM IDs from colliding).
+
 ## Tightened privacy wording and softened language that implied more authority than the tool actually has
 
 An outside product review flagged that the app sometimes reads like it knows how a real visa
