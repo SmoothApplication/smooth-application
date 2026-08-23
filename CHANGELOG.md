@@ -3,6 +3,26 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Tightened privacy wording and softened language that implied more authority than the tool actually has
+
+An outside product review flagged that the app sometimes reads like it knows how a real visa
+officer or "experienced document reviewer" thinks — the 2× financial buffer explainer, the
+top-inflows/consistent-senders/income-breakdown notes, and the trust badge on the entry screen all
+stated the tool's own heuristics as if they were near-facts about official decision-making. None of
+that is sourced from published UKVI/IRCC guidance or real refusal data — it's this tool's own
+reasoning — so the copy now says that plainly instead of implying otherwise:
+
+- The 2× buffer note, the financial-calculator intro, and the three income/inflow report notes
+  (top inflows, most consistent senders, income sources breakdown) were reworded to describe this
+  tool's own reasoning rather than claiming insight into how "a reviewer" or "a visa officer"
+  actually thinks.
+- The entry-screen trust badge and meta description were tightened from a blanket "nothing leaves
+  your device" to "your documents never leave your device" — accurate to what the privacy page
+  already discloses (optional analytics, a live exchange-rate lookup, and CDN-hosted libraries are
+  documented exceptions there; documents/files themselves never leave the device).
+
+No functional behavior changed — this batch is copy-only. All 64 tests pass.
+
 ## Fixed the PII scanner permanently failing on its own denylist, removed a stale leaked-data folder, and scrubbed two real leaks that had been sitting in the actual test fixtures
 
 CI's `pii-scan` job started failing the moment it first ran with real content to check, and stayed
