@@ -12,11 +12,11 @@ exports.run = async function(ctx){
   try {
     await passConsentGate(page);
 
-    // "photo" is a plain checkbox item (no file upload) under Identity & application, session
-    // index 6 (0: passport, 1: travelExperience, 2: responsibilities, 3: trip, 4: finance2,
-    // 5: finance, 6: cat:Identity & application) — same session used by the
-    // passport-repetition-collapse test.
-    await goToSessionByPill(page, 6);
+    // "photo" is a plain checkbox item (no file upload) under Identity & application, which is
+    // grouped into the merged 'idFinancialDocs' session — index 2 (0: aboutYou, 1:
+    // financialReadiness, 2: idFinancialDocs) — same session used by the passport-repetition-collapse
+    // test.
+    await goToSessionByPill(page, 2);
     await page.waitForSelector('#item_photo');
 
     var collapsedBefore = await page.$eval('#item_photo', function(el){ return el.classList.contains('collapsed'); });

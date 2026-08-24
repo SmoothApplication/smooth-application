@@ -3,13 +3,13 @@
 // the state -> local government area dropdown is dependent (no LGA options until a state is picked,
 // and picking a different state replaces the list rather than appending to it).
 const assert = require('assert');
-const { newPageAt, passConsentGate, goToSessionByLabel } = require('./helpers');
+const { newPageAt, passConsentGate, goToSessionByPill } = require('./helpers');
 
 exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page);
-    await goToSessionByLabel(page, 'Your responsibilities');
+    await goToSessionByPill(page, 0);
     await page.waitForSelector('#rs_state');
 
     // State dropdown should already be populated (built on load), LGA should not be yet.

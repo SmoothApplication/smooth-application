@@ -28,12 +28,29 @@ exports.run = async function(ctx){
       return el && el.style.display !== 'none';
     }, { timeout: 5000 });
 
-    // Fresh trip session: only the name filled in, everything else still blank. Blur the field first
+    // "Your trip details" now shares one aggregate "still needed" list with 3 other cards in the
+    // merged 'About you' session (passport / travel experience / responsibilities — see
+    // getVisibleSessionKeys() in index.html), and that list is capped at the first 5 items (see
+    // attemptAdvanceSession). Completing those 3 other cards first means the only things left
+    // missing are trip's own — keeping this test's assertions about exactly which fields get named
+    // meaningful, instead of them getting crowded out by unrelated cards' missing items.
+    await goToSessionByPill(page, 0);
+    await page.selectOption('#te_firstTime', 'no');
+    await page.fill('#f_passportNumber', 'A12345678');
+    await page.fill('#f_passportExpiry', '2030-01-01');
+    await page.selectOption('#rs_numKids', '0');
+    await page.selectOption('#rs_state', 'Lagos');
+    await page.waitForFunction(function(){
+      var el = document.getElementById('rs_lga');
+      return el && el.options.length > 1;
+    });
+    await page.selectOption('#rs_lga', { index: 1 });
+    await page.fill('#rs_addressNumber', '14');
+    await page.fill('#rs_addressName', 'Adeola Odeku Street');
+
+    // Only the trip card's name filled in, everything else there still blank. Blur the field first
     // (same reasoning as goToSessionByPill in helpers.js) so the render() triggered on blur settles
     // before the click, instead of racing a mid-rebuild DOM node.
-    // "Your trip details" is session index 3 (0: passport, 1: travelExperience,
-    // 2: responsibilities, 3: trip).
-    await goToSessionByPill(page, 3);
     await page.fill('#f_name', 'Test Applicant');
     await page.evaluate(function(){ document.activeElement && document.activeElement.blur(); });
     await page.waitForTimeout(150);
@@ -48,7 +65,7 @@ exports.run = async function(ctx){
     // Dismissing should keep the applicant on the same (still incomplete) session, with the missing
     // fields visibly outlined right on the page.
     var stillOnTrip = await page.$eval('.session-pill.active', function(el){ return el.getAttribute('data-idx'); });
-    assert.strictEqual(stillOnTrip, '3', 'Dismissing the nudge should keep the applicant on the trip session');
+    assert.strictEqual(stillOnTrip, '0', 'Dismissing the nudge should keep the applicant on "About you"');
 
     var purposeFlagged = await page.$eval('#f_purpose', function(el){ return el.classList.contains('field-invalid'); });
     assert.strictEqual(purposeFlagged, true, 'The empty "Main purpose of visit" field should be outlined in red');
@@ -69,9 +86,9 @@ exports.run = async function(ctx){
     dialogMessages.length = 0;
     await page.click('#sessionFooterNextBtn');
     await page.waitForTimeout(200);
-    assert.strictEqual(dialogMessages.length, 0, 'A fully-filled session should advance with no nudge dialog at all');
+    assert.strictEqual(dialogMessages.length, 0, 'A fully-filled "About you" (all 4 cards) should advance with no nudge dialog at all');
     var nowOnSession = await page.$eval('.session-pill.active', function(el){ return el.getAttribute('data-idx'); });
-    assert.notStrictEqual(nowOnSession, '3', 'Should have actually advanced past the trip session');
+    assert.strictEqual(nowOnSession, '1', 'Should have actually advanced to "Financial readiness"');
   } finally {
     await page.context().close();
   }

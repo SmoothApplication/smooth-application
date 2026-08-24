@@ -46,9 +46,9 @@ exports.run = async function(ctx){
 
     // Applicant types their own name in first -- this is the name the fix needs to exclude from
     // "sender candidate" consideration.
-    await goToSessionByPill(page, 3);
+    await goToSessionByPill(page, 0);
     await page.fill('#f_name', 'Test Applicant');
-    await goToSessionByPill(page, 4);
+    await goToSessionByPill(page, 1); // 'Financial readiness'
 
     await goToFinanceStep(page, 1);
     await page.setInputFiles('#stmtFile1', FIXTURE);

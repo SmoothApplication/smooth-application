@@ -29,13 +29,13 @@ exports.run = async function(ctx){
   try {
     await passConsentGate(page);
 
-    await goToSessionByPill(page, 3); // trip session — "Work status" dropdown lives here
+    await goToSessionByPill(page, 0); // trip session — "Work status" dropdown lives here
     await page.fill('#f_name', 'Test Applicant');
     await page.selectOption('#f_workStatus', 'both');
     await page.fill('#f_employerName', 'Grace Covenant Youth Church');
     await page.fill('#f_businessName', 'Bright Homes Cleaning Solutions Ltd');
 
-    await goToSessionByPill(page, 4); // finance2 session — statement upload lives here
+    await goToSessionByPill(page, 1); // finance2 session — statement upload lives here
     await page.setInputFiles('#stmtFile1', INFLOW_STATEMENT);
     await page.click('#btnAnalyzeStatements');
     await page.waitForSelector('#matchedIncomeInflowsBox .explain-box', { timeout: 20000 });

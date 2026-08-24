@@ -8,13 +8,13 @@
 // per-term school-fee default, then totals them into a yearly figure. Everything stays fully
 // editable and a typed-in value is never silently overwritten by the auto-fill.
 const assert = require('assert');
-const { newPageAt, passConsentGate, goToSessionByLabel } = require('./helpers');
+const { newPageAt, passConsentGate, goToSessionByPill } = require('./helpers');
 
 exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page);
-    await goToSessionByLabel(page, 'Your responsibilities');
+    await goToSessionByPill(page, 0);
     await page.waitForSelector('#rs_state');
 
     // Before any state is picked, no summary should render yet.

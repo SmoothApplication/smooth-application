@@ -20,11 +20,11 @@ exports.run = async function(ctx){
   var page1 = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page1);
-    await goToSessionByPill(page1, 3);
+    await goToSessionByPill(page1, 0);
     await page1.fill('#f_name', 'Test Applicant');
     await page1.selectOption('#f_workStatus', 'employed');
     await page1.fill('#f_employerName', 'Grace Covenant Youth Church');
-    await goToSessionByPill(page1, 4);
+    await goToSessionByPill(page1, 1);
     await page1.setInputFiles('#stmtFile1', FIXTURE);
     await page1.click('#btnAnalyzeStatements');
     await page1.waitForFunction(function(){
@@ -44,12 +44,12 @@ exports.run = async function(ctx){
   var page2 = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page2);
-    await goToSessionByPill(page2, 3);
+    await goToSessionByPill(page2, 0);
     await page2.fill('#f_name', 'Test Applicant');
     await page2.selectOption('#f_workStatus', 'employed');
     await page2.fill('#f_employerName', 'Grace Covenant Youth Church');
     await page2.fill('#f_employerAltName', 'Grace CYC');
-    await goToSessionByPill(page2, 4);
+    await goToSessionByPill(page2, 1);
     await page2.setInputFiles('#stmtFile1', FIXTURE);
     await page2.click('#btnAnalyzeStatements');
     await page2.waitForFunction(function(){

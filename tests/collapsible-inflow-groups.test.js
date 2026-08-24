@@ -25,13 +25,13 @@ exports.run = async function(ctx){
   var page1 = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page1);
-    await goToSessionByPill(page1, 3);
+    await goToSessionByPill(page1, 0);
     await page1.fill('#f_name', 'Test Applicant');
     await page1.selectOption('#f_workStatus', 'both');
     await page1.fill('#f_employerName', 'Grace Covenant Youth Church');
     await page1.fill('#f_businessName', 'Bright Homes Cleaning Solutions Ltd');
 
-    await goToSessionByPill(page1, 4);
+    await goToSessionByPill(page1, 1);
     await page1.setInputFiles('#stmtFile1', MATCHED_STATEMENT);
     await page1.click('#btnAnalyzeStatements');
     await page1.waitForSelector('#matchedIncomeInflowsBox .explain-box', { timeout: 20000 });
@@ -90,7 +90,7 @@ exports.run = async function(ctx){
   var page2 = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page2);
-    await goToSessionByPill(page2, 4);
+    await goToSessionByPill(page2, 1);
 
     await page2.setInputFiles('#stmtFile1', UNEXPLAINED_STATEMENT);
     await page2.click('#btnAnalyzeStatements');

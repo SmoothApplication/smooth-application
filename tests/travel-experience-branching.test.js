@@ -7,13 +7,13 @@
 // question "Have you travelled outside Nigeria before?" instead, so "Yes" -> history table,
 // "No" -> recommendation box.
 const assert = require('assert');
-const { newPageAt, passConsentGate, goToSessionByLabel } = require('./helpers');
+const { newPageAt, passConsentGate, goToSessionByPill } = require('./helpers');
 
 exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page);
-    await goToSessionByLabel(page, 'Travel Experience');
+    await goToSessionByPill(page, 0);
     await page.waitForSelector('#te_firstTime');
 
     // Unanswered -> neither box shows.

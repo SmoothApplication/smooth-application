@@ -24,12 +24,12 @@ exports.run = async function(ctx){
     await passConsentGate(page);
 
     // Applicant's own surname ("Smith") is shared by one of the senders in the fixture ("Mary Smith").
-    await goToSessionByPill(page, 3);
+    await goToSessionByPill(page, 0);
     await page.fill('#f_name', 'Test Applicant Smith');
     await page.selectOption('#f_workStatus', 'employed');
     await page.fill('#f_employerName', 'Good Employer Ltd');
 
-    await goToSessionByPill(page, 4);
+    await goToSessionByPill(page, 1); // 'Financial readiness'
     await page.setInputFiles('#stmtFile1', FIXTURE);
     await page.click('#btnAnalyzeStatements');
     await page.waitForFunction(function(){

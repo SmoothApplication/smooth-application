@@ -10,7 +10,7 @@ exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page);
-    await goToSessionByPill(page, 5); // 'finance' (cost calculator) holds the currency helper; session index 5: ['passport','travelExperience','responsibilities','trip','finance2','finance',...]
+    await goToSessionByPill(page, 1); // 'Financial readiness' holds the cost-calculator card, which has the currency helper.
 
     var panelHiddenInitially = await page.$eval('#currencyHelper', function(el){ return el.style.display === 'none'; });
     assert.strictEqual(panelHiddenInitially, true, 'Currency helper panel should start collapsed');

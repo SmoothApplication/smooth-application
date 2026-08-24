@@ -20,7 +20,7 @@ const { newPageAt, passConsentGate, goToSessionByPill, goToFinanceStep } = requi
 // (Upload) is the default, so typing straight into the table without uploading anything first needs
 // an explicit tab switch.
 async function fillCashFlowMonths(page, monthlyInflow){
-  await goToSessionByPill(page, 4);
+  await goToSessionByPill(page, 1); // 'Financial readiness'
   await goToFinanceStep(page, 2);
   for (var i = 1; i <= 6; i++){
     await page.fill('#cf_month_' + i, 'Month ' + i);
@@ -36,7 +36,7 @@ exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page);
-    await goToSessionByPill(page, 5); // detailed financial calculator
+    await goToSessionByPill(page, 1); // 'Financial readiness' — detailed financial calculator
     // Trip cost: flight 500,000/adult + accommodation 100,000/night × 5 nights = 1,000,000 total.
     // Recommended funds/income buffer (2×) = 2,000,000.
     await page.fill('#fc_nights', '5');
@@ -59,7 +59,7 @@ exports.run = async function(ctx){
   var page2 = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page2);
-    await goToSessionByPill(page2, 5);
+    await goToSessionByPill(page2, 1);
     await page2.fill('#fc_nights', '5');
     await page2.fill('#fc_flight', '500000');
     await page2.fill('#fc_accom', '100000');
@@ -79,12 +79,12 @@ exports.run = async function(ctx){
   var page3 = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page3);
-    await goToSessionByPill(page3, 5);
+    await goToSessionByPill(page3, 1);
     await page3.fill('#fc_nights', '5');
     await page3.fill('#fc_flight', '500000');
     await page3.fill('#fc_accom', '100000');
     await page3.fill('#fc_closing', '3000000');
-    await goToSessionByPill(page3, 4);
+    await goToSessionByPill(page3, 1);
     await goToFinanceStep(page3, 2);
     await page3.fill('#cf_month_1', 'Month 1');
     await page3.fill('#cf_in_1', '100000');

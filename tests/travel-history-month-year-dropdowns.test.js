@@ -5,13 +5,13 @@
 // replaces it with two real dropdowns — Month, and Year (this year back 19 more, 20 years total,
 // no future years since a past trip can't have a future date).
 const assert = require('assert');
-const { newPageAt, passConsentGate, goToSessionByLabel } = require('./helpers');
+const { newPageAt, passConsentGate, goToSessionByPill } = require('./helpers');
 
 exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page);
-    await goToSessionByLabel(page, 'Travel Experience');
+    await goToSessionByPill(page, 0);
     await page.selectOption('#te_firstTime', 'yes');
     await page.waitForSelector('#btnAddTravelRow');
     await page.click('#btnAddTravelRow');

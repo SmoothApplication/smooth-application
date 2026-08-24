@@ -16,7 +16,7 @@ exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page);
-    await goToSessionByPill(page, 4); // finance2 = Income & bank statement analysis
+    await goToSessionByPill(page, 1); // finance2 = Income & bank statement analysis
 
     await page.setInputFiles('#stmtFile1', FIXTURE);
     await page.click('#btnAnalyzeStatements');

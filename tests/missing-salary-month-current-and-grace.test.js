@@ -24,7 +24,7 @@ async function newPageAtFixedTime(browser, isoDate){
 
 async function analyzeAndGetBoxHtml(page){
   await passConsentGate(page);
-  await goToSessionByPill(page, 4); // finance2 = Income & bank statement analysis
+  await goToSessionByPill(page, 1); // finance2 = Income & bank statement analysis
   await page.setInputFiles('#stmtFile1', FIXTURE);
   await page.waitForTimeout(500);
   await page.click('#btnAnalyzeStatements');

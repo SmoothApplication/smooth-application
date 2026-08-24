@@ -14,7 +14,7 @@
 // values) were unaffected the whole time. Fixed by reading both selects' current DOM values
 // directly instead of trying to reconstruct one from the other via row.date.
 const assert = require('assert');
-const { newPageAt, passConsentGate, goToSessionByLabel } = require('./helpers');
+const { newPageAt, passConsentGate, goToSessionByPill } = require('./helpers');
 
 async function readRow(page, idx){
   return page.evaluate(function(i){
@@ -34,7 +34,7 @@ exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page);
-    await goToSessionByLabel(page, 'Travel Experience');
+    await goToSessionByPill(page, 0);
     await page.waitForSelector('#te_firstTime');
     await page.selectOption('#te_firstTime', 'yes');
     await page.click('#btnAddTravelRow');
