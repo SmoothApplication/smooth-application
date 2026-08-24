@@ -1328,6 +1328,7 @@
           <button type="button" class="fin-step-tab" data-fin-step="3" role="tab">3. Detailed reports</button>
           <button type="button" class="fin-step-tab" data-fin-step="4" role="tab">4. Income sources breakdown</button>
           <button type="button" class="fin-step-tab" data-fin-step="5" role="tab">5. Workplace income</button>
+          <button type="button" class="fin-step-tab" data-fin-step="6" role="tab">6. Readiness report</button>
         </div>
 
         <div class="fin-step" data-fin-step="1">
@@ -1445,6 +1446,26 @@
         <div id="employerIncomeInflowsBox"></div>
         <div class="session-nav-btns no-print" style="margin-top:12px;">
           <button type="button" class="btn ghost fin-step-prev" data-fin-prev="4">← Back</button>
+          <button type="button" class="btn fin-step-next" data-fin-next="6">Next: Readiness report →</button>
+        </div>
+        </div>
+
+        <!-- User request, as "CTO" priority #3 off the friend's product review + monetization planning:
+             a single summary of financial readiness using CATEGORY status (Missing / Needs review /
+             Looks complete / Not assessed) instead of one raw percentage — meant to be the free-tier
+             "payoff" for finishing this session, and read at a glance rather than requiring the
+             applicant to go back through every one of Steps 1-5 themselves. Deliberately reuses
+             signals ALREADY computed and shown elsewhere on Steps 2-5 (the incomePill/balancePill
+             classes, window.__lastUnexplainedInflows, window.__lastIncomeBreakdown,
+             window.__lastNameChecks) rather than re-deriving new thresholds — this is a presentation
+             layer over existing state, not a new scoring model, so it can't drift out of sync with
+             what those steps already say. See computeReadinessReportRows(). -->
+        <div class="fin-step" data-fin-step="6">
+        <h2 style="margin-top:0;">Readiness report</h2>
+        <p class="fin-note" style="margin-top:0;">A category-by-category summary of financial readiness, pulled together from everything filled in on Steps 1-5 — not a single score, since different parts of your evidence can be in very different states at once.</p>
+        <div id="readinessReportBox"></div>
+        <div class="session-nav-btns no-print" style="margin-top:12px;">
+          <button type="button" class="btn ghost fin-step-prev" data-fin-prev="5">← Back</button>
         </div>
         </div>
         </div>
@@ -2870,6 +2891,12 @@
 
     updateScore();
     applySessionVisibility();
+    // "Workplace/Business income evidence" on the Readiness report (Step 6) reads answers.employed/
+    // employerName/selfEmployed/businessName — all fields wired to render(), not computeFinancials()
+    // (see the id list above) — so without this, editing the declared employer/business name left the
+    // report showing stale "Not assessed"/"Missing" state until something else (e.g. a financial
+    // calculator field) happened to trigger computeFinancials() separately.
+    if (typeof renderReadinessReport === 'function') renderReadinessReport();
   }
 
   // Handles a single checklist item's checkbox/upload/scan/replace controls, plus (once collapsed)
@@ -3891,6 +3918,10 @@
       }
     }
     var hasCashFlowData = rows.length >= 2;
+    // Exposed globally so the Readiness report tab (Step 6) can tell "nothing uploaded/entered yet"
+    // apart from "entered, but this category still needs work" without re-deriving the same >= 2
+    // months threshold — see computeReadinessReportRows().
+    window.__hasCashFlowData = hasCashFlowData;
     var avgIn = 0, avgOut = 0, cv = 0, zeroMonths = 0;
     if (hasCashFlowData){
       var inflows = rows.map(function(r){ return r.inflow; });
@@ -4288,6 +4319,10 @@
     // same fields (fc_flight, fc_accom, fc_transport, fc_closing) — without this it only updated on
     // the next navigation, so the header could still read "0% filled" long after fields were typed in.
     applySessionVisibility();
+    // Readiness report (Step 6) reads the incomePill/balancePill classes this function just set, plus
+    // the window.__lastX globals kept in sync elsewhere — re-render every time this runs, same as
+    // applySessionVisibility() above, so it never goes stale relative to what Steps 2-5 show.
+    if (typeof renderReadinessReport === 'function') renderReadinessReport();
   }
 
   ['fc_nights','fc_flight','fc_accom','fc_transport','fc_shopping','fc_shoppingPlace','fc_sightseeing','fc_opening','fc_closing','fc_forexSavings','fc_airline','fc_depDate','fc_arrDate','fc_accomAddress'].forEach(function(id){
@@ -8076,6 +8111,157 @@
     });
   }
 
+  // ---- Readiness report (Step 6) ----
+  // User request, as CTO priority #3 off the friend's product review + monetization planning: a
+  // single summary of financial readiness using CATEGORY status instead of one raw percentage — the
+  // free-tier "payoff" for finishing this session. Status vocabulary used throughout:
+  //   missing        — applies to this applicant, but nothing's been done yet
+  //   needs_review   — in progress, but not clean (some part still outstanding)
+  //   looks_complete — nothing outstanding in this category
+  //   not_assessed   — doesn't apply given what this applicant declared (e.g. business income
+  //                    evidence when only "Employed" was declared under Work status)
+  // Deliberately reuses signals ALREADY computed and shown elsewhere on Steps 2-5 (the incomePill/
+  // balancePill classes computeFinancials() sets, window.__lastUnexplainedInflows,
+  // window.__lastIncomeBreakdown, window.__lastNameChecks) rather than re-deriving new thresholds —
+  // this is a presentation layer over existing state, not a new scoring model, so it can't drift out
+  // of sync with what those steps already say.
+  function readinessStatusMeta(status){
+    var MAP = {
+      missing:        {cls:'neutral',  icon:'⬜', label:'Missing'},
+      needs_review:   {cls:'warning',  icon:'⚠️', label:'Needs review'},
+      looks_complete: {cls:'good',     icon:'✅', label:'Looks complete'},
+      not_assessed:   {cls:'neutral',  icon:'➖', label:'Not assessed'}
+    };
+    return MAP[status] || MAP.missing;
+  }
+  // Reads the incomePill/balancePill classes computeFinancials() already set, rather than
+  // re-deriving the Strong/Needs-attention/Weak thresholds a second time — folds the SAME verdict
+  // already shown on Step 2 into the four-state vocabulary used everywhere else on this tab.
+  function readinessStatusFromPill(pillId, neutralMeansMissingOnly){
+    var el = document.getElementById(pillId);
+    if (!el) return 'missing';
+    var cls = el.className || '';
+    if (/\bgood\b/.test(cls)) return 'looks_complete';
+    if (/\b(warning|critical)\b/.test(cls)) return 'needs_review';
+    // 'neutral' covers two different real states for balancePill specifically (see balancePillEl
+    // logic in computeFinancials): truly nothing entered ("Enter your figures") vs. a real closing
+    // balance with nothing yet to compare it against ("Detected — add a trip cost to compare"). Only
+    // the former should read as Missing; the latter is real, if incomplete, progress.
+    if (neutralMeansMissingOnly && el.textContent && el.textContent.indexOf('Enter your figures') === -1) return 'needs_review';
+    return 'missing';
+  }
+  function computeReadinessReportRows(){
+    var rows = [];
+    var hasData = window.__hasCashFlowData === true;
+    var answers = getAnswers();
+
+    rows.push({
+      key: 'balance',
+      label: 'Closing balance strength',
+      status: readinessStatusFromPill('balancePill', true),
+      detail: (document.getElementById('balancePillPct') && document.getElementById('balancePillPct').textContent) || 'Fill in Step 2 to see this.'
+    });
+
+    rows.push({
+      key: 'income',
+      label: 'Income generation & consistency',
+      status: readinessStatusFromPill('incomePill', false),
+      detail: (document.getElementById('incomePillPct') && document.getElementById('incomePillPct').textContent) || 'Fill in Step 2 to see this.'
+    });
+
+    var flagged = window.__lastUnexplainedInflows || [];
+    var unexplained = flagged.filter(function(t){ return !inflowExplanationIsFilled(inflowExplanations[inflowKey(t)]); });
+    var unexplainedStatus, unexplainedDetail;
+    if (!hasData){
+      unexplainedStatus = 'missing';
+      unexplainedDetail = 'Upload or type in a bank statement/cash flow on Step 1-2 to check this.';
+    } else if (flagged.length === 0){
+      unexplainedStatus = 'looks_complete';
+      unexplainedDetail = 'No inflows were flagged as needing an explanation.';
+    } else if (unexplained.length === 0){
+      unexplainedStatus = 'looks_complete';
+      unexplainedDetail = 'All ' + flagged.length + ' flagged inflow(s) have an explanation.';
+    } else {
+      unexplainedStatus = 'needs_review';
+      unexplainedDetail = unexplained.length + ' of ' + flagged.length + ' flagged inflow(s) still need an explanation — see Step 2.';
+    }
+    rows.push({key:'unexplained', label:'Unexplained inflows', status: unexplainedStatus, detail: unexplainedDetail});
+
+    var groups = window.__lastIncomeBreakdown || [];
+    var groupsNeedingNote = groups.filter(function(g){ return sourceNeedsNote(g.type); });
+    var explainedGroups = groupsNeedingNote.filter(function(g){ return sourceExplanationIsFilled(sourceExplanations[sourceKey(g)]); });
+    var breakdownStatus, breakdownDetail;
+    if (!hasData){
+      breakdownStatus = 'missing';
+      breakdownDetail = 'Upload or type in a bank statement/cash flow on Step 1-2 to check this.';
+    } else if (groupsNeedingNote.length === 0){
+      breakdownStatus = 'looks_complete';
+      breakdownDetail = 'No income sources currently need a note.';
+    } else if (explainedGroups.length === groupsNeedingNote.length){
+      breakdownStatus = 'looks_complete';
+      breakdownDetail = 'All ' + groupsNeedingNote.length + ' income source(s) that need a note have one.';
+    } else {
+      breakdownStatus = 'needs_review';
+      breakdownDetail = (groupsNeedingNote.length - explainedGroups.length) + ' of ' + groupsNeedingNote.length + ' income source(s) below still need a note — see Step 4.';
+    }
+    rows.push({key:'breakdown', label:'Income sources breakdown', status: breakdownStatus, detail: breakdownDetail});
+
+    // Workplace (employer) and business income evidence — same logic, different declared name and
+    // different matched-inflow tab (Step 5 for employer, Step 2 for business).
+    var nameChecks = window.__lastNameChecks || [];
+    function evidenceRow(key, label, declared, declaredName, stepHint, checkLabel){
+      if (!declared || !declaredName){
+        return {key:key, label:label, status:'not_assessed', detail:'You haven\'t declared this under "Work status", so there\'s nothing to check here.'};
+      }
+      if (!hasData){
+        return {key:key, label:label, status:'missing', detail:'Upload a bank statement on Step 1 to check for "'+declaredName+'".'};
+      }
+      var entry = nameChecks.filter(function(c){ return c.label === checkLabel; })[0];
+      if (!entry){
+        return {key:key, label:label, status:'missing', detail:'Re-run "Analyze statement(s)" on Step 1 to check for "'+declaredName+'".'};
+      }
+      if (!entry.found){
+        return {key:key, label:label, status:'missing', detail:'"'+declaredName+'" could not be found anywhere in this statement — a high-risk gap worth fixing before you apply.'};
+      }
+      if (entry.inflowCount === 0){
+        return {key:key, label:label, status:'needs_review', detail:'"'+declaredName+'" is mentioned in the statement, but isn\'t the direct sender on any individual inflow — worth double-checking by eye.'};
+      }
+      var allExplained = entry.inflowMatches.every(function(t){ return inflowExplanationIsFilled(inflowExplanations[inflowKey(t)]); });
+      if (allExplained){
+        return {key:key, label:label, status:'looks_complete', detail: entry.inflowCount + ' inflow(s) from "'+declaredName+'" found and explained — see '+stepHint+'.'};
+      }
+      return {key:key, label:label, status:'needs_review', detail: entry.inflowCount + ' inflow(s) found from "'+declaredName+'", but not all are explained yet — see '+stepHint+'.'};
+    }
+    rows.push(evidenceRow('workplace', 'Workplace income evidence', answers.employed, answers.employerName, 'Step 5', 'employer'));
+    rows.push(evidenceRow('business', 'Business income evidence', answers.selfEmployed, answers.businessName, 'Step 2', 'business'));
+
+    return rows;
+  }
+  function renderReadinessReport(){
+    var box = document.getElementById('readinessReportBox');
+    if (!box) return;
+    var rows = computeReadinessReportRows();
+    var counts = {missing:0, needs_review:0, looks_complete:0, not_assessed:0};
+    rows.forEach(function(r){ counts[r.status] = (counts[r.status] || 0) + 1; });
+    var summaryParts = [];
+    if (counts.looks_complete) summaryParts.push(counts.looks_complete + ' look' + (counts.looks_complete===1?'s':'') + ' complete');
+    if (counts.needs_review) summaryParts.push(counts.needs_review + ' need' + (counts.needs_review===1?'s':'') + ' review');
+    if (counts.missing) summaryParts.push(counts.missing + ' missing');
+    if (counts.not_assessed) summaryParts.push(counts.not_assessed + ' not assessed');
+    var summaryHtml = '<p class="fin-note" style="margin-top:0;"><b>' + rows.length + ' categories checked</b> — ' + summaryParts.join(', ') + '.</p>';
+    var rowsHtml = rows.map(function(r){
+      var meta = readinessStatusMeta(r.status);
+      return '<div class="report-group" style="margin-top:10px;">'
+        + '<div style="display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;">'
+        + '<b>' + escapeHtml(r.label) + '</b>'
+        + '<span class="status-pill ' + meta.cls + '" style="margin-top:0;">' + meta.icon + ' ' + meta.label + '</span>'
+        + '</div>'
+        + '<p class="fin-note" style="margin:6px 0 0;">' + escapeHtml(r.detail) + '</p>'
+        + '</div>';
+    }).join('');
+    box.innerHTML = summaryHtml + rowsHtml;
+  }
+
   // ---- Top 10 inflows ----
   function getTopInflows(txns, n){
     return txns.filter(function(t){ return t.credit > 0; })
@@ -8994,9 +9180,19 @@
           var employerIncomeGroups = matchedIncomeGroups.filter(function(g){ return g.label === 'employer'; });
           renderMatchedIncomeInflows(businessIncomeGroups, 'matchedIncomeInflowsBox');
           renderMatchedIncomeInflows(employerIncomeGroups, 'employerIncomeInflowsBox', 'emp_');
+          // Kept for the Readiness report tab (Step 6) — nameChecks (not just matchedIncomeGroups)
+          // covers EVERY declared name, including one that was typed but never actually found in the
+          // statement (found:false, inflowCount:0) or found only in passing text with no direct
+          // credit match (found:true, inflowCount:0) — cases matchedIncomeGroups deliberately excludes
+          // since there's nothing to itemize, but the readiness report still needs to grade them as
+          // Missing/Needs review rather than silently treating them as "Not assessed". Each entry
+          // also carries its own .inflowMatches array, reused there to check explanation-completeness
+          // without re-deriving it.
+          window.__lastNameChecks = nameChecks;
         } else {
           renderMatchedIncomeInflows([], 'matchedIncomeInflowsBox');
           renderMatchedIncomeInflows([], 'employerIncomeInflowsBox', 'emp_');
+          window.__lastNameChecks = [];
         }
         if (truncatedFiles.length){
           results.push({cls:'warn', text:truncatedFiles.map(function(f){ return '"'+escapeHtml(f.name)+'" has '+f.info.total+' pages — only the first '+f.info.processed+' were read'; }).join('; ')+'. A busy account can run to many pages for 6 months; if your statement covers more than that, the earliest month(s) may be missing from this analysis. Consider splitting it into shorter date ranges and uploading each separately.'});
@@ -9417,6 +9613,7 @@
     document.getElementById('unexplainedInflowsBox').innerHTML = '';
     document.getElementById('matchedIncomeInflowsBox').innerHTML = '';
     document.getElementById('employerIncomeInflowsBox').innerHTML = '';
+    document.getElementById('readinessReportBox').innerHTML = '';
     document.getElementById('statementReadinessBox').innerHTML = '';
     document.getElementById('incomeSourcePersonal').innerHTML = '';
     document.getElementById('incomeSourceBusiness').innerHTML = '';
@@ -9428,6 +9625,8 @@
     window.__lastUnexplainedInflows = [];
     window.__lastMatchedIncomeInflows = [];
     window.__lastIncomeBreakdown = [];
+    window.__lastNameChecks = [];
+    window.__hasCashFlowData = false;
     inflowExplanations = {};
     sourceExplanations = {};
     sourcePerPaymentMode = {};

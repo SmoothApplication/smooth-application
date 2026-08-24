@@ -3,6 +3,31 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Added a "Readiness report" tab summarizing financial readiness by category, not one raw percentage
+
+A new Step 6 ("Readiness report"), added inside Income & bank statement analysis right after the
+Workplace income tab, pulls together everything filled in on Steps 1-5 into a single category-by-
+category summary — Closing balance strength, Income generation & consistency, Unexplained inflows,
+Income sources breakdown, Workplace income evidence, and Business income evidence — each graded as
+one of four states: Missing (applies to you, nothing done yet), Needs review (in progress but not
+clean), Looks complete (nothing outstanding), or Not assessed (doesn't apply given what you declared
+under Work status).
+
+- Deliberately reuses signals already computed and shown elsewhere on Steps 2-5 (the same
+  incomePill/balancePill verdicts, the same unexplained-inflow and income-source-note counts, the
+  same employer/business statement cross-check) rather than inventing a new scoring model — this is a
+  presentation layer over existing state, so it can't drift out of sync with what those steps already
+  say.
+- Catches gaps a raw percentage would hide — e.g. every matched inflow auto-explained on Steps 2/5
+  doesn't automatically fill in that same sender's note on Step 4's Income sources breakdown, and the
+  report correctly still flags that as Needs review.
+- Refreshes on every relevant change, including editing the declared employer/business name itself,
+  not just financial-calculator fields.
+- No paywall or payment gating included in this batch — this is the report only; gating needs a
+  separate decision on how a client-side-only app verifies who paid.
+
+All 65 tests pass (1 new test added: `readiness-report.test.js`).
+
 ## Added a dedicated "Workplace income" tab for employer-matched inflows
 
 User request, off a real bank statement where the employer/business matched-inflow list was getting
