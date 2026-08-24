@@ -3,6 +3,48 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Cut the top-level session count from 12 down to 5, in response to "too many steps" complaints
+
+User feedback: a growing number of applicants said the checklist "took forever" or had "too many
+steps" before they could see any progress. The 12 count wasn't fixed — it was 6 always-present
+sessions (passport / travel experience / responsibilities / trip / bank-statement analysis /
+financial calculator) plus one separate top-level session per applicable document checklist
+category (up to 5 more, depending on the applicant's own answers) plus final review. For some
+applicants it was worse than 12. None of the underlying steps were removed — this batch only
+regroups the existing sessions under 5 top-level tabs, so nothing an applicant used to fill in is
+gone, it's just reachable in fewer clicks:
+
+- **About you** — passport validation, travel experience, your responsibilities, and trip details,
+  now one session with 4 independently-collapsible cards instead of 4 separate top-level sessions.
+- **Financial readiness** — the bank-statement analysis and the cost calculator, merged into one
+  session (statement analysis card kept first, preserving "see your feedback before typing a manual
+  estimate").
+- **Identity & financial documents** — the two document checklist categories every applicant always
+  sees ("Identity & application" and "Financial evidence"), merged into one session.
+- **Other required documents** — every other document checklist category, including the conditional
+  ones that only apply for some applicants (purpose-specific documents, documents for a travelling
+  child, visa history, translations). However many of these apply to a given applicant, they all
+  live under this one tab — so the top-level count never grows past 5, which was the actual problem
+  for applicants who used to see more than 12.
+- **Final review** — unchanged.
+
+Technically, this reuses a pattern this page already had running live rather than building a new
+tabbed-navigation system: "Final review" has always been 3 separate cards sharing one internal
+session key, shown and opened together. The document-checklist categories and the 6 old fixed
+sessions now get the same treatment — several existing `<details>` cards simply share one merged
+key, and the existing show/hide logic handles the rest. Each card keeps its own collapsible header,
+so an applicant can still tidy away a finished card (e.g. passport) while working on another one in
+the same tab.
+
+- Per-session progress percentages, the "still needed" nudge before advancing, and the missing-field
+  highlighting all now aggregate correctly across a merged session's several cards, instead of only
+  reflecting one card at a time.
+- No change to any individual field, upload, or piece of validation logic — this batch is purely
+  about how the existing steps are grouped and labeled at the top level.
+
+All 65 tests pass (1 rewritten to check the new 5-session order; several updated to navigate the new
+session indices and to account for merged sessions' aggregate progress).
+
 ## Added a "Readiness report" tab summarizing financial readiness by category, not one raw percentage
 
 A new Step 6 ("Readiness report"), added inside Income & bank statement analysis right after the

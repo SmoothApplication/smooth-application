@@ -803,7 +803,7 @@
 
       <div class="session-nav no-print" id="sessionNav"></div>
 
-      <details class="card collapsible" data-session-key="passport" style="border-left-color:#8a4baf;" open>
+      <details class="card collapsible" data-session-key="aboutYou" style="border-left-color:#8a4baf;" open>
         <summary class="card-summary">
           <h2><span class="card-icon-badge" style="background:#8a4baf1f; color:#8a4baf;">🛂</span> Validate your International Passport</h2>
           <span class="chevron">▸</span>
@@ -839,7 +839,7 @@
         </div>
       </details>
 
-      <details class="card collapsible" data-session-key="travelExperience" style="border-left-color:#c1436b;">
+      <details class="card collapsible" data-session-key="aboutYou" style="border-left-color:#c1436b;">
         <summary class="card-summary">
           <h2><span class="card-icon-badge" style="background:#c1436b1f; color:#c1436b;">🌍</span> Travel Experience</h2>
           <span class="chevron">▸</span>
@@ -880,7 +880,7 @@
         </div>
       </details>
 
-      <details class="card collapsible" data-session-key="responsibilities" style="border-left-color:#3e7bb0;">
+      <details class="card collapsible" data-session-key="aboutYou" style="border-left-color:#3e7bb0;">
         <summary class="card-summary">
           <h2><span class="card-icon-badge" style="background:#3e7bb01f; color:#3e7bb0;">🏡</span> Your responsibilities</h2>
           <span class="chevron">▸</span>
@@ -970,7 +970,7 @@
         </div>
       </details>
 
-      <details class="card collapsible" data-session-key="trip" style="border-left-color:#1b6fa8;">
+      <details class="card collapsible" data-session-key="aboutYou" style="border-left-color:#1b6fa8;">
         <summary class="card-summary">
           <h2><span class="card-icon-badge" style="background:#1b6fa81f; color:#1b6fa8;">🧳</span> Your trip details</h2>
           <span class="chevron">▸</span>
@@ -1136,7 +1136,173 @@
         </div>
       </details>
 
-      <details class="card collapsible" data-session-key="finance" style="border-left-color:#0e8f82;">
+      <details class="card collapsible" data-session-key="financialReadiness" style="border-left-color:#0b7a6e;">
+        <summary class="card-summary">
+          <h2><span class="card-icon-badge" style="background:#0b7a6e1f; color:#0b7a6e;">📊</span> Income &amp; bank statement analysis</h2>
+          <span class="chevron">▸</span>
+        </summary>
+        <div class="card-body">
+        <!-- User feedback (repeated, across two rounds): this whole session reads as "information
+             overload" / "clumsy". The underlying problem was structural, not cosmetic — this one
+             session does several genuinely different jobs (upload data, show automatic analysis
+             results, show deep-dive reports) stacked in a single continuous scroll, while every
+             other session in the flow is a short Q&A or a checklist. Split into tabs — freely
+             clickable in any order (nothing here is gated behind completing a previous tab, since a
+             returning user might only want to re-check one report, or might skip upload entirely and
+             type cash-flow totals in by hand) so only one job's worth of content is on screen at once.
+             The income-sources breakdown (tab 4) later got split out of tab 3 into its own tab too,
+             per direct feedback that it's usually the single most consequential report of the bunch —
+             see the comment on data-fin-step="4" below. -->
+        <div class="fin-steps-nav no-print" role="tablist">
+          <button type="button" class="fin-step-tab" data-fin-step="1" role="tab">1. Upload statements</button>
+          <button type="button" class="fin-step-tab" data-fin-step="2" role="tab">2. Cash flow &amp; scores</button>
+          <button type="button" class="fin-step-tab" data-fin-step="3" role="tab">3. Detailed reports</button>
+          <button type="button" class="fin-step-tab" data-fin-step="4" role="tab">4. Income sources breakdown</button>
+          <button type="button" class="fin-step-tab" data-fin-step="5" role="tab">5. Workplace income</button>
+          <button type="button" class="fin-step-tab" data-fin-step="6" role="tab">6. Readiness report</button>
+        </div>
+
+        <div class="fin-step" data-fin-step="1">
+        <h2 style="margin-top:0;">Upload your bank statement(s)</h2>
+        <p class="fin-note">Upload here to auto-fill the cash-flow table and detailed reports in the next two steps — or skip ahead to Step 2 and type your totals in by hand instead.</p>
+        <div class="row no-print" style="margin-bottom:4px;">
+          <div>
+            <label class="field" for="stmtFile1">Bank statement 1</label>
+            <input type="file" id="stmtFile1" accept="application/pdf,image/*,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
+          </div>
+          <div>
+            <label class="field" for="stmtFile2">Bank statement 2 (optional)</label>
+            <input type="file" id="stmtFile2" accept="application/pdf,image/*,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
+          </div>
+        </div>
+        <div class="no-print" style="margin-bottom:4px;">
+          <label class="field" for="stmtFile3">Bank statement 3 (optional)</label>
+          <input type="file" id="stmtFile3" accept="application/pdf,image/*,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
+        </div>
+        <div class="upload-row no-print" style="margin-bottom:4px;">
+          <button class="btn primary" id="btnAnalyzeStatements" disabled>🔍 Analyze statement(s) — beta</button>
+        </div>
+        <p class="fin-note no-print" style="margin-bottom:10px;">Up to 3 separate statement files (e.g. one per account, or one per date range) — PDF, a photo/scan, or an Excel export (.xlsx/.xls). Processed entirely in your browser — nothing is uploaded anywhere. This is a best-effort reader: bank formats vary, so always check the auto-filled numbers in the next step against your real statement.</p>
+        <div id="stmtAnalyzeMsg"></div>
+        <button type="button" class="btn no-print fin-step-next" data-fin-next="2" style="margin-top:10px;">Next: Cash flow &amp; scores →</button>
+        </div>
+
+        <div class="fin-step" data-fin-step="2">
+        <h2 style="margin-top:0;">Income vs. closing balance — two different things</h2>
+        <p class="fin-note">Scored separately below, since they're not the same thing.</p>
+        <details style="margin:-4px 0 8px;"><summary style="cursor:pointer; font-size:12px; color:var(--text-secondary);">Why separately?</summary><p class="fin-note" style="margin-top:4px;">A strong closing balance isn't the same as strong evidence — some applicants have a healthy balance but income that's irregular or impossible to explain.</p></details>
+        <div class="score-mini">
+          <div>
+            <div class="label">Income generation</div>
+            <div id="incomePill" class="status-pill neutral">Enter your figures</div>
+            <div id="incomePillPct" class="fin-note" style="margin-top:4px;"></div>
+          </div>
+          <div>
+            <div class="label">Closing balance strength</div>
+            <div id="balancePill" class="status-pill neutral">Enter your figures</div>
+            <div id="balancePillPct" class="fin-note" style="margin-top:4px;"></div>
+          </div>
+        </div>
+        <div id="incomeSourcePersonal"></div>
+        <div id="incomeSourceBusiness"></div>
+        <div id="matchedIncomeInflowsBox"></div>
+        <div id="unexplainedInflowsBox"></div>
+
+        <h2 style="margin-top:18px;">Monthly cash flow (last 6 months)</h2>
+        <p class="fin-note">Didn't upload a statement in Step 1? Type the totals in directly below instead.</p>
+        <table class="cf-table" id="cashFlowTable">
+          <thead><tr><th>Month</th><th>Total inflow (₦)</th><th>Total outflow (₦)</th><th>Closing balance (₦)</th></tr></thead>
+          <tbody></tbody>
+          <tfoot><tr class="cf-total-row" id="cfTotalRow" style="display:none;">
+            <td><b>Total</b></td>
+            <td id="cfTotalIn"></td>
+            <td id="cfTotalOut"></td>
+            <td id="cfTotalBal"></td>
+          </tr></tfoot>
+        </table>
+        <div id="cashFlowSummary"></div>
+        <div id="statementReadinessBox"></div>
+        <div class="session-nav-btns no-print" style="margin-top:12px;">
+          <button type="button" class="btn ghost fin-step-prev" data-fin-prev="1">← Back</button>
+          <button type="button" class="btn fin-step-next" data-fin-next="3">Next: Detailed reports →</button>
+        </div>
+        </div>
+
+        <div class="fin-step" data-fin-step="3">
+        <h2 style="margin-top:0;">📊 What your statement(s) show</h2>
+        <p class="fin-note" style="margin-top:8px;">Automatically detected from your upload(s) in Step 1.</p>
+
+        <h4 class="subcat-heading" style="margin-top:18px;">Top 10 inflows</h4>
+        <p class="fin-note" style="margin-top:0;">The 10 largest individual credits detected in your uploaded statement(s), ranked by amount — a quick way to see at a glance which inflows stand out most, and are most likely to draw a question.</p>
+        <div id="topInflowsBox"></div>
+
+        <h4 class="subcat-heading">Top 10 most consistent senders</h4>
+        <p class="fin-note" style="margin-top:0;">Ranked by how many separate months each sender's name recurs across, not by amount — a sender you hear from steadily month after month is easy to explain as a stable, recurring source, even if no single payment from them is the biggest one on the statement.</p>
+        <div id="topConsistentSendersBox"></div>
+        <div class="session-nav-btns no-print" style="margin-top:12px;">
+          <button type="button" class="btn ghost fin-step-prev" data-fin-prev="2">← Back</button>
+          <button type="button" class="btn fin-step-next" data-fin-next="4">Next: Income sources breakdown →</button>
+        </div>
+        </div>
+
+        <!-- User feedback: "I think this page is where most decisions about your income is decided
+             by the visa officer." Split into its own tab (previously the last section of step 3,
+             sharing a screen with the top-inflows/top-senders reports) so this — arguably the single
+             most consequential report in the whole session — gets its own uncluttered screen rather
+             than being the third thing on a page someone might stop reading partway down. -->
+        <div class="fin-step" data-fin-step="4">
+        <h2 style="margin-top:0;">Income sources breakdown</h2>
+        <p class="fin-note" style="margin-top:0;">Groups every inflow by who sent it — salary, named senders/companies, and a catch-all for anything with no clear sender — the same approach many applicants use to pre-empt "income not explained" refusals. In our experience this is one of the pages most worth getting right, since unexplained income is a common source of trouble. Add a short note per source; it's kept with your progress.</p>
+        <div id="incomeBreakdownBox"></div>
+        <button type="button" class="btn ghost no-print" id="btnDownloadBreakdown" style="display:none; margin-top:8px;">⬇️ Download breakdown as spreadsheet</button>
+        <div class="item-tip no-print" id="downloadBreakdownNote" style="display:none; margin-top:4px;">The spreadsheet always reflects your latest explanations — from the "inflow(s) need an explanation" boxes on the previous tab and from the notes you add per source below — so fill those in first, then download.</div>
+        <div class="session-nav-btns no-print" style="margin-top:12px;">
+          <button type="button" class="btn ghost fin-step-prev" data-fin-prev="3">← Back</button>
+          <button type="button" class="btn fin-step-next" data-fin-next="5">Next: Workplace income →</button>
+        </div>
+        </div>
+
+        <!-- User request: a dedicated tab to address every inflow matched against a declared EMPLOYER
+             specifically, separate from the business/self-employed breakdown that stays on Step 2 —
+             previously employer-matched inflows rendered mixed in with business-matched ones inside
+             matchedIncomeInflowsBox on Step 2. Reuses the exact same per-transaction explain-box UI
+             (renderMatchedInflowBoxHtml et al.) via a second call to renderMatchedIncomeInflows, just
+             targeting this tab's own box + a distinct DOM-id prefix ('emp_') so the two renders never
+             collide on element IDs — see the prefix parameter added there. Only ever populated with
+             groups whose label is 'employer'; business groups still render into matchedIncomeInflowsBox
+             on Step 2 as before. -->
+        <div class="fin-step" data-fin-step="5">
+        <h2 style="margin-top:0;">Workplace income</h2>
+        <p class="fin-note" style="margin-top:0;">Every inflow in this statement matched against the employer you entered under "Work status" — pulled out into its own tab so you can go through and confirm each salary payment without it being mixed in with your business inflows or the rest of Step 2. If you're self-employed rather than employed, or your employer name found no matches, this tab will be empty.</p>
+        <div id="employerIncomeInflowsBox"></div>
+        <div class="session-nav-btns no-print" style="margin-top:12px;">
+          <button type="button" class="btn ghost fin-step-prev" data-fin-prev="4">← Back</button>
+          <button type="button" class="btn fin-step-next" data-fin-next="6">Next: Readiness report →</button>
+        </div>
+        </div>
+
+        <!-- User request, as "CTO" priority #3 off the friend's product review + monetization planning:
+             a single summary of financial readiness using CATEGORY status (Missing / Needs review /
+             Looks complete / Not assessed) instead of one raw percentage — meant to be the free-tier
+             "payoff" for finishing this session, and read at a glance rather than requiring the
+             applicant to go back through every one of Steps 1-5 themselves. Deliberately reuses
+             signals ALREADY computed and shown elsewhere on Steps 2-5 (the incomePill/balancePill
+             classes, window.__lastUnexplainedInflows, window.__lastIncomeBreakdown,
+             window.__lastNameChecks) rather than re-deriving new thresholds — this is a presentation
+             layer over existing state, not a new scoring model, so it can't drift out of sync with
+             what those steps already say. See computeReadinessReportRows(). -->
+        <div class="fin-step" data-fin-step="6">
+        <h2 style="margin-top:0;">Readiness report</h2>
+        <p class="fin-note" style="margin-top:0;">A category-by-category summary of financial readiness, pulled together from everything filled in on Steps 1-5 — not a single score, since different parts of your evidence can be in very different states at once.</p>
+        <div id="readinessReportBox"></div>
+        <div class="session-nav-btns no-print" style="margin-top:12px;">
+          <button type="button" class="btn ghost fin-step-prev" data-fin-prev="5">← Back</button>
+        </div>
+        </div>
+        </div>
+      </details>
+
+      <details class="card collapsible" data-session-key="financialReadiness" style="border-left-color:#0e8f82;">
         <summary class="card-summary">
           <h2><span class="card-icon-badge" style="background:#0e8f821f; color:#0e8f82;">💰</span> Financial readiness calculator</h2>
           <span class="chevron">▸</span>
@@ -1305,173 +1471,7 @@
         </div>
       </details>
 
-      <details class="card collapsible" data-session-key="finance2" style="border-left-color:#0b7a6e;">
-        <summary class="card-summary">
-          <h2><span class="card-icon-badge" style="background:#0b7a6e1f; color:#0b7a6e;">📊</span> Income &amp; bank statement analysis</h2>
-          <span class="chevron">▸</span>
-        </summary>
-        <div class="card-body">
-        <!-- User feedback (repeated, across two rounds): this whole session reads as "information
-             overload" / "clumsy". The underlying problem was structural, not cosmetic — this one
-             session does several genuinely different jobs (upload data, show automatic analysis
-             results, show deep-dive reports) stacked in a single continuous scroll, while every
-             other session in the flow is a short Q&A or a checklist. Split into tabs — freely
-             clickable in any order (nothing here is gated behind completing a previous tab, since a
-             returning user might only want to re-check one report, or might skip upload entirely and
-             type cash-flow totals in by hand) so only one job's worth of content is on screen at once.
-             The income-sources breakdown (tab 4) later got split out of tab 3 into its own tab too,
-             per direct feedback that it's usually the single most consequential report of the bunch —
-             see the comment on data-fin-step="4" below. -->
-        <div class="fin-steps-nav no-print" role="tablist">
-          <button type="button" class="fin-step-tab" data-fin-step="1" role="tab">1. Upload statements</button>
-          <button type="button" class="fin-step-tab" data-fin-step="2" role="tab">2. Cash flow &amp; scores</button>
-          <button type="button" class="fin-step-tab" data-fin-step="3" role="tab">3. Detailed reports</button>
-          <button type="button" class="fin-step-tab" data-fin-step="4" role="tab">4. Income sources breakdown</button>
-          <button type="button" class="fin-step-tab" data-fin-step="5" role="tab">5. Workplace income</button>
-          <button type="button" class="fin-step-tab" data-fin-step="6" role="tab">6. Readiness report</button>
-        </div>
-
-        <div class="fin-step" data-fin-step="1">
-        <h2 style="margin-top:0;">Upload your bank statement(s)</h2>
-        <p class="fin-note">Upload here to auto-fill the cash-flow table and detailed reports in the next two steps — or skip ahead to Step 2 and type your totals in by hand instead.</p>
-        <div class="row no-print" style="margin-bottom:4px;">
-          <div>
-            <label class="field" for="stmtFile1">Bank statement 1</label>
-            <input type="file" id="stmtFile1" accept="application/pdf,image/*,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
-          </div>
-          <div>
-            <label class="field" for="stmtFile2">Bank statement 2 (optional)</label>
-            <input type="file" id="stmtFile2" accept="application/pdf,image/*,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
-          </div>
-        </div>
-        <div class="no-print" style="margin-bottom:4px;">
-          <label class="field" for="stmtFile3">Bank statement 3 (optional)</label>
-          <input type="file" id="stmtFile3" accept="application/pdf,image/*,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
-        </div>
-        <div class="upload-row no-print" style="margin-bottom:4px;">
-          <button class="btn primary" id="btnAnalyzeStatements" disabled>🔍 Analyze statement(s) — beta</button>
-        </div>
-        <p class="fin-note no-print" style="margin-bottom:10px;">Up to 3 separate statement files (e.g. one per account, or one per date range) — PDF, a photo/scan, or an Excel export (.xlsx/.xls). Processed entirely in your browser — nothing is uploaded anywhere. This is a best-effort reader: bank formats vary, so always check the auto-filled numbers in the next step against your real statement.</p>
-        <div id="stmtAnalyzeMsg"></div>
-        <button type="button" class="btn no-print fin-step-next" data-fin-next="2" style="margin-top:10px;">Next: Cash flow &amp; scores →</button>
-        </div>
-
-        <div class="fin-step" data-fin-step="2">
-        <h2 style="margin-top:0;">Income vs. closing balance — two different things</h2>
-        <p class="fin-note">Scored separately below, since they're not the same thing.</p>
-        <details style="margin:-4px 0 8px;"><summary style="cursor:pointer; font-size:12px; color:var(--text-secondary);">Why separately?</summary><p class="fin-note" style="margin-top:4px;">A strong closing balance isn't the same as strong evidence — some applicants have a healthy balance but income that's irregular or impossible to explain.</p></details>
-        <div class="score-mini">
-          <div>
-            <div class="label">Income generation</div>
-            <div id="incomePill" class="status-pill neutral">Enter your figures</div>
-            <div id="incomePillPct" class="fin-note" style="margin-top:4px;"></div>
-          </div>
-          <div>
-            <div class="label">Closing balance strength</div>
-            <div id="balancePill" class="status-pill neutral">Enter your figures</div>
-            <div id="balancePillPct" class="fin-note" style="margin-top:4px;"></div>
-          </div>
-        </div>
-        <div id="incomeSourcePersonal"></div>
-        <div id="incomeSourceBusiness"></div>
-        <div id="matchedIncomeInflowsBox"></div>
-        <div id="unexplainedInflowsBox"></div>
-
-        <h2 style="margin-top:18px;">Monthly cash flow (last 6 months)</h2>
-        <p class="fin-note">Didn't upload a statement in Step 1? Type the totals in directly below instead.</p>
-        <table class="cf-table" id="cashFlowTable">
-          <thead><tr><th>Month</th><th>Total inflow (₦)</th><th>Total outflow (₦)</th><th>Closing balance (₦)</th></tr></thead>
-          <tbody></tbody>
-          <tfoot><tr class="cf-total-row" id="cfTotalRow" style="display:none;">
-            <td><b>Total</b></td>
-            <td id="cfTotalIn"></td>
-            <td id="cfTotalOut"></td>
-            <td id="cfTotalBal"></td>
-          </tr></tfoot>
-        </table>
-        <div id="cashFlowSummary"></div>
-        <div id="statementReadinessBox"></div>
-        <div class="session-nav-btns no-print" style="margin-top:12px;">
-          <button type="button" class="btn ghost fin-step-prev" data-fin-prev="1">← Back</button>
-          <button type="button" class="btn fin-step-next" data-fin-next="3">Next: Detailed reports →</button>
-        </div>
-        </div>
-
-        <div class="fin-step" data-fin-step="3">
-        <h2 style="margin-top:0;">📊 What your statement(s) show</h2>
-        <p class="fin-note" style="margin-top:8px;">Automatically detected from your upload(s) in Step 1.</p>
-
-        <h4 class="subcat-heading" style="margin-top:18px;">Top 10 inflows</h4>
-        <p class="fin-note" style="margin-top:0;">The 10 largest individual credits detected in your uploaded statement(s), ranked by amount — a quick way to see at a glance which inflows stand out most, and are most likely to draw a question.</p>
-        <div id="topInflowsBox"></div>
-
-        <h4 class="subcat-heading">Top 10 most consistent senders</h4>
-        <p class="fin-note" style="margin-top:0;">Ranked by how many separate months each sender's name recurs across, not by amount — a sender you hear from steadily month after month is easy to explain as a stable, recurring source, even if no single payment from them is the biggest one on the statement.</p>
-        <div id="topConsistentSendersBox"></div>
-        <div class="session-nav-btns no-print" style="margin-top:12px;">
-          <button type="button" class="btn ghost fin-step-prev" data-fin-prev="2">← Back</button>
-          <button type="button" class="btn fin-step-next" data-fin-next="4">Next: Income sources breakdown →</button>
-        </div>
-        </div>
-
-        <!-- User feedback: "I think this page is where most decisions about your income is decided
-             by the visa officer." Split into its own tab (previously the last section of step 3,
-             sharing a screen with the top-inflows/top-senders reports) so this — arguably the single
-             most consequential report in the whole session — gets its own uncluttered screen rather
-             than being the third thing on a page someone might stop reading partway down. -->
-        <div class="fin-step" data-fin-step="4">
-        <h2 style="margin-top:0;">Income sources breakdown</h2>
-        <p class="fin-note" style="margin-top:0;">Groups every inflow by who sent it — salary, named senders/companies, and a catch-all for anything with no clear sender — the same approach many applicants use to pre-empt "income not explained" refusals. In our experience this is one of the pages most worth getting right, since unexplained income is a common source of trouble. Add a short note per source; it's kept with your progress.</p>
-        <div id="incomeBreakdownBox"></div>
-        <button type="button" class="btn ghost no-print" id="btnDownloadBreakdown" style="display:none; margin-top:8px;">⬇️ Download breakdown as spreadsheet</button>
-        <div class="item-tip no-print" id="downloadBreakdownNote" style="display:none; margin-top:4px;">The spreadsheet always reflects your latest explanations — from the "inflow(s) need an explanation" boxes on the previous tab and from the notes you add per source below — so fill those in first, then download.</div>
-        <div class="session-nav-btns no-print" style="margin-top:12px;">
-          <button type="button" class="btn ghost fin-step-prev" data-fin-prev="3">← Back</button>
-          <button type="button" class="btn fin-step-next" data-fin-next="5">Next: Workplace income →</button>
-        </div>
-        </div>
-
-        <!-- User request: a dedicated tab to address every inflow matched against a declared EMPLOYER
-             specifically, separate from the business/self-employed breakdown that stays on Step 2 —
-             previously employer-matched inflows rendered mixed in with business-matched ones inside
-             matchedIncomeInflowsBox on Step 2. Reuses the exact same per-transaction explain-box UI
-             (renderMatchedInflowBoxHtml et al.) via a second call to renderMatchedIncomeInflows, just
-             targeting this tab's own box + a distinct DOM-id prefix ('emp_') so the two renders never
-             collide on element IDs — see the prefix parameter added there. Only ever populated with
-             groups whose label is 'employer'; business groups still render into matchedIncomeInflowsBox
-             on Step 2 as before. -->
-        <div class="fin-step" data-fin-step="5">
-        <h2 style="margin-top:0;">Workplace income</h2>
-        <p class="fin-note" style="margin-top:0;">Every inflow in this statement matched against the employer you entered under "Work status" — pulled out into its own tab so you can go through and confirm each salary payment without it being mixed in with your business inflows or the rest of Step 2. If you're self-employed rather than employed, or your employer name found no matches, this tab will be empty.</p>
-        <div id="employerIncomeInflowsBox"></div>
-        <div class="session-nav-btns no-print" style="margin-top:12px;">
-          <button type="button" class="btn ghost fin-step-prev" data-fin-prev="4">← Back</button>
-          <button type="button" class="btn fin-step-next" data-fin-next="6">Next: Readiness report →</button>
-        </div>
-        </div>
-
-        <!-- User request, as "CTO" priority #3 off the friend's product review + monetization planning:
-             a single summary of financial readiness using CATEGORY status (Missing / Needs review /
-             Looks complete / Not assessed) instead of one raw percentage — meant to be the free-tier
-             "payoff" for finishing this session, and read at a glance rather than requiring the
-             applicant to go back through every one of Steps 1-5 themselves. Deliberately reuses
-             signals ALREADY computed and shown elsewhere on Steps 2-5 (the incomePill/balancePill
-             classes, window.__lastUnexplainedInflows, window.__lastIncomeBreakdown,
-             window.__lastNameChecks) rather than re-deriving new thresholds — this is a presentation
-             layer over existing state, not a new scoring model, so it can't drift out of sync with
-             what those steps already say. See computeReadinessReportRows(). -->
-        <div class="fin-step" data-fin-step="6">
-        <h2 style="margin-top:0;">Readiness report</h2>
-        <p class="fin-note" style="margin-top:0;">A category-by-category summary of financial readiness, pulled together from everything filled in on Steps 1-5 — not a single score, since different parts of your evidence can be in very different states at once.</p>
-        <div id="readinessReportBox"></div>
-        <div class="session-nav-btns no-print" style="margin-top:12px;">
-          <button type="button" class="btn ghost fin-step-prev" data-fin-prev="5">← Back</button>
-        </div>
-        </div>
-        </div>
-      </details>
-
-      <div class="card" id="hostQuestionCard" data-session-key="cat:Accommodation & UK host" style="border-left: 4px solid #c17a3d;">
+      <div class="card" id="hostQuestionCard" data-session-key="otherDocs" style="border-left: 4px solid #c17a3d;">
         <div class="checkrow" style="margin-top:0;"><input type="checkbox" id="f_hasHost"><label for="f_hasHost">I'll be staying with a friend/family member (host) in <span id="hostCountryLabel">the UK</span></label></div>
         <div class="checkrow" id="hostFundingRow" style="display:none; padding-left:24px;"><input type="checkbox" id="f_hostFunding"><label for="f_hostFunding">My host is fully or partly funding my trip</label></div>
         <div class="doc-reminder" id="hostDocsNote" style="display:none;">
@@ -1486,7 +1486,7 @@
         <div class="item-tip" id="noHostDocsNote" style="margin:6px 0 0;">Not staying with a host? You'll need a hotel/accommodation booking confirmation instead — see below.</div>
       </div>
 
-      <div class="card" id="identityStatusCard" data-session-key="cat:Identity & application" style="border-left: 4px solid #1b6fa8;">
+      <div class="card" id="identityStatusCard" data-session-key="idFinancialDocs" style="border-left: 4px solid #1b6fa8;">
         <label class="field" style="margin-top:0;" for="f_translation">Application readiness &amp; visa history</label>
         <div class="checkrow"><input type="checkbox" id="f_translation"><label for="f_translation">Some of my documents are not in <span id="translationLangLabel">English</span></label></div>
         <div class="checkrow"><input type="checkbox" id="f_readyToSubmit"><label for="f_readyToSubmit">I've gathered my supporting documents and I'm ready to start the formal application steps (form, fee, biometrics)</label></div>
@@ -2234,6 +2234,24 @@
   var CHECKLIST = COUNTRIES[currentCountry].checklist;
   var CAT_ORDER = COUNTRIES[currentCountry].catOrder;
 
+  // User feedback: "reduce the sessions from 12 sessions to 5 sessions — I have got a lot of
+  // complaints." The 12 came from 6 fixed sessions (passport/travelExperience/responsibilities/trip/
+  // finance2/finance) + up to 5 applicable checklist categories, each its own top-level session, +
+  // review. Rather than build a whole new tabbed-navigation system, this reuses a pattern already
+  // proven live on this page: 'review' has always mapped to THREE separate DOM elements sharing one
+  // data-session-key, all shown together — see applySessionVisibility(). The document-checklist
+  // categories get the same treatment, just grouped into two merged sessions instead of five separate
+  // ones. 'Identity & application' and 'Financial evidence' are the two categories every applicant
+  // sees regardless of their answers, so they anchor 'idFinancialDocs'; every other category —
+  // including the conditional ones (Purpose-specific / If a child is travelling / Visa history /
+  // Translations) that only apply for some applicants — falls into 'otherDocs'. That second group's
+  // tab count varies by applicant, but the TOP-LEVEL session count never grows past 5 regardless of
+  // how many conditional categories apply — the exact problem that caused 12 (or more) in the first
+  // place for some applicants.
+  function catGroupKey(cat){
+    return (cat === 'Identity & application' || cat === 'Financial evidence') ? 'idFinancialDocs' : 'otherDocs';
+  }
+
   /* ---------------- State ---------------- */
   var state = {}; // id -> {checked:false, fileName:null, fileNames:null, scan:null}
   CHECKLIST.forEach(function(it){ state[it.id] = {checked:false, fileName:null, fileNames:null, scan:null}; });
@@ -2451,39 +2469,54 @@
   // of sessions is recomputed on every render() since which categories even apply (and so how many
   // sessions there are) shifts as the applicant fills in trip details.
   var currentSessionIndex = 0;
+  // Tracks the session key applySessionVisibility() last applied, so it can tell a genuine session
+  // transition (force every matching card open) apart from a same-session re-render triggered by a
+  // keystroke elsewhere (leave manually-collapsed cards alone). Starts null so the very first call —
+  // page load, before any transition has "happened" — is still correctly treated as a transition.
+  var lastAppliedSessionKey = null;
   // Tracks which session keys have already fired a 'session_view:<key>' analytics event THIS
   // page load, so revisiting a session (clicking back and forth) doesn't inflate the funnel —
   // each key counts once per visit, giving a clean "how many visits reached this step" number.
   var sessionViewsTracked = {};
   function getVisibleSessionKeys(){
-    // 'finance2' (bank statement upload/analysis) comes right after 'trip' now, ahead of 'finance'
-    // (the cost calculator) — lets the applicant upload a statement and see real feedback on it
-    // sooner, instead of first working through a full manual cost estimate. All session ordering
-    // lives in this one array; labels, progress, and pill numbering are all computed from it, so
-    // this is the only line that needed to change.
-    // 'passport' / 'travelExperience' / 'responsibilities' were added on top, ahead of everything
-    // else, per an explicit numbered session order the applicant asked for (Session 1: passport
-    // validation, Session 2: travel experience, Session 3: responsibilities, Session 4 onward: the
-    // sessions that already existed, unchanged and in their existing relative order).
-    var keys = ['passport', 'travelExperience', 'responsibilities', 'trip', 'finance2', 'finance'];
+    // Reduced from 12 top-level sessions to 5 — see the comment above catGroupKey() for the full
+    // rationale. 'aboutYou' and 'financialReadiness' each fold several of the OLD session keys
+    // (passport/travelExperience/responsibilities/trip, and finance2/finance respectively) into one
+    // top-level entry; sessionLabel()/sessionProgress() still recognize those old keys internally
+    // (via recursion) purely as a computation convenience — they're just never emitted by this
+    // function on their own any more. The two checklist-category groups are only pushed if at least
+    // one of their member categories currently has an applicable item, exactly like the old per-
+    // category logic — so an applicant who doesn't need e.g. "If a child is travelling" still never
+    // sees more than 5 sessions total, where before every applicable category added its own session.
+    var keys = ['aboutYou', 'financialReadiness'];
     var a = getAnswers();
     var byCat = {};
     CHECKLIST.forEach(function(it){
       if (!itemApplies(it, a)) return;
       byCat[it.cat] = (byCat[it.cat] || 0) + 1;
     });
-    CAT_ORDER.forEach(function(cat){ if (byCat[cat]) keys.push('cat:' + cat); });
+    var groupApplies = {};
+    CAT_ORDER.forEach(function(cat){ if (byCat[cat]) groupApplies[catGroupKey(cat)] = true; });
+    if (groupApplies.idFinancialDocs) keys.push('idFinancialDocs');
+    if (groupApplies.otherDocs) keys.push('otherDocs');
     keys.push('review');
     return keys;
   }
   function sessionLabel(key){
+    if (key === 'aboutYou') return 'About you';
+    if (key === 'financialReadiness') return 'Financial readiness';
+    if (key === 'idFinancialDocs') return 'Identity & financial documents';
+    if (key === 'otherDocs') return 'Other required documents';
+    if (key === 'review') return 'Final review';
+    // Old, now-internal-only keys — still used by sessionProgress()'s recursion and by anything
+    // that calls sessionKeyForElement()/sessionLabel() directly on a sub-card for a more specific
+    // label than the merged session name (e.g. an error message naming exactly which part is short).
     if (key === 'passport') return 'Validate your International Passport';
     if (key === 'travelExperience') return 'Travel Experience';
     if (key === 'responsibilities') return 'Your responsibilities';
     if (key === 'trip') return 'Your trip details';
     if (key === 'finance') return 'Financial readiness calculator';
     if (key === 'finance2') return 'Income & bank statement analysis';
-    if (key === 'review') return 'Final review';
     if (key.indexOf('cat:') === 0) return key.slice(4);
     return key;
   }
@@ -2515,6 +2548,23 @@
   };
   function sessionProgress(key){
     var a = getAnswers();
+    // Merged top-level sessions (see getVisibleSessionKeys) — progress is just the sum of whatever
+    // this group is made of, computed by recursing into the same function with the old, more specific
+    // keys/cat names. This is the one place those old keys still matter after the 12-to-5 merge.
+    if (key === 'aboutYou' || key === 'financialReadiness' || key === 'idFinancialDocs' || key === 'otherDocs'){
+      var subKeys;
+      if (key === 'aboutYou') subKeys = ['passport', 'travelExperience', 'responsibilities', 'trip'];
+      else if (key === 'financialReadiness') subKeys = ['finance2', 'finance'];
+      else subKeys = CAT_ORDER.filter(function(cat){ return catGroupKey(cat) === key; }).map(function(cat){ return 'cat:' + cat; });
+      var totalPoints = 0, totalAll = 0, allMissing = [];
+      subKeys.forEach(function(k){
+        var p = sessionProgress(k);
+        totalPoints += p.points;
+        totalAll += p.total;
+        allMissing = allMissing.concat(p.missing);
+      });
+      return {percent: totalAll ? Math.round(totalPoints/totalAll*100) : 0, points: totalPoints, total: totalAll, missing: allMissing};
+    }
     if (key.indexOf('cat:') === 0){
       var cat = key.slice(4);
       var items = CHECKLIST.filter(function(it){ return it.cat === cat && itemApplies(it, a); });
@@ -2679,16 +2729,31 @@
       trackEvent('session_view:' + currentKey);
     }
 
+    // Several elements can now share one data-session-key (e.g. all 4 'aboutYou' cards, or the 2
+    // 'financialReadiness' cards) — only force their <details> back open on a genuine session
+    // TRANSITION (including the very first call on page load), not on every call.
+    // applySessionVisibility() runs on nearly every keystroke (via render()), so forcing every
+    // matching card open unconditionally on every call would fight a user who manually collapses a
+    // finished card (e.g. passport, already filled) while still working on another card (e.g. trip)
+    // in the same merged session. A per-element "was this element's own style.display 'none' a
+    // moment ago" check doesn't work for this: a sub-card that starts without the HTML `open`
+    // attribute (only 'passport' has it hardcoded) has an unset, non-'none' style.display before the
+    // very first call, so that check never fires and the card stays collapsed with its fields
+    // inaccessible. Comparing currentKey against the key applied on the PREVIOUS call correctly
+    // covers both the first-load case (lastAppliedSessionKey starts null) and the manual-collapse
+    // case (same key on consecutive calls => leave it alone).
+    var isSessionTransition = currentKey !== lastAppliedSessionKey;
     document.querySelectorAll('[data-session-key]').forEach(function(el){
       var match = el.getAttribute('data-session-key') === currentKey;
       el.style.display = match ? '' : 'none';
-      if (match && el.tagName === 'DETAILS') el.open = true;
+      if (match && isSessionTransition && el.tagName === 'DETAILS') el.open = true;
     });
     document.querySelectorAll('#checklistRoot [data-cat]').forEach(function(el){
-      var match = ('cat:' + el.getAttribute('data-cat')) === currentKey;
+      var match = catGroupKey(el.getAttribute('data-cat')) === currentKey;
       el.style.display = match ? '' : 'none';
-      if (match) el.open = true;
+      if (match && isSessionTransition) el.open = true;
     });
+    lastAppliedSessionKey = currentKey;
     renderSessionNav(keys, currentSessionIndex);
     renderSessionFooter(keys, currentSessionIndex);
   }
@@ -2744,6 +2809,16 @@
       if (!m.id) return;
       var el = document.getElementById(m.id);
       if (!el) return;
+      // Now that a merged session can hold several independently-collapsible cards (e.g. 'aboutYou'
+      // has 4), a missing field can be sitting inside one the applicant collapsed after partially
+      // filling it — reopen every <details> ancestor so the highlight is actually visible, not just
+      // flagged on a hidden element.
+      var d = el.closest ? el.closest('details') : null;
+      while (d){
+        if (!d.open) d.open = true;
+        var parent = d.parentElement;
+        d = parent && parent.closest ? parent.closest('details') : null;
+      }
       el.classList.add('field-invalid');
       el.setAttribute('data-missing-flag', '1');
       if (!firstEl) firstEl = el;
@@ -3463,7 +3538,7 @@
       el.classList.toggle('active', el.getAttribute('data-fin-step') === String(n));
     });
     if (scrollToTop !== false){
-      var card = document.querySelector('[data-session-key="finance2"]');
+      var card = document.querySelector('[data-session-key="financialReadiness"]');
       if (card) card.scrollIntoView({behavior:'smooth', block:'start'});
     }
   }
@@ -3945,7 +4020,7 @@
       if (cfLastBalance === null){
         readinessBox.innerHTML = '<div class="scan-msg info">Scan a bank statement above (or fill in a closing balance) to see how ready this looks against your rough trip-cost estimate.</div>';
       } else if (typeof qRecommended !== 'number' || !qRecommended){
-        readinessBox.innerHTML = '<div class="scan-msg info">Enter your travel and return dates under <a href="#" onclick="document.querySelector(\'[data-session-key=trip]\').open=true; document.querySelector(\'[data-session-key=trip]\').scrollIntoView({behavior:\'smooth\'}); return false;">Your trip details</a> to get a rough cost estimate to compare your closing balance against.</div>';
+        readinessBox.innerHTML = '<div class="scan-msg info">Enter your travel and return dates under <a href="#" onclick="revealAndScrollTo(document.getElementById(\'f_traveldate\')); return false;">Your trip details</a> to get a rough cost estimate to compare your closing balance against.</div>';
       } else {
         var readinessPct = Math.max(0, Math.min(100, Math.round(cfLastBalance / qRecommended * 100)));
         var readinessShortfall = Math.max(0, qRecommended - cfLastBalance);
@@ -4171,7 +4246,7 @@
     if (finScoreCapNoteEl){
       if (scoreCapped){
         finScoreCapNoteEl.style.display = 'block';
-        finScoreCapNoteEl.innerHTML = '⚠️ Capped at 50% — this is based on a <b>self-typed</b> closing balance only, not yet checked against a real statement. Upload your bank statement(s) (or fill in at least 2 months of cash flow) under <a href="#" onclick="document.querySelector(\'[data-session-key=finance2]\').open=true; document.querySelector(\'[data-session-key=finance2]\').scrollIntoView({behavior:\'smooth\'}); return false;">Income &amp; bank statement analysis</a> to unlock your full score.';
+        finScoreCapNoteEl.innerHTML = '⚠️ Capped at 50% — this is based on a <b>self-typed</b> closing balance only, not yet checked against a real statement. Upload your bank statement(s) (or fill in at least 2 months of cash flow) under <a href="#" onclick="revealAndScrollTo(document.getElementById(\'stmtFile1\')); return false;">Income &amp; bank statement analysis</a> to unlock your full score.';
       } else if (statementClosingVerified === false){
         finScoreCapNoteEl.style.display = 'block';
         finScoreCapNoteEl.innerHTML = '⚠️ The closing balance you typed doesn\'t match what was detected in your uploaded statement(s) — see the note under "Income & bank statement analysis" below.';
@@ -9749,14 +9824,9 @@
       if (el) el.textContent = c.hostTypeLabel;
     });
     // The host question card lives outside #checklistRoot (so its checkbox listeners survive every
-    // per-keystroke re-render there), but should still show/hide alongside whichever country's
-    // Accommodation category is currently the active session — so its session key tracks that category
-    // name directly rather than being hardcoded to one country's label.
-    var hostQuestionCardEl = document.getElementById('hostQuestionCard');
-    if (hostQuestionCardEl){
-      var accomCat = c.catOrder.filter(function(cat){ return cat.indexOf('Accommodation') === 0; })[0];
-      if (accomCat) hostQuestionCardEl.setAttribute('data-session-key', 'cat:' + accomCat);
-    }
+    // per-keystroke re-render there). It always belongs to the 'otherDocs' merged session regardless
+    // of country (Accommodation & host is one of the categories grouped into 'otherDocs' — see
+    // catGroupKey()), so unlike before there's no country-varying data-session-key to re-derive here.
     var translationLabelEl = document.getElementById('translationLangLabel');
     if (translationLabelEl) translationLabelEl.textContent = c.translationLangLabel;
   }
