@@ -17,7 +17,7 @@ exports.run = async function(ctx){
   var page1 = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page1);
-    await goToSessionByPill(page1, 1);
+    await goToSessionByPill(page1, 4); // finance2 — 'Income & bank statement analysis'
     await goToFinanceStep(page1, 6);
     await page1.waitForSelector('#readinessReportBox');
 
@@ -30,10 +30,11 @@ exports.run = async function(ctx){
     // Declaring an employer (without uploading a statement yet) should flip Workplace income evidence
     // from "Not assessed" to "Missing" WITHOUT touching anything in the financial calculator — this
     // exercises the render()-triggered refresh, not just the computeFinancials()-triggered one.
-    await goToSessionByPill(page1, 0);
+    // f_workStatus/f_employerName live on the 'trip' session (index 3) now.
+    await goToSessionByPill(page1, 3);
     await page1.selectOption('#f_workStatus', 'employed');
     await page1.fill('#f_employerName', 'Some Employer Ltd');
-    await goToSessionByPill(page1, 1);
+    await goToSessionByPill(page1, 4);
     await goToFinanceStep(page1, 6);
     var afterEmployerText = await page1.$eval('#readinessReportBox', function(el){ return el.innerText; });
     assert.ok(/Workplace income evidence[\s\S]*?Missing[\s\S]*?Upload a bank statement on Step 1 to check for "Some Employer Ltd"/.test(afterEmployerText),
@@ -49,13 +50,13 @@ exports.run = async function(ctx){
   var page2 = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page2);
-    await goToSessionByPill(page2, 0);
+    await goToSessionByPill(page2, 3); // trip — f_name/f_workStatus/f_employerName/f_businessName live here now
     await page2.fill('#f_name', 'Test Applicant');
     await page2.selectOption('#f_workStatus', 'both');
     await page2.fill('#f_employerName', 'Grace Covenant Youth Church');
     await page2.fill('#f_businessName', 'Bright Homes Cleaning Solutions Ltd');
 
-    await goToSessionByPill(page2, 1);
+    await goToSessionByPill(page2, 4); // finance2
     await page2.setInputFiles('#stmtFile1', INFLOW_STATEMENT);
     await page2.click('#btnAnalyzeStatements');
     await page2.waitForSelector('#matchedIncomeInflowsBox .explain-box', { timeout: 20000 });

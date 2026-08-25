@@ -9,11 +9,10 @@
 const assert = require('assert');
 const { newPageAt, passConsentGate, goToSessionByPill } = require('./helpers');
 
-// "Your responsibilities" now lives inside the merged 'About you' session (index 0) alongside
-// passport / travel experience / trip — the "X% of this section filled" footer reflects the SUM
-// across all 4 cards (see getVisibleSessionKeys() in index.html), so this test completes the other
-// 3 first, minimally, so only the aged-parents sub-block below determines whether the aggregate
-// reaches 100%.
+// "Your responsibilities" is its own session again (index 2 — see getVisibleSessionKeys() in
+// index.html), so its "X% of this section filled" footer only reflects that one card's own fields —
+// this test fills everything else the card requires, minimally, so only the aged-parents sub-block
+// below determines whether it reaches 100%.
 async function readFooter(page){
   return page.evaluate(function(){
     var m = document.body.innerText.match(/(\d+)% of this section filled \((\d+) of (\d+)\)/);
@@ -25,21 +24,8 @@ exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page);
-    await goToSessionByPill(page, 0);
+    await goToSessionByPill(page, 2);
     await page.waitForSelector('#rs_agedParents');
-
-    // Passport (2 required fields).
-    await page.fill('#f_passportNumber', 'A12345678');
-    await page.fill('#f_passportExpiry', '2030-01-01');
-    // Travel experience — "No" is itself worth full marks (no history rows required).
-    await page.selectOption('#te_firstTime', 'no');
-    // Trip details — 'student' work status adds no extra required fields (unlike employed/self-employed).
-    await page.fill('#f_name', 'Test Applicant');
-    await page.selectOption('#f_purpose', { index: 1 });
-    await page.selectOption('#f_workStatus', 'student');
-    await page.fill('#f_traveldate', '2026-12-01');
-    await page.fill('#f_returndate', '2026-12-06');
-    await page.fill('#f_appdate', '2026-10-01');
 
     // Fill everything else required in the responsibilities card, so only the parents sub-block
     // affects whether the aggregate hits 100%.

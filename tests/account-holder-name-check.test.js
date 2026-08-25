@@ -36,9 +36,9 @@ exports.run = async function(ctx){
 
     // Applicant types their name in on the trip card (part of 'About you') first, then moves to
     // 'Financial readiness' where the statement upload/analyze lives.
-    await goToSessionByPill(page, 0);
+    await goToSessionByPill(page, 3);
     await page.fill('#f_name', 'Test Applicant');
-    await goToSessionByPill(page, 1);
+    await goToSessionByPill(page, 4);
 
     // Case 1: statement's "Account Name:" header matches the applicant's name -- should get a
     // confirming "ok" message, not a warning.
@@ -66,7 +66,7 @@ exports.run = async function(ctx){
     var page2 = await newPageAt(ctx.browser, '/index.html');
     try {
       await passConsentGate(page2);
-      await goToSessionByPill(page2, 1);
+      await goToSessionByPill(page2, 4);
       var noNameHtml = await analyzeAndReadMsg(page2, WRONG_NAME_STATEMENT);
       assert.ok(!/account holder/i.test(noNameHtml),
         'With no applicant name entered, should not attempt a holder-name cross-check at all, got: ' + noNameHtml);

@@ -7,13 +7,13 @@
 // question "Have you travelled outside Nigeria before?" instead, so "Yes" -> history table,
 // "No" -> recommendation box.
 const assert = require('assert');
-const { newPageAt, passConsentGate, goToSessionByPill } = require('./helpers');
+const { newPageAt, passConsentGate, goToSessionByPill, pickTravelCountry } = require('./helpers');
 
 exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page);
-    await goToSessionByPill(page, 0);
+    await goToSessionByPill(page, 1);
     await page.waitForSelector('#te_firstTime');
 
     // Unanswered -> neither box shows.
@@ -46,8 +46,8 @@ exports.run = async function(ctx){
 
     // Add a country row and fill it in.
     await page.click('#btnAddTravelRow');
-    await page.waitForSelector('#travelHistoryBody select[data-idx="0"][data-field="country"]');
-    await page.selectOption('#travelHistoryBody select[data-idx="0"][data-field="country"]', 'Ghana');
+    await page.waitForSelector('#travelHistoryBody input[data-idx="0"][data-field="country"]');
+    await pickTravelCountry(page, 'travelHistoryBody', 0, 'Ghana');
     await page.fill('#travelHistoryBody input[data-idx="0"][data-field="days"]', '10');
 
     // Country grading + the closing "section complete" message should appear once at least one
@@ -69,7 +69,7 @@ exports.run = async function(ctx){
     var overstayVisibleAfter = await page.$eval('#te_overstayBox', function(el){ return el.style.display !== 'none'; });
     assert.strictEqual(overstayVisibleAfter, true, 'Overstay table should show once ticked');
     await page.click('#btnAddOverstayRow');
-    await page.waitForSelector('#overstayBody select[data-idx="0"][data-field="country"]');
+    await page.waitForSelector('#overstayBody input[data-idx="0"][data-field="country"]');
   } finally {
     await page.context().close();
   }

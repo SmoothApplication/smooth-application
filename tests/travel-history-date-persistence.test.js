@@ -14,14 +14,14 @@
 // values) were unaffected the whole time. Fixed by reading both selects' current DOM values
 // directly instead of trying to reconstruct one from the other via row.date.
 const assert = require('assert');
-const { newPageAt, passConsentGate, goToSessionByPill } = require('./helpers');
+const { newPageAt, passConsentGate, goToSessionByPill, pickTravelCountry } = require('./helpers');
 
 async function readRow(page, idx){
   return page.evaluate(function(i){
     var tr = document.querySelectorAll('#travelHistoryBody tr')[i];
     if (!tr) return null;
     return {
-      country: tr.querySelector('select[data-field="country"]').value,
+      country: tr.querySelector('input[data-field="country"]').value,
       dateMonth: tr.querySelector('select[data-field="dateMonth"]').value,
       dateYear: tr.querySelector('select[data-field="dateYear"]').value,
       reason: tr.querySelector('input[data-field="reason"]').value,
@@ -34,14 +34,14 @@ exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page);
-    await goToSessionByPill(page, 0);
+    await goToSessionByPill(page, 1);
     await page.waitForSelector('#te_firstTime');
     await page.selectOption('#te_firstTime', 'yes');
     await page.click('#btnAddTravelRow');
-    await page.waitForSelector('#travelHistoryBody select[data-idx="0"][data-field="country"]');
+    await page.waitForSelector('#travelHistoryBody input[data-idx="0"][data-field="country"]');
 
     // Fill row 0 completely: country, month, year (in that order), reason, days.
-    await page.selectOption('#travelHistoryBody select[data-idx="0"][data-field="country"]', 'Spain');
+    await pickTravelCountry(page, 'travelHistoryBody', 0, 'Spain');
     await page.selectOption('#travelHistoryBody select[data-idx="0"][data-field="dateMonth"]', '05');
     await page.selectOption('#travelHistoryBody select[data-idx="0"][data-field="dateYear"]', '2023');
     await page.fill('#travelHistoryBody input[data-idx="0"][data-field="reason"]', 'Tourism');
@@ -50,7 +50,7 @@ exports.run = async function(ctx){
     // "Move to the next line" — this is the exact reported trigger: clicking "+ Add a country"
     // rebuilds the whole table from stored state, which is where the date used to vanish.
     await page.click('#btnAddTravelRow');
-    await page.waitForSelector('#travelHistoryBody select[data-idx="1"][data-field="country"]');
+    await page.waitForSelector('#travelHistoryBody input[data-idx="1"][data-field="country"]');
 
     var row0 = await readRow(page, 0);
     assert.strictEqual(row0.country, 'Spain', 'Country should survive moving to the next row, got: ' + JSON.stringify(row0));
@@ -62,9 +62,9 @@ exports.run = async function(ctx){
     // Reverse order (year before month) must work identically — the old bug affected both orders.
     await page.selectOption('#travelHistoryBody select[data-idx="1"][data-field="dateYear"]', '2022');
     await page.selectOption('#travelHistoryBody select[data-idx="1"][data-field="dateMonth"]', '11');
-    await page.selectOption('#travelHistoryBody select[data-idx="1"][data-field="country"]', 'Morocco');
+    await pickTravelCountry(page, 'travelHistoryBody', 1, 'Morocco');
     await page.click('#btnAddTravelRow');
-    await page.waitForSelector('#travelHistoryBody select[data-idx="2"][data-field="country"]');
+    await page.waitForSelector('#travelHistoryBody input[data-idx="2"][data-field="country"]');
     var row1 = await readRow(page, 1);
     assert.strictEqual(row1.dateMonth, '11', 'Month should survive (year-then-month order), got: ' + JSON.stringify(row1));
     assert.strictEqual(row1.dateYear, '2022', 'Year should survive (year-then-month order), got: ' + JSON.stringify(row1));
@@ -73,7 +73,7 @@ exports.run = async function(ctx){
     // still survive a subsequent rebuild.
     await page.selectOption('#travelHistoryBody select[data-idx="0"][data-field="dateYear"]', '2020');
     await page.click('#btnAddTravelRow');
-    await page.waitForSelector('#travelHistoryBody select[data-idx="3"][data-field="country"]');
+    await page.waitForSelector('#travelHistoryBody input[data-idx="3"][data-field="country"]');
     var row0Edited = await readRow(page, 0);
     assert.strictEqual(row0Edited.dateMonth, '05', 'Editing the year alone should leave the month untouched, got: ' + JSON.stringify(row0Edited));
     assert.strictEqual(row0Edited.dateYear, '2020', 'The edited year should stick, got: ' + JSON.stringify(row0Edited));

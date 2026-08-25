@@ -11,7 +11,7 @@ exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page);
-    await goToSessionByPill(page, 1); // 'Financial readiness' — holds the cost-calculator card.
+    await goToSessionByPill(page, 5); // 'Financial readiness' — holds the cost-calculator card.
 
     // Any one non-zero cost field is enough to make the breakdown render.
     await page.fill('#fc_closing', '3000000');

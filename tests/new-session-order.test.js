@@ -1,11 +1,8 @@
 'use strict';
-// Locks in the current 5-session structure. Originally this asserted a 12-session order (passport /
-// travelExperience / responsibilities / trip / finance2 / finance / one session per checklist
-// category / review) — later user feedback was "reduce the sessions from 12 sessions to 5 sessions,
-// I have got a lot of complaints." Rather than removing any content, the old sessions were folded
-// into 5 top-level ones, each holding several independently-collapsible cards (or, for the document
-// checklist, several categories) at once — see the comment above catGroupKey() and
-// getVisibleSessionKeys() in index.html for the full rationale and grouping.
+// Locks in the current session structure. This app briefly (one batch) folded 12 top-level sessions
+// into 5 merged tabs — later user feedback was that stacking several cards on one long page was
+// itself hard to use on mobile ("too much scrolling"), so it was reverted back to one topic per
+// session. See the "History" comment above catGroupKey() and getVisibleSessionKeys() in index.html.
 const assert = require('assert');
 const { newPageAt, passConsentGate } = require('./helpers');
 
@@ -16,45 +13,71 @@ exports.run = async function(ctx){
     await page.waitForSelector('.session-pill');
 
     var titles = await page.$$eval('.session-pill', function(pills){
-      return pills.map(function(p){ return (p.getAttribute('title') || '').split(' — ')[0]; });
+      return pills.map(function(p){ return (p.getAttribute('title') || '').split(' — ')[0].split(' (locked')[0]; });
     });
 
-    // Exactly 5 top-level sessions for a typical UK applicant (5 of the 9 possible checklist
-    // categories apply by default — Identity & application / Financial evidence / Ties to Nigeria /
-    // Accommodation & UK host / Travel details — which is exactly what folds into the 2 document-
-    // checklist sessions below; the conditional categories, when they apply, add extra content
-    // inside 'Other required documents' without adding a new top-level session).
+    // 12 top-level sessions for a typical fresh UK applicant: the 6 fixed topics, then one session
+    // per applicable checklist category (5 of the 9 possible categories apply with no answers yet —
+    // Identity & application / Financial evidence / Ties to Nigeria / Accommodation & UK host /
+    // Travel details — the other 4 are conditional and only add a session once they actually apply),
+    // then review.
     assert.deepStrictEqual(titles, [
-      'About you',
-      'Financial readiness',
-      'Identity & financial documents',
-      'Other required documents',
+      'Validate your International Passport',
+      'Travel Experience',
+      'Your responsibilities',
+      'Your trip details',
+      'Income & bank statement analysis',
+      'Financial readiness calculator',
+      'Identity & application',
+      'Financial evidence',
+      'Ties to Nigeria',
+      'Accommodation & UK host',
+      'Travel details',
       'Final review'
-    ], 'Should show exactly these 5 top-level sessions in this order, got: ' + titles.join(' | '));
+    ], 'Should show exactly these 12 top-level sessions in this order, got: ' + titles.join(' | '));
 
-    // Session 1 ("About you") should be the one showing open/current on first load.
+    // Session 1 (passport) should be the one showing open/current on first load.
     var firstPillActive = await page.$eval('.session-pill[data-idx="0"]', function(el){ return el.classList.contains('active'); });
-    assert.strictEqual(firstPillActive, true, '"About you" should be the default landing session');
+    assert.strictEqual(firstPillActive, true, '"Validate your International Passport" should be the default landing session');
 
-    // 'About you' merges 4 previously-separate sessions into one — all 4 of their cards should be
-    // showing (each independently collapsible) rather than just one of them.
-    var aboutYouCardTitles = await page.$$eval('[data-session-key="aboutYou"] .card-summary h2', function(hs){
-      return hs.map(function(h){ return h.textContent.trim(); });
-    });
-    assert.strictEqual(aboutYouCardTitles.length, 4, '"About you" should hold 4 cards (passport, travel experience, responsibilities, trip), got: ' + aboutYouCardTitles.join(' | '));
+    // Each of the old merged group's cards is its own independent session again — the "About you"
+    // wrapper is gone, so each of these 4 has its own distinct data-session-key.
+    var soleCardKeys = ['passport', 'travelExperience', 'responsibilities', 'trip'];
+    for (var i = 0; i < soleCardKeys.length; i++){
+      var count = await page.$$eval('[data-session-key="'+soleCardKeys[i]+'"]', function(els){ return els.length; });
+      assert.strictEqual(count, 1, '"'+soleCardKeys[i]+'" should tag exactly one card, got ' + count);
+    }
 
-    // 'Financial readiness' merges the bank-statement-analysis card and the cost calculator card —
-    // and the statement-analysis card should appear FIRST (see the comment in getVisibleSessionKeys):
-    // an applicant should be able to upload a statement and see real feedback before working through
-    // a full manual cost estimate.
-    var financialReadinessCardTitles = await page.$$eval('[data-session-key="financialReadiness"] .card-summary h2', function(hs){
-      return hs.map(function(h){ return h.textContent.trim(); });
-    });
-    assert.strictEqual(financialReadinessCardTitles.length, 2, '"Financial readiness" should hold 2 cards, got: ' + financialReadinessCardTitles.join(' | '));
-    assert.ok(/Income & bank statement analysis/.test(financialReadinessCardTitles[0]),
-      'The bank-statement-analysis card should come first in "Financial readiness", got: ' + financialReadinessCardTitles.join(' | '));
-    assert.ok(/Financial readiness calculator/.test(financialReadinessCardTitles[1]),
-      'The cost calculator card should come second in "Financial readiness", got: ' + financialReadinessCardTitles.join(' | '));
+    // Pill 2 onward should be locked (disabled) on a completely fresh session — passport starts at
+    // 0% complete, well under the 70% readiness threshold, so nothing past it should be reachable yet.
+    var pill2Disabled = await page.$eval('.session-pill[data-idx="1"]', function(el){ return el.disabled; });
+    assert.strictEqual(pill2Disabled, true, 'Session 2 should be locked while session 1 is under 70% complete');
+    var pill2Locked = await page.$eval('.session-pill[data-idx="1"]', function(el){ return el.classList.contains('locked'); });
+    assert.strictEqual(pill2Locked, true, 'Session 2 pill should carry the .locked class while gated');
+
+    // The section report card should show for a session with real content, explain the gate, and
+    // link out to the same WhatsApp/email contact used elsewhere in the app.
+    await page.waitForSelector('#sessionReportCard');
+    var reportText = await page.$eval('#sessionReportCard', function(el){ return el.textContent; });
+    assert.ok(/paused for this section/.test(reportText), 'Report card should explain why Next is paused, got: ' + reportText);
+    var waHref = await page.$eval('#sessionReportCard a.btn', function(el){ return el.getAttribute('href'); });
+    assert.ok(/^https:\/\/wa\.me\/2349081389969/.test(waHref), 'Report card should link the WhatsApp contact, got: ' + waHref);
+
+    // Next (both the top nav button and the footer button) deliberately stays CLICKABLE while
+    // gated — a disabled button can't highlight missing fields, scroll to the report card, or
+    // record the block for analytics, so attemptAdvanceSession() does the actual blocking instead
+    // (see session-readiness-gate.test.js for that behavior). Only the later PILLS are locked.
+    var navNextDisabled = await page.$eval('#sessionNextBtn', function(el){ return el.disabled; });
+    assert.strictEqual(navNextDisabled, false, 'Top "Next" button should stay clickable even under the readiness threshold');
+    var footerNextDisabled = await page.$eval('#sessionFooterNextBtn', function(el){ return el.disabled; });
+    assert.strictEqual(footerNextDisabled, false, 'Footer "Next" button should stay clickable even under the readiness threshold');
+
+    // Clicking it anyway must not advance the session — the block itself is enforced inside
+    // attemptAdvanceSession(), not by disabling the button.
+    await page.click('#sessionFooterNextBtn');
+    await page.waitForTimeout(200);
+    var stillOnPassport = await page.$eval('.session-pill[data-idx="0"]', function(el){ return el.classList.contains('active'); });
+    assert.strictEqual(stillOnPassport, true, 'Clicking Next while under the readiness threshold must not advance the session');
   } finally {
     await page.context().close();
   }

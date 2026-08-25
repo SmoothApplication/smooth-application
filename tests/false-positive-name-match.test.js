@@ -18,12 +18,12 @@ exports.run = async function(ctx){
   try {
     await passConsentGate(page);
 
-    await goToSessionByPill(page, 0);
+    await goToSessionByPill(page, 3);
     await page.fill('#f_name', 'Test Applicant');
     await page.selectOption('#f_workStatus', 'selfEmployed');
     await page.fill('#f_businessName', 'Bright Homes Cleaning Solutions Ltd');
 
-    await goToSessionByPill(page, 1); // 'Financial readiness'
+    await goToSessionByPill(page, 4); // 'Financial readiness'
     await page.setInputFiles('#stmtFile1', FIXTURE);
     await page.click('#btnAnalyzeStatements');
     await page.waitForFunction(function(){

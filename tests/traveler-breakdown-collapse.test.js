@@ -11,7 +11,7 @@ exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page);
-    await goToSessionByPill(page, 0); // trip session
+    await goToSessionByPill(page, 3); // trip session
 
     // Picking more than 1 traveller reveals the breakdown fields, expanded (not pre-collapsed).
     await page.selectOption('#f_travelerCount', '3');

@@ -18,16 +18,19 @@ exports.run = async function(ctx){
     await passConsentGate(page);
 
     // Before anything is entered, both percentage lines should stay empty rather than show a bogus 0%.
-    await goToSessionByPill(page, 1); // 'Financial readiness'
+    // (#incomePillPct/#balancePillPct live on finance2 — reading them via $eval doesn't actually need
+    // that session visible, but navigate there anyway since that's also where the statement gets
+    // scanned a little further down.)
+    await goToSessionByPill(page, 4); // finance2
     var emptyIncomePct = await page.$eval('#incomePillPct', function(el){ return el.textContent.trim(); });
     var emptyBalancePct = await page.$eval('#balancePillPct', function(el){ return el.textContent.trim(); });
     assert.strictEqual(emptyIncomePct, '', 'Income % should be blank until cash-flow data exists, got: "' + emptyIncomePct + '"');
     assert.strictEqual(emptyBalancePct, '', 'Balance % should be blank until trip-cost figures are entered, got: "' + emptyBalancePct + '"');
 
-    // Fill in the detailed financial calculator (session index 2) so a real recommended-funds figure
-    // exists: flight 1,000,000/adult, accommodation 100,000/night × 5 nights -> totalCost 1,500,000,
-    // recommendedFunds (2× buffer) 3,000,000.
-    await goToSessionByPill(page, 1); // 'Financial readiness'
+    // Fill in the detailed financial calculator (its own session now — 'finance', index 5) so a real
+    // recommended-funds figure exists: flight 1,000,000/adult, accommodation 100,000/night × 5 nights
+    // -> totalCost 1,500,000, recommendedFunds (2× buffer) 3,000,000.
+    await goToSessionByPill(page, 5); // finance (calculator)
     await page.fill('#fc_nights', '5');
     await page.fill('#fc_flight', '1000000');
     await page.fill('#fc_accom', '100000');
@@ -37,7 +40,7 @@ exports.run = async function(ctx){
     // ₦450,000 (narrated "SALARY PAYMENT ABC LTD") + a blank-narration ₦500,000 inflow (both dated in
     // March) — final closing balance ₦1,823,000. The blank-narration inflow is the one flagged as
     // needing an explanation.
-    await goToSessionByPill(page, 1); // 'Financial readiness'
+    await goToSessionByPill(page, 4); // finance2 — stmtFile1/btnAnalyzeStatements live here
     await page.setInputFiles('#stmtFile1', SAMPLE_STATEMENT);
     await page.click('#btnAnalyzeStatements');
     await page.waitForSelector('#unexplainedInflowsBox .explain-box', { timeout: 20000 });

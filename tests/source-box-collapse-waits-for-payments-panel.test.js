@@ -20,12 +20,12 @@ exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page);
-    await goToSessionByPill(page, 0);
+    await goToSessionByPill(page, 3);
     await page.fill('#f_name', 'Test Applicant Smith');
     await page.selectOption('#f_workStatus', 'employed');
     await page.fill('#f_employerName', 'Good Employer Ltd');
 
-    await goToSessionByPill(page, 1); // 'Financial readiness'
+    await goToSessionByPill(page, 4); // 'Financial readiness'
     await goToFinanceStep(page, 1);
     await page.setInputFiles('#stmtFile1', FIXTURE);
     await page.click('#btnAnalyzeStatements');

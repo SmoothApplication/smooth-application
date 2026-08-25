@@ -9,7 +9,7 @@ exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page);
-    await goToSessionByPill(page, 0);
+    await goToSessionByPill(page, 2);
     await page.waitForSelector('#rs_state');
 
     // State dropdown should already be populated (built on load), LGA should not be yet.

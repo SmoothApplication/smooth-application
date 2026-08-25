@@ -13,14 +13,14 @@
 const assert = require('assert');
 const { newPageAt, passConsentGate, goToSessionByPill, goToFinanceStep } = require('./helpers');
 
-// The cash-flow table lives in session index 1 ("Income & bank statement analysis"), not session 2
-// (the detailed financial calculator, where fc_flight/fc_accom/fc_closing live) — has to be the active
-// session for Playwright's .fill() to treat the inputs as visible/interactable. Within that session,
-// the table itself is on step 2 (Cash flow & scores) of the session's own internal step tabs — step 1
-// (Upload) is the default, so typing straight into the table without uploading anything first needs
-// an explicit tab switch.
+// The cash-flow table lives in the 'finance2' session ("Income & bank statement analysis", index 4),
+// not 'finance' (the detailed financial calculator, index 5, where fc_flight/fc_accom/fc_closing
+// live) — has to be the active session for Playwright's .fill() to treat the inputs as
+// visible/interactable. Within finance2, the table itself is on step 2 (Cash flow & scores) of the
+// session's own internal step tabs — step 1 (Upload) is the default, so typing straight into the
+// table without uploading anything first needs an explicit tab switch.
 async function fillCashFlowMonths(page, monthlyInflow){
-  await goToSessionByPill(page, 1); // 'Financial readiness'
+  await goToSessionByPill(page, 4); // finance2
   await goToFinanceStep(page, 2);
   for (var i = 1; i <= 6; i++){
     await page.fill('#cf_month_' + i, 'Month ' + i);
@@ -36,7 +36,7 @@ exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page);
-    await goToSessionByPill(page, 1); // 'Financial readiness' — detailed financial calculator
+    await goToSessionByPill(page, 5); // 'finance' — detailed financial calculator
     // Trip cost: flight 500,000/adult + accommodation 100,000/night × 5 nights = 1,000,000 total.
     // Recommended funds/income buffer (2×) = 2,000,000.
     await page.fill('#fc_nights', '5');
@@ -59,7 +59,7 @@ exports.run = async function(ctx){
   var page2 = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page2);
-    await goToSessionByPill(page2, 1);
+    await goToSessionByPill(page2, 5);
     await page2.fill('#fc_nights', '5');
     await page2.fill('#fc_flight', '500000');
     await page2.fill('#fc_accom', '100000');
@@ -79,12 +79,12 @@ exports.run = async function(ctx){
   var page3 = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page3);
-    await goToSessionByPill(page3, 1);
+    await goToSessionByPill(page3, 5);
     await page3.fill('#fc_nights', '5');
     await page3.fill('#fc_flight', '500000');
     await page3.fill('#fc_accom', '100000');
     await page3.fill('#fc_closing', '3000000');
-    await goToSessionByPill(page3, 1);
+    await goToSessionByPill(page3, 4);
     await goToFinanceStep(page3, 2);
     await page3.fill('#cf_month_1', 'Month 1');
     await page3.fill('#cf_in_1', '100000');

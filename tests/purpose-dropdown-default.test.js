@@ -11,7 +11,7 @@ exports.run = async function(ctx){
     await passConsentGate(page);
     // "Your trip details" is session index 3 (0: passport, 1: travelExperience,
     // 2: responsibilities, 3: trip).
-    await goToSessionByPill(page, 0);
+    await goToSessionByPill(page, 3);
     await page.waitForSelector('#f_purpose');
 
     var value = await page.$eval('#f_purpose', function(el){ return el.value; });

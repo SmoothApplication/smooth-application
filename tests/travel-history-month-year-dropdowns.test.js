@@ -11,7 +11,7 @@ exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page);
-    await goToSessionByPill(page, 0);
+    await goToSessionByPill(page, 1);
     await page.selectOption('#te_firstTime', 'yes');
     await page.waitForSelector('#btnAddTravelRow');
     await page.click('#btnAddTravelRow');

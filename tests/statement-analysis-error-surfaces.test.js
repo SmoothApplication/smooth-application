@@ -22,7 +22,7 @@ exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page);
-    await goToSessionByPill(page, 1); // finance2 = Income & bank statement analysis
+    await goToSessionByPill(page, 4); // finance2 = Income & bank statement analysis
     await page.setInputFiles('#stmtFile1', GOOD_FIXTURE);
     await page.waitForTimeout(300);
 
@@ -56,7 +56,7 @@ exports.run = async function(ctx){
   var page2 = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page2);
-    await goToSessionByPill(page2, 1);
+    await goToSessionByPill(page2, 4);
     // A file with no parseable transaction rows at all — an image-less, text-only PDF that's plain
     // prose, not a tabular statement, so parseStatementLinesWithFallback comes up genuinely empty.
     await page2.setInputFiles('#stmtFile1', path.join(__dirname, 'fixtures', 'statement-analysis-no-rows.pdf'));

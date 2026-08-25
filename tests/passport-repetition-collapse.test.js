@@ -27,7 +27,7 @@ exports.run = async function(ctx){
     // Identity & application is a checklist category grouped into the merged 'idFinancialDocs'
     // session — index 2 (0: aboutYou, 1: financialReadiness, 2: idFinancialDocs). The passport scan
     // widget itself lives on 'aboutYou' — index 0 — since it's the passport sub-card there.
-    await goToSessionByPill(page, 2);
+    await goToSessionByPill(page, 6);
 
     // Before attaching anything, the checklist item's own upload row should show normally (no
     // file attached yet, so nothing to collapse) and there should be no "Replace file" toggle.
@@ -49,7 +49,7 @@ exports.run = async function(ctx){
       return row && row.style.display === 'none';
     }, { timeout: 5000 });
 
-    await goToSessionByPill(page, 2);
+    await goToSessionByPill(page, 6);
 
     var uploadRowVisibleAfter = await page.$eval('#uploadRow_passport', function(el){ return el.style.display; });
     assert.strictEqual(uploadRowVisibleAfter, 'none', 'Upload row should be hidden once a passport is attached, got display: "' + uploadRowVisibleAfter + '"');

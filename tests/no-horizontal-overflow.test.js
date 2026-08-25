@@ -33,8 +33,8 @@ exports.run = async function(ctx){
     try {
       await checkNoOverflow(page, vp.label + ' — consent gate');
       await passConsentGate(page);
-      await checkNoOverflow(page, vp.label + ' — trip session');
-      await goToSessionByPill(page, 0);
+      await checkNoOverflow(page, vp.label + ' — passport session');
+      await goToSessionByPill(page, 5);
       await checkNoOverflow(page, vp.label + ' — finance session');
     } finally {
       await page.context().close();

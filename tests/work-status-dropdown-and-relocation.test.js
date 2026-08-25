@@ -17,7 +17,7 @@ exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page);
-    await goToSessionByPill(page, 0); // trip session
+    await goToSessionByPill(page, 3); // trip session
 
     // Default: nothing selected, no reveal rows showing.
     var defaultValue = await page.$eval('#f_workStatus', function(el){ return el.value; });
@@ -79,7 +79,7 @@ exports.run = async function(ctx){
 
     // ...they should instead show up in session 4 ("Identity & application"), in their own card, ahead
     // of the document checklist for that category.
-    await goToSessionByPill(page, 2); // 'Identity & financial documents' (index 2).
+    await goToSessionByPill(page, 6); // 'Identity & financial documents' (index 2).
     var identityCardVisible = await page.$eval('#identityStatusCard', function(el){ return el.offsetParent !== null; });
     assert.strictEqual(identityCardVisible, true, 'The relocated "Application readiness & visa history" card should be visible in the Identity & application session');
 

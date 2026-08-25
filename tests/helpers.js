@@ -72,19 +72,17 @@ async function passConsentGate(page, options){
   }, { timeout: 5000 });
 }
 
-// Jumps directly to a session by index via its numbered pill — unlike the "Next →" button, this
-// never triggers the soft "you're not done yet" confirm dialog, which keeps tests deterministic.
-//
-// If a text field still has focus (e.g. right after page.fill()), its 'change' listener fires
-// render() on blur, which rebuilds the session-pill DOM. If that rebuild lands in the same
-// instant as the click's own hit-test, the click can land on a pill node that's mid-replacement
-// and silently do nothing. Real users don't hit this in practice (there's always some reaction
-// time between finishing typing and clicking elsewhere), but to keep tests deterministic we blur
-// whatever's focused and let that render() settle before clicking.
+// Jumps directly to a session by index — unlike the "Next →" button, this never triggers the soft
+// "you're not done yet" confirm dialog, and unlike clicking the actual pill, it also isn't stopped
+// by the 70%-readiness lock (see computeLockAfterIndex in index.html) that disables a real
+// applicant's pill once an earlier session is left under-filled. Most tests need to jump straight to
+// whatever they're testing without first filling in every earlier session just to unlock it, the
+// same deterministic shortcut goToSessionByPill has always provided — so this calls the app's own
+// window.__testGoToSession(idx) escape hatch (a direct, unclamped setter meant only for this) rather
+// than clicking the pill DOM node, which sidesteps both the lock AND the old render-timing race this
+// used to blur-and-wait for.
 async function goToSessionByPill(page, idx){
-  await page.evaluate(function(){ document.activeElement && document.activeElement.blur(); });
-  await page.waitForTimeout(50);
-  await page.click('.session-pill[data-idx="' + idx + '"]');
+  await page.evaluate(function(i){ window.__testGoToSession(i); }, idx);
 }
 
 // Jumps to a session by its display label (e.g. 'Validate your International Passport') instead of
@@ -93,8 +91,6 @@ async function goToSessionByPill(page, idx){
 // existing tests (all shifted in one pass), but new tests should prefer this where practical so a
 // future reorder doesn't require another repo-wide shift.
 async function goToSessionByLabel(page, label){
-  await page.evaluate(function(){ document.activeElement && document.activeElement.blur(); });
-  await page.waitForTimeout(50);
   var idx = await page.$$eval('.session-pill', function(pills, label){
     for (var i = 0; i < pills.length; i++){
       var title = pills[i].getAttribute('title') || '';
@@ -103,7 +99,7 @@ async function goToSessionByLabel(page, label){
     return -1;
   }, label);
   if (idx === -1) throw new Error('No session pill found with label "' + label + '"');
-  await page.click('.session-pill[data-idx="' + idx + '"]');
+  await page.evaluate(function(i){ window.__testGoToSession(i); }, idx);
 }
 
 // Clicks one of the "Income & bank statement analysis" session's own internal step tabs (1 Upload,
@@ -116,4 +112,19 @@ async function goToFinanceStep(page, n){
   await page.waitForTimeout(50);
 }
 
-module.exports = { startServer, launchBrowser, newPageAt, passConsentGate, goToSessionByPill, goToSessionByLabel, goToFinanceStep, PORT, ROOT };
+// Fills in one of the searchable "country" combobox fields (Travel Experience history table, or
+// the overstay table) — types the country name to filter the list, then clicks the matching
+// result, mirroring how a real user would use it. `containerId` is the tbody's id
+// ('travelHistoryBody' or 'overstayBody'), `idx` is the row index, `countryName` must be one of
+// the exact strings in TE_COUNTRY_LIST (the field won't accept anything else — see the CHANGELOG
+// entry on why).
+async function pickTravelCountry(page, containerId, idx, countryName){
+  var inputSel = '#' + containerId + ' input[data-idx="' + idx + '"][data-field="country"]';
+  await page.click(inputSel);
+  await page.fill(inputSel, countryName);
+  var optionSel = '#' + containerId + ' .country-combo-list[data-idx="' + idx + '"] .country-combo-option[data-value="' + countryName + '"]';
+  await page.waitForSelector(optionSel, { timeout: 3000 });
+  await page.click(optionSel);
+}
+
+module.exports = { startServer, launchBrowser, newPageAt, passConsentGate, goToSessionByPill, goToSessionByLabel, goToFinanceStep, pickTravelCountry, PORT, ROOT };

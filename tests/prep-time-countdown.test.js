@@ -29,7 +29,7 @@ exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page);
-    await goToSessionByPill(page, 0);
+    await goToSessionByPill(page, 3);
 
     var today = new Date();
     today.setHours(0,0,0,0);

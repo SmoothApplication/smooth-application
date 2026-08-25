@@ -14,7 +14,7 @@ exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page);
-    await goToSessionByPill(page, 0);
+    await goToSessionByPill(page, 2);
     await page.waitForSelector('#rs_state');
 
     // Before any state is picked, no summary should render yet.

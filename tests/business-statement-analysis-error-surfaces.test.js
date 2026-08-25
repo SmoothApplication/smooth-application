@@ -13,10 +13,10 @@ var GOOD_FIXTURE = path.join(__dirname, 'fixtures', 'bank-statement-sample.pdf')
 var NO_ROWS_FIXTURE = path.join(__dirname, 'fixtures', 'statement-analysis-no-rows.pdf');
 
 async function revealBizFinanceItem(page){
-  await goToSessionByPill(page, 0); // trip session — Work status lives here
+  await goToSessionByPill(page, 3); // trip session — Work status lives here
   await page.selectOption('#f_workStatus', 'selfEmployed');
   await page.waitForTimeout(150);
-  await goToSessionByPill(page, 2); // 0 passport, 1 travelExperience, 2 responsibilities, 3 trip, 4 finance2, 5 finance, 6 cat:Identity & application, 7 cat:Financial evidence
+  await goToSessionByPill(page, 7); // 0 passport, 1 travelExperience, 2 responsibilities, 3 trip, 4 finance2, 5 finance, 6 cat:Identity & application, 7 cat:Financial evidence
   await page.waitForSelector('#file_bizFinance', { timeout: 5000 });
 }
 

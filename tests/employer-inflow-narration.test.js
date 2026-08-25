@@ -17,13 +17,13 @@ exports.run = async function(ctx){
   try {
     await passConsentGate(page);
 
-    await goToSessionByPill(page, 0); // trip session — "Work status" dropdown lives here
+    await goToSessionByPill(page, 3); // trip session — "Work status" dropdown lives here
     await page.fill('#f_name', 'Test Applicant');
     await page.selectOption('#f_workStatus', 'both');
     await page.fill('#f_employerName', 'Grace Covenant Youth Church');
     await page.fill('#f_businessName', 'Bright Homes Cleaning Solutions Ltd');
 
-    await goToSessionByPill(page, 1); // finance2 session — statement upload lives here
+    await goToSessionByPill(page, 4); // finance2 session — statement upload lives here
     await page.setInputFiles('#stmtFile1', INFLOW_STATEMENT);
     await page.click('#btnAnalyzeStatements');
     await page.waitForFunction(function(){
@@ -67,11 +67,11 @@ exports.run = async function(ctx){
     var page2 = await newPageAt(ctx.browser, '/index.html');
     try {
       await passConsentGate(page2);
-      await goToSessionByPill(page2, 0);
+      await goToSessionByPill(page2, 3);
       await page2.fill('#f_name', 'Test Applicant');
       await page2.selectOption('#f_workStatus', 'employed');
       await page2.fill('#f_employerName', 'Totally Unrelated Employer Xyzabc');
-      await goToSessionByPill(page2, 1);
+      await goToSessionByPill(page2, 4);
       await page2.setInputFiles('#stmtFile1', INFLOW_STATEMENT);
       await page2.click('#btnAnalyzeStatements');
       await page2.waitForFunction(function(){

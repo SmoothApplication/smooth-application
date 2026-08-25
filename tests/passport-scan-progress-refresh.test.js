@@ -32,36 +32,18 @@ exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page);
-    // Session 1 ("About you") is the default landing session — no navigation needed. It now holds 3
-    // other cards besides passport (travel experience / responsibilities / trip — see
-    // getVisibleSessionKeys() in index.html), so the footer's "X of Y filled" is an aggregate across
-    // all 4. Those 3 are completed first (12 guaranteed points) so passport's own 2 fields are the
-    // only thing separating 12/14 (86%) from 14/14 (100%) below — isolating exactly what this test is
-    // actually about: does the footer refresh from the passport auto-fill alone, without any other
-    // field being touched afterward.
+    // Passport is its own session again (index 0, the default landing session — no navigation
+    // needed), with just its own 2 fields (f_passportNumber, f_passportExpiry) counted toward its
+    // footer — no other card's fields factor in any more, which actually simplifies isolating
+    // exactly what this test is about: does the footer refresh from the passport auto-fill alone,
+    // without any other field being touched afterward.
     await page.waitForSelector('#file_passportValidate');
-    await page.selectOption('#te_firstTime', 'no');
-    await page.selectOption('#rs_numKids', '0');
-    await page.selectOption('#rs_state', 'Lagos');
-    await page.waitForFunction(function(){
-      var el = document.getElementById('rs_lga');
-      return el && el.options.length > 1;
-    });
-    await page.selectOption('#rs_lga', { index: 1 });
-    await page.fill('#rs_addressNumber', '14');
-    await page.fill('#rs_addressName', 'Adeola Odeku Street');
-    await page.fill('#f_name', 'Test Applicant');
-    await page.selectOption('#f_purpose', { index: 1 });
-    await page.selectOption('#f_workStatus', 'student');
-    await page.fill('#f_traveldate', '2026-12-01');
-    await page.fill('#f_returndate', '2026-12-06');
-    await page.fill('#f_appdate', '2026-10-01');
     await page.waitForTimeout(200);
 
     var before = await readFooter(page);
     assert.ok(before, 'Should show a "X% of this section filled" footer before scanning');
-    assert.strictEqual(before.points, '12', 'Should read 12 filled (everything except passport) before scanning, got: ' + JSON.stringify(before));
-    assert.strictEqual(before.pct, '86', 'Should read 86% before scanning (12 of 14), got: ' + JSON.stringify(before));
+    assert.strictEqual(before.points, '0', 'Should read 0 filled before scanning, got: ' + JSON.stringify(before));
+    assert.strictEqual(before.pct, '0', 'Should read 0% before scanning, got: ' + JSON.stringify(before));
 
     await page.setInputFiles('#file_passportValidate', REAL_MRZ_FIXTURE);
     await page.click('#btnPassportValidateAttach');
@@ -79,8 +61,8 @@ exports.run = async function(ctx){
     // The whole point: check the footer WITHOUT touching any other field first.
     var after = await readFooter(page);
     assert.ok(after, 'Should still show a footer after scanning');
-    assert.strictEqual(after.points, '14', 'Footer should reflect the 2 auto-filled passport fields on top of the other 12, without any other input first, got: ' + JSON.stringify(after));
-    assert.strictEqual(after.pct, '100', 'Should read 100% once every field including passport is filled, got: ' + JSON.stringify(after));
+    assert.strictEqual(after.points, '2', 'Footer should reflect the 2 auto-filled passport fields, without any other input first, got: ' + JSON.stringify(after));
+    assert.strictEqual(after.pct, '100', 'Should read 100% once both passport fields are filled, got: ' + JSON.stringify(after));
   } finally {
     await page.context().close();
   }
