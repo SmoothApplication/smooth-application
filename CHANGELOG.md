@@ -3,6 +3,57 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Added a "same person?" prompt for look-alike senders, and a Financial summary table
+
+Two pieces of feedback from live testing on the deployed app, both about how "Top 10 most
+consistent senders" and the rest of Step 3 ("Detailed reports") present bank-statement figures.
+
+**Possible-duplicate-sender prompt.** Real report: two rows in the consistent-senders table were
+actually the same person, just extracted with different word sets from different narration rows
+(e.g. a fuller name on some rows, a shorter one plus a trailing bank-code-shaped fragment on
+others) — splitting one genuinely consistent sender across two weaker rows undersells exactly the
+"steady month after month" signal that table exists to surface. The explicit ask: *"If you see a
+name with 2 or more similar names ask the user if it is the same person"* — not auto-merge, since
+two different family members can legitimately share a surname.
+
+The app already merged the SAFE case (one extracted name fully contains another). This adds the
+fuzzier case: any two sender names sharing 2+ significant words are now flagged with an inline
+"same person?" prompt — **Yes, same person — merge them** / **No, different people**. Answering
+either way is remembered (saved/exported like every other answer) so the same pair is never asked
+twice; merging combines their distinct-month counts, payment counts, and totals into one row.
+Nothing is ever merged silently. See `applySenderDuplicateDecisions`/`sharedSignificantWords` in
+index.html, and `tests/sender-duplicate-prompt.test.js` (synthetic fixture — fictional names, not
+the real statement that surfaced this report).
+
+**Financial summary table.** Explicit request: *"Add Income generation, Closing balance strength,
+how much is needed to balance, how long it would take to get the desired balance... Let the table
+[come] after as [a] summary of financials."* Every one of those figures already existed somewhere
+on Step 3 — scattered across the cash-flow table's totals, the Strong/Needs attention/Weak balance
+badge, and a shortfall/months-to-save sentence buried inside the financial calculator's warning
+text — but never in one place. Added a new table, right after "Top 10 most consistent senders":
+opening balance, total inflow/outflow, net change, closing balance, average monthly income and
+outflow, monthly net savings pace, the recommended 2× buffer figure, closing balance strength,
+how much more is still needed, and — at the applicant's current saving pace — roughly how long
+that would take. Deliberately built from the SAME numbers already shown elsewhere on the page
+(inside `computeFinancials()`, right where those numbers are computed) rather than a second,
+independently-derived set that could quietly drift out of sync. See `tests/financial-summary-table.test.js`.
+
+## Named the declared employer on the Workplace income tab
+
+Found by actually using the freshly-deployed session-gate/report-card batch end-to-end: Step 5
+("Workplace income") explained *what* it does ("every inflow matched against the employer you
+entered") but never actually showed *which name* it searched for — an applicant looking at 28
+unlabeled matched inflows had no on-screen confirmation this tab was even looking at the name they
+typed under "Work status," short of scrolling past several other lines to a collapsed "Show these
+28 inflows matching '...' individually" toggle. Worse, if the employer name happened to match
+nothing in the statement, the tab rendered completely blank — no explanation, nothing to check the
+spelling against.
+
+Fixed: the tab now leads with an explicit "Employer on file: `<name>`" line (plus the alternate
+name/abbreviation, if one was entered) — shown both when inflows matched it, and, just as
+importantly, when none did, where it now also suggests double-checking the spelling against the
+statement or confirming the right file was uploaded, instead of leaving the tab looking broken.
+
 ## Made the refusal-letter scanner country-aware, split out misrepresentation findings, and linked results to the right session
 
 The "Previous visa refusal documentation" checklist item (upload a past refusal letter, scanned
