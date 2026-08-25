@@ -3,6 +3,43 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Added Schengen (EU) short-stay visa support — third visa type alongside UK and Canada
+
+The app already had a "country plugin" architecture built in for this — a `COUNTRIES` registry
+keyed by country code, with UK and Canada as full entries and Schengen sitting as a `ready:false`
+placeholder. Filled that placeholder in with a real `CHECKLIST_EU` (mirroring the structure of
+`CHECKLIST_UK`/`CHECKLIST_CA`) and enabled the previously-disabled "🇪🇺 Schengen" option on the
+consent-gate visa picker. No changes were needed to the session-wizard engine, financial calculator,
+or OCR pipeline — all of that is already generic and just works once a country's `checklist`/
+`catOrder` are wired up.
+
+Researched from the EU Visa Code (Regulation (EC) 810/2009), the European Commission's own guidance,
+and consulate-published checklists (France, Italy), cross-checked August 2026 — like the Canada
+checklist, this is research-based rather than built from a personal case-review track record, and
+the tool's disclaimer says so explicitly. A few things called out specifically because they differ
+from the UK/Canada checklists already in the tool:
+
+- **Travel medical insurance (minimum €30,000 coverage) is a REQUIRED item**, not just recommended
+  as it is for UK/Canada — this is a genuine Schengen-specific mandatory document.
+- **Accommodation must cover every night of the trip**, not just the first few — flagged directly
+  in the hotel-booking item's tip text.
+- **Bank statement history defaults to 6 months** (Italy's own published checklist requires this;
+  other consulates sometimes accept 3, so the tool notes both rather than stating one as universal).
+- **Self-employed applicants get an extra required item** — a FIRS tax clearance certificate,
+  specifically called out on published Schengen checklists alongside CAC registration.
+- Several figures are deliberately phrased as ranges/guidance rather than fixed rules (blank
+  passport pages, VFS/TLS service fee in naira, daily spending-money amount) because they genuinely
+  vary by which of the ~4 most common consulates (France, Germany, Netherlands, Italy) a Nigerian
+  applicant ends up applying through — see the disclaimer for specifics.
+- The refusal-letter scanner's authority detection (previously UK-vs-Canada only) now also
+  recognises Schengen-specific wording, so a Schengen refusal letter isn't mislabeled as a UK or
+  Canada one.
+
+New regression test: `tests/schengen-checklist.test.js` — covers the gate option being selectable,
+country-specific text swapping in correctly, the insurance item rendering as Required, the
+accommodation category's Schengen-specific label, and `appliesIf` branching still working correctly
+on the new checklist. Full suite: 72/72 passing.
+
 ## Mobile-friendliness pass: bigger tap targets, less scroll clutter
 
 A deliberate mobile audit (not a user bug report this time) — loaded the live app in a headless
