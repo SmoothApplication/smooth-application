@@ -1295,6 +1295,20 @@
         <h4 class="subcat-heading">Top 10 most consistent senders</h4>
         <p class="fin-note" style="margin-top:0;">Ranked by how many separate months each sender's name recurs across, not by amount — a sender you hear from steadily month after month is easy to explain as a stable, recurring source, even if no single payment from them is the biggest one on the statement.</p>
         <div id="topConsistentSendersBox"></div>
+
+        <!-- User request: "Add Income generation, Closing balance strength, how much is needed to
+             balance, how long it would take to get the desired balance... Let the table [come] after
+             as [a] summary of financials." Pulls together figures that already exist scattered across
+             several separate messages/badges elsewhere on this page (the cash-flow totals, the
+             Strong/Needs attention balance badge, the shortfall-and-months-to-save note inside the
+             financial calculator's own warning text) into one glanceable table, rather than making the
+             applicant piece it together from multiple paragraphs. See renderFinancialSummaryTable(),
+             built inside computeFinancials() so it always reflects the SAME numbers already shown
+             elsewhere on this page — never a second, independently-derived set that could drift. -->
+        <h4 class="subcat-heading">Financial summary</h4>
+        <p class="fin-note" style="margin-top:0;">Everything above, pulled into one summary: what came in and went out over your statement window, how strong your closing balance looks against the recommended buffer, and — if it's not there yet — roughly how much more and how long, at your current saving pace.</p>
+        <div id="financialSummaryBox"></div>
+
         <div class="session-nav-btns no-print" style="margin-top:12px;">
           <button type="button" class="btn ghost fin-step-prev" data-fin-prev="2">← Back</button>
           <button type="button" class="btn fin-step-next" data-fin-next="4">Next: Income sources breakdown →</button>
@@ -1748,6 +1762,9 @@
   //   refusal_jump_clicked:<key>          — a "→ Go to <section>" button inside a scanned refusal
   //                                          letter's results was clicked; <key> is the session key it
   //                                          jumped to (same key set as session_view above)
+  //   sender_duplicate_decision:<answer>  — a possible-same-person prompt on the "Top 10 most
+  //                                          consistent senders" table was answered; <answer> is
+  //                                          "merge" or "separate" — never the sender names themselves
   //   email_summary_clicked               — "Email myself this summary" was clicked
   //   doc_scan:attempted:<kind>           — a single-file document scan begins
   //   doc_scanned:<kind>                  — that scan produced a result
@@ -3409,6 +3426,29 @@
     goToSession(idx);
   });
 
+  // The "Yes, same person" / "No, different people" buttons on a possible-duplicate-sender prompt
+  // (see renderTopConsistentSenders) live inside #topConsistentSendersBox, rebuilt via innerHTML on
+  // every re-scan/re-render — same delegated-listener reasoning as the two handlers just above.
+  document.addEventListener('click', function(e){
+    var btn = e.target && e.target.closest ? e.target.closest('.sender-dup-decision-btn') : null;
+    if (!btn) return;
+    var nameA = btn.getAttribute('data-name-a'), nameB = btn.getAttribute('data-name-b');
+    var decision = btn.getAttribute('data-decision');
+    if (!nameA || !nameB || (decision !== 'merge' && decision !== 'separate')) return;
+    senderMergeDecisions[senderPairKey(nameA, nameB)] = decision;
+    trackEvent('sender_duplicate_decision:' + decision);
+    rerenderTopConsistentSenders();
+  });
+  // Re-runs just the "Top 10 most consistent senders" table off the last analyzed statement's
+  // transactions (cached at the original render call — see window.__lastConsistentSendersInput) —
+  // cheap and instant, unlike re-triggering the whole file-parsing/analysis pipeline just to reflect
+  // one merge/separate decision.
+  function rerenderTopConsistentSenders(){
+    var input = window.__lastConsistentSendersInput;
+    if (!input) return;
+    renderTopConsistentSenders(getTopConsistentSenders(input.txns, 10, input.applicantName));
+  }
+
   ['f_name','f_purpose','f_traveldate','f_returndate','f_appdate','f_travelerCount','f_adults','f_adolescents','f_children','f_hasHost','f_hostFunding','f_employed','f_employerName','f_employerAltName','f_selfEmployed','f_businessName','f_businessAltName','f_student','f_studentSponsor','f_sponsorRelationship','f_hasChild','f_translation','f_readyToSubmit','f_hasRefusal','f_refusalCount','f_refusalDetails',
    // Session 1: Validate your International Passport
    'f_passportNumber','f_passportExpiry',
@@ -4641,6 +4681,64 @@
             : 'your '+fmtN(totalCost)+' estimated trip cost';
           balancePillPctEl.innerHTML = '<b>'+fmtN(pctSourceBalance)+'</b> closing balance ('+pctSourceLabel+') — <b>'+balanceOfNeededPct+'%</b> of the '+fmtN(effectiveRecommendedFunds)+' recommended (2× buffer on '+recommendedBasisText+').';
         }
+      }
+    }
+
+    // ---- Financial summary table (Step 3, "Detailed reports") ----
+    // User request: "Add Income generation, Closing balance strength, how much is needed to balance,
+    // how long it would take to get the desired balance... [as] a summary of financials." Every
+    // figure below is one already computed just above in THIS SAME function (the cash-flow totals,
+    // the Strong/Needs attention/Weak thresholds the balance badge uses, the shortfall/months-to-save
+    // figures the buffer warning message uses) — reused as-is, never re-derived, so this table can
+    // never show a different number than the badges/messages elsewhere on this page.
+    var financialSummaryBox = document.getElementById('financialSummaryBox');
+    if (financialSummaryBox){
+      if (!hasCashFlowData){
+        financialSummaryBox.innerHTML = '<div class="scan-msg info">Scan a bank statement (Step 1) or fill in the cash-flow table above to see a financial summary here.</div>';
+      } else {
+        var haveClosing = (cfLastBalance !== null && cfLastBalance !== undefined);
+        var summaryNetChange = cfTotalIn - cfTotalOut;
+        // Opening balance isn't tracked directly anywhere else — derived the same way the numbers on
+        // a real statement always relate: Opening + Net change = Closing, so Opening = Closing − Net
+        // change, over this same cash-flow window.
+        var summaryOpening = haveClosing ? (cfLastBalance - summaryNetChange) : null;
+        // Same Strong/Needs attention/Weak thresholds as balancePillEl just above, computed fresh from
+        // the same effectiveClosingBalance/effectiveRecommendedFunds/FLOOR/haveBalanceFigure vars —
+        // keep in sync with that block if its thresholds ever change.
+        var strengthLabel = 'Enter your figures';
+        if (haveBalanceFigure){
+          if (effectiveRecommendedFunds <= 0) strengthLabel = 'Detected — add a trip cost to compare';
+          else if (effectiveClosingBalance >= effectiveRecommendedFunds) strengthLabel = 'Strong — covers the 2× buffer';
+          else if (effectiveClosingBalance >= FLOOR) strengthLabel = 'Needs attention — below 2× buffer';
+          else strengthLabel = 'Weak — below the floor';
+        }
+        var summaryShortfall = (haveBalanceFigure && effectiveRecommendedFunds > 0) ? Math.max(0, effectiveRecommendedFunds - effectiveClosingBalance) : null;
+        var timeToTargetText;
+        if (summaryShortfall === null) timeToTargetText = '—';
+        else if (summaryShortfall <= 0) timeToTargetText = 'Already there ✅';
+        else if (monthlyNetSavings > 0) timeToTargetText = '≈ ' + Math.ceil(summaryShortfall / monthlyNetSavings) + ' more month(s) at your current ' + fmtN(monthlyNetSavings) + '/month saving pace';
+        else timeToTargetText = 'Not on track at your current pace — spending currently equals or exceeds income (see tips below)';
+        var summaryRows = [
+          ['Opening balance (start of statement window)', summaryOpening !== null ? fmtN(summaryOpening) : '—'],
+          ['Total inflow (credits)', fmtN(cfTotalIn)],
+          ['Total outflow (debits)', fmtN(cfTotalOut)],
+          ['Net change (inflow − outflow)', fmtN(summaryNetChange)],
+          ['Closing balance (most recent)', haveClosing ? fmtN(cfLastBalance) : '—'],
+          ['Income generation (average per month)', fmtN(avgIn)],
+          ['Average monthly outflow', fmtN(avgOut)],
+          ['Monthly net savings pace', fmtN(monthlyNetSavings)],
+          ['Recommended funds needed (2× buffer)', effectiveRecommendedFunds > 0 ? fmtN(effectiveRecommendedFunds) : 'Add trip dates/cost above'],
+          ['Closing balance strength', strengthLabel],
+          ['Amount still needed to reach it', summaryShortfall === null ? '—' : (summaryShortfall > 0 ? fmtN(summaryShortfall) : 'Already met ✅')],
+          ['Estimated time to reach it', timeToTargetText]
+        ];
+        // Every value here is either a formatted number (fmtN, digits/commas only) or one of the fixed
+        // English labels written above — never narration text or anything else user/statement-derived
+        // — so no escapeHtml() is needed on either column, consistent with how fmtN(...) is interpolated
+        // unescaped everywhere else in this file (e.g. the .fb-row rows just above).
+        financialSummaryBox.innerHTML = '<table class="cf-table"><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody>'
+          + summaryRows.map(function(r){ return '<tr><td>'+r[0]+'</td><td>'+r[1]+'</td></tr>'; }).join('')
+          + '</tbody></table>';
       }
     }
 
@@ -8081,6 +8179,73 @@
     return t.date.getTime() + '_' + Math.round(t.credit) + '_' + (t.narration || '').slice(0, 40);
   }
 
+  // User report + explicit feature request: two rows in "Top 10 most consistent senders" were
+  // actually the same real person, just extracted with different word sets from different
+  // narrations (e.g. a shared surname/middle-name pair with a bank-code fragment stuck on one side,
+  // a first name added on the other) — splitting one genuinely consistent sender into two weaker
+  // rows undersells exactly the "steady month after month" signal this table exists to surface.
+  // mergeNameVariants (above/below) already handles the SAFE case — one extracted name is a full
+  // substring of another. This handles the fuzzier case: two names sharing 2+ significant words in
+  // some order, which is common but NOT safe to auto-merge (two different family members can
+  // legitimately share a surname). Instead of guessing, the applicant is asked — see
+  // findPossibleDuplicateSenderPairs/applySenderDuplicateDecisions below. Decisions persist here,
+  // keyed by senderPairKey(a,b), so the same pair is never re-asked once answered, and survive
+  // export/import alongside every other in-progress answer (see buildPayload/restorePayload).
+  var senderMergeDecisions = {}; // pairKey -> 'merge' | 'separate'
+  function senderPairKey(a, b){
+    var la = (a||'').toLowerCase(), lb = (b||'').toLowerCase();
+    return la < lb ? la + '||' + lb : lb + '||' + la;
+  }
+  // Significant (>=3 letters, matching surnameOf's own convention) words shared between two already
+  // name-shaped strings — deliberately simpler than namesLooselyMatch (which is asymmetric, "does
+  // every word of A appear in B") since here neither name is the trusted reference; both are equally
+  // uncertain extractions and either could be the more complete one.
+  function sharedSignificantWords(a, b){
+    var wa = (a||'').toLowerCase().split(/\s+/).filter(function(w){ return w.length >= 3; });
+    var wb = (b||'').toLowerCase().split(/\s+/).filter(function(w){ return w.length >= 3; });
+    return wa.filter(function(w){ return wb.indexOf(w) !== -1; });
+  }
+  // Requires 2+ shared significant words (not just 1) so two unrelated people who happen to share a
+  // single common first name (e.g. two different "David"s) are never flagged — same reasoning as
+  // isLikelyApplicantsOwnName requiring every word, just relaxed to "most" since here we WANT to
+  // catch partial/reordered matches, only pushed past coincidence by requiring 2+ shared words.
+  var SENDER_DUP_MIN_SHARED_WORDS = 2;
+  // Walks every pair of names in a post-mergeNameVariants namedGroups object, splitting into groups
+  // still needing a merged view (any pair already answered "merge") from pairs still awaiting an
+  // answer. Pairwise (O(n^2)) is fine here — namedGroups is always a small, already-deduplicated set
+  // of senders from one bank statement, never raw transaction volume.
+  function applySenderDuplicateDecisions(namedGroups){
+    var names = Object.keys(namedGroups);
+    var merged = {}, absorbed = {}, pending = [];
+    for (var i = 0; i < names.length; i++){
+      for (var j = i + 1; j < names.length; j++){
+        var a = names[i], b = names[j];
+        var shared = sharedSignificantWords(a, b);
+        if (shared.length < SENDER_DUP_MIN_SHARED_WORDS) continue;
+        var key = senderPairKey(a, b);
+        var decision = senderMergeDecisions[key];
+        if (decision === 'merge'){
+          // Merge into whichever extracted name is longer — usually the more complete one — without
+          // re-asking if a later pair also touches whichever name absorbs the other.
+          var canonical = a.length >= b.length ? a : b;
+          var other = canonical === a ? b : a;
+          if (!merged[canonical]) merged[canonical] = (namedGroups[canonical] || []).slice();
+          if (!absorbed[other]){
+            merged[canonical] = merged[canonical].concat(namedGroups[other] || []);
+            absorbed[other] = true;
+          }
+        } else if (decision !== 'separate'){
+          pending.push({nameA: a, nameB: b, key: key, shared: shared});
+        }
+      }
+    }
+    names.forEach(function(n){
+      if (absorbed[n]) return;
+      if (!merged[n]) merged[n] = namedGroups[n];
+    });
+    return {merged: merged, pending: pending};
+  }
+
   // Same {category, detail} shape as sourceExplanations below (see normalizeSourceExplanation) — a
   // fixed, scannable reason a visa officer can read at a glance, picked from INCOME_SOURCE_CATEGORIES,
   // with a free-text "detail" field that only "Others" actually requires. This used to be a single
@@ -8465,8 +8630,24 @@
     var allTxns = [];
     (groups || []).forEach(function(g){ g.txns.forEach(function(t){ allTxns.push(t); }); });
     if (boxId === 'matchedIncomeInflowsBox') window.__lastMatchedIncomeInflows = allTxns;
-    if (!allTxns.length){ box.innerHTML = ''; return; }
-    var html = '';
+    // User-reported gap: the Workplace income tab's intro text never actually names the employer —
+    // an applicant looking at 28 unlabeled inflow rows had no on-screen confirmation this tab was
+    // even matching against the name they typed under "Work status". Show it explicitly, right at
+    // the top of this tab, in both states: when inflows matched it (most common) AND when nothing
+    // matched (the box would otherwise render completely empty below, which reads as broken rather
+    // than as "no matches found for the name you entered").
+    var employerHeaderHtml = '';
+    if (boxId === 'employerIncomeInflowsBox'){
+      var a = getAnswers();
+      if (a.employed && a.employerName){
+        employerHeaderHtml = '<p class="fin-note" style="margin-top:0;"><strong>Employer on file:</strong> '+escapeHtml(a.employerName)+(a.employerAltName ? ' (also matching: '+escapeHtml(a.employerAltName)+')' : '')+'</p>';
+      }
+    }
+    if (!allTxns.length){
+      box.innerHTML = employerHeaderHtml ? employerHeaderHtml + '<p class="fin-note" style="margin-top:0;">No inflows in this statement matched that name yet — double-check the spelling matches your bank statement exactly, or that the right statement is uploaded on Step 1.</p>' : '';
+      return;
+    }
+    var html = employerHeaderHtml;
     groups.forEach(function(g){
       if (!g.txns.length) return;
       html += '<div class="scan-msg ok" style="margin-top:10px;">Instead of one lump total, here\'s each of the '+g.txns.length+' inflow'+(g.txns.length===1?'':'s')+' matching "'+escapeHtml(g.name)+'" (your declared '+g.label+') — pre-tagged as "'+escapeHtml(sourceCategoryLabel(g.category))+'"; correct any one that doesn\'t actually belong:</div>';
@@ -8722,6 +8903,11 @@
       (namedGroups[name] = namedGroups[name] || []).push(t);
     });
     namedGroups = mergeNameVariants(namedGroups);
+    // Fold in any pair the applicant has already confirmed is the same person, and collect any
+    // still-unanswered look-alike pairs so the render function can ask about them — see
+    // applySenderDuplicateDecisions above.
+    var dup = applySenderDuplicateDecisions(namedGroups);
+    namedGroups = dup.merged;
     var list = Object.keys(namedGroups).map(function(name){
       var grpTxns = namedGroups[name];
       var months = {};
@@ -8730,16 +8916,33 @@
       return {name: name, monthCount: Object.keys(months).length, count: grpTxns.length, total: total};
     });
     list.sort(function(a,b){ return b.monthCount - a.monthCount || b.count - a.count || b.total - a.total; });
-    return list.slice(0, n || 10);
+    return {list: list.slice(0, n || 10), pendingDuplicates: dup.pending};
   }
-  function renderTopConsistentSenders(list){
+  function renderTopConsistentSenders(result){
     var box = document.getElementById('topConsistentSendersBox');
     if (!box) return;
-    if (!list || !list.length){ box.innerHTML = ''; return; }
+    // Accept the old plain-array shape too — belt and braces in case anything else ever calls this
+    // directly with a bare list (nothing currently does, but the box is cleared, not left stale, on
+    // reset — see the reset handler — so an empty/undefined result must still behave safely).
+    var list = (result && result.list) || (Array.isArray(result) ? result : []);
+    var pending = (result && result.pendingDuplicates) || [];
+    var html = '';
+    // One prompt per unanswered look-alike pair — deliberately never auto-merged, since two real
+    // family members can legitimately share a surname; this is a question, not a correction.
+    pending.forEach(function(p){
+      html += '<div class="scan-msg warn sender-dup-banner" style="margin-bottom:8px;">'
+        + '<div>Two rows above look like they might be the <strong>same person</strong>: "'+escapeHtml(p.nameA)+'" and "'+escapeHtml(p.nameB)+'" — both mention '+escapeHtml(p.shared.join(' and '))+'. Bank narrations often shorten or reorder a name, or append your bank\'s own transaction code, so this could be one consistent sender split across two rows, or two different people who share a name. Which is it?'
+        + '<div style="margin-top:8px;">'
+        + '<button type="button" class="btn sender-dup-decision-btn" data-decision="merge" data-name-a="'+escapeHtml(p.nameA)+'" data-name-b="'+escapeHtml(p.nameB)+'" style="margin-right:8px;">Yes, same person — merge them</button>'
+        + '<button type="button" class="btn ghost sender-dup-decision-btn" data-decision="separate" data-name-a="'+escapeHtml(p.nameA)+'" data-name-b="'+escapeHtml(p.nameB)+'">No, different people</button>'
+        + '</div></div></div>';
+    });
+    if (!list.length){ box.innerHTML = html; return; }
     var rows = list.map(function(g, idx){
       return '<tr><td>'+(idx+1)+'</td><td>'+escapeHtml(g.name)+'</td><td>'+g.monthCount+'</td><td>'+g.count+'</td><td>'+fmtN(g.total)+'</td></tr>';
     }).join('');
-    box.innerHTML = '<table class="cf-table"><thead><tr><th>#</th><th>Sender</th><th>Distinct months</th><th>Payment(s)</th><th>Total (₦)</th></tr></thead><tbody>'+rows+'</tbody></table>';
+    html += '<table class="cf-table"><thead><tr><th>#</th><th>Sender</th><th>Distinct months</th><th>Payment(s)</th><th>Total (₦)</th></tr></thead><tbody>'+rows+'</tbody></table>';
+    box.innerHTML = html;
   }
 
   // ---- Income sources breakdown (models the "group every inflow by sender, subtotal each" approach an
@@ -9427,6 +9630,9 @@
         recent.forEach(function(m){ if (m) recentMonthKeys[m.year+'-'+m.month] = true; });
         var recentTxns = txns.filter(function(t){ return recentMonthKeys[t.date.getFullYear()+'-'+t.date.getMonth()]; });
         renderTopInflows(getTopInflows(recentTxns, 10));
+        // Cached so a same-person/different-people click below can re-run just this one table
+        // (see rerenderTopConsistentSenders) instead of re-scanning the uploaded file(s).
+        window.__lastConsistentSendersInput = {txns: recentTxns, applicantName: getAnswers().name};
         renderTopConsistentSenders(getTopConsistentSenders(recentTxns, 10, getAnswers().name));
         renderIncomeBreakdown(buildIncomeSourceBreakdown(recentTxns, getAnswers().name));
         // Auto-advance from the Upload tab to the Cash flow & scores tab so the applicant sees the
@@ -9789,7 +9995,7 @@
       date: document.getElementById('decl_date').value,
       confirmed: document.getElementById('decl_confirm').checked
     };
-    return { country: currentCountry, answers: getAnswers(), state: state, financials: getFinancials(), inflowExplanations: inflowExplanations, sourceExplanations: sourceExplanations, sourcePerPaymentMode: sourcePerPaymentMode, declaration: declaration, travelHistoryRows: travelHistoryRows, overstayRows: overstayRows, exportedAt: new Date().toISOString() };
+    return { country: currentCountry, answers: getAnswers(), state: state, financials: getFinancials(), inflowExplanations: inflowExplanations, sourceExplanations: sourceExplanations, sourcePerPaymentMode: sourcePerPaymentMode, senderMergeDecisions: senderMergeDecisions, declaration: declaration, travelHistoryRows: travelHistoryRows, overstayRows: overstayRows, exportedAt: new Date().toISOString() };
   }
 
   document.getElementById('btnExport').addEventListener('click', function(){
@@ -9879,6 +10085,16 @@
         if (n) normalizedInflows[k] = n;
       });
       inflowExplanations = normalizedInflows;
+    }
+    if (payload.senderMergeDecisions && typeof payload.senderMergeDecisions === 'object'){
+      // Only ever 'merge' or 'separate' strings (see senderMergeDecisions above) — filter out
+      // anything else rather than trusting an imported file's shape blindly.
+      var normalizedDup = {};
+      Object.keys(payload.senderMergeDecisions).forEach(function(k){
+        var v = payload.senderMergeDecisions[k];
+        if (v === 'merge' || v === 'separate') normalizedDup[k] = v;
+      });
+      senderMergeDecisions = normalizedDup;
     }
     if (payload.sourceExplanations && typeof payload.sourceExplanations === 'object'){
       // Sessions saved before the category-dropdown change stored a plain free-text string per source —
@@ -10025,6 +10241,7 @@
     document.getElementById('incomeSourceBusiness').innerHTML = '';
     document.getElementById('topInflowsBox').innerHTML = '';
     document.getElementById('topConsistentSendersBox').innerHTML = '';
+    document.getElementById('financialSummaryBox').innerHTML = '';
     document.getElementById('incomeBreakdownBox').innerHTML = '';
     document.getElementById('btnDownloadBreakdown').style.display = 'none';
     document.getElementById('downloadBreakdownNote').style.display = 'none';
@@ -10032,8 +10249,10 @@
     window.__lastMatchedIncomeInflows = [];
     window.__lastIncomeBreakdown = [];
     window.__lastNameChecks = [];
+    window.__lastConsistentSendersInput = null;
     window.__hasCashFlowData = false;
     inflowExplanations = {};
+    senderMergeDecisions = {};
     sourceExplanations = {};
     sourcePerPaymentMode = {};
     lastBusinessDrawings = null;
