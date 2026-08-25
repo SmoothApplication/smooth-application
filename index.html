@@ -387,6 +387,12 @@
     transition: background .15s ease, color .15s ease;
   }
   .fin-step-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  /* At 28px tall these sit under Apple's 44px / Google's 48px minimum comfortable tap-target
+     guidance — fine with a mouse, easy to mis-tap with a thumb. Only widen the target on phone-sized
+     screens so the desktop pill styling is untouched. */
+  @media (max-width: 560px) {
+    .fin-step-tab { min-height: 44px; padding: 6px 16px; display: inline-flex; align-items: center; }
+  }
   .fin-step { display: none; }
   .fin-step.active { display: block; }
   /* Print (Save full report as PDF) must include all three steps regardless of which tab is active. */
@@ -1655,11 +1661,16 @@
         <div class="item-tip" id="finScoreCapNote" style="margin-top:6px; display:none;"></div>
       </div>
 
-      <div class="card">
-        <h2>Still missing <span class="cat-count" id="missCount"></span></h2>
+      <details class="card collapsible" style="border-left-color:var(--warning);">
+        <summary class="card-summary">
+          <h2>Still missing <span class="cat-count" id="missCount"></span></h2>
+          <span class="chevron">▸</span>
+        </summary>
+        <div class="card-body">
         <ul class="miss-list" id="missList"><li>Fill in your trip details to see your checklist.</li></ul>
         <button type="button" class="btn no-print" id="btnEmailSummarySidebar" style="margin-top:8px; width:100%;">✉️ Email myself this summary</button>
-      </div>
+        </div>
+      </details>
 
       <div class="card no-print">
         <h2>Save your progress</h2>
