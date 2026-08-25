@@ -3,6 +3,163 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Made the refusal-letter scanner country-aware, split out misrepresentation findings, and linked results to the right session
+
+The "Previous visa refusal documentation" checklist item (upload a past refusal letter, scanned
+entirely on-device) already existed, matching its text against a fixed set of common refusal-reason
+keywords. This batch is an accuracy and safety pass on that matching, grounded in actual research
+rather than the original best-guess keyword list — see the sources below.
+
+Researched real UK Home Office and Canada IRCC refusal-letter wording first (August 2026):
+[House of Commons Library briefing on visitor visa refusals](https://commonslibrary.parliament.uk/research-briefings/cbp-10695/),
+[explanation of a UK "Paragraph V 4.2" refusal](https://clearvisas.co.uk/visitor-visa-paragraph-v4-2-refusal),
+[common UK refusal reasons mapped to evidence](https://www.whytecroftford.com/uk-visitor-visa-refusal-reasons/),
+[IRCC's top refusal reasons](https://www.irccguide.com/top-10-reasons-for-canada-visitor-visa-rejection-in-2025-data-insights-solutions/),
+and [the exact checkbox wording IRCC uses on its standard refusal letter](https://dfimmigration.ca/find-out-why-your-canadian-visitor-visa-application-was-refused/)
+(the "I am not satisfied that you will leave Canada... as stipulated in paragraph 179(b) of the
+IRPR, based on..." boilerplate, with a fixed list of reasons: travel history, purpose of visit,
+family ties, immigration status, financial status, employment situation, length of stay,
+employment prospects, insufficient funds/documentation, and authenticity).
+
+What changed as a result:
+
+- **Which authority actually wrote the letter is now detected from the letter's own wording**, not
+  assumed from whichever country is currently selected in the app — the checklist item has always
+  explicitly asked about a refusal "for this country or any other," so a Canada applicant with a
+  prior UK refusal (or vice versa) now gets that letter read correctly rather than matched against
+  the wrong country's reason set.
+- **Three new IRCC-specific reason categories**, absent from the original keyword list: employment
+  situation/prospects, travel history, and length of proposed stay — each with its own advice and a
+  link to the relevant part of the checklist.
+- **Misrepresentation/deception findings are now kept completely separate** from routine issues like
+  document typos or inconsistencies. The original version lumped "fraudulent," "false document," and
+  "misrepresent" in with plain formatting/consistency advice ("check every document for
+  consistency...") — which badly understates what's actually at stake with that kind of finding (a
+  multi-year re-entry ban or inadmissibility finding, not something fixable by tidying up a PDF).
+  This now renders as its own distinctly-styled critical warning with no "fix it yourself" advice and
+  no in-app shortcut — only a direct instruction to speak to a regulated adviser (OISC in the UK,
+  RCIC in Canada) before reapplying. Flagged in `docs/terms-of-service-draft.md` for lawyer review,
+  since this is the closest anything in the product has come to individualized case guidance.
+- **Each detected reason now links straight to the relevant session** in this checklist (e.g. the
+  financial-readiness reason links to the bank-statement session, the ties-to-home reason links to
+  the responsibilities session) via a "→ Go to [section]" button, instead of leaving the applicant to
+  find it themselves. Two new opt-in, aggregate-only analytics events track whether these links
+  actually get used (`refusal_jump_clicked:<key>`) — same GoatCounter setup as everything else, off
+  by default, documented alongside every other tracked event above `ANALYTICS_SITE_CODE` in
+  `index.html`.
+
+New test file (`refusal-letter-scanner.test.js`) covers all of this against synthetic fixture
+letters built from the researched real wording (not real applicant letters) — UK and Canada
+authority detection, the new IRCC-specific categories, the misrepresentation split, the jump links,
+and the honest "couldn't match anything" case for an unrelated document. All 68 tests pass.
+
+## Split the 5 merged sessions back apart, added a per-session report card, and a 70%-readiness gate
+
+Two rounds of direct user feedback, both about the previous batch's 5-session merge. First: "The 4
+tabs on 1 page is not user friendly for mobile users" — the problem wasn't the session *count*, it
+was that each merged tab (e.g. "About you," 4 cards deep) meant far more scrolling on a phone than
+one focused card at a time. Asked directly which direction to take, the answer was clear: go back
+to one page per card, and split every merged tab apart, not just the worst offender. So this batch
+is a full reversal of the previous one — `getVisibleSessionKeys()` is back to a flat list of
+individual sessions (passport, travel experience, responsibilities, trip, bank-statement analysis,
+financial calculator, then one session per applicable document-checklist category, then final
+review), the same content as before, just one focused thing per page again instead of 4-5 cards
+sharing a tab. Nothing about any individual field, upload, or validation changed — this is purely
+about how the existing steps are grouped and labeled at the top level, exactly like the merge it
+undoes was.
+
+Second, in the same round of feedback: "create a report per session. If [an] applicant did do not
+get 70% in About you, you should n[o]t proceed to session 2 ... If st[e]p 2 is not good you do not
+need to have access to other session because it can confuse the applicant. We can ask them to send
+an email or whatsapp chat for consultancy." Two new things came out of that:
+
+- **A "Section report" card** at the bottom of every session — percent complete, a plain list of
+  what's still missing, and (once complete) a green ready message. It's built entirely from data
+  the app was already computing for the progress pill and the "still needed" nudge, so there's no
+  new scoring logic behind it, just a new place it's shown.
+- **A hard 70%-readiness gate.** Below 70% complete on the current session, every later session's
+  pill is locked (shown with a 🔒 and disabled) and "Next" stops working entirely — no dialog, no
+  "proceed anyway" option. The section report card's message changes to point at WhatsApp
+  (`wa.me/2349081389969`) and email (`lalasionline@gmail.com`) — the same contact details already
+  used site-wide — as the way to get hands-on help instead of guessing. Between 70% and 99% it's
+  still the older, dismissible "you're only X% done, still needed: ..." confirm; only sub-70% is a
+  true block.
+
+**This explicitly reverses an earlier design decision recorded elsewhere in this codebase**, that
+this app's progress/readiness signals should stay informational only and never block anyone from
+moving on. That principle was correct for a soft nudge — but the user's own reasoning here (someone
+who gets ahead of themselves on "About you" ends up confused later, rather than getting help when
+it would actually be useful) called for something firmer. Worth being upfront about the trade-off
+this makes, since it's a static, client-side-only tool with no backend: this "gate" is a UX
+guardrail, not a security boundary — anyone determined enough to open devtools could already reach
+any session regardless, same as before this batch. What it actually does is change the *default
+path* for someone who wouldn't have thought to do that, which is the applicant this is meant to
+help.
+
+All 67 tests pass (6 test files rewritten for the reverted per-session structure and the new
+report-card/gate assertions; roughly 45 more updated to navigate the now-separate session indices;
+2 new test files added — `new-session-order.test.js` for the full 12-session order/lock/report-card
+behavior, `session-readiness-gate.test.js` for the gate's full locked→filled→unlocked→Next-works
+lifecycle). A `window.__testGoToSession()` bypass was added purely for the test suite, so ~65
+pre-existing tests that jump straight to a given session for testing convenience aren't newly
+blocked by the lock feature they're not actually testing — real applicants only ever reach sessions
+through the gated pill/Next-button UI.
+
+Note: this batch and the country-search-combobox batch below were built in the same working
+session and ship together here — the combobox's own typeahead behavior is unaffected by any of
+the session-structure changes in this entry.
+
+**Caught before shipping, while pre-checking this batch:** the first version of the 70% gate
+disabled the "Next" button outright once a session dropped below the threshold. That looked
+right, but a disabled button never fires a real click event at all — which meant the actual
+hard-block logic (red-outlining missing fields, scrolling to the section report card, and a new
+`session_gate_blocked` analytics event added at the same time) was unreachable dead code behind
+it, every time. Fixed by leaving "Next" clickable while gated and letting `attemptAdvanceSession()`
+do the actual blocking — only the later session *pills* stay genuinely locked, since skipping
+straight past the current section is the one thing that should be unreachable. Two small
+follow-on fixes came out of the same pass: a field that had been outlined red for being missing
+now clears that outline as soon as it's actually filled in, instead of only clearing on the next
+blocked click; and two new opt-in, aggregate-only analytics events (`session_gate_blocked:<key>`,
+`session_gate_help_clicked:<whatsapp|email>`) were added so it's possible to see, in the numbers,
+how often this actually fires and whether people are using the WhatsApp/email hand-off — both
+documented in the tracked-events comment above `ANALYTICS_SITE_CODE` in `index.html`, same as
+every other tracked event. Also spot-checked end-to-end against the Canada flow (not just UK) to
+confirm the gate behaves identically there — it does.
+
+## Replaced the country dropdown with a type-to-search field, on both mobile and desktop
+
+User reports drove this one in two stages. First: on an Android phone (Redmi 13C), the "Country"
+dropdown in the Travel Experience history table and the overstay table showed as an empty box
+with no visible text — no "Select…" placeholder, no selected country name — even though tapping
+it still opened the full list and picking a country still worked. Likely cause: some Android
+WebViews don't reliably repaint a `<select>`'s closed-box label when its options are injected via
+an HTML string (`select.innerHTML = ...`) rather than built up as real DOM nodes — this app's
+65-country list versus the much shorter month/year lists next to it (which rendered fine) fits
+that theory. (An earlier note here estimated the country list at "~195 entries" — that was wrong;
+it's 65. Correcting it now rather than leaving a wrong number on the record.)
+
+Rather than patch that native `<select>`, the second ask was to make picking a country easier on
+mobile generally — scrolling a 65-item native picker on a small screen is slow even when it
+renders correctly. So the whole field is now a type-to-search box instead: start typing and it
+filters to matching countries as you go (e.g. "mor" narrows straight to Morocco), with arrow
+keys/Enter to pick, or tap/click a result. Focusing it with nothing typed shows the full list, so
+browsing by tap still works exactly like the old dropdown for anyone who prefers that.
+
+This isn't built on the browser's native `<input>` + `<datalist>` pairing, which looks like the
+obvious shortcut for "typeahead built from HTML" — iOS Safari (the large majority of this app's
+traffic per GoatCounter) has long had unreliable-to-nonexistent support for datalist suggestions,
+so that pairing would have quietly not worked for most people using the app. It's a small
+hand-built combobox instead, which behaves the same on iOS, Android, and desktop.
+
+Typed text that doesn't exactly match a real country in the list is not saved — it reverts to the
+last valid selection when you tap/click away. This isn't a bug: several grading checks further
+down (EU-country count, African-country count, etc.) compare the stored country string for exact
+equality against fixed lists, so an unrecognized value would silently break that grading if it
+were allowed to stick, the same way a native `<select>` could never end up holding a value that
+wasn't one of its own options. Applied to both the travel history table and the overstay table.
+All 65 tests still pass (2 test files updated to type-and-click a country instead of using the
+old `selectOption` interaction).
+
 ## Cut the top-level session count from 12 down to 5, in response to "too many steps" complaints
 
 User feedback: a growing number of applicants said the checklist "took forever" or had "too many
