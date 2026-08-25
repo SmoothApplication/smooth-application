@@ -3,6 +3,35 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Mobile-friendliness pass: bigger tap targets, less scroll clutter
+
+A deliberate mobile audit (not a user bug report this time) — loaded the live app in a headless
+browser at four real device widths (iPhone SE, iPhone 14 Pro, Pixel 7, Galaxy S21, 360–393px) and
+walked the full flow: consent gate, applicant form, statement upload/analysis, and every tab of
+"Income & bank statement analysis," including the tables from the previous batch.
+
+The core layout held up well — no horizontal overflow at any width (already covered by
+`tests/no-horizontal-overflow.test.js`), and content reflows into single-column cards instead of
+squeezing into unreadable grids. Two real gaps found and fixed:
+
+**Tap targets on the finance sub-tabs.** The six `.fin-step-tab` pills (Upload statements / Cash
+flow & scores / Detailed reports / ...) measured only 28px tall — under Apple's 44px and Google's
+48px minimum comfortable tap-target guidance. Widened to 44px on phone-sized screens only
+(`@media (max-width: 560px)`), leaving the desktop pill styling untouched.
+
+**Sidebar content stacking under every tab.** "Document readiness score," "Financial readiness,"
+"Still missing," and "Save your progress" all live outside the six finance sub-tabs — on desktop
+they sit in a side column, but on mobile (no room for a second column) they stack below whichever
+tab is active. The "Still missing" list was the biggest contributor (an 11-item list shown fully
+expanded every time), so it now uses the same collapsible-card pattern already used for "About
+this tool" and "What people are saying" — closed by default, with the missing-item count still
+visible in the summary line (e.g. "Still missing (8)") so the key signal survives collapsing, and
+one tap away from the full list. It still prints/exports in full regardless of on-screen state
+(existing print CSS already handles this for every collapsible card).
+
+See `tests/mobile-friendliness.test.js` for the regression coverage (tap-target height, collapsed
+default state, and that a tap still opens it).
+
 ## Added a "same person?" prompt for look-alike senders, and a Financial summary table
 
 Two pieces of feedback from live testing on the deployed app, both about how "Top 10 most
