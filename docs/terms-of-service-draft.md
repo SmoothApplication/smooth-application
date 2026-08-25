@@ -48,6 +48,23 @@ review. On review, the product owner asked for it to be softened to informationa
 lawyer's eyes as part of the broader ToS review, but the specific outcome-prediction phrasing
 called out here has been removed.]*
 
+*[Lawyer note, NEW: the "Previous visa refusal documentation" checklist item now does more than
+accept an upload — it locally keyword-matches an uploaded refusal letter against researched UK
+Home Office (Appendix V / paragraph V 4.2) and Canada IRCC (paragraph 179(b) IRPR) refusal-reason
+wording, and returns short, per-reason advice text (e.g. "strengthen this with a longer, more
+consistent bank statement history..."). This is the closest anything in the product has come to
+individualized case guidance, and is worth this section's specific attention alongside the general
+note above. Two things were deliberately built in as guardrails, both worth confirming are
+sufficient rather than assumed to be: (1) every result is explicitly framed as a "best-effort
+keyword match," not an interpretation of the letter, and every result set ends by pointing to a
+regulated adviser for anything complex; (2) wording suggesting misrepresentation, deception, or a
+document-authenticity finding is deliberately kept SEPARATE from routine refusal reasons — it gets
+no "here's how to fix it" advice and no in-app navigation shortcut, only a direct instruction to
+consult a regulated adviser, since that class of finding carries materially different legal stakes
+(re-entry bans / inadmissibility findings) that this tool should not appear to be helping someone
+route around. See the 'refusalLetter' branch of analyze() in index.html for the exact wording and
+category list.]*
+
 ## 3. No warranty / limitation of liability
 
 [Lawyer note: standard "as-is," no warranty of accuracy or fitness for a particular purpose,
