@@ -3,6 +3,41 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Schengen currency fix, plus optional contact fields on the passport session
+
+**Currency fix — Schengen applicant bug report.** The "rough worst-case cost estimate" box on the
+Trip session (shown as soon as travel dates are entered, before the full financial calculator is
+filled in) was hardcoded to show £ (GBP) for the local-transport and shopping lines regardless of
+which country was selected — a real Schengen applicant flagged seeing £ instead of €. Root cause:
+that box, and two related per-country lookups (`SIGHTSEEING_CURRENCY`, `CLOTHING_PRICE_ESTIMATES`),
+were never given an `EU` entry, so they silently fell back to UK/GBP. Fixed by:
+
+- Adding `EU: {code:'EUR', symbol:'€', rate: 1573.61}` to `SIGHTSEEING_CURRENCY` (previously only
+  had UK/CA), and an `EU` entry to `CLOTHING_PRICE_ESTIMATES`.
+- Adding a real `EU` list to `SIGHTSEEING_ATTRACTIONS` (Eiffel Tower, Louvre, Anne Frank House,
+  Colosseum, Sagrada Família, etc. — a spread across France/Germany/Netherlands/Italy, the
+  consulates Nigerian Schengen applicants most commonly use) — this was also silently falling back
+  to London attractions for Schengen applicants before this fix.
+- Making the quick trip-cost box read its currency symbol/rate from `currentCountry` instead of a
+  hardcoded £/`DEFAULT_GBP_NGN`.
+- Teaching the accommodation-document OCR scanner (used on the Schengen `hotelBooking` item) to
+  recognise € alongside £/$/₦, so a Euro-denominated hotel booking's detected nightly rate converts
+  correctly instead of being read as an unrecognised currency.
+
+New regression test: `tests/schengen-currency.test.js` — confirms the quick trip-cost box shows €
+(not £) for a Schengen applicant, and that `SIGHTSEEING_CURRENCY.EU` resolves to EUR.
+
+**Optional email/phone fields.** Added an optional "Email address" and "Phone number" row to the
+"Validate your International Passport" session (first step of the app), in support of an eventual
+reminder/follow-up feature for applicants who don't finish. For now these are saved exactly like
+every other field — locally, in this browser only — and nothing is transmitted anywhere; the
+in-app tip text and `docs/privacy-policy-draft.md` both say so explicitly. Actually being able to
+follow up on unfinished applications still needs a decision on where this data goes once someone
+enters it (a real backend/email service), which hasn't been made yet — see the CTO conversation
+this was raised in.
+
+Full suite: 73/73 passing (added one net-new test this batch).
+
 ## Added Schengen (EU) short-stay visa support — third visa type alongside UK and Canada
 
 The app already had a "country plugin" architecture built in for this — a `COUNTRIES` registry
