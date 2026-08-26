@@ -17,15 +17,15 @@ policy explains the few exceptions.
   statements, or any file you attach. All scanning and reading of documents happens using code
   that runs in your own browser.
 - We do not require or offer account creation. There is no login, no password, no user database.
-- We do not send your email address or phone number anywhere. The "Validate your International
-  Passport" session has optional email/phone fields (added so you can be reached about your
-  application, once a follow-up feature is built) — if you fill them in, they're saved locally the
-  same way the rest of your answers are (see "Local save" below) and are never transmitted. *[This
-  bullet needs updating again the moment any reminder/follow-up feature actually starts sending
-  this data off the device — see the CHANGELOG entry for when these fields were added.]* The
-  "email myself this summary" feature separately opens a draft in your own email app using the
-  `mailto:` link scheme — we never see that either, and it is never sent through any server we
-  control.
+- We do not send your email address or phone number anywhere UNLESS you explicitly ask us to. The
+  "Validate your International Passport" session has optional email/phone fields plus a separate
+  checkbox ("It's OK to contact me about this application if I don't finish") — left unchecked
+  (the default), your email/phone are saved only locally the same way the rest of your answers are
+  (see "Local save" below) and are never transmitted, same as everything else in this list. If you
+  tick that box, see "Optional contact capture" under "What we do" below for exactly what happens
+  instead. The "email myself this summary" feature separately opens a draft in your own email app
+  using the `mailto:` link scheme — we never see that either, and it is never sent through any
+  server we control.
 - We do not sell or share data, because we do not collect the kind of data that could be sold or
   shared in the first place.
 
@@ -35,6 +35,16 @@ policy explains the few exceptions.
   your browser's local storage, on your device only, so you can close the tab and come back later
   on the *same device and browser*. This is never transmitted anywhere. You can clear it at any
   time by clearing your browser data, or via the in-app reset option.
+- **Optional contact capture, only if you opt in.** If you tick "It's OK to contact me about this
+  application if I don't finish" on the passport session, your name, email, and phone (whichever
+  you've filled in) are sent to Smooth Application's team via a third-party form service
+  ([Formspree](https://formspree.io)) so they can follow up with you directly (by email, phone, or
+  WhatsApp) if you don't complete your checklist. This is the one deliberate exception to "nothing
+  leaves your device" in this policy — it only happens if that box is checked, and unchecking it
+  (or never checking it) means none of this applies. Formspree forwards the submission to the
+  team's inbox; Smooth Application does not otherwise store or process this data beyond that. *[Lawyer
+  note: confirm Formspree's own data-processing terms/location, and add a line here on how long the
+  team keeps these contact details and how someone can ask to have theirs deleted.]*
 - **Third-party libraries loaded from a CDN.** To read documents and generate spreadsheet
   exports, the page loads three open-source JavaScript libraries (Tesseract.js for OCR, PDF.js
   for PDF parsing, SheetJS for spreadsheet export) from public content-delivery networks when you
