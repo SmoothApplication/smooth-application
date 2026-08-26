@@ -926,6 +926,31 @@
           <option value="no">No — this would be my first time</option>
         </select>
 
+        <div id="te_euFundsBox" style="display:none; margin-top:14px;">
+          <label class="field" for="te_euFundsReady">Do you have the money ready right now to travel to your desired European country?</label>
+          <select id="te_euFundsReady">
+            <option value="" selected>Select…</option>
+            <option value="yes">Yes — funds are ready now</option>
+            <option value="no">No — not ready yet</option>
+          </select>
+
+          <div id="te_euSingleEntryBox" style="display:none; padding-left:0; margin:10px 0 0;">
+            <label class="field" for="te_euSingleEntryComfort">Are you comfortable applying for a single-entry visa that's typically only valid for 10-15 days on a first-time application?</label>
+            <select id="te_euSingleEntryComfort">
+              <option value="" selected>Select…</option>
+              <option value="yes">Yes, that works for me</option>
+              <option value="no">No, I'd prefer more flexibility</option>
+            </select>
+            <div class="item-tip">Just for your own planning — this doesn't affect your checklist and doesn't block anything here. A first-time Schengen applicant is typically granted a single-entry visa valid for around 10-15 days, covering the specific trip applied for, rather than a longer multiple-entry visa — that tends to come with a stronger travel history on later applications.</div>
+          </div>
+
+          <div id="te_euUkAdviceBox" class="scan-msg info" style="display:none; margin-top:10px;">
+            <div style="font-weight:700; margin-bottom:2px;">Worth considering: a UK visa instead</div>
+            <div>If the money for this trip isn't ready yet, it may be worth considering an application for the United Kingdom instead of a Schengen/European country. The UK typically grants a minimum of 6 months' validity, with multiple entry — which suits someone who doesn't have funds ready to travel right away — unlike a first-time Schengen visa, which is typically single-entry and only valid for around 10-15 days.</div>
+            <div class="item-tip" style="margin-top:6px;">This is general guidance, not a guarantee — actual visa validity and entry conditions are decided case-by-case by the consulate or entry clearance officer, and can differ from what's typical. You're free to continue with your European application either way — nothing here is required or blocks you from proceeding.</div>
+          </div>
+        </div>
+
         <div id="te_noHistoryBox" class="doc-reminder" style="display:none; margin-top:10px;">
           <p style="margin:0 0 8px; font-weight:600;">No travel history yet — that's fine, plenty of successful applicants start here.</p>
           <p class="item-tip" style="margin:0 0 10px;">Having visited an African country before is genuinely useful travel history for a UK/Schengen application. These five are commonly picked because they're straightforward for Nigerians to visit — pick one to see exactly what's involved.</p>
@@ -2804,6 +2829,10 @@
       // outside Nigeria before?" — travelledBefore true means there IS history to fill in below.
       firstTimeAnswer: document.getElementById('te_firstTime').value,
       travelledBefore: document.getElementById('te_firstTime').value === 'yes',
+      // Batch29: EU/Schengen-only "funds ready now?" question (see te_euFundsBox) —
+      // purely informational, never gates readiness or blocks progress either way.
+      euFundsReady: document.getElementById('te_euFundsReady').value,
+      euSingleEntryComfort: document.getElementById('te_euSingleEntryComfort').value,
       hasOverstayed: document.getElementById('te_hasOverstayed').checked,
       // Session 3: Your responsibilities
       married: document.getElementById('rs_married').checked,
@@ -3400,6 +3429,13 @@
     document.getElementById('te_noHistoryBox').style.display = a.firstTimeAnswer === 'no' ? 'block' : 'none';
     document.getElementById('te_historyBox').style.display = a.firstTimeAnswer === 'yes' ? 'block' : 'none';
     if (a.firstTimeAnswer === 'no'){ renderTeCountryTabs(); renderTeCountryGuide(); }
+    // Batch29: EU/Schengen-only funds-readiness question, independent of the travel-history
+    // branch above — shown for any first-time or experienced traveller applying for a
+    // Schengen/European destination. "Yes" reveals an informational single-entry-comfort
+    // follow-up; "No" reveals the UK-instead advice box. Neither branch blocks anything.
+    document.getElementById('te_euFundsBox').style.display = currentCountry === 'EU' ? 'block' : 'none';
+    document.getElementById('te_euSingleEntryBox').style.display = a.euFundsReady === 'yes' ? 'block' : 'none';
+    document.getElementById('te_euUkAdviceBox').style.display = a.euFundsReady === 'no' ? 'block' : 'none';
     document.getElementById('te_overstayBox').style.display = a.hasOverstayed ? 'block' : 'none';
     updateTravelExperienceGrade(a);
 
@@ -3800,7 +3836,7 @@
    // Session 1: Validate your International Passport
    'f_passportNumber','f_passportExpiry','f_email','f_phone','f_contactConsent',
    // Session 2: Travel Experience
-   'te_firstTime','te_hasOverstayed',
+   'te_firstTime','te_euFundsReady','te_euSingleEntryComfort','te_hasOverstayed',
    // Session 3: Your responsibilities
    // rs_state has its own dedicated change listener (repopulates the LGA dropdown, then renders) —
    // left out of this generic list to avoid double-rendering on every state change.
@@ -10461,6 +10497,8 @@
       document.getElementById('f_contactConsent').checked = !!payload.answers.contactConsent;
       // Session 2: Travel Experience
       document.getElementById('te_firstTime').value = payload.answers.firstTimeAnswer || '';
+      document.getElementById('te_euFundsReady').value = payload.answers.euFundsReady || '';
+      document.getElementById('te_euSingleEntryComfort').value = payload.answers.euSingleEntryComfort || '';
       document.getElementById('te_hasOverstayed').checked = !!payload.answers.hasOverstayed;
       // Session 3: Your responsibilities
       document.getElementById('rs_married').checked = !!payload.answers.married;
@@ -10694,6 +10732,8 @@
     document.getElementById('passportValidateMsg').textContent = '';
     // Session 2: Travel Experience
     document.getElementById('te_firstTime').value = '';
+    document.getElementById('te_euFundsReady').value = '';
+    document.getElementById('te_euSingleEntryComfort').value = '';
     document.getElementById('te_hasOverstayed').checked = false;
     travelHistoryRows = [];
     overstayRows = [];

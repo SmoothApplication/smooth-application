@@ -3,6 +3,30 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## EU/Schengen applicants now get a "funds ready?" question, with UK-instead advice if not
+
+User request ("batch29"): a new question on the Travel Experience session, shown only for
+applicants preparing a Schengen/European application — "Do you have the money ready right now to
+travel to your desired European country?"
+
+- **"Yes"** reveals a purely informational follow-up: "Are you comfortable applying for a
+  single-entry visa that's typically only valid for 10-15 days on a first-time application?" —
+  just for the applicant's own planning; it doesn't affect the checklist and doesn't block
+  anything.
+- **"No"** shows advice suggesting the applicant consider applying for the UK instead of a
+  Schengen/European country: the UK typically grants a minimum of 6 months' validity with
+  multiple entry, which suits someone whose funds for this specific trip aren't ready yet, unlike
+  a first-time Schengen visa (typically single-entry, valid only around 10-15 days). Framed as
+  general guidance, not a guarantee — same honest, non-committal tone as the rest of the app's
+  advice boxes — and makes explicit that the applicant is free to continue with their European
+  application either way.
+- Like every other soft-guidance question in this session (e.g. the "no travel history" country
+  guides), this never gates readiness or blocks progress to the next session, whichever way it's
+  answered or left blank.
+- Only shown when the selected destination is Schengen/EU; UK and Canada applicants never see it.
+
+76/76 tests passing (up from 75/75 — added `europe-funds-question.test.js`).
+
 ## "No travel history yet" now shows step-by-step guides for 5 countries
 
 User request: when someone answers "No" to "Have you travelled outside Nigeria before?", instead of
