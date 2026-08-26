@@ -3,6 +3,39 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## A "Congratulations" message at the end of every session, a Back button in the footer, and a bedroom-count dropdown that sharpens the rent estimate
+
+Three small usability requests bundled together:
+
+- **Congratulations on finishing a section.** The passport session already showed a "🎉
+  Congratulations" message once its document check passed — every OTHER session (Travel Experience,
+  Your responsibilities, Your trip details, Income & bank statement analysis) now shows the same
+  style of message once it's 100% filled in, naming the next section by name. Below 100% the section
+  report card behaves exactly as before (the gated help block under 70%, the "past X%, though a
+  few things are still worth finishing" note between 70–99%).
+- **Back button in the footer, not just up top.** The pill navigation at the top of each session
+  already had a ← Back button, but on a long session (like the bank statement analysis one) it can
+  be scrolled well out of view by the time someone reaches the bottom. A matching ← Back button now
+  sits right next to Save/Next in the footer too, on every session except the very first (nothing to
+  go back to there).
+- **"How many bedrooms?" dropdown, under "Where do you live?"** — A room (self-contain), 1 bedroom,
+  2 bedroom, 3 bedroom, 4 bedroom duplex, 5 bedroom duplex, or Others. The existing state/LGA rent
+  estimate (documented in the LAGOS_LGA_ANNUAL_RENT/STATE_RENT_TIER comment in `index.html`) was
+  always pitched at "a typical 2-3 bedroom home" — this scales that same area-based range up or down
+  depending on the bedroom count picked, instead of always assuming 2-3 bedrooms. The multipliers are
+  sourced from comparing self-contain/1-bed/2-bed/3-bed listing price patterns across public Lagos
+  rent guides (mushrooms.ng's 2026 Lagos rent guide, nigerianinformer.com's rent-by-room-type
+  breakdown), which consistently show roughly a 1.3–2x step per room added; 4/5-bedroom duplex
+  pricing wasn't available in public sources, so those use a more conservative, clearly-labeled step
+  consistent with general Nigerian real-estate convention (a duplex commands a bigger premium than
+  the flat-to-flat steps below it). As with every other figure in this box, it's an INDICATIVE
+  starting point, not an appraisal — the tip text under the box says so, and a manually-typed rent
+  figure is never overwritten by a later bedroom-count change.
+
+76/76 tests passing (up from 74/74 — added `bedroom-rent-estimate.test.js` and
+`session-footer-back-button.test.js`, and updated `session-readiness-gate.test.js` and two other
+existing Session-3 tests for the new required `rs_bedrooms` field).
+
 ## Optional contact capture now actually goes somewhere (Formspree, opt-in only)
 
 Business request: customers who don't finish their application should be reachable for follow-up.

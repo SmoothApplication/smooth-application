@@ -994,6 +994,22 @@
         </div>
         <div class="row">
           <div>
+            <label class="field" for="rs_bedrooms">How many bedrooms?</label>
+            <select id="rs_bedrooms">
+              <option value="">Select…</option>
+              <option value="room">A room (self-contain)</option>
+              <option value="1bed">1 bedroom</option>
+              <option value="2bed">2 bedroom</option>
+              <option value="3bed">3 bedroom</option>
+              <option value="4bedDuplex">4 bedroom duplex</option>
+              <option value="5bedDuplex">5 bedroom duplex</option>
+              <option value="other">Others</option>
+            </select>
+          </div>
+          <div></div>
+        </div>
+        <div class="row">
+          <div>
             <label class="field" for="rs_addressNumber">House/street number</label>
             <input type="text" id="rs_addressNumber" placeholder="e.g. 14">
           </div>
@@ -1005,7 +1021,7 @@
 
         <div id="rs_costBox" class="doc-reminder" style="margin-top:10px;">
           <p style="margin:0 0 6px; font-weight:600;">Estimated yearly cost of living</p>
-          <p class="item-tip" style="margin:0 0 10px;">Rent is pre-filled with a typical range for your state/LGA, and upkeep/school fees with common starting figures — not a guarantee of what you actually pay. Check every number below and correct it to match your real costs.</p>
+          <p class="item-tip" style="margin:0 0 10px;">Rent is pre-filled with a typical range for your state/LGA, adjusted for how many bedrooms you picked above, and upkeep/school fees with common starting figures — not a guarantee of what you actually pay. Check every number below and correct it to match your real costs.</p>
           <div class="row">
             <div>
               <label class="field" for="rs_annualRent">Annual rent (₦)</label>
@@ -2589,11 +2605,38 @@
     capital: [1800000, 5000000], secondaryCityHigh: [1200000, 3000000],
     majorUrban: [700000, 2000000], other: [400000, 1200000]
   };
-  function getEstimatedAnnualRent(state, lga){
-    if (state === 'Lagos' && lga && LAGOS_LGA_ANNUAL_RENT[lga]) return LAGOS_LGA_ANNUAL_RENT[lga];
-    if (state === 'Lagos') return [700000, 3000000]; // Lagos picked, LGA not yet — wide citywide range
-    var tier = STATE_RENT_TIER[state] || 'other';
-    return RENT_TIER_ANNUAL[tier];
+  // User feedback: "ask how many bedroom under 'Where do you live?'... populate the price section
+  // based on the area chosen and how many bedroom." The LAGOS_LGA_ANNUAL_RENT/STATE_RENT_TIER
+  // figures above are already documented as typical for "a 2-3 bedroom home" — these multipliers
+  // scale that same area-based range up/down for a different bedroom count instead of researching
+  // a separate figure per area per bedroom count (not realistically sourceable for all 774 LGAs).
+  // Sourced from comparing self-contain/1-bedroom/2-bedroom/3-bedroom listing price patterns across
+  // Lagos rent guides (mushrooms.ng's 2026 Lagos rent guide, nigerianinformer.com's Lagos rent-by-
+  // room-type breakdown), which consistently show roughly a 1.3-2x step up per room added — self-
+  // contain to 1-bedroom, then 1-bedroom to 2-bedroom. Public data breaking out 4/5-bedroom duplexes
+  // specifically was not available, so those two use a more conservative step, consistent with the
+  // general real-estate convention that a duplex (a standalone multi-floor house, not just "more
+  // rooms") commands a bigger premium than the flat-to-flat room-count steps below it. As with the
+  // area figures above, these are INDICATIVE multipliers, not a per-listing appraisal — the
+  // applicant is always expected to check and correct the resulting number.
+  var BEDROOM_RENT_MULTIPLIER = {
+    room: 0.4,          // self-contain — roughly 40% of a typical 2-3BR home in the same area
+    '1bed': 0.65,
+    '2bed': 0.85,
+    '3bed': 1.15,
+    '4bedDuplex': 1.8,
+    '5bedDuplex': 2.4
+    // 'other' (and no selection) deliberately has no entry — falls back to the un-scaled 2-3BR
+    // baseline range below, since there's nothing more specific to scale it by.
+  };
+  function getEstimatedAnnualRent(state, lga, bedrooms){
+    var range;
+    if (state === 'Lagos' && lga && LAGOS_LGA_ANNUAL_RENT[lga]) range = LAGOS_LGA_ANNUAL_RENT[lga];
+    else if (state === 'Lagos') range = [700000, 3000000]; // Lagos picked, LGA not yet — wide citywide range
+    else { var tier = STATE_RENT_TIER[state] || 'other'; range = RENT_TIER_ANNUAL[tier]; }
+    var m = BEDROOM_RENT_MULTIPLIER[bedrooms];
+    if (!m) return range;
+    return [Math.round(range[0] * m), Math.round(range[1] * m)];
   }
 
   // ---------------- Session 2 ("Travel Experience") — country lists used for the destination
@@ -2662,6 +2705,7 @@
       numKids: document.getElementById('rs_numKids').value,
       livingState: document.getElementById('rs_state').value,
       livingLga: document.getElementById('rs_lga').value,
+      bedrooms: document.getElementById('rs_bedrooms').value,
       addressNumber: document.getElementById('rs_addressNumber').value.trim(),
       addressName: document.getElementById('rs_addressName').value.trim(),
       annualRent: document.getElementById('rs_annualRent').value,
@@ -2776,7 +2820,7 @@
   };
   var RESPONSIBILITIES_FIELD_LABELS = {
     rs_numKids: 'Number of children', rs_state: 'State', rs_lga: 'Local government area',
-    rs_addressNumber: 'House/street number', rs_addressName: 'Street/address name',
+    rs_bedrooms: 'How many bedrooms', rs_addressNumber: 'House/street number', rs_addressName: 'Street/address name',
     rs_spouseName: "Spouse's full name", rs_fatherName: "Father's name", rs_motherName: "Mother's name",
     rs_remittance: 'How much you send them'
   };
@@ -2898,7 +2942,7 @@
       return {percent: filledRows ? 100 : 0, points: filledRows ? 1 : 0, total: 1, missing: teMissing};
     }
     if (key === 'responsibilities'){
-      var rsFields = ['rs_numKids','rs_state','rs_lga','rs_addressNumber','rs_addressName'];
+      var rsFields = ['rs_numKids','rs_state','rs_lga','rs_bedrooms','rs_addressNumber','rs_addressName'];
       if (document.getElementById('rs_married').checked) rsFields.push('rs_spouseName');
       if (document.getElementById('rs_agedParents').checked){
         rsFields.push('rs_remittance');
@@ -3136,7 +3180,7 @@
   // already used site-wide (footer credit, feedback links, travel-assistance nudge) rather than
   // standing up a separate consultancy contact. Returns '' for a session with nothing to fill in
   // ('review', or a checklist category with zero applicable items) — no report to show there.
-  function sessionReportCardHtml(key){
+  function sessionReportCardHtml(key, nextKey){
     var p = sessionProgress(key);
     if (p.total === 0) return '';
     var barCls = p.percent < READY_THRESHOLD_PERCENT ? 'low' : (p.percent < 100 ? 'mid' : '');
@@ -3163,7 +3207,17 @@
     } else if (p.percent < 100){
       tailHtml = '<p class="session-report-ready">✅ You\'re past '+READY_THRESHOLD_PERCENT+'% — Next is unlocked, though the item(s) above are still worth finishing when you can.</p>';
     } else {
-      tailHtml = '<p class="session-report-ready">✅ Nothing missing here — Next is unlocked.</p>';
+      // User feedback: the passport session's own document-validity check already shows a "🎉
+      // Congratulations" callout when it passes — the same encouragement was missing from every
+      // OTHER session once it's fully filled in. This mirrors that same visual treatment
+      // (.scan-msg.ok, same wording style) generically here, so finishing any section feels like a
+      // small win, not just a silently-unlocked "Next" button. nextKey/nextLabel are passed in from
+      // renderSessionFooter() below, which already knows keys/idx.
+      var nextLabel = nextKey ? sessionLabel(nextKey) : null;
+      var congratsText = nextLabel
+        ? ('🎉 <b>Congratulations</b> — you\'ve completed this section. You\'re ready to move on to <b>'+escapeHtml(nextLabel)+'</b>.')
+        : '🎉 <b>Congratulations</b> — you\'ve completed this section.';
+      tailHtml = '<div class="scan-msg ok">'+congratsText+'</div>';
     }
     return '<div class="session-report-card" id="sessionReportCard">'
       + '<h3>📋 Section report</h3>'
@@ -3192,14 +3246,22 @@
     // readiness threshold, so attemptAdvanceSession() actually gets to run its hard-block
     // behavior (highlight missing fields, scroll to the report card, track the block) instead of
     // that logic being dead code behind a button nothing can click.
-    footer.innerHTML = sessionReportCardHtml(keys[idx])
+    // User feedback: "add back button after each session" — the pill nav at the TOP already has a
+    // ← Back button, but it can be scrolled well out of view by the time someone reaches the bottom
+    // of a long session (this app is built mobile-first). Repeating Back down here, right next to
+    // Save/Next, means getting back to the previous section never requires scrolling back up.
+    var backBtnHtml = idx > 0 ? '<button type="button" class="btn ghost" id="sessionFooterBackBtn">← Back</button>' : '';
+    footer.innerHTML = sessionReportCardHtml(keys[idx], keys[idx + 1])
       + progressHtml
+      + backBtnHtml
       + '<button type="button" class="btn" id="sessionSaveBtn">💾 Save</button>'
       + '<button type="button" class="btn primary" id="sessionFooterNextBtn"'+(isLast?' disabled':'')+'>'+(isLast ? '✓ Last page' : 'Next →')+'</button>'
       + '<p class="session-footer-msg" id="sessionFooterMsg"></p>';
+    var backBtn = document.getElementById('sessionFooterBackBtn');
     var saveBtn = document.getElementById('sessionSaveBtn');
     var nextBtn = document.getElementById('sessionFooterNextBtn');
     var msg = document.getElementById('sessionFooterMsg');
+    if (backBtn) backBtn.addEventListener('click', function(){ goToSession(currentSessionIndex - 1); });
     if (saveBtn) saveBtn.addEventListener('click', function(){
       autoSave();
       // Spells out WHERE explicitly, right at the point of the click — the fuller explanation lives in
@@ -3635,7 +3697,7 @@
    // Session 3: Your responsibilities
    // rs_state has its own dedicated change listener (repopulates the LGA dropdown, then renders) —
    // left out of this generic list to avoid double-rendering on every state change.
-   'rs_married','rs_spouseName','rs_numKids','rs_lga','rs_addressNumber','rs_addressName','rs_annualRent','rs_monthlyUpkeep','rs_schoolFeePerTerm','rs_agedParents','rs_fatherName','rs_motherName','rs_fatherDeceased','rs_motherDeceased','rs_remittance','rs_verifyConsent']
+   'rs_married','rs_spouseName','rs_numKids','rs_lga','rs_bedrooms','rs_addressNumber','rs_addressName','rs_annualRent','rs_monthlyUpkeep','rs_schoolFeePerTerm','rs_agedParents','rs_fatherName','rs_motherName','rs_fatherDeceased','rs_motherDeceased','rs_remittance','rs_verifyConsent']
     .forEach(function(id){
       var el = document.getElementById(id);
       el.addEventListener('change', render);
@@ -4140,7 +4202,7 @@
     // still holds exactly what we last auto-filled it with (tracked via data-autofilled). The
     // moment it differs, the applicant has typed their own number and it's never touched again.
     if (rentEl && a.livingState && (!rentEl.value || rentEl.value === rentEl.dataset.autofilled)){
-      var range = getEstimatedAnnualRent(a.livingState, a.livingLga);
+      var range = getEstimatedAnnualRent(a.livingState, a.livingLga, a.bedrooms);
       var estimate = String(Math.round((range[0] + range[1]) / 2));
       rentEl.value = estimate;
       rentEl.dataset.autofilled = estimate;
@@ -10299,6 +10361,7 @@
       document.getElementById('rs_numKids').value = payload.answers.numKids || '';
       document.getElementById('rs_state').value = payload.answers.livingState || '';
       renderLgaOptions(payload.answers.livingState || '', payload.answers.livingLga || '');
+      document.getElementById('rs_bedrooms').value = payload.answers.bedrooms || '';
       document.getElementById('rs_addressNumber').value = payload.answers.addressNumber || '';
       document.getElementById('rs_addressName').value = payload.answers.addressName || '';
       document.getElementById('rs_annualRent').value = payload.answers.annualRent || '';
@@ -10535,6 +10598,7 @@
     document.getElementById('rs_numKids').value = '';
     document.getElementById('rs_state').value = '';
     renderLgaOptions('', '');
+    document.getElementById('rs_bedrooms').value = '';
     document.getElementById('rs_addressNumber').value = '';
     document.getElementById('rs_addressName').value = '';
     var rsAnnualRentEl = document.getElementById('rs_annualRent');
