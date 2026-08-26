@@ -897,6 +897,17 @@
           </div>
           <div></div>
         </div>
+        <div class="row" style="margin-top:14px;">
+          <div>
+            <label class="field" for="f_email">Email address (optional)</label>
+            <input type="email" id="f_email" placeholder="e.g. adaeze.okafor@gmail.com" autocomplete="email">
+          </div>
+          <div>
+            <label class="field" for="f_phone">Phone number (optional)</label>
+            <input type="tel" id="f_phone" placeholder="e.g. 08012345678" autocomplete="tel">
+          </div>
+        </div>
+        <div class="item-tip">Not required, and stored the same way as everything else here — only in this browser, nothing sent anywhere. Add these only if you're comfortable being contacted about your application.</div>
         <div id="passportValidateStatus"></div>
         </div>
       </details>
@@ -2636,6 +2647,8 @@
       // Session 1: Validate your International Passport
       passportNumber: document.getElementById('f_passportNumber').value.trim(),
       passportExpiry: document.getElementById('f_passportExpiry').value,
+      email: document.getElementById('f_email').value.trim(),
+      phone: document.getElementById('f_phone').value.trim(),
       // Session 2: Travel Experience. te_firstTime holds 'yes'/'no' answering "Have you travelled
       // outside Nigeria before?" — travelledBefore true means there IS history to fill in below.
       firstTimeAnswer: document.getElementById('te_firstTime').value,
@@ -3614,7 +3627,7 @@
 
   ['f_name','f_purpose','f_traveldate','f_returndate','f_appdate','f_travelerCount','f_adults','f_adolescents','f_children','f_hasHost','f_hostFunding','f_employed','f_employerName','f_employerAltName','f_selfEmployed','f_businessName','f_businessAltName','f_student','f_studentSponsor','f_sponsorRelationship','f_hasChild','f_translation','f_readyToSubmit','f_hasRefusal','f_refusalCount','f_refusalDetails',
    // Session 1: Validate your International Passport
-   'f_passportNumber','f_passportExpiry',
+   'f_passportNumber','f_passportExpiry','f_email','f_phone',
    // Session 2: Travel Experience
    'te_firstTime','te_hasOverstayed',
    // Session 3: Your responsibilities
@@ -4324,9 +4337,12 @@
     // Quick, rough worst-case cost estimate shown right in the trip session, as soon as dates are
     // entered — before the applicant has filled in anything in the financial calculator below.
     // Deliberately reuses the SAME rates already established elsewhere in this file (bus fare from
-    // TRANSPORT_MODES, the ₦50,000/night hotel floor, the £100 shopping figure, DEFAULT_GBP_NGN) so
-    // there's exactly one place each number lives, not two that could drift apart. The flight figure
-    // is a static, clearly-labeled ballpark (no live fare source exists here) — NOT a real quote.
+    // TRANSPORT_MODES, the ₦50,000/night hotel floor, the 100-unit shopping figure) so there's exactly
+    // one place each number lives, not two that could drift apart. The flight figure is a static,
+    // clearly-labeled ballpark (no live fare source exists here) — NOT a real quote. The currency for
+    // the transport/shopping lines follows currentCountry (GBP for UK, EUR for Schengen, etc.) via the
+    // same CLOTHING_PRICE_ESTIMATES/DEFAULT_FX_NGN lookup used elsewhere — was hardcoded to £/GBP only
+    // until a Schengen applicant flagged seeing £ instead of € on this box (August 2026).
     var quickBox = document.getElementById('quickTripCostBox');
     var quickContent = document.getElementById('quickTripCostContent');
     if (quickBox && quickContent){
@@ -4334,9 +4350,10 @@
         var qNights = nightsFromDates;
         var qHotel = 50000 * qNights; // hotel room cost doesn't scale 1:1 with headcount (travellers can share a room), so this stays as-is
         var qBusRate = (TRANSPORT_MODES && TRANSPORT_MODES.bus) ? TRANSPORT_MODES.bus.rate : 6;
-        var qTransportGbp = qBusRate * qNights;
-        var qShoppingGbp = 100;
-        var qRate = (typeof DEFAULT_GBP_NGN === 'number' && DEFAULT_GBP_NGN) ? DEFAULT_GBP_NGN : 1840.60;
+        var qTransportForeign = qBusRate * qNights;
+        var qShoppingForeign = 100;
+        var qCurrency = (typeof CLOTHING_PRICE_ESTIMATES !== 'undefined' && CLOTHING_PRICE_ESTIMATES[currentCountry]) ? CLOTHING_PRICE_ESTIMATES[currentCountry] : {code:'GBP', symbol:'£'};
+        var qRate = (typeof DEFAULT_FX_NGN !== 'undefined' && DEFAULT_FX_NGN[qCurrency.code]) ? DEFAULT_FX_NGN[qCurrency.code] : (typeof DEFAULT_GBP_NGN === 'number' && DEFAULT_GBP_NGN) ? DEFAULT_GBP_NGN : 1840.60;
         // Local transport and shopping are genuinely per-traveller costs, so they scale with headcount
         // (adults + adolescents + children, computed earlier in this function). Flight cost instead
         // reuses the SAME adolescent/child discount pattern as the detailed calculator's totalFlight
@@ -4345,8 +4362,8 @@
         // below", it just wasn't wired into this quick box yet.
         var qFlightPerAdult = 1500000; // low end of the existing flight placeholder range (₦1.5M–2.5M) elsewhere in this file
         var qFlightNgn = Math.round(qFlightPerAdult * adults + qFlightPerAdult * 0.9 * adolescents + qFlightPerAdult * 0.75 * children);
-        var qTransportNgn = qTransportGbp * qRate * travellers;
-        var qShoppingNgn = qShoppingGbp * qRate * travellers;
+        var qTransportNgn = qTransportForeign * qRate * travellers;
+        var qShoppingNgn = qShoppingForeign * qRate * travellers;
         var qTotal = qHotel + qTransportNgn + qShoppingNgn + qFlightNgn;
         var qRecommended = qTotal * 2; // same 2× buffer rule used throughout the financial calculator
         var qTravellerLabel = adults+' adult'+(adults===1?'':'s')+(adolescents?', '+adolescents+' adolescent'+(adolescents===1?'':'s'):'')+(children?', '+children+' child'+(children===1?'':'ren'):'');
@@ -4355,8 +4372,8 @@
           '<p class="fin-note" style="margin-top:0;"><b>Rough worst-case cost estimate for ' + qNights + ' night(s)</b> — a quick, conservative ballpark so you have a number to aim for right away. This is <b>not a quote</b>: flight cost especially varies a lot by date and how far ahead you book. Fill in the financial calculator below with your own real figures for an accurate, personalized breakdown.</p>'
           + '<div class="fb-row"><span>Flight (cheapest route, e.g. Kenya Airways/RwandAir — indicative only; ' + qTravellerLabel + ')</span><span>' + fmtN(qFlightNgn) + '</span></div>'
           + '<div class="fb-row"><span>Hotel (₦50,000/night × ' + qNights + ')</span><span>' + fmtN(qHotel) + '</span></div>'
-          + '<div class="fb-row"><span>Local transport (cheapest option, bus, £' + qBusRate + '/day × ' + qNights + ' × ' + travellers + ' traveller' + (travellers===1?'':'s') + ')</span><span>' + fmtN(qTransportNgn) + '</span></div>'
-          + '<div class="fb-row"><span>Shopping (£100 minimum × ' + travellers + ' traveller' + (travellers===1?'':'s') + ')</span><span>' + fmtN(qShoppingNgn) + '</span></div>'
+          + '<div class="fb-row"><span>Local transport (cheapest option, bus, ' + qCurrency.symbol + qBusRate + '/day × ' + qNights + ' × ' + travellers + ' traveller' + (travellers===1?'':'s') + ')</span><span>' + fmtN(qTransportNgn) + '</span></div>'
+          + '<div class="fb-row"><span>Shopping (' + qCurrency.symbol + '100 minimum × ' + travellers + ' traveller' + (travellers===1?'':'s') + ')</span><span>' + fmtN(qShoppingNgn) + '</span></div>'
           + '<div class="fb-row" style="font-weight:600; border-top:1px solid var(--border); margin-top:4px; padding-top:6px;"><span>Rough total</span><span>' + fmtN(qTotal) + '</span></div>'
           + '<div class="fb-row" style="font-weight:600;"><span>Recommended funds to show (2× buffer)</span><span>' + fmtN(qRecommended) + '</span></div>';
       } else {
@@ -5293,11 +5310,27 @@
       {key:'notreDameBasilica', label:'Notre-Dame Basilica (Montreal)', price:13},
       {key:'parliamentHill', label:'Parliament Hill guided tour (Ottawa)', price:0},
       {key:'stanleyPark', label:'Stanley Park (Vancouver)', price:0}
+    ],
+    // A mix across the consulates Nigerian applicants most commonly apply through (France, Germany,
+    // Netherlands, Italy — see the CHECKLIST_EU comment above) rather than one single Schengen country,
+    // since a Schengen visa isn't tied to just one of them.
+    EU: [
+      {key:'eiffelTower', label:'Eiffel Tower — summit access (Paris)', price:29.40},
+      {key:'louvre', label:'Louvre Museum (Paris)', price:22},
+      {key:'versailles', label:'Palace of Versailles', price:21},
+      {key:'anneFrank', label:"Anne Frank House (Amsterdam)", price:16},
+      {key:'rijksmuseum', label:'Rijksmuseum (Amsterdam)', price:22.50},
+      {key:'colosseum', label:'Colosseum + Roman Forum (Rome)', price:18},
+      {key:'vaticanMuseums', label:'Vatican Museums & Sistine Chapel', price:20},
+      {key:'sagradaFamilia', label:'Sagrada Família (Barcelona)', price:26},
+      {key:'reichstagDome', label:'Reichstag Dome (Berlin)', price:0},
+      {key:'brandenburgGate', label:'Brandenburg Gate (Berlin)', price:0}
     ]
   };
   var SIGHTSEEING_CURRENCY = {
     UK: {code:'GBP', symbol:'£', rate: 1840.60},
-    CA: {code:'CAD', symbol:'C$', rate: 976.58}
+    CA: {code:'CAD', symbol:'C$', rate: 976.58},
+    EU: {code:'EUR', symbol:'€', rate: 1573.61}
   };
   function travelersCountHint(){
     var adults = Math.max(0, Math.round(parseNum(document.getElementById('f_adults').value)) || 0);
@@ -5429,7 +5462,8 @@
   // shopping budget go" sense-of-scale note; not live pricing, no API backs this.
   var CLOTHING_PRICE_ESTIMATES = {
     UK: { code: 'GBP', symbol: '£', shirt: 15, trouser: 28 },
-    CA: { code: 'CAD', symbol: 'C$', shirt: 20, trouser: 35 }
+    CA: { code: 'CAD', symbol: 'C$', shirt: 20, trouser: 35 },
+    EU: { code: 'EUR', symbol: '€', shirt: 18, trouser: 32 }
   };
 
   function applyCurrencyDefaults(){
@@ -6367,14 +6401,14 @@
       var nm;
       while ((nm = nightLineRe.exec(text)) !== null){
         var seg = nm[1];
-        var amtMatches = seg.match(/[₦£$]?\s?\d{1,3}(?:[,.]\d{3})*(?:\.\d{1,2})?/g) || [];
+        var amtMatches = seg.match(/[₦£€$]?\s?\d{1,3}(?:[,.]\d{3})*(?:\.\d{1,2})?/g) || [];
         amtMatches.forEach(function(a){
           var num = parseFloat(a.replace(/[^\d.]/g,''));
           if (isNaN(num)) return;
-          var currency = /£/.test(a) ? 'GBP' : (/\$/.test(a) ? 'USD' : (/₦/.test(a) ? 'NGN' : null));
+          var currency = /£/.test(a) ? 'GBP' : (/€/.test(a) ? 'EUR' : (/\$/.test(a) ? 'USD' : (/₦/.test(a) ? 'NGN' : null)));
           // Naira-scale figures need a higher floor to skip stray small numbers (room numbers, dates);
-          // a £/$ figure is naturally small for a nightly hotel rate, so use a much lower floor for those.
-          var floor = (currency === 'GBP' || currency === 'USD') ? 10 : 1000;
+          // a £/€/$ figure is naturally small for a nightly hotel rate, so use a much lower floor for those.
+          var floor = (currency === 'GBP' || currency === 'USD' || currency === 'EUR') ? 10 : 1000;
           if (num > floor){
             candidates.push({raw:a.trim(), value:num, currency: currency});
           }
@@ -6386,6 +6420,7 @@
       var pick = candidates.filter(function(c){ return c.currency; })[0] || candidates[0];
       var detectedNgn = pick.value;
       if (pick.currency === 'GBP') detectedNgn = pick.value * DEFAULT_GBP_NGN;
+      else if (pick.currency === 'EUR') detectedNgn = pick.value * ((typeof DEFAULT_FX_NGN !== 'undefined' && DEFAULT_FX_NGN.EUR) ? DEFAULT_FX_NGN.EUR : 1573.61);
       else if (pick.currency === 'USD') detectedNgn = pick.value * 1362.64;
       var enteredNgn = answers.accomPerNight || 0;
       if (!enteredNgn){
@@ -10209,6 +10244,8 @@
       // Session 1: Validate your International Passport
       document.getElementById('f_passportNumber').value = payload.answers.passportNumber || '';
       document.getElementById('f_passportExpiry').value = payload.answers.passportExpiry || '';
+      document.getElementById('f_email').value = payload.answers.email || '';
+      document.getElementById('f_phone').value = payload.answers.phone || '';
       // Session 2: Travel Experience
       document.getElementById('te_firstTime').value = payload.answers.firstTimeAnswer || '';
       document.getElementById('te_hasOverstayed').checked = !!payload.answers.hasOverstayed;
@@ -10434,6 +10471,8 @@
     // Session 1: Validate your International Passport
     document.getElementById('f_passportNumber').value = '';
     document.getElementById('f_passportExpiry').value = '';
+    document.getElementById('f_email').value = '';
+    document.getElementById('f_phone').value = '';
     document.getElementById('passportValidateResult').innerHTML = '';
     document.getElementById('passportValidateStatus').innerHTML = '';
     document.getElementById('passportValidateMsg').textContent = '';
