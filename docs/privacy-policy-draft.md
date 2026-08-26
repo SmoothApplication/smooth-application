@@ -17,9 +17,15 @@ policy explains the few exceptions.
   statements, or any file you attach. All scanning and reading of documents happens using code
   that runs in your own browser.
 - We do not require or offer account creation. There is no login, no password, no user database.
-- We do not have your email address. The "email myself this summary" feature opens a draft in
-  your own email app using the `mailto:` link scheme — we never see it, and it is never sent
-  through any server we control.
+- We do not send your email address or phone number anywhere. The "Validate your International
+  Passport" session has optional email/phone fields (added so you can be reached about your
+  application, once a follow-up feature is built) — if you fill them in, they're saved locally the
+  same way the rest of your answers are (see "Local save" below) and are never transmitted. *[This
+  bullet needs updating again the moment any reminder/follow-up feature actually starts sending
+  this data off the device — see the CHANGELOG entry for when these fields were added.]* The
+  "email myself this summary" feature separately opens a draft in your own email app using the
+  `mailto:` link scheme — we never see that either, and it is never sent through any server we
+  control.
 - We do not sell or share data, because we do not collect the kind of data that could be sold or
   shared in the first place.
 
