@@ -68,9 +68,11 @@ exports.run = async function(ctx){
     var passportNumberFlaggedAfter = await page.$eval('#f_passportNumber', function(el){ return el.classList.contains('field-invalid'); });
     assert.strictEqual(passportNumberFlaggedAfter, false, 'A filled field should no longer be outlined once complete');
 
-    // The report card should now read as "ready", not show the gated help block.
+    // The report card should now read as "ready", not show the gated help block. Once a session
+    // hits 100% it shows a "🎉 Congratulations" callout (see sessionReportCardHtml) rather than
+    // the old plain "Next is unlocked" line — that's what "ready" looks like now.
     var reportText = await page.$eval('#sessionReportCard', function(el){ return el.textContent; });
-    assert.ok(/Next is unlocked/.test(reportText), 'Report card should say Next is unlocked once ready, got: ' + reportText);
+    assert.ok(/Congratulations/.test(reportText), 'Report card should show the Congratulations callout once ready, got: ' + reportText);
     assert.ok(!/paused for this section/.test(reportText), 'Report card should no longer show the gated message once ready, got: ' + reportText);
 
     // Next should now genuinely work, and should NOT record another session_gate_blocked event

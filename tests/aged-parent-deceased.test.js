@@ -35,6 +35,7 @@ exports.run = async function(ctx){
       return document.getElementById('rs_lga').options.length > 1;
     }, { timeout: 3000 });
     await page.selectOption('#rs_lga', 'Ikeja');
+    await page.selectOption('#rs_bedrooms', '2bed');
     await page.fill('#rs_addressNumber', '14');
     await page.fill('#rs_addressName', 'Adeola Odeku Street');
 

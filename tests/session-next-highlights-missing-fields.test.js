@@ -53,6 +53,7 @@ exports.run = async function(ctx){
       return el && el.options.length > 1;
     });
     await page.selectOption('#rs_lga', { index: 1 });
+    await page.selectOption('#rs_bedrooms', '2bed');
     await page.fill('#rs_addressNumber', '14');
     await page.fill('#rs_addressName', 'Adeola Odeku Street');
 
