@@ -907,7 +907,8 @@
             <input type="tel" id="f_phone" placeholder="e.g. 08012345678" autocomplete="tel">
           </div>
         </div>
-        <div class="item-tip">Not required, and stored the same way as everything else here — only in this browser, nothing sent anywhere. Add these only if you're comfortable being contacted about your application.</div>
+        <div class="checkrow" style="margin-top:8px;"><input type="checkbox" id="f_contactConsent"><label for="f_contactConsent">It's OK to contact me about this application if I don't finish</label></div>
+        <div class="item-tip">Not required. Your email/phone stay saved only in this browser like everything else here — <b>unless</b> you tick the box above, in which case they're sent to the Smooth Application team (along with your name) so they can follow up. Nothing is sent anywhere unless that box is checked.</div>
         <div id="passportValidateStatus"></div>
         </div>
       </details>
@@ -2649,6 +2650,7 @@
       passportExpiry: document.getElementById('f_passportExpiry').value,
       email: document.getElementById('f_email').value.trim(),
       phone: document.getElementById('f_phone').value.trim(),
+      contactConsent: document.getElementById('f_contactConsent').checked,
       // Session 2: Travel Experience. te_firstTime holds 'yes'/'no' answering "Have you travelled
       // outside Nigeria before?" — travelledBefore true means there IS history to fill in below.
       firstTimeAnswer: document.getElementById('te_firstTime').value,
@@ -3627,7 +3629,7 @@
 
   ['f_name','f_purpose','f_traveldate','f_returndate','f_appdate','f_travelerCount','f_adults','f_adolescents','f_children','f_hasHost','f_hostFunding','f_employed','f_employerName','f_employerAltName','f_selfEmployed','f_businessName','f_businessAltName','f_student','f_studentSponsor','f_sponsorRelationship','f_hasChild','f_translation','f_readyToSubmit','f_hasRefusal','f_refusalCount','f_refusalDetails',
    // Session 1: Validate your International Passport
-   'f_passportNumber','f_passportExpiry','f_email','f_phone',
+   'f_passportNumber','f_passportExpiry','f_email','f_phone','f_contactConsent',
    // Session 2: Travel Experience
    'te_firstTime','te_hasOverstayed',
    // Session 3: Your responsibilities
@@ -3639,6 +3641,47 @@
       el.addEventListener('change', render);
       el.addEventListener('input', render);
     });
+
+  // ---------------- Optional contact capture (Formspree) ----------------
+  // Business request: "customers are asking we send the emails when they do not finish" — the
+  // f_email/f_phone fields above (Session 1) exist for this, but this app is otherwise 100%
+  // client-side with nowhere for that data to go. This is the SIMPLEST working version: an explicit
+  // opt-in checkbox (f_contactConsent) forwards name+email+phone+country to the business owner's own
+  // inbox (via a Formspree form) the moment someone opts in and has entered at least one contact
+  // method, so they can follow up by hand. It does NOT attempt to auto-detect "this person didn't
+  // finish" — that would need real backend/session tracking, a bigger build not undertaken here.
+  // Nothing is ever sent unless f_contactConsent is checked — this is the one deliberate exception to
+  // this app's "nothing leaves your browser" privacy promise, and it's disclosed in the tip text next
+  // to the fields and in docs/privacy-policy-draft.md. Added August 2026.
+  var CONTACT_FORM_ENDPOINT = 'https://formspree.io/f/myegrvnq';
+  var lastContactSubmissionSignature = '';
+  function maybeSubmitContactInfo(){
+    var consentEl = document.getElementById('f_contactConsent');
+    if (!consentEl || !consentEl.checked) return;
+    var email = document.getElementById('f_email').value.trim();
+    var phone = document.getElementById('f_phone').value.trim();
+    if (!email && !phone) return;
+    var name = document.getElementById('f_name') ? document.getElementById('f_name').value.trim() : '';
+    // Avoid re-sending the exact same info on every blur — only send again if something changed.
+    var signature = email + '|' + phone + '|' + name;
+    if (signature === lastContactSubmissionSignature) return;
+    lastContactSubmissionSignature = signature;
+    fetch(CONTACT_FORM_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({
+        name: name || '(not entered)',
+        email: email || '(not entered)',
+        phone: phone || '(not entered)',
+        country: currentCountry,
+        message: 'Opted in to be contacted about their Smooth Application visa checklist.'
+      })
+    }).catch(function(){ /* Silent on purpose — offline/blocked shouldn't interrupt the applicant's flow. */ });
+  }
+  ['f_email','f_phone'].forEach(function(id){
+    document.getElementById(id).addEventListener('blur', maybeSubmitContactInfo);
+  });
+  document.getElementById('f_contactConsent').addEventListener('change', maybeSubmitContactInfo);
 
   // Sections are now collapsible <details> AND grouped into sessions (only one shown at a time) —
   // scrolling to an item that's hidden inside a closed <details> or a different session does nothing
@@ -10246,6 +10289,7 @@
       document.getElementById('f_passportExpiry').value = payload.answers.passportExpiry || '';
       document.getElementById('f_email').value = payload.answers.email || '';
       document.getElementById('f_phone').value = payload.answers.phone || '';
+      document.getElementById('f_contactConsent').checked = !!payload.answers.contactConsent;
       // Session 2: Travel Experience
       document.getElementById('te_firstTime').value = payload.answers.firstTimeAnswer || '';
       document.getElementById('te_hasOverstayed').checked = !!payload.answers.hasOverstayed;
@@ -10473,6 +10517,8 @@
     document.getElementById('f_passportExpiry').value = '';
     document.getElementById('f_email').value = '';
     document.getElementById('f_phone').value = '';
+    document.getElementById('f_contactConsent').checked = false;
+    lastContactSubmissionSignature = '';
     document.getElementById('passportValidateResult').innerHTML = '';
     document.getElementById('passportValidateStatus').innerHTML = '';
     document.getElementById('passportValidateMsg').textContent = '';
