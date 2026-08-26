@@ -928,7 +928,11 @@
 
         <div id="te_noHistoryBox" class="doc-reminder" style="display:none; margin-top:10px;">
           <p style="margin:0 0 8px; font-weight:600;">No travel history yet — that's fine, plenty of successful applicants start here.</p>
-          <a class="btn ghost" id="btnTravelAssistance" href="https://wa.me/2349081389969?text=Hi%21%20I%20don%27t%20have%20travel%20history%20yet%20and%20could%20use%20some%20guidance%20before%20applying%20for%20my%20UK/Canada%20visa." target="_blank" rel="noopener">Click here for more assistance</a>
+          <p class="item-tip" style="margin:0 0 10px;">Having visited an African country before is genuinely useful travel history for a UK/Schengen application. These five are commonly picked because they're straightforward for Nigerians to visit — pick one to see exactly what's involved.</p>
+          <label class="field" style="margin-top:0;">Plan a visit to build travel history</label>
+          <div id="teCountryTabs" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px;"></div>
+          <div id="teCountryGuide"></div>
+          <a class="btn ghost" id="btnTravelAssistance" style="margin-top:10px;" href="https://wa.me/2349081389969?text=Hi%21%20I%20don%27t%20have%20travel%20history%20yet%20and%20could%20use%20some%20guidance%20before%20applying%20for%20my%20UK/Canada%20visa." target="_blank" rel="noopener">Click here for more assistance</a>
         </div>
 
         <div id="te_historyBox" style="display:none; margin-top:10px;">
@@ -2657,6 +2661,108 @@
     return out.sort(function(a,b){ return a === 'Other' ? 1 : (b === 'Other' ? -1 : a.localeCompare(b)); });
   })();
 
+  // User feedback: "If you choose NO under travel experience... direct with tabs to choose from
+  // Ghana, Kenya, Ethiopia, Morocco, South Africa. After clicking any of the countries, redirect it
+  // to the steps needed." These five specifically are TE_HIGH_SUCCESS_COUNTRIES plus Ghana and
+  // Ethiopia — all genuinely straightforward-ish for a first-time Nigerian traveller, none needing a
+  // Schengen/US/UK visa first (unlike Morocco's e-visa shortcut, which explicitly requires one — see
+  // that entry below). Sourced from each country's own current entry-requirement pages/guides,
+  // current as of August 2026 — like every other figure/requirement in this app, these are a
+  // STARTING point, not a guarantee; requirements and fees change, so the last step always says to
+  // confirm on the official site before paying anything or booking.
+  var TE_NO_HISTORY_GUIDES = {
+    'Ghana': {
+      visaType: 'Visa-free (ECOWAS)',
+      summary: 'The simplest of the five — Nigerians don\'t need a visa to enter Ghana at all under the ECOWAS free movement protocol.',
+      steps: [
+        'Make sure your Nigerian international passport has at least 6 months\' validity left.',
+        'Get (or renew) your Yellow Fever vaccination card — this is strictly required at entry and you can be turned back without it.',
+        'Book a return or onward flight if flying into Accra — it\'s recommended, and immigration may ask to see it.',
+        'Be ready to explain your travel purpose, where you\'re staying, and when you\'re returning — immigration can ask, even though no visa is needed.',
+        'No visa application, no fee, no embassy visit — you\'re done. Sources: current ECOWAS free-movement guidance and Nigeria–Ghana travel-requirement guides.'
+      ]
+    },
+    'Kenya': {
+      visaType: 'eTA required (~$30, online)',
+      summary: 'Kenya replaced its old visa-free arrangement with an Electronic Travel Authorization (eTA) — still no embassy visit, but you do need to apply online first.',
+      steps: [
+        'Make sure your passport has at least 6 months\' validity and a blank page.',
+        'Go to the official portal — etakenya.go.ke — and create an account. (Watch out for look-alike third-party sites that charge extra.)',
+        'Fill in your passport and travel details, and upload a passport photo, your flight booking, and proof of accommodation.',
+        'Pay the eTA fee (around $30, non-refundable) by card.',
+        'Wait for approval — usually 48–72 hours — and download it once it lands in your email.',
+        'Print or save the approval and present it with your passport on arrival. It covers a single visit of up to 90 days.',
+        'Apply at least a week before you travel, in case of delays. Source: Kenya\'s official eTA guidance.'
+      ]
+    },
+    'Ethiopia': {
+      visaType: 'e-Visa required (~$82, online)',
+      summary: 'Nigerians can no longer get a visa on arrival in Ethiopia (that changed for several nationalities in 2026) — you need to apply for an e-Visa before you travel.',
+      steps: [
+        'Make sure your passport has at least 6 months\' validity.',
+        'Apply only through the official site — evisa.gov.et — never a third-party site that charges extra.',
+        'Fill in the form and upload a passport photo, your return ticket, and proof of accommodation.',
+        'Pay the fee (around $82) with an international Visa/Mastercard.',
+        'Wait for your e-Visa by email — usually about 3 business days.',
+        'This gets you a single entry, valid 90 days from issue, for stays of up to 30 days.',
+        'Bring a Yellow Fever certificate if you\'re arriving from a country where it\'s required. Source: Ethiopia\'s official e-Visa process, current entry-requirement guides.'
+      ]
+    },
+    'Morocco': {
+      visaType: 'Embassy visa (most applicants)',
+      summary: 'Morocco does have an e-visa, but it\'s ONLY for people who already hold a valid multi-entry Schengen/US/UK/Canada visa or certain residence permits — most first-time applicants won\'t qualify, so this is the standard embassy route.',
+      steps: [
+        'Check the e-visa shortcut first: if you already hold a valid MULTIPLE-entry Schengen, US, UK, Canada, Australia, New Zealand, Japan, or Ireland visa (with at least 90 days left on it), you may qualify for Morocco\'s e-visa instead of the steps below — worth checking before you start.',
+        'If not, the Moroccan Embassy in Abuja handles Nigerian applications — check their website for the current appointment process; walk-ins are limited.',
+        'Gather your documents: passport valid 6+ months, recent passport photos, the completed application form, a round-trip flight booking, proof of accommodation, bank statements showing sufficient funds, and travel health insurance.',
+        'Attend your appointment with originals and copies of everything.',
+        'Processing time and fees vary — confirm both directly with the embassy when you book, since this changes more often than the other steps here.',
+        'Source: Moroccan Embassy (Abuja) visa guidance and current Morocco e-visa eligibility rules.'
+      ]
+    },
+    'South Africa': {
+      visaType: 'Visa required (VFS Global)',
+      summary: 'South Africa requires a visa in advance, applied for in person with biometrics — this is the most document-heavy of the five, so it\'s worth starting early.',
+      steps: [
+        'Download and complete Form BI-84 from the VFS Global portal or South Africa\'s Department of Home Affairs site — it needs to be signed.',
+        'Book an appointment at VFS Global in Lagos, or the South African High Commission in Abuja, for biometrics and document submission.',
+        'Gather your documents: passport (6+ months validity, 2 blank pages), 2 passport photos, 3 months\' bank statements, an employment letter confirming your role/salary/approved leave/return date, 3 months\' payslips, return flight booking, proof of accommodation for your whole stay, a day-by-day itinerary, Yellow Fever certificate, and evidence of ties to Nigeria (things that show you\'ll come back — job, property, family).',
+        'Attend your appointment, submit your documents, and give your biometric data (fingerprints/photo).',
+        'Pay the fee — around ZAR 1,520 (roughly $80) plus VFS\'s own service fee, paid at the centre.',
+        'Get your passport back in about 10–15 business days with the visa sticker or a decision letter. Source: current South Africa visitor-visa guidance for Nigerian applicants.'
+      ]
+    }
+  };
+  var teSelectedGuideCountry = '';
+  function renderTeCountryTabs(){
+    var wrap = document.getElementById('teCountryTabs');
+    if (!wrap) return;
+    wrap.innerHTML = Object.keys(TE_NO_HISTORY_GUIDES).map(function(c){
+      var active = c === teSelectedGuideCountry;
+      return '<button type="button" class="btn '+(active ? 'primary' : 'ghost')+' te-country-tab-btn" data-country="'+escapeHtml(c)+'" style="flex:none;">'+escapeHtml(c)+'</button>';
+    }).join('');
+  }
+  function renderTeCountryGuide(){
+    var box = document.getElementById('teCountryGuide');
+    if (!box) return;
+    var g = TE_NO_HISTORY_GUIDES[teSelectedGuideCountry];
+    if (!g){ box.innerHTML = ''; return; }
+    box.innerHTML = '<div class="scan-msg info" style="margin-top:4px;">'
+      + '<div style="font-weight:700; margin-bottom:2px;">'+escapeHtml(teSelectedGuideCountry)+' — <span style="font-weight:600;">'+escapeHtml(g.visaType)+'</span></div>'
+      + '<div style="margin-bottom:8px;">'+escapeHtml(g.summary)+'</div>'
+      + '<ol style="margin:0; padding-left:20px;">' + g.steps.map(function(s){ return '<li style="margin-bottom:5px;">'+escapeHtml(s)+'</li>'; }).join('') + '</ol>'
+      + '<div class="item-tip" style="margin-top:8px;">Requirements, fees, and processing times change — always confirm on the official government site before paying anything or booking travel. This is a starting point, current as of August 2026, not a guarantee.</div>'
+      + '</div>';
+  }
+  document.addEventListener('click', function(e){
+    var btn = e.target && e.target.closest ? e.target.closest('.te-country-tab-btn') : null;
+    if (!btn) return;
+    teSelectedGuideCountry = btn.getAttribute('data-country') || '';
+    trackEvent('travel_guide_country:' + teSelectedGuideCountry);
+    renderTeCountryTabs();
+    renderTeCountryGuide();
+  });
+
   function getAnswers(){
     return {
       name: document.getElementById('f_name').value.trim(),
@@ -3293,6 +3399,7 @@
     // (see PASSPORT_FIELD_LABELS/sessionProgress note above on why this is a select, not a checkbox).
     document.getElementById('te_noHistoryBox').style.display = a.firstTimeAnswer === 'no' ? 'block' : 'none';
     document.getElementById('te_historyBox').style.display = a.firstTimeAnswer === 'yes' ? 'block' : 'none';
+    if (a.firstTimeAnswer === 'no'){ renderTeCountryTabs(); renderTeCountryGuide(); }
     document.getElementById('te_overstayBox').style.display = a.hasOverstayed ? 'block' : 'none';
     updateTravelExperienceGrade(a);
 

@@ -3,6 +3,27 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## "No travel history yet" now shows step-by-step guides for 5 countries
+
+User request: when someone answers "No" to "Have you travelled outside Nigeria before?", instead of
+just a WhatsApp link, give them somewhere concrete to start.
+
+- Added 5 country tabs — **Ghana, Kenya, Ethiopia, Morocco, South Africa** — right under the "No
+  travel history yet" message on the Travel Experience session. Clicking a country reveals its own
+  step-by-step guide inline: what kind of entry permission it needs (visa-free, eTA, e-Visa, or a
+  full embassy visa), the exact steps to get it, and the documents required.
+- These five were picked because none of them need a Schengen/US/UK visa first (Morocco's e-visa
+  shortcut does need one of those, so its guide leads with the embassy route instead, which is what
+  applies to most first-time travellers).
+- Sourced from each country's own current entry-requirement guidance, current as of August 2026 —
+  same honest framing as the rent estimates elsewhere in the app: every guide ends with a reminder
+  to confirm on the official government site before paying anything or booking travel, since fees
+  and requirements change.
+- This is informational guidance only, not a booking flow or a guarantee of entry — the applicant
+  still applies directly with the relevant country's own system.
+
+77/77 tests passing (up from 76/76 — added `travel-guide-country-tabs.test.js`).
+
 ## A "Congratulations" message at the end of every session, a Back button in the footer, and a bedroom-count dropdown that sharpens the rent estimate
 
 Three small usability requests bundled together:
