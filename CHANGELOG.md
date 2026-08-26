@@ -3,6 +3,32 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Optional contact capture now actually goes somewhere (Formspree, opt-in only)
+
+Business request: customers who don't finish their application should be reachable for follow-up.
+The previous batch added optional email/phone fields on the passport session, but nothing received
+them — they just sat in the browser like every other field. This batch wires them up to actually be
+useful, the simplest way that keeps the app's privacy promise honest:
+
+- Added a new checkbox next to the email/phone fields: **"It's OK to contact me about this
+  application if I don't finish."** Left unchecked (the default), behavior is unchanged from last
+  batch — nothing is sent anywhere.
+- If ticked, the applicant's name/email/phone are forwarded to the business's inbox
+  (lalasionline@gmail.com) via a [Formspree](https://formspree.io) form the moment they're entered
+  — no backend of our own required. Re-entering the same info doesn't send a duplicate.
+- This is NOT automatic "detect who abandoned and email them" — that needs real session tracking on
+  a server, a bigger build. It's the simplest version that gets real contacts landing in an inbox
+  today: the business follows up by hand with anyone who opted in.
+- `docs/privacy-policy-draft.md` updated to describe this exception honestly — it was previously
+  worded to say email/phone are "never transmitted," which stopped being true the moment this
+  shipped, so both the in-app tip text and the privacy doc now explain exactly when data leaves the
+  browser and why.
+
+New regression test: `tests/contact-capture-consent.test.js` — intercepts the network request to
+Formspree to prove (1) filling in email/phone with the consent box unchecked never fires a request,
+and (2) checking the box does fire one, with the right name/email/phone in the body, and that
+re-blurring with unchanged values doesn't send a duplicate. Full suite: 74/74 passing.
+
 ## Schengen currency fix, plus optional contact fields on the passport session
 
 **Currency fix — Schengen applicant bug report.** The "rough worst-case cost estimate" box on the
