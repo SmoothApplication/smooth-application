@@ -24,7 +24,14 @@ exports.run = async function(ctx){
     await goToSessionByLabel(page, 'Accommodation & South African host');
     var accomText = await page.$eval('#checklistRoot', function(el){ return el.textContent; });
     assert.ok(/South African host/i.test(accomText), 'Accommodation session should be labelled for a South African host, got snippet: ' + accomText.slice(0, 200));
-    assert.ok(/affidavit of undertaking/i.test(accomText), 'Accommodation session should mention the South Africa-specific host affidavit, got snippet: ' + accomText.slice(0, 200));
+
+    // The host affidavit item is conditional on "staying with a host" + "host is funding the trip"
+    // (appliesIf: a.hasHost && a.hostFunding) — tick both before checking it renders.
+    await page.check('#f_hasHost', { force: true });
+    await page.check('#f_hostFunding', { force: true });
+    await goToSessionByLabel(page, 'Accommodation & South African host');
+    var accomTextWithHost = await page.$eval('#checklistRoot', function(el){ return el.textContent; });
+    assert.ok(/affidavit of undertaking/i.test(accomTextWithHost), 'Accommodation session should mention the South Africa-specific host affidavit once a funding host is selected, got snippet: ' + accomTextWithHost.slice(0, 200));
 
     // Yellow fever certificate — the item that makes this checklist meaningfully different from
     // the other three countries in this tool.
