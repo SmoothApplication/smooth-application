@@ -3,6 +3,28 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Passport name field made editable; two real MRZ scan bugs fixed
+
+Real user report, from an actual passport photo: the auto-filled name came back "Mary
+Oluwafunmilayo K Klllllllll Afeni" (OCR noise inserted mid-name), the expiry date came back "not
+detected," and — the sharpest complaint — there was no way to fix the wrong name right there on the
+passport session; it was a readonly mirror pointing to a different, later session.
+
+- **Passport-session name field is now directly editable**, two-way synced with "Your full name (as
+  on passport)" on the trip-details session. OCR will never be perfect no matter how good the
+  reading gets, so being able to correct a wrong result on the spot matters regardless of the two
+  parsing fixes below.
+- **Fixed the name-garbling bug itself**: stray OCR noise from the MRZ's "&lt;" padding was
+  surviving as literal noise words in the given name (a bare letter, and separately a long run of a
+  repeated letter) instead of being cleaned up. The existing cleanup only handled a single bare
+  trailing letter; generalized to catch both patterns anywhere in the field, since a genuine given
+  name never legitimately contains either.
+- **Fixed expiry date coming back "not detected"**: the date of birth field already had a fallback
+  for a bad MRZ read — cross-check against the plain "Date of birth" text printed elsewhere on the
+  page — but the expiry date field had no equivalent. Added the same fallback for expiry.
+- Two new deterministic PDF fixtures (fictional identities, not the real reporter's passport data)
+  reproduce both bugs exactly for regression testing going forward.
+
 ## Fixed: "Notify me" on the quiz result led nowhere
 
 Real user report: tapping "Notify me when it's ready" did nothing visible. Root cause — it was a

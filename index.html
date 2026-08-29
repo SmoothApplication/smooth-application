@@ -1127,8 +1127,8 @@
         <div class="row" style="margin-top:14px;">
           <div>
             <label class="field" for="pv_name">Full name (from your passport)</label>
-            <input type="text" id="pv_name" placeholder="Scan your passport, or fill this in on the trip-details session" readonly>
-            <div class="item-tip">This mirrors "Your full name (as on passport)" on the trip-details session further along — edit it there if it needs correcting.</div>
+            <input type="text" id="pv_name" placeholder="Scan your passport, or type your name in yourself">
+            <div class="item-tip">Auto-filled straight from your passport scan when available — OCR isn't perfect, so check it exactly matches your passport and correct it here if not. This is the same name used everywhere else in your checklist (including "Your trip details" further along), kept in sync either way.</div>
           </div>
           <div>
             <label class="field" for="f_passportNumber">Passport number</label>
@@ -4387,7 +4387,12 @@
   // always has — this is a separate, earlier, standalone read specific to this session.)
   function updatePassportValidateStatus(a){
     var pvNameEl = document.getElementById('pv_name');
-    if (pvNameEl) pvNameEl.value = a.name || '';
+    // Don't clobber whatever's mid-typed in this field with the (possibly stale) answer object —
+    // this function runs after every scan/render pass, but the field's own input listener below
+    // already keeps f_name in sync live, so re-assigning here would just be redundant at best and
+    // could fight the cursor position at worst. Only sync it in from the other direction (e.g. a
+    // saved session restoring f_name, or a scan auto-filling it) when it's not already the same.
+    if (pvNameEl && pvNameEl.value !== (a.name || '')) pvNameEl.value = a.name || '';
     var box = document.getElementById('passportValidateStatus');
     if (!box) return;
     var expiryStr = a.passportExpiry;
@@ -4406,6 +4411,26 @@
       box.innerHTML = '<div class="scan-msg warn">⚠️ Your passport '+(expired ? 'has expired' : 'has less than 6 months\' validity remaining')+' — most visa applications need at least 6 months left, so renewing it should be a priority. <a href="https://passport.immigration.gov.ng/" target="_blank" rel="noopener">Start your renewal on the official Nigeria Immigration Service site ↗</a> This doesn\'t have to stop you here though — feel free to carry on to Session 2 while you sort renewal out in parallel; none of that work goes to waste.</div>';
     }
   }
+  // Real user report: OCR read a name off an actual passport with stray garbage in it ("Mary
+  // Oluwafunmilayo K Klllllllll Afeni"), and this field was READONLY — a mirror of "Your full name
+  // (as on passport)" on the trip-details session further along, with a tip pointing there to fix
+  // it. OCR will never be perfect no matter how much the reading itself improves (see the MRZ
+  // parsing fix nearby), so the applicant needs to be able to correct a wrong name right where they
+  // can see it's wrong, not be sent hunting for a different session. Two plain input listeners below
+  // keep this field and f_name in sync in both directions — setting .value programmatically (as
+  // updatePassportValidateStatus does) never fires 'input', so there's no risk of a feedback loop.
+  (function(){
+    var pvNameEl = document.getElementById('pv_name');
+    var fNameEl = document.getElementById('f_name');
+    if (!pvNameEl || !fNameEl) return;
+    pvNameEl.addEventListener('input', function(){
+      fNameEl.value = pvNameEl.value;
+      if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+    });
+    fNameEl.addEventListener('input', function(){
+      if (pvNameEl.value !== fNameEl.value) pvNameEl.value = fNameEl.value;
+    });
+  })();
 
   /* ---------------- Session 2: Travel Experience ----------------
      No existing add/remove-row repeatable-table pattern lived in this file — both existing "table"
@@ -6606,13 +6631,23 @@
     var segments = namePart.split('<<');
     var surname = (segments[0] || '').replace(/</g,' ').trim();
     var given = (segments[1] || '').replace(/</g,' ').trim();
-    // Same low-end-phone case as normalizeMrzLine above: a stray character surviving in what should
-    // have been pure "<" padding can land right after the real given name and get read as a second
-    // "<<" boundary, tacking a bare, meaningless single letter onto the end (e.g. "ADAEZE CHIOMA K"
-    // instead of "ADAEZE CHIOMA"). A genuine given-name field essentially never legitimately ends in
-    // a standalone single letter with nothing else after it, so drop one if present — the applicant can
-    // still edit the auto-filled name afterward either way, same as any other auto-fill in this app.
-    given = given.replace(/\s[A-Z]$/, '');
+    // Same low-end-phone issue as normalizeMrzLine above: stray characters surviving in what should
+    // have been pure "<" padding land in the given-name field as meaningless noise tokens, since a
+    // row of visually-identical "<" chevrons tends to get OCR'd as visually-identical letters too.
+    // Originally this only stripped a single bare trailing letter (e.g. "ADAEZE CHIOMA K" ->
+    // "ADAEZE CHIOMA"), but a real passport scan produced TWO such tokens mid-string — one bare
+    // letter and one long run of a repeated letter: "MARY OLUWAFUNMILAYO K KLLLLLLLLLL AFENI" instead
+    // of "MARY OLUWAFUNMILAYO". Generalized to catch both patterns anywhere in the field, not just a
+    // single one at the very end: a genuine given-name word is never just one bare letter, and never
+    // 3+ of the same letter repeated in a row (optionally after one different leading character, from
+    // the odd chevron that partially resembles a different letter) — real names don't look like that,
+    // but misread filler reliably does. The applicant can still edit the auto-filled name afterward
+    // either way (see pv_name's two-way sync with f_name above), same as any other auto-fill here.
+    given = given.split(/\s+/).filter(function(word){
+      if (!word) return false;
+      if (word.length === 1) return false; // a lone letter is never a genuine given-name word
+      return !/^[A-Z]?([A-Z])\1{2,}$/.test(word); // optional odd leading char + 3+ repeats of one letter
+    }).join(' ');
 
     // validateMrz() applies the same checksum-verified digit correction described above to the birth/
     // expiry date fields — reuse its (possibly corrected) values here rather than the raw, uncorrected
@@ -6634,6 +6669,18 @@
       if (printedBirth){ birthDate = printedBirth; birthDateSource = 'printed'; }
     }
 
+    var expiryDate = mrzDateToDate(expiryRaw, true);
+    var expiryDateSource = 'mrz';
+    // Falls back whenever the MRZ read came back unusable at all (expiryRaw wasn't even 6 clean
+    // digits — mrzDateToDate returns null), not just on a checksum mismatch — a non-digit OCR
+    // misread breaks parsing outright, it doesn't leave a wrong-but-parseable date the checksum
+    // could catch. Still also covers the checksum-mismatch case (a wrong-but-parseable date), same
+    // trigger as the birth-date fallback above, for the same reason.
+    if (!expiryDate || (mrz && mrz.checks && mrz.checks.expiryDate === false)){
+      var printedExpiry = extractPrintedExpiryDate(text);
+      if (printedExpiry){ expiryDate = printedExpiry; expiryDateSource = 'printed'; }
+    }
+
     return {
       docType: line1[0],
       issuingCountry: line1.slice(2,5).replace(/</g,''),
@@ -6644,7 +6691,8 @@
       birthDate: birthDate,
       birthDateSource: birthDateSource,
       sex: line2[20],
-      expiryDate: mrzDateToDate(expiryRaw, true),
+      expiryDate: expiryDate,
+      expiryDateSource: expiryDateSource,
       mrz: mrz
     };
   }
@@ -6814,8 +6862,16 @@
     // different font, of a different part of the page — rather than leaving the applicant stuck with a
     // birth year that's silently wrong. This is exactly the real case reported: DOB read as "3/9/1938"
     // instead of "3/9/1988".
-    else if (fields && fields.birthDateSource === 'printed'){
-      rows += row('Auto-corrected', 'The date of birth read from the machine-readable zone didn\'t check out (a common OCR mixup, e.g. "8" read as "3"), so this was matched against the plain "Date of birth" text printed elsewhere on the page instead — still worth confirming against the physical document.', true);
+    else {
+      // Same reasoning as the birth-date case above, applied per-field — either or both dates can
+      // independently need this fallback, so the message names whichever one(s) actually used it
+      // rather than assuming it's always just the birth date.
+      var printedFallbackFields = [];
+      if (fields && fields.birthDateSource === 'printed') printedFallbackFields.push('date of birth');
+      if (fields && fields.expiryDateSource === 'printed') printedFallbackFields.push('expiry date');
+      if (printedFallbackFields.length){
+        rows += row('Auto-corrected', 'The ' + printedFallbackFields.join(' and ') + ' read from the machine-readable zone didn\'t check out (a common OCR issue), so ' + (printedFallbackFields.length > 1 ? 'these were' : 'this was') + ' matched against the plain text printed elsewhere on the page instead — still worth confirming against the physical document.', true);
+      }
     }
 
     // Free, on-device "does this also appear printed elsewhere on the page" cross-check — genuine passports
@@ -6861,7 +6917,7 @@
     footer += ' This is a free, on-device checksum and text-consistency check only — it can\'t confirm the document is genuine; only your Visa Application Centre (or a paid enterprise verification service) can do that.';
 
     var autoFillNote = autoFilledName
-      ? '<div class="scan-msg ok">Auto-filled "Your full name (as on passport)" above with <b>'+escapeHtml(toTitleCase(fields.fullName.trim()))+'</b>, read straight off this document — check it matches, and edit it there if not.</div>'
+      ? '<div class="scan-msg ok">Auto-filled "Your full name (as on passport)" above with <b>'+escapeHtml(toTitleCase(fields.fullName.trim()))+'</b>, read straight off this document — check it matches, and correct it in the field below if not (OCR isn\'t perfect).</div>'
       : '';
     var cardHtml = '<div class="passport-card">'
       + '<div class="passport-card-head"><span class="passport-card-icon">📄</span><div>'
@@ -6952,6 +7008,25 @@
     var windowText = vizText.slice(m.index, m.index + m[0].length + 60);
     var nowYear = new Date().getFullYear();
     var found = extractDates(windowText, { minYear: nowYear - 120, maxYear: nowYear });
+    return found.length ? found[0] : null;
+  }
+  // Same fallback as extractPrintedBirthDate just above, for the expiry date. Real case this fixes:
+  // a passport scan where OCR noise landed a non-digit character inside the MRZ's expiry field
+  // (positions 22-27 of line 2) — unlike a simple confusable-digit swap (e.g. "8" read as "3", which
+  // findMrzFieldCorrectionCandidates in validateMrz() already fixes), a genuinely non-digit character
+  // there can't be checksum-corrected at all, so both the checksum AND the parsed date came back
+  // null ("Expires: not detected") even though the birth date field, hit by the same kind of misread,
+  // had this same printed-text fallback to catch it. Scoped to a plausible near-future window (most
+  // passports are valid 5-10 years), not extractPrintedBirthDate's near-past-only window.
+  var EXPIRY_DATE_LABEL_RE = /(date\s*of\s*expir|expir\w*\s*date|exp\.?\s*date|date\s*d[’']?expiration)/i;
+  function extractPrintedExpiryDate(text){
+    if (!text) return null;
+    var vizText = stripMrzLines(text);
+    var m = EXPIRY_DATE_LABEL_RE.exec(vizText);
+    if (!m) return null;
+    var windowText = vizText.slice(m.index, m.index + m[0].length + 60);
+    var nowYear = new Date().getFullYear();
+    var found = extractDates(windowText, { minYear: nowYear - 1, maxYear: nowYear + 15 });
     return found.length ? found[0] : null;
   }
 
