@@ -818,7 +818,7 @@
         <option value="CA">🇨🇦 Canada — Visitor visa (TRV)</option>
         <option value="US" disabled>🇺🇸 United States — coming soon</option>
         <option value="EU">🇪🇺 Schengen — Short-stay visa (Type C)</option>
-        <option value="ZA" disabled>🇿🇦 South Africa — coming soon</option>
+        <option value="ZA">🇿🇦 South Africa — Visitor visa</option>
         <option value="AU" disabled>🇦🇺 Australia — coming soon</option>
         <option value="CN" disabled>🇨🇳 China — coming soon</option>
       </select>
@@ -2479,6 +2479,148 @@
 
   var CAT_ORDER_EU = ['Identity & application','Financial evidence','Ties to Nigeria','Accommodation & Schengen host','Travel details','Purpose-specific','If a child is travelling','Visa history','Translations'];
 
+  // Built from South Africa's Immigration Regulations (Section 11.1), the Department of Home Affairs'
+  // (DHA) published Visitor's Visa requirements, Form BI-84, and VFS Global's Nigeria-specific checklist
+  // for South Africa, researched and cross-checked August 2026 — not from personal case experience the
+  // way the UK checklist above is, so treat every figure here as a general starting point, not a
+  // guarantee, the same as the Canada and Schengen checklists. Two things make this checklist different
+  // from the others in this tool: a yellow fever vaccination certificate is required (Nigeria is a
+  // yellow-fever-endemic country under South African entry rules), and South Africa's child-travel
+  // documentation rules have changed more than once in recent years — always confirm the current position
+  // directly rather than relying solely on this list.
+  var CHECKLIST_ZA = [
+    // Identity & application
+    {id:'passport', cat:'Identity & application', label:'Valid passport (covers your whole trip)', weight:'required',
+      tip:'Must be valid for at least 30 days beyond your intended departure from South Africa, with at least 2 blank pages for endorsements. Scanning it below runs a checksum on the machine-readable strip, the closest thing to an automated check possible in a browser — it is not an authenticity check; only VFS Global / the High Commission can confirm a passport is genuine.',
+      accepts:'file', checkKind:'passport'},
+    {id:'photo', cat:'Identity & application', label:'2 recent colour passport photos (35×45mm, white/light background)', weight:'required',
+      tip:'Check the exact current spec with VFS Global before your appointment — sizing requirements are strictly enforced.'},
+    {id:'applicationForm', cat:'Identity & application', label:'Completed & signed Form BI-84 (Application for a Visa)', weight:'required', appliesIf:function(a){return a.readyToSubmit;},
+      tip:'South Africa\'s standard visa application form, used for all visa types — Home Affairs asks that it be completed in block letters, black ink only, and fully filled in (an incomplete form is a common cause of delay or refusal).'},
+    {id:'feePaid', cat:'Identity & application', label:'Visa fee + VFS service fee payment confirmation', weight:'required', appliesIf:function(a){return a.readyToSubmit;},
+      tip:'Widely reported as around ₦10,400 visa fee plus a VFS Global service fee (roughly ₦29,400 in Lagos/Abuja, more in Port Harcourt) as of 2026 — these move with the exchange rate and change from time to time, so confirm the exact current amounts directly with VFS Global Nigeria before paying.'},
+    {id:'biometric', cat:'Identity & application', label:'Biometrics given at VFS Global (Lagos, Abuja or Port Harcourt) or the South African High Commission', weight:'required', appliesIf:function(a){return a.readyToSubmit;},
+      tip:'Book your appointment ahead of time — applicants have reported longer-than-usual processing delays at South African missions in Nigeria recently, so build in extra buffer before your travel date.'},
+    {id:'oldPassports', cat:'Identity & application', label:'Previous passport(s) showing earlier travel history', weight:'recommended',
+      tip:'Evidence you\'ve travelled abroad and returned home before strengthens your application — bio page(s) of any previous passport(s).',
+      accepts:'file', multiple:true, checkKind:'oldVisa'},
+    {id:'oldVisas', cat:'Identity & application', label:'Previous visa(s) / entry stamps from earlier travel', weight:'recommended',
+      tip:'A track record of visiting other countries and returning home on time is one of the strongest signals a reviewer looks for — attach photos of past visa pages and entry/exit stamps.',
+      accepts:'file', multiple:true, checkKind:'oldVisa'},
+
+    // Financial evidence
+    {id:'bankStatements', cat:'Financial evidence', label:'Bank-certified personal bank statements — last 3 months (up to 3 files)', weight:'required',
+      tip:'DHA\'s own published requirement asks for 3 months of statements, ideally bank-certified (stamped by your bank) rather than a plain printout or downloaded PDF — ask your bank branch for a certified copy if you can. Show a healthy, explainable balance built up steadily, not a lump sum deposited right before applying. Scanning here does the full income/outflow analysis, fills in the cash-flow table below, and checks your statements\' combined closing balance against the figure you typed in the calculator. Up to 3 files — PDF, photo/scan, or Excel (.xlsx/.xls).',
+      accepts:'file', multiple:true, checkKind:'bankStatement'},
+    {id:'payslips', cat:'Financial evidence', label:'Payslips — last 3 months', weight:'required', appliesIf:function(a){return a.employed;},
+      tip:'Matches the salary stated in your employment letter and the regular credit on your bank statement — reviewers cross-check all three.', accepts:'file', multiple:true},
+    {id:'taxDocs', cat:'Financial evidence', label:'Tax clearance certificate — last 2 years (recommended)', weight:'recommended',
+      tip:'Extra proof of a stable financial and legal footing in Nigeria.', accepts:'file', multiple:true},
+    {id:'forexProof', cat:'Financial evidence', label:'Proof of foreign currency savings/income (optional)', weight:'recommended',
+      tip:'If you added foreign currency savings in the calculator above, a supporting document — foreign bank statement, exchange receipt, or remittance confirmation — makes that figure easier for a reviewer to trust than a typed-in number alone.',
+      accepts:'file', multiple:true},
+    {id:'bizFinance', cat:'Financial evidence', label:'Business bank statements', weight:'required', appliesIf:function(a){return a.selfEmployed;},
+      tip:'Upload 3 months of BUSINESS bank statements showing you drawing a personal salary from the business, not just money sitting in the business account. That same payment must also show up as an inflow on your own personal bank statement — scan both here and this tool will automatically cross-check the two for you. A business is a separate legal entity from its owner, so business funds alone don\'t demonstrate your own personal means.',
+      accepts:'file', multiple:true, checkKind:'businessStatement'},
+    {id:'cacDocs', cat:'Financial evidence', label:'CAC registration (business registration documents)', weight:'required', appliesIf:function(a){return a.selfEmployed;},
+      tip:'Your CAC certificate and other business registration documents — shows the business exists and is active.', accepts:'file', multiple:true},
+    {id:'sponsorFinance', cat:'Financial evidence', label:"Sponsor's financial documents (if someone else is funding this trip)", weight:'required', appliesIf:function(a){return a.hasHost && a.hostFunding;},
+      tip:'Needed if a host or relative in South Africa is covering some or all of your costs — pair this with the affidavit of undertaking below.', accepts:'file', multiple:true},
+
+    // Ties to Nigeria
+    {id:'leaveLetter', cat:'Ties to Nigeria', label:"Employer's leave-approval letter", weight:'required', appliesIf:function(a){return a.employed;},
+      tip:'Should state the exact number of days approved, matching your travel dates and itinerary — a mismatch is a common cause for doubt.', accepts:'file'},
+    {id:'employmentLetter', cat:'Ties to Nigeria', label:'Employment letter on company letterhead (role, salary, start date)', weight:'required', appliesIf:function(a){return a.employed;},
+      tip:'The salary stated should match the regular monthly inflow shown on your bank statement — reviewers cross-check the two.',
+      accepts:'file', checkKind:'employmentLetter'},
+    {id:'enrolmentLetter', cat:'Ties to Nigeria', label:'School/university admission or enrolment letter', weight:'required', appliesIf:function(a){return a.student;},
+      tip:'Confirms your current studies and that the institution expects you back.', accepts:'file'},
+    {id:'studentSponsorLetter', cat:'Ties to Nigeria', label:"Sponsor's financial documents + a short letter from them confirming support", weight:'required', appliesIf:function(a){return a.student && a.studentSponsor;},
+      tip:'As a student, funding usually comes from someone else — reviewers want to see who, how they\'re related to you, and proof they can actually afford it: their bank statement or employment letter, plus a brief letter in their own words confirming they\'re supporting this trip.', accepts:'file', multiple:true},
+    {id:'familyTies', cat:'Ties to Nigeria', label:'Evidence of dependants in Nigeria (marriage/birth certificates)', weight:'recommended',
+      tip:'A spouse, children, or other dependants relying on you in Nigeria is a strong reason a reviewer expects you to return — attach marriage and/or birth certificates if this applies to you.', accepts:'file', multiple:true},
+
+    // Assets & investments (subcategory under Ties to Nigeria)
+    {id:'landAsset', cat:'Ties to Nigeria', subcat:'Assets & investments', label:'Land or property ownership documents', weight:'recommended',
+      tip:'Certificate of Occupancy, deed, or title — a claim alone carries little weight without the paperwork.', accepts:'file', multiple:true},
+    {id:'goldAsset', cat:'Ties to Nigeria', subcat:'Assets & investments', label:'Valuables (e.g. gold) purchase receipts or valuation', weight:'recommended',
+      tip:'Only useful with proof of ownership/value — a verbal claim isn\'t evidence.', accepts:'file', multiple:true},
+    {id:'pensionAsset', cat:'Ties to Nigeria', subcat:'Assets & investments', label:'Pension / RSA statement', weight:'recommended',
+      tip:'A recent statement from your PenCom-registered Pension Fund Administrator.', accepts:'file'},
+    {id:'investmentAsset', cat:'Ties to Nigeria', subcat:'Assets & investments', label:'Investment statements (shares, mutual funds, treasury bills, etc.)', weight:'recommended',
+      tip:'Recent statements from your broker/fund manager — again, proof required, not just a claim.', accepts:'file', multiple:true},
+
+    // Accommodation & South African host
+    {id:'invitationLetter', cat:'Accommodation & South African host', label:"Invitation letter from your South African host", weight:'required', appliesIf:function(a){return a.hasHost;},
+      tip:"Should include the host's full name, address, ID/status, your relationship, and exact dates of your stay.",
+      accepts:'file', checkKind:'invitationLetter'},
+    {id:'hostStatus', cat:'Accommodation & South African host', label:"Copy of host's ID / passport / residence permit", weight:'required', appliesIf:function(a){return a.hasHost;}, accepts:'file',
+      tip:'Confirms your host is lawfully in South Africa and able to host you.'},
+    {id:'hostAddress', cat:'Accommodation & South African host', label:"Host's proof of address (recent utility bill or lease)", weight:'required', appliesIf:function(a){return a.hasHost;},
+      tip:'Confirms where you\'ll actually be staying.', accepts:'file'},
+    {id:'hostAffidavit', cat:'Accommodation & South African host', label:"Host's affidavit of undertaking (sworn before a Commissioner of Oaths)", weight:'required', appliesIf:function(a){return a.hasHost && a.hostFunding;},
+      tip:'A South Africa-specific requirement: your host formally declares, in an affidavit, that they will be responsible for your maintenance and expenses during your stay if this is approved — needed whenever your host is covering some or all of your costs.', accepts:'file'},
+    {id:'hostFinance', cat:'Accommodation & South African host', label:"Host's bank statement or employment letter", weight:'required', appliesIf:function(a){return a.hasHost && a.hostFunding;},
+      tip:'Needed alongside the affidavit above whenever your host is covering some or all of your costs.', accepts:'file'},
+    {id:'hotelBooking', cat:'Accommodation & South African host', label:'Hotel / accommodation booking confirmation', weight:'required', appliesIf:function(a){return !a.hasHost;},
+      tip:"A reservation hold is usually enough — doesn't need to be prepaid. Scanning it tries to detect a nightly rate and checks it against the accommodation cost you entered in the calculator above.",
+      accepts:'file', checkKind:'accommodation'},
+
+    // Travel details
+    {id:'yellowFeverCert', cat:'Travel details', label:'Yellow fever vaccination certificate', weight:'required',
+      tip:'South Africa requires this from travellers arriving from or transiting a yellow-fever-endemic country — which includes Nigeria. Carry your International Certificate of Vaccination or Prophylaxis; without it you can be refused entry even with a valid visa.', accepts:'file'},
+    {id:'flightItinerary', cat:'Travel details', label:'Flight itinerary / reservation (round-trip)', weight:'required',
+      tip:"A reservation hold showing your planned dates is usually enough — you generally don't need a fully paid ticket before the visa is approved. If you entered an airline and dates in the financial calculator above, scanning this will check them against the document.",
+      accepts:'file', checkKind:'flightItinerary'},
+    {id:'returnEvidence', cat:'Travel details', label:'Evidence of return or onward travel', weight:'required',
+      tip:'Shows the reviewer you plan to leave South Africa at the end of your visit.', accepts:'file'},
+    {id:'zaItinerary', cat:'Travel details', label:'Day-by-day itinerary of places you plan to visit in South Africa', weight:'required',
+      tip:'Named cities/provinces, roughly what you\'ll do each day — a genuine, planned visit reads far better than an open-ended one.', accepts:'file'},
+    {id:'accomVerified', cat:'Travel details', label:'Accommodation verified (address is real and booking is genuine)', weight:'required',
+      tip:'Double-check the booking reference is live and the address exists — don\'t rely on an unverified reservation.'},
+    {id:'sightseeing', cat:'Travel details', label:'Sightseeing plans — name and ticket of places you\'ll visit', weight:'recommended',
+      tip:'For each place, note its name in your itinerary above and attach the ticket/booking confirmation here if you already have one — shows a genuine, specific plan rather than a vague one.', accepts:'file', multiple:true},
+    {id:'insurance', cat:'Travel details', label:'Travel / medical insurance', weight:'recommended',
+      tip:'Not always mandatory for a South Africa visitor visa the way it is for a Schengen visa, but strongly recommended — confirm with your specific mission whether medical cover is required for your case.', accepts:'file'},
+    {id:'coverLetter', cat:'Travel details', label:'Letter of Explanation / cover letter', weight:'recommended',
+      tip:'A short letter in your own words covering your purpose of visit, your itinerary, and — most importantly — your specific reasons for returning home (job, family, property).', accepts:'file'},
+
+    // Purpose-specific
+    {id:'bizLetterPair', cat:'Purpose-specific', label:'Letters from your Nigerian employer and the South African company you\'re visiting', weight:'required', appliesIf:function(a){return a.purpose==='business';},
+      tip:'Should detail the business relationship and the purpose of your meetings. If you\'re also ticked as employed, this doesn\'t have to be a second, separate letter — your existing employment letter can simply be adapted to also cover the business relationship and trip purpose.'},
+    {id:'confInvite', cat:'Purpose-specific', label:'Letter of invitation from the conference/event organiser', weight:'required', appliesIf:function(a){return a.purpose==='conference';},
+      tip:'Plus your registration confirmation if you have one.'},
+    {id:'medLetter', cat:'Purpose-specific', label:'Letter from the South African medical practitioner/clinic', weight:'required', appliesIf:function(a){return a.purpose==='medical';},
+      tip:'Diagnosis, proposed treatment, estimated cost and expected duration — South Africa is a common medical-tourism destination for Nigerian applicants, and reviewers expect this to be specific.', accepts:'file', checkKind:'medicalLetter'},
+    {id:'medFunds', cat:'Purpose-specific', label:'Proof of funds to cover the full cost of treatment', weight:'required', appliesIf:function(a){return a.purpose==='medical';},
+      tip:'On top of your general financial evidence above.'},
+    {id:'familyProof', cat:'Purpose-specific', label:'Proof of relationship to the family you\'re visiting', weight:'required', appliesIf:function(a){return a.purpose==='family';},
+      tip:'Birth/marriage certificates or similar linking you to your South Africa-based family.'},
+    {id:'weddingInvite', cat:'Purpose-specific', label:'Wedding appointment confirmation or invitation', weight:'required', appliesIf:function(a){return a.purpose==='wedding';},
+      tip:'Confirms the event you are attending and the date.'},
+    {id:'academicLetters', cat:'Purpose-specific', label:'Letters from your employer and the South African host institution', weight:'required', appliesIf:function(a){return a.purpose==='academic';},
+      tip:'Required for an academic visit/research stay — a visitor\'s visa only covers up to 90 days, so check whether a study visa is needed instead if it runs longer.'},
+    {id:'trainingProof', cat:'Purpose-specific', label:'Proof of paid training / course enrolment', weight:'required', appliesIf:function(a){return a.purpose==='training';},
+      tip:'Invoice/payment confirmation, course syllabus, and a letter from the South African training provider confirming your enrolment and dates.', accepts:'file', multiple:true},
+
+    // Children
+    {id:'birthCert', cat:'If a child is travelling', label:'Full/unabridged birth certificate showing both parents', weight:'recommended', appliesIf:function(a){return a.hasChild;}, accepts:'file',
+      tip:"South Africa's rules on this have changed more than once in recent years — foreign children are generally no longer strictly required to carry one if accompanied by a parent and the passport lists parent details, but Home Affairs has historically still recommended carrying it, and enforcement at individual missions/ports of entry can vary. Given the back-and-forth, bring it if you can rather than relying on the exemption — confirm the current position with VFS Global or your mission before travelling."},
+    {id:'consentLetter', cat:'If a child is travelling', label:"Notarised consent affidavit from the non-travelling parent(s)/guardian", weight:'required', appliesIf:function(a){return a.hasChild;},
+      tip:'Needed if the child is travelling with only one parent, or with neither — sworn before a Commissioner of Oaths, plus a copy of that parent\'s passport data page.', accepts:'file'},
+    {id:'parentsPassports', cat:'If a child is travelling', label:"Certified copies of both parents' passport data pages", weight:'required', appliesIf:function(a){return a.hasChild;}, accepts:'file', multiple:true},
+
+    // Visa history
+    {id:'refusalDocs', cat:'Visa history', label:'Previous visa refusal documentation (South Africa or elsewhere)', weight:'required', appliesIf:function(a){return a.hasRefusal;},
+      tip:'The refusal letter(s) for each prior refusal you listed above, ideally alongside a short cover-letter explanation of what\'s changed since. Upload it below and this tool will scan it locally for common refusal-reason wording.', accepts:'file', multiple:true, checkKind:'refusalLetter'},
+
+    // Translations
+    {id:'translations', cat:'Translations', label:'Certified English translations of any other-language documents', weight:'required', appliesIf:function(a){return a.translation;},
+      tip:"Must include the translator's certification plus a copy of the original document — DHA requires certified translations for anything not already in English.", accepts:'file', multiple:true}
+  ];
+
+  var CAT_ORDER_ZA = ['Identity & application','Financial evidence','Ties to Nigeria','Accommodation & South African host','Travel details','Purpose-specific','If a child is travelling','Visa history','Translations'];
+
   // ---------------- Country registry ----------------
   // Each entry's checklist/catOrder drives render(); the rest of the fields feed the consent-gate disclaimer,
   // the banner/footer, and the handful of dynamic advisory strings elsewhere (findUnexplainedLargeInflows-style
@@ -2527,7 +2669,20 @@
       hostCountryLabel:'the Schengen area', hostTypeLabel:'Schengen host', translationLangLabel:'English or your consulate\'s language',
       checklist: CHECKLIST_EU, catOrder: CAT_ORDER_EU, ready:true
     },
-    ZA: {code:'ZA', flag:'🇿🇦', name:'South Africa', visaName:'South Africa visitor visa', ready:false},
+    ZA: {
+      code:'ZA', flag:'🇿🇦', name:'South Africa', visaName:'South Africa visitor visa', authority:'DHA',
+      subtitle:'A personal readiness checklist for Nigerian applicants preparing a South Africa visitor visa application. Fill in your trip details, tick off what you have, and optionally scan a file locally for a quick automated sanity-check.',
+      disclaimerShortHtml:'<b>Not immigration advice.</b> A personal prep tool — it doesn\'t decide, submit, or guarantee your application.<ul class="disclaimer-points"><li>Built from South Africa\'s Immigration Regulations, DHA guidance, and Form BI-84</li><li>Not based on a personal case-review track record — treat figures as a starting point</li><li>Files are scanned entirely in your browser — nothing is uploaded</li></ul>',
+      disclaimerHtml:'<b>Not immigration advice.</b> This tool is built from South Africa\'s Immigration Regulations (Section 11.1), the Department of Home Affairs\' (DHA) published Visitor\'s Visa requirements, Form BI-84, and VFS Global\'s Nigeria-specific guidance, as of August 2026 — it is meant to help you prepare, not decide, submit, or guarantee your application, and it cannot detect fraudulent documents. Like the Canada and Schengen checklists in this tool (and unlike the UK one), this isn\'t built from a personal track record of reviewed cases — treat every figure here as a general starting point, not a guarantee. Two things are worth flagging specifically: a yellow fever vaccination certificate is required for Nigerian applicants, and requirements around children\'s travel documents have changed more than once in recent years, so confirm the current position directly before you travel. Applicants have also reported longer-than-usual processing delays at South African missions in Nigeria recently — build in extra buffer before your travel date. Always confirm current requirements at VFS Global Nigeria or the Department of Home Affairs, and consider a regulated immigration practitioner for complex cases. Any files you scan here are processed <b>entirely in your browser</b> — nothing is uploaded anywhere.',
+      officialUrl:'https://visa.vfsglobal.com/one-pager/southafrica/nigeria/english/', officialLinkText:'VFS Global — South Africa visa (Nigeria)',
+      vacText:'VFS Global (Lagos, Abuja or Port Harcourt) or the South African High Commission, Abuja',
+      priorityServiceName:'expedited service (where VFS Global offers one)',
+      statementsMonthsText:'three months',
+      footerIntro:'Built from South Africa\'s Immigration Regulations, DHA guidance, Form BI-84, and VFS Global\'s Nigeria-specific checklist.',
+      footerLinks:[{url:'https://visa.vfsglobal.com/one-pager/southafrica/nigeria/english/', text:'VFS Global — South Africa visa (Nigeria)'},{url:'https://www.dha.gov.za', text:'Department of Home Affairs (DHA)'}],
+      hostCountryLabel:'South Africa', hostTypeLabel:'South African host', translationLangLabel:'English',
+      checklist: CHECKLIST_ZA, catOrder: CAT_ORDER_ZA, ready:true
+    },
     AU: {code:'AU', flag:'🇦🇺', name:'Australia', visaName:'Australia visitor visa', ready:false},
     CN: {code:'CN', flag:'🇨🇳', name:'China', visaName:'China visitor visa', ready:false}
   };
@@ -6757,14 +6912,22 @@
       var ukAuthoritySignals = ['appendix v','paragraph v 4.2','v 4.2','v4.2','entry clearance officer','genuinely seeking entry','genuine visitor','home office'];
       var caAuthoritySignals = ['179(b)','irpr','immigration and refugee protection regulations','temporary resident visa','ircc','immigration, refugees and citizenship canada'];
       var euAuthoritySignals = ['schengen','visa code','regulation (ec) 810/2009','810/2009','consulate general','short-stay visa','uniform schengen visa'];
+      var zaAuthoritySignals = ['department of home affairs','dha','form bi-84','bi-84','immigration regulations','republic of south africa'];
       var ukHits = ukAuthoritySignals.filter(function(s){ return lower.indexOf(s) !== -1; }).length;
       var caHits = caAuthoritySignals.filter(function(s){ return lower.indexOf(s) !== -1; }).length;
       var euHits = euAuthoritySignals.filter(function(s){ return lower.indexOf(s) !== -1; }).length;
+      var zaHits = zaAuthoritySignals.filter(function(s){ return lower.indexOf(s) !== -1; }).length;
       var authority = 'UK';
-      if (caHits > ukHits && caHits > euHits) authority = 'CA';
-      else if (euHits > ukHits && euHits > caHits) authority = 'EU';
-      else if (ukHits > caHits && ukHits > euHits) authority = 'UK';
-      else authority = (currentCountry === 'CA' ? 'CA' : (currentCountry === 'EU' ? 'EU' : 'UK'));
+      var allHits = [ukHits, caHits, euHits, zaHits];
+      var maxHits = Math.max.apply(null, allHits);
+      if (maxHits > 0 && allHits.filter(function(h){ return h === maxHits; }).length === 1){
+        if (caHits === maxHits) authority = 'CA';
+        else if (euHits === maxHits) authority = 'EU';
+        else if (zaHits === maxHits) authority = 'ZA';
+        else authority = 'UK';
+      } else {
+        authority = (currentCountry === 'CA' ? 'CA' : (currentCountry === 'EU' ? 'EU' : (currentCountry === 'ZA' ? 'ZA' : 'UK')));
+      }
       // The Accommodation & host checklist category's name differs by country (see applyCountryText()) —
       // resolve it the same way, rather than hardcoding one country's version here.
       var hostCat = 'cat:' + (CHECKLIST.filter(function(it){ return it.id === 'invitationLetter'; })[0] || {}).cat;
@@ -6774,7 +6937,7 @@
           keywords: ['insufficient fund','maintenance and accommodation','adequate maintenance','maintain and accommodate','financial circumstances','source of income','source of funds','means available','support yourself financially','financially support','personal assets and financial status','sufficient funds'],
           advice: 'Strengthen this with a longer, more consistent bank statement history, a clear source for every large deposit (see the Income sources breakdown below), and a closing balance comfortably above your estimated trip cost — not just spiked on the day of application.',
           jumpKey: 'finance2' },
-        { label: authority === 'CA' ? 'Genuine intention to leave Canada' : (authority === 'EU' ? 'Genuine traveller / intention to leave the Schengen area' : 'Genuine visitor / intention to leave'),
+        { label: authority === 'CA' ? 'Genuine intention to leave Canada' : (authority === 'EU' ? 'Genuine traveller / intention to leave the Schengen area' : (authority === 'ZA' ? 'Genuine visitor / intention to leave South Africa' : 'Genuine visitor / intention to leave')),
           keywords: ['genuine intention','genuine visitor','genuine temporary','intend to leave','satisfied that you would leave','satisfied that you are a genuine','not satisfied that you would','not satisfied that you will leave','immigration intent','paragraph v 4.2','179(b)'],
           advice: "This is usually about your ties to home, not your money. Strengthen it with clear evidence of a job, business, property, or family you're returning to, and make sure your stated trip length and purpose are realistic and well explained.",
           jumpKey: 'trip' },
@@ -6833,7 +6996,7 @@
       }
 
       var rRes = [];
-      var authorityLabel = authority === 'CA' ? 'a Canada (IRCC) refusal letter' : (authority === 'EU' ? 'a Schengen visa refusal letter' : 'a UK Home Office refusal letter');
+      var authorityLabel = authority === 'CA' ? 'a Canada (IRCC) refusal letter' : (authority === 'EU' ? 'a Schengen visa refusal letter' : (authority === 'ZA' ? 'a South Africa (DHA) refusal letter' : 'a UK Home Office refusal letter'));
       if (misrepFlagged){
         rRes.push({cls:'err', text:'<b>This letter may cite a misrepresentation, deception, or document-authenticity finding.</b> That\'s a different situation from a routine refusal — it can carry serious consequences (e.g. a multi-year re-entry ban) and isn\'t something to try to resolve by simply resubmitting stronger documents. Please speak to a regulated immigration adviser (in the UK, OISC-registered; in Canada, an RCIC or immigration lawyer) before reapplying.'});
       }

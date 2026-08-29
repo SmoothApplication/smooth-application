@@ -80,7 +80,8 @@ See `/docs` for the business-side documents that accompany this codebase:
 - ✅ UK Standard Visitor visa — live
 - ✅ Canada visitor visa (TRV) — live
 - ✅ Schengen short-stay visa (Type C) — live
-- 🚧 US, South Africa, Australia, China — placeholders only, not yet built (see `COUNTRIES` object in `index.html`)
+- ✅ South Africa visitor visa — live
+- 🚧 US, Australia, China — placeholders only, not yet built (see `COUNTRIES` object in `index.html`)
 
 ## License / ownership
 

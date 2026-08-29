@@ -3,6 +3,34 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## South Africa visitor visa checklist — the 4th country, live
+
+Built out the South Africa visitor visa checklist that was previously a placeholder ("coming
+soon") in the country picker.
+
+- New `CHECKLIST_ZA` / `CAT_ORDER_ZA`, built from South Africa's Immigration Regulations (Section
+  11.1), the Department of Home Affairs' (DHA) published Visitor's Visa requirements, Form BI-84,
+  and VFS Global's Nigeria-specific checklist — researched and cross-checked August 2026, not from
+  a personal case-review track record (same honest framing as the Canada and Schengen checklists).
+- Two things make this checklist meaningfully different from the other three: a **yellow fever
+  vaccination certificate** is required (Nigeria is a yellow-fever-endemic country under South
+  African entry rules), and a South Africa-specific **host affidavit of undertaking** (sworn before
+  a Commissioner of Oaths) is required whenever a host is funding the trip, alongside the usual
+  invitation letter and host documents.
+- Bank statements: 3 months (South Africa's own published minimum, shorter than the UK/EU's 6
+  months), ideally bank-certified.
+- Children's travel documents get an honest caveat rather than a flat rule: South Africa's
+  unabridged-birth-certificate requirement for foreign children has changed more than once in
+  recent years, so it's marked "recommended" with a note to confirm the current position directly
+  rather than asserted as a fixed requirement.
+- The "coming soon" option in the country picker is now enabled; South Africa's own subtitle,
+  disclaimer, footer links (VFS Global Nigeria one-pager + DHA), host/translation labels, and
+  refusal-letter authority detection all wire up automatically through the same generic
+  per-country machinery the UK/Canada/Schengen checklists already use — no other app logic needed
+  to change.
+
+78/78 tests passing (up from 77/77 — added `south-africa-checklist.test.js`).
+
 ## EU/Schengen applicants now get a "funds ready?" question, with UK-instead advice if not
 
 User request ("batch29"): a new question on the Travel Experience session, shown only for
