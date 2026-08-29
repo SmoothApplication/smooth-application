@@ -13,7 +13,7 @@ exports.run = async function(ctx){
     await page.waitForSelector('.session-pill');
 
     var titles = await page.$$eval('.session-pill', function(pills){
-      return pills.map(function(p){ return (p.getAttribute('title') || '').split(' — ')[0].split(' (locked')[0]; });
+      return pills.map(function(p){ return (p.getAttribute('title') || '').split(' — ')[0]; });
     });
 
     // 12 top-level sessions for a typical fresh UK applicant: the 6 fixed topics, then one session
@@ -48,12 +48,14 @@ exports.run = async function(ctx){
       assert.strictEqual(count, 1, '"'+soleCardKeys[i]+'" should tag exactly one card, got ' + count);
     }
 
-    // Pill 2 onward should be locked (disabled) on a completely fresh session — passport starts at
-    // 0% complete, well under the 70% readiness threshold, so nothing past it should be reachable yet.
+    // Pills are always freely clickable, even on a completely fresh session where passport starts at
+    // 0% complete — street-tested feedback ("why lock the pages, allow us to explore") pushed this
+    // away from a hard pill-lock. The 70% readiness threshold still applies, but only to the Next
+    // button (see below and session-readiness-gate.test.js).
     var pill2Disabled = await page.$eval('.session-pill[data-idx="1"]', function(el){ return el.disabled; });
-    assert.strictEqual(pill2Disabled, true, 'Session 2 should be locked while session 1 is under 70% complete');
+    assert.strictEqual(pill2Disabled, false, 'Session 2 pill should be clickable even while session 1 is under 70% complete');
     var pill2Locked = await page.$eval('.session-pill[data-idx="1"]', function(el){ return el.classList.contains('locked'); });
-    assert.strictEqual(pill2Locked, true, 'Session 2 pill should carry the .locked class while gated');
+    assert.strictEqual(pill2Locked, false, 'Session 2 pill should not carry a .locked class — pill locking was removed');
 
     // The section report card should show for a session with real content, explain the gate, and
     // link out to the same WhatsApp/email contact used elsewhere in the app.
@@ -66,7 +68,7 @@ exports.run = async function(ctx){
     // Next (both the top nav button and the footer button) deliberately stays CLICKABLE while
     // gated — a disabled button can't highlight missing fields, scroll to the report card, or
     // record the block for analytics, so attemptAdvanceSession() does the actual blocking instead
-    // (see session-readiness-gate.test.js for that behavior). Only the later PILLS are locked.
+    // (see session-readiness-gate.test.js for that behavior). Pills are never locked at all.
     var navNextDisabled = await page.$eval('#sessionNextBtn', function(el){ return el.disabled; });
     assert.strictEqual(navNextDisabled, false, 'Top "Next" button should stay clickable even under the readiness threshold');
     var footerNextDisabled = await page.$eval('#sessionFooterNextBtn', function(el){ return el.disabled; });

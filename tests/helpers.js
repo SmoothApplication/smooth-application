@@ -73,14 +73,11 @@ async function passConsentGate(page, options){
 }
 
 // Jumps directly to a session by index — unlike the "Next →" button, this never triggers the soft
-// "you're not done yet" confirm dialog, and unlike clicking the actual pill, it also isn't stopped
-// by the 70%-readiness lock (see computeLockAfterIndex in index.html) that disables a real
-// applicant's pill once an earlier session is left under-filled. Most tests need to jump straight to
-// whatever they're testing without first filling in every earlier session just to unlock it, the
-// same deterministic shortcut goToSessionByPill has always provided — so this calls the app's own
-// window.__testGoToSession(idx) escape hatch (a direct, unclamped setter meant only for this) rather
-// than clicking the pill DOM node, which sidesteps both the lock AND the old render-timing race this
-// used to blur-and-wait for.
+// "you're not done yet" confirm dialog. (Session pills themselves are always freely clickable now —
+// see session-readiness-gate.test.js — but this is still the more deterministic route: it sidesteps
+// any render-timing race from a real click, and lets tests jump straight to whatever they're testing
+// without navigating through every earlier session first.) Calls the app's own
+// window.__testGoToSession(idx) escape hatch, a direct setter meant only for this.
 async function goToSessionByPill(page, idx){
   await page.evaluate(function(i){ window.__testGoToSession(i); }, idx);
 }

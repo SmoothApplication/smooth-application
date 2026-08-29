@@ -1,16 +1,20 @@
 'use strict';
 // User request: "If any applicant did not get 70% in [a section], they should not proceed to the
 // next session — it can confuse the applicant to have access to other sessions." This is a genuine
-// hard block (not the older dismissible "proceed anyway?" nudge, which still applies between 70%
-// and 100%) — later pills stay locked until the current session clears the threshold. See
-// computeLockAfterIndex()/attemptAdvanceSession() in index.html.
+// hard block on the "Next" button (not the older dismissible "proceed anyway?" nudge, which still
+// applies between 70% and 100%) — see attemptAdvanceSession() in index.html.
+//
+// Session PILLS used to also hard-lock (disabled + a lock icon) until the current session cleared
+// the threshold. That was removed after street-tested feedback (a marketer running the product past
+// real applicants around banks/offices in Yaba) pushed back hard the other way: "why lock the pages,
+// allow us to explore" — being unable to even preview an upcoming session read as the same
+// restrictive, form-like experience applicants already have a phobia of. Pills are now always
+// clickable; only the Next button's gate (tested below) remains.
 //
 // The Next buttons themselves deliberately stay CLICKABLE while gated, rather than disabled — an
 // earlier version of this feature disabled them outright, which silently turned the whole
 // hard-block experience (highlighting missing fields, scrolling to the report card, recording the
-// block) into dead code, since a disabled element never fires a real click event in the first
-// place. Only the later session PILLS are actually disabled, since jumping straight past the
-// current section really should be unreachable.
+// block) into dead code, since a disabled element never fires a real click event in the first place.
 const assert = require('assert');
 const { newPageAt, passConsentGate } = require('./helpers');
 
@@ -27,14 +31,14 @@ exports.run = async function(ctx){
       window.goatcounter = { count: function(o){ window.__trackedEvents.push(o.path); } };
     });
 
-    // Fresh session: passport is 0% filled, well under 70% — session 2 locked, but Next stays
-    // clickable (see the file header comment above for why).
-    var pill2DisabledBefore = await page.$eval('.session-pill[data-idx="1"]', function(el){ return el.disabled; });
-    assert.strictEqual(pill2DisabledBefore, true, 'Session 2 should start locked');
+    // Fresh session: passport is 0% filled, well under 70%. The pill is freely clickable (see file
+    // header), but Next should still hard-block and run the block logic.
+    var pill2Clickable = await page.$eval('.session-pill[data-idx="1"]', function(el){ return !el.disabled; });
+    assert.strictEqual(pill2Clickable, true, 'Session 2 pill should always be clickable, even while session 1 is under 70% complete');
     var footerNextBefore = await page.$eval('#sessionFooterNextBtn', function(el){ return el.disabled; });
     assert.strictEqual(footerNextBefore, false, 'Footer Next should stay clickable while gated, so the block logic actually runs');
 
-    // Clicking it must not navigate anywhere, must outline the missing fields in red, and must
+    // Clicking Next must not navigate anywhere, must outline the missing fields in red, and must
     // record a session_gate_blocked event.
     await page.click('#sessionFooterNextBtn');
     await page.waitForTimeout(200);
@@ -57,12 +61,9 @@ exports.run = async function(ctx){
     await page.fill('#f_passportNumber', 'B50357981');
     await page.fill('#f_passportExpiry', '2030-01-01');
     await page.waitForFunction(function(){
-      var pill = document.querySelector('.session-pill[data-idx="1"]');
-      return pill && !pill.disabled;
+      var el = document.getElementById('sessionReportCard');
+      return el && /Congratulations/.test(el.textContent);
     }, { timeout: 3000 });
-
-    var pill2DisabledAfter = await page.$eval('.session-pill[data-idx="1"]', function(el){ return el.disabled; });
-    assert.strictEqual(pill2DisabledAfter, false, 'Session 2 should unlock once passport clears the readiness threshold');
 
     // The now-filled passport number should no longer be flagged.
     var passportNumberFlaggedAfter = await page.$eval('#f_passportNumber', function(el){ return el.classList.contains('field-invalid'); });
@@ -72,7 +73,6 @@ exports.run = async function(ctx){
     // hits 100% it shows a "🎉 Congratulations" callout (see sessionReportCardHtml) rather than
     // the old plain "Next is unlocked" line — that's what "ready" looks like now.
     var reportText = await page.$eval('#sessionReportCard', function(el){ return el.textContent; });
-    assert.ok(/Congratulations/.test(reportText), 'Report card should show the Congratulations callout once ready, got: ' + reportText);
     assert.ok(!/paused for this section/.test(reportText), 'Report card should no longer show the gated message once ready, got: ' + reportText);
 
     // Next should now genuinely work, and should NOT record another session_gate_blocked event
@@ -86,11 +86,10 @@ exports.run = async function(ctx){
     var gateBlockedCount = trackedAfterAdvance.filter(function(name){ return name.indexOf('session_gate_blocked:') === 0; }).length;
     assert.strictEqual(gateBlockedCount, 1, 'A successful advance should not record any new gate-blocked event, got: ' + JSON.stringify(trackedAfterAdvance));
 
-    // Going back to session 1 must always work regardless of lock state (locking only ever blocks
-    // moving forward past an unfinished section, never revisiting an earlier one).
+    // Going back to session 1 must always work.
     await page.click('#sessionBackBtn');
     var backOnPassport = await page.$eval('.session-pill[data-idx="0"]', function(el){ return el.classList.contains('active'); });
-    assert.strictEqual(backOnPassport, true, 'Back should always reach an earlier session, lock or no lock');
+    assert.strictEqual(backOnPassport, true, 'Back should always reach an earlier session');
   } finally {
     await page.context().close();
   }

@@ -3,6 +3,27 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Session pills unlocked, and required documents stated upfront
+
+Triggered by real street-test feedback: a marketer ran the product past applicants in person around
+banks/offices in Yaba, Lagos. Two of the sharpest complaints, tackled together as quick wins:
+
+- **"Why lock the pages, allow us to explore"** — session pills used to hard-lock (disabled, with a
+  🔒 icon) until the current session cleared a 70% completion threshold, so an applicant couldn't
+  even preview what came next. Applicants read this the same way they read the visa forms they
+  already avoid. Pills are now always freely clickable. The separate "Next" button gate (which
+  blocks advancing until the current session is ≥70% complete, with a soft confirm between 70-100%)
+  is unchanged — the lock removed here was only ever on the pills, not on forward progress.
+- **"State it clearly that I need my international passport and 3-6 months downloaded bank
+  statement as we proceed"** — the "What you'll likely need to gather first" list on the consent
+  gate used to be a click-to-expand `<details>`, easy to miss entirely. It's now a plain,
+  always-visible block styled like the disclaimer next to it, so the two documents that take
+  longest to pull together are stated before the applicant starts, not discovered mid-form.
+
+Both changes are scoped narrowly on purpose — the session lengths, the financial-pages complexity,
+and the "one-page quiz for a quick result" idea from the same feedback are separate, larger pieces
+of work, tracked and scoped separately rather than folded into this pass.
+
 ## Document-scan messages now show a spinner while actively working
 
 Triggered by analytics review: 568 visits in 23 days, but only 1 applicant ever reached

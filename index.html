@@ -254,14 +254,16 @@
      (and takes no layout space beyond a small min-height) once the button is actually enabled. */
   .gate-continue-hint { font-size: 12px; color: var(--text-muted); text-align: center; margin: 8px 0 0; min-height: 1em; }
 
-  /* "What you'll likely need to gather first" — a quick heads-up before starting the form, so the
-     applicant can go get bank statements/scans ready in advance instead of discovering requirements
-     piecemeal mid-form and abandoning it partway through. */
-  .gate-prep-details { margin: 10px 0 0; background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; }
-  .gate-prep-details summary { cursor: pointer; font-weight: 600; font-size: 13px; list-style: none; }
-  .gate-prep-details summary::-webkit-details-marker { display: none; }
-  .gate-prep-details summary::before { content: '▸ '; color: var(--text-muted); }
-  .gate-prep-details[open] summary::before { content: '▾ '; }
+  /* "What you'll likely need to gather first" — stated upfront and always visible, not tucked behind
+     a click-to-expand <details>. Real street-test feedback (applicants tested in person around banks/
+     offices in Yaba) asked for exactly this: "State it clearly that I need my international passport
+     and 3-6 months downloaded bank statement as we proceed." A collapsed summary is too easy to skip
+     entirely, and this is the single most consequential thing to know before starting — the passport
+     and statements take the longest to pull together, so surfacing it immediately (styled like the
+     disclaimer box below it, not like an optional dropdown) gives the applicant a head start instead
+     of discovering it piecemeal mid-form. */
+  .gate-prep-details { margin: 10px 0 0; background: var(--accent-wash); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 10px; padding: 10px 14px; }
+  .gate-prep-heading { font-weight: 700; font-size: 13px; color: var(--text-primary); }
   .gate-prep-list { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); font-size: 12.5px; line-height: 1.6; }
   .gate-prep-list p { margin: 0 0 6px; color: var(--text-secondary); }
   .gate-prep-list ul { margin: 0 0 8px; padding-left: 18px; }
@@ -417,12 +419,6 @@
   .session-footer-progress b { color: var(--accent); }
   .session-footer-msg { font-size: 12px; font-weight: 600; color: var(--good); flex-basis: 100%; margin: 0; min-height: 1em; }
   @media print { .session-footer { display: none !important; } }
-
-  /* A pill for a session the applicant hasn't earned access to yet (see the 70%-readiness gate near
-     attemptAdvanceSession) — greyed out and un-clickable rather than removed, so the total session
-     count is still visible at a glance; just not reachable yet. */
-  .session-pill.locked { opacity: .45; cursor: not-allowed; border-style: dashed; background: var(--surface-1); }
-  .session-pill.locked:hover { background: var(--surface-1); }
 
   /* "Section report" card — one per session, sitting just above the Save/Next bar (see
      sessionReportCardHtml()). Mobile-first on purpose: this whole feature exists because stacking
@@ -842,10 +838,10 @@
       </select>
       <span class="gate-select-chevron" aria-hidden="true">▾</span>
     </div>
-    <details class="gate-prep-details">
-      <summary>📋 What you'll likely need to gather first</summary>
+    <div class="gate-prep-details">
+      <div class="gate-prep-heading">📋 What you'll likely need to gather first</div>
       <div id="gatePrepChecklist" class="gate-prep-list"></div>
-    </details>
+    </div>
     <div class="consent-gate-disclaimer">
       <span class="icon">ℹ️</span>
       <div id="gateDisclaimer"></div>
@@ -3325,10 +3321,16 @@
     renderSessionNav(keys, currentSessionIndex);
     renderSessionFooter(keys, currentSessionIndex);
   }
-  // User feedback: "if a stage isn't good, don't give access to other sessions — it can confuse the
-  // applicant." A session below READY_THRESHOLD_PERCENT complete blocks every LATER session's pill
-  // (not the current one, and never an earlier one — going back to fix something always works).
-  // Computed fresh from `keys` on every call rather than cached, since it depends on live answers.
+  // Previously, a session below READY_THRESHOLD_PERCENT complete disabled every LATER session's
+  // pill entirely, based on earlier feedback that jumping ahead of an unfinished section could
+  // confuse an applicant. Street-tested user feedback (a marketer running the product past real
+  // applicants around banks/offices in Yaba) pushed back hard on this from the other direction:
+  // "why lock the pages, allow us to explore" — being unable to even preview what's ahead read as
+  // the same restrictive, form-like experience applicants already have a phobia of from elsewhere.
+  // Pills are now always clickable — computeLockAfterIndex/READY_THRESHOLD_PERCENT stay defined
+  // (attemptAdvanceSession below still uses the threshold for its own, softer "you're not done yet"
+  // nudge on the Next button, which is a separate, deliberately gentler mechanism from the hard pill
+  // lock this removes) but no longer gate which sessions a pill click or goToSession() can reach.
   var READY_THRESHOLD_PERCENT = 70;
   function computeLockAfterIndex(keys){
     for (var i = 0; i < keys.length; i++){
@@ -3341,12 +3343,6 @@
     var keys = getVisibleSessionKeys();
     if (idx < 0) idx = 0;
     if (idx > keys.length - 1) idx = keys.length - 1;
-    // Defensive clamp — the pill click handler below already skips locked pills, and
-    // attemptAdvanceSession() already stops before calling this for a gated "Next", but answers
-    // (and so progress/locking) can change out from under a stale idx, e.g. a restored session
-    // pointing further ahead than current answers now justify.
-    var lockAfterIndex = computeLockAfterIndex(keys);
-    if (idx > lockAfterIndex) idx = lockAfterIndex;
     currentSessionIndex = idx;
     applySessionVisibility();
     if (keys[idx] === 'review') trackEvent('reached_review');
@@ -3372,16 +3368,15 @@
     var nav = document.getElementById('sessionNav');
     if (!nav) return;
     var curProgress = sessionProgress(keys[idx]);
-    var lockAfterIndex = computeLockAfterIndex(keys);
+    // Pills are always clickable now (see the comment above computeLockAfterIndex) — every session
+    // can be freely previewed/explored, regardless of how filled-in earlier ones are.
     var pills = keys.map(function(k, i){
       var p = sessionProgress(k);
       var doneCls = sessionIsDone(k) ? ' done' : (p.total > 0 && p.points > 0 ? ' partial' : '');
-      var locked = i > lockAfterIndex;
-      var cls = 'session-pill' + (i === idx ? ' active' : '') + doneCls + (locked ? ' locked' : '');
+      var cls = 'session-pill' + (i === idx ? ' active' : '') + doneCls;
       var pctTitle = p.total > 0 ? (' — ' + p.percent + '% filled') : '';
-      var lockedTitle = locked ? ' (locked — finish the earlier section first)' : '';
-      var label = locked ? '🔒' : String(i + 1);
-      return '<button type="button" class="'+cls+'" data-idx="'+i+'"'+(locked?' disabled':'')+' title="'+escapeHtml(sessionLabel(k))+pctTitle+lockedTitle+'">'+label+'</button>';
+      var label = String(i + 1);
+      return '<button type="button" class="'+cls+'" data-idx="'+i+'" title="'+escapeHtml(sessionLabel(k))+pctTitle+'">'+label+'</button>';
     }).join('');
     // Next is only ever DISABLED outright for being the last session. Below the readiness
     // threshold it deliberately stays clickable — attemptAdvanceSession() is what actually
@@ -3399,7 +3394,7 @@
       + '<button type="button" class="btn ghost" id="sessionBackBtn"'+(idx===0?' disabled':'')+'>← Back</button>'
       + '<button type="button" class="btn primary" id="sessionNextBtn"'+(nextDisabled?' disabled':'')+'>Next →</button>'
       + '</div>';
-    nav.querySelectorAll('.session-pill:not(.locked)').forEach(function(btn){
+    nav.querySelectorAll('.session-pill').forEach(function(btn){
       btn.addEventListener('click', function(){ goToSession(parseInt(btn.getAttribute('data-idx'), 10)); });
     });
     var backBtn = document.getElementById('sessionBackBtn');
