@@ -1002,7 +1002,10 @@
       <ul id="quizGapList" class="quiz-gap-list"></ul>
       <div class="quiz-notify-card">
         <b>Want a fully guided walkthrough that turns this into a ready application?</b> We're building a paid guided-prep option — tell us you're interested and we'll let you know when it's ready.
-        <div style="margin-top:8px;"><button type="button" class="btn ghost" id="quizNotifyBtn">✉️ Notify me when it's ready</button></div>
+        <div style="margin-top:8px;">
+          <a class="btn ghost" id="quizNotifyWhatsApp" href="#" target="_blank" rel="noopener" style="display:inline-block;">💬 Notify me on WhatsApp</a>
+          <span style="font-size:12px; color:var(--text-muted);"> or <a id="quizNotifyEmail" href="#">email us</a> instead</span>
+        </div>
       </div>
       <button class="btn primary" id="quizContinueBtn" style="width:100%;">Continue →</button>
     </div>
@@ -11441,12 +11444,24 @@
   // captures interest via a prefilled mailto (same no-backend pattern already used by "Email myself
   // this summary" elsewhere in the app) rather than building real payment processing before knowing
   // anyone wants it. See docs/monetization-strategy.md.
-  document.getElementById('quizNotifyBtn').addEventListener('click', function(){
-    trackEvent('quiz_notify_me_clicked');
-    var subject = encodeURIComponent('Notify me: guided visa-prep launch');
-    var body = encodeURIComponent("Hi,\n\nI just took the Smooth Application readiness quiz and I'd like to be notified when the full guided, paid walkthrough is ready.\n\nThanks!");
-    window.location.href = 'mailto:lalasionline@gmail.com?subject=' + subject + '&body=' + body;
-  });
+  // Real user report: on a phone with no mail app configured (common on the lower-end Android
+  // devices this traffic skews toward), a JS-driven `location.href = 'mailto:...'` click silently
+  // does nothing — no error, no chooser, nothing visible, which reads as a dead button. Fixed by
+  // making both options real <a> links (native navigation degrades far more gracefully than a JS
+  // redirect) with WhatsApp as the PRIMARY one — it's already this app's proven, near-universal
+  // channel for this audience (see the footer credit line, the section-report help links, and the
+  // problem-report links, all WhatsApp-first for the same reason) — with email kept as a secondary
+  // option for anyone who prefers it. No preventDefault anywhere: this only ever records the click,
+  // the link's own href does the actual navigating.
+  (function(){
+    var msg = "Hi, I just took the Smooth Application readiness quiz and I'd like to be notified when the full guided, paid walkthrough is ready.";
+    var waLink = document.getElementById('quizNotifyWhatsApp');
+    var emailLink = document.getElementById('quizNotifyEmail');
+    waLink.href = 'https://wa.me/2349081389969?text=' + encodeURIComponent(msg);
+    emailLink.href = 'mailto:lalasionline@gmail.com?subject=' + encodeURIComponent('Notify me: guided visa-prep launch') + '&body=' + encodeURIComponent(msg);
+    waLink.addEventListener('click', function(){ trackEvent('quiz_notify_me_clicked:whatsapp'); });
+    emailLink.addEventListener('click', function(){ trackEvent('quiz_notify_me_clicked:email'); });
+  })();
 
   // Both the skip link and the quiz's own "Continue" lead to the same next stop: the dedicated
   // "two documents" page (docsGate), not straight to the consent gate. Skipping only skips the

@@ -3,6 +3,20 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fixed: "Notify me" on the quiz result led nowhere
+
+Real user report: tapping "Notify me when it's ready" did nothing visible. Root cause — it was a
+JS-driven `mailto:` redirect, which silently fails on any phone with no mail app configured (common
+on the lower-end Android devices this traffic skews toward): no error, no chooser, nothing to see.
+
+- Replaced with two real links, not a JS redirect: **WhatsApp** as the primary option (this app's
+  already-proven, near-universal channel for this audience — the same one used in the footer, the
+  section-report help links, and the problem-report links), with **email** kept as a secondary
+  choice for anyone who prefers it.
+- Both are genuine `<a>` tags with the actual destination in `href`, so navigation degrades
+  gracefully with or without JavaScript, instead of depending on a script successfully redirecting
+  the page.
+
 ## Back links across the quiz / docs / consent gate screens
 
 The quiz → two documents → consent gate sequence was forward-only — no way to retrace a step once

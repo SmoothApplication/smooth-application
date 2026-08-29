@@ -53,12 +53,24 @@ exports.run = async function(ctx){
     assert.ok(trackedAfterResult.some(function(e){ return e.indexOf('quiz_completed:') === 0; }),
       'Completing the quiz should record a quiz_completed:<tier> event, got: ' + JSON.stringify(trackedAfterResult));
 
-    // "Notify me" opens a mailto draft rather than actually charging anything — just confirm the
-    // click is tracked and the href is a mailto (no real payment/backend call).
-    await page.click('#quizNotifyBtn');
+    // "Notify me" opens WhatsApp (primary) or email (secondary) rather than actually charging
+    // anything — real <a> links, not a JS redirect, since a mailto-only JS redirect was reported to
+    // silently do nothing on a phone with no mail app configured. Check the hrefs are correctly
+    // built, and that a click is tracked, without triggering a real external navigation: a genuine
+    // Playwright .click() on a target="_blank" link would actually try to open WhatsApp/mail, so
+    // this dispatches a synthetic click instead — enough to fire the tracking listener, not enough
+    // to trigger the link's own default navigation.
+    var waHref = await page.$eval('#quizNotifyWhatsApp', function(el){ return el.getAttribute('href'); });
+    assert.ok(/^https:\/\/wa\.me\/2349081389969\?text=/.test(waHref), 'WhatsApp notify link should point at wa.me with a prefilled message, got: ' + waHref);
+    var emailHref = await page.$eval('#quizNotifyEmail', function(el){ return el.getAttribute('href'); });
+    assert.ok(/^mailto:lalasionline@gmail\.com\?subject=/.test(emailHref), 'Email notify link should be a real mailto, got: ' + emailHref);
+
+    await page.evaluate(function(){
+      document.getElementById('quizNotifyWhatsApp').dispatchEvent(new MouseEvent('click', {bubbles:true, cancelable:true}));
+    });
     var trackedAfterNotify = await page.evaluate(function(){ return window.__trackedEvents.slice(); });
-    assert.ok(trackedAfterNotify.indexOf('quiz_notify_me_clicked') !== -1,
-      'Clicking notify-me should record quiz_notify_me_clicked, got: ' + JSON.stringify(trackedAfterNotify));
+    assert.ok(trackedAfterNotify.indexOf('quiz_notify_me_clicked:whatsapp') !== -1,
+      'Clicking the WhatsApp notify link should record quiz_notify_me_clicked:whatsapp, got: ' + JSON.stringify(trackedAfterNotify));
 
     // Continuing hides the quiz and shows the "two documents" page next (see docs-gate.test.js) —
     // not the consent gate directly. The quiz's country choice is already sitting on the (still
