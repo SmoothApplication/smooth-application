@@ -3,6 +3,24 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Financial readiness calculator: two explanatory tips collapsed behind "Why?"
+
+Real feedback from an in-person street test: the checklist "looks as long as an embassy form."
+Investigation found the one-at-a-time session stepper (12 sessions, one shown at a time — this
+already existed) wasn't the issue, and every optional panel on the Financial readiness calculator
+(flight breakdown, transport helper, shopping/sightseeing, currency helper) was already collapsed
+by default too. The actual bulk was several always-shown explanatory paragraphs sitting under
+individual fields.
+
+- The accommodation-cost and opening-balance fields' explanatory paragraphs (both explain what
+  happens later, not a rule needed before typing) now sit behind a small "Why?" toggle, reusing the
+  same collapse pattern already used for the consent gate's "Read the full disclaimer."
+- Deliberately left alone: the closing-balance tip (states an actual validation rule — it must sum
+  to the uploaded statements' total) and the one-line foreign-currency note stay inline, uncollapsed,
+  since those aren't just background explanation.
+- Added `tests/finance-tip-details.test.js` covering the collapsed-by-default state, the toggle
+  actually revealing the tip text, and that the field itself still accepts input normally.
+
 ## Passport name field made editable; two real MRZ scan bugs fixed
 
 Real user report, from an actual passport photo: the auto-filled name came back "Mary

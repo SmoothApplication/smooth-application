@@ -600,6 +600,19 @@
   /* !important since #f_lengthDisplay carries its own inline color (higher specificity) that this
      needs to override whenever the dates it's describing are actually invalid. */
   .item-tip.error { color: var(--critical) !important; font-weight: 600; }
+  /* Real user feedback ("looks like an embassy form"): several fields on the Financial readiness
+     calculator had a full explanatory paragraph sitting under them unconditionally — every one of
+     those panels was already collapsed by default (see fin-breakdown blocks below), so the actual
+     bulk was this always-shown prose, not open optional sections. Same collapse-on-demand pattern as
+     .disclaimer-details above, just compact enough to sit under a single field. Only applied to tips
+     that explain WHY/what-happens-next — never to a tip that states a rule the applicant needs before
+     typing (those stay inline, uncollapsed).*/
+  .tip-details { margin-top: 3px; }
+  .tip-details summary { cursor: pointer; font-size: 12px; color: var(--accent); list-style: none; }
+  .tip-details summary::-webkit-details-marker { display: none; }
+  .tip-details summary::before { content: '▸ '; }
+  .tip-details[open] summary::before { content: '▾ '; }
+  .tip-details .item-tip { margin-top: 4px; }
   /* Applied to a date/text/select input whenever its current value fails a same-page check (e.g. a
      return date that isn't after the travel date), or is simply still required-but-empty when the
      applicant tries to move on to the next session — a clear, hard-to-miss visual stop alongside the
@@ -1723,7 +1736,7 @@
         <div style="margin-bottom:14px;">
           <label class="field" for="fc_accom">Accommodation cost per night (₦)</label>
           <input type="text" inputmode="numeric" id="fc_accom" placeholder="e.g. 60,000 (from 50,000/night)" style="max-width:340px;">
-          <div class="item-tip" style="margin-top:4px;">Scanning your accommodation booking under "Accommodation &amp; <span id="hostTypeLabel3">UK host</span>" below will try to detect its nightly rate and check it against this figure.</div>
+          <details class="tip-details"><summary>Why?</summary><div class="item-tip">Scanning your accommodation booking under "Accommodation &amp; <span id="hostTypeLabel3">UK host</span>" below will try to detect its nightly rate and check it against this figure.</div></details>
           <label class="field" style="margin-top:8px;" for="fc_accomAddress">Accommodation address (optional)</label>
           <input type="text" id="fc_accomAddress" placeholder="e.g. 22 Baker Street, London NW1 6XE" style="max-width:340px;">
           <button type="button" class="btn ghost no-print" id="btnNearbyStores" style="margin-top:6px; font-size:11px; padding:4px 8px;">🗺️ Check nearby shops/supermarkets</button>
@@ -1794,7 +1807,7 @@
         <div style="margin-bottom:14px;">
           <label class="field" for="fc_opening">Opening balance at the start of your statement(s) (₦)</label>
           <input type="text" inputmode="numeric" id="fc_opening" placeholder="e.g. 1,200,000" style="max-width:340px;">
-          <div class="item-tip" style="margin-top:4px;">The balance shown on the very first line of your earliest statement — shows a reviewer the trajectory of your funds, not just the final number. If you upload statements below, this is checked against what's detected automatically.</div>
+          <details class="tip-details"><summary>Why?</summary><div class="item-tip">The balance shown on the very first line of your earliest statement — shows a reviewer the trajectory of your funds, not just the final number. If you upload statements below, this is checked against what's detected automatically.</div></details>
         </div>
         <div style="margin-bottom:14px;">
           <label class="field" for="fc_closing">Current closing balance on your statement(s) (₦)</label>
