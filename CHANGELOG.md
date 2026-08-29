@@ -3,6 +3,14 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Back links across the quiz / docs / consent gate screens
+
+The quiz → two documents → consent gate sequence was forward-only — no way to retrace a step once
+you'd moved on. Added a "← Back" link on the two documents page (back to the quiz) and on the
+consent gate (back to the two documents page), consistent with unlocking the session pills earlier
+for the same reason: nobody should be stuck moving only forward. Quiz answers are preserved when
+going back to it, since hiding a screen never clears its inputs.
+
 ## "Two documents" page — splitting the busy consent gate
 
 The consent gate (country picker + a full "what you'll need" list + the legal disclaimer + a

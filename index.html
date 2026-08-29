@@ -283,7 +283,11 @@
   .quiz-q:first-child { margin-top: 0; }
   .quiz-q label.field { margin-bottom: 4px; }
   .quiz-actions { margin-top: 20px; }
-  .quiz-skip-link {
+  /* Shared text-link style for the lightweight secondary actions on the quiz/docs/consent gate
+     screens — "Skip the quiz", and the "← Back" links below that let anyone retrace a step instead
+     of being stuck moving only forward, consistent with unlocking the session pills for the same
+     "let people explore" reason. */
+  .gate-text-link {
     display: block; width: 100%; text-align: center; background: none; border: none; padding: 0;
     font: inherit; color: var(--text-muted); text-decoration: underline; cursor: pointer;
     font-size: 12.5px; margin-top: 10px;
@@ -991,7 +995,7 @@
     <div class="quiz-actions">
       <button class="btn primary" id="quizSeeResult" style="width:100%;">See my result</button>
     </div>
-    <button type="button" class="quiz-skip-link" id="quizSkipLink">Skip the quiz →</button>
+    <button type="button" class="gate-text-link" id="quizSkipLink">Skip the quiz →</button>
 
     <div id="quizResultPanel" style="display:none;">
       <div id="quizResultTier" class="quiz-result-tier"></div>
@@ -1035,6 +1039,7 @@
     <p class="docs-gate-note">The checklist ahead adjusts to your specific visa and situation — this is just the head start worth getting on right away.</p>
 
     <button class="btn primary" id="docsGateContinue" style="width:100%; margin-top:6px;">Continue →</button>
+    <button type="button" class="gate-text-link" id="docsGateBack">← Back to the quick check</button>
     <p class="gate-credit">Built by <b>SafeNetwork</b>. <a href="mailto:lalasionline@gmail.com">Email</a> · <a href="https://wa.me/2349081389969" target="_blank" rel="noopener">WhatsApp</a></p>
   </div>
 </div>
@@ -1075,6 +1080,7 @@
     </label>
     <button class="btn primary" id="gateContinue" disabled style="margin-top:14px; width:100%;">Continue</button>
     <p class="gate-continue-hint" id="gateContinueHint"></p>
+    <button type="button" class="gate-text-link" id="consentGateBack">← Back</button>
     <p class="gate-credit">Built by <b>SafeNetwork</b>. <a href="mailto:lalasionline@gmail.com">Email</a> · <a href="https://wa.me/2349081389969" target="_blank" rel="noopener">WhatsApp</a></p>
   </div>
 </div>
@@ -11470,6 +11476,23 @@
     trackEvent('docs_gate_continue');
     document.getElementById('docsGate').style.display = 'none';
     document.getElementById('consentGate').style.display = 'flex';
+    window.scrollTo(0,0);
+  });
+
+  // Back links — retracing a step instead of being stuck moving only forward, same "let people
+  // explore" reasoning as unlocking the session pills. Quiz answers already sit in their <select>
+  // elements (hiding a gate doesn't clear its inputs), so landing back on the quiz shows whatever
+  // was last picked, not a blank form.
+  document.getElementById('docsGateBack').addEventListener('click', function(){
+    trackEvent('docs_gate_back_to_quiz');
+    document.getElementById('docsGate').style.display = 'none';
+    document.getElementById('quizGate').style.display = 'flex';
+    window.scrollTo(0,0);
+  });
+  document.getElementById('consentGateBack').addEventListener('click', function(){
+    trackEvent('consent_gate_back_to_docs');
+    document.getElementById('consentGate').style.display = 'none';
+    document.getElementById('docsGate').style.display = 'flex';
     window.scrollTo(0,0);
   });
 

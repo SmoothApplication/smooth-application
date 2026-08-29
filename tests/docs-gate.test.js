@@ -6,7 +6,8 @@
 // list (gate-prep-details/gatePrepChecklist) alongside the country picker, disclaimer, and checkbox
 // all at once — that list has been removed from the consent gate and replaced by this focused page,
 // which states just the two documents almost every applicant needs (passport, bank statements)
-// regardless of country.
+// regardless of country. Also covers the "← Back" links added across all three gate screens so
+// nobody's stuck moving only forward — same reasoning as unlocking the session pills.
 const assert = require('assert');
 const { newPageAt } = require('./helpers');
 
@@ -43,6 +44,17 @@ exports.run = async function(ctx){
     await page.waitForSelector('#consentGate', { state: 'visible' });
     var docsHiddenAfter = await page.$eval('#docsGate', function(el){ return el.style.display === 'none'; });
     assert.strictEqual(docsHiddenAfter, true, 'Docs page should be hidden after continuing');
+
+    // Consent gate → back → docs page → back → quiz — the full retrace, one step at a time.
+    await page.click('#consentGateBack');
+    await page.waitForSelector('#docsGate', { state: 'visible' });
+    var consentHiddenAfterBack = await page.$eval('#consentGate', function(el){ return el.style.display === 'none'; });
+    assert.strictEqual(consentHiddenAfterBack, true, 'Consent gate should be hidden after going back');
+
+    await page.click('#docsGateBack');
+    await page.waitForSelector('#quizGate', { state: 'visible' });
+    var docsHiddenAfterBack = await page.$eval('#docsGate', function(el){ return el.style.display === 'none'; });
+    assert.strictEqual(docsHiddenAfterBack, true, 'Docs page should be hidden after going back to the quiz');
   } finally {
     await page.context().close();
   }

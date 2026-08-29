@@ -70,6 +70,15 @@ exports.run = async function(ctx){
     var preselectedCountry = await page.$eval('#gateCountrySelect', function(el){ return el.value; });
     assert.strictEqual(preselectedCountry, 'UK', 'Consent gate should have the quiz-chosen country pre-selected, even while still hidden behind the docs page');
 
+    // The docs page's back link retraces to the quiz — and since hiding a gate never clears its
+    // inputs, the applicant's answers should still be sitting there, not reset to blank.
+    await page.click('#docsGateBack');
+    await page.waitForSelector('#quizGate', { state: 'visible' });
+    var workAnswerPreserved = await page.$eval('#q_quizWork', function(el){ return el.value; });
+    assert.strictEqual(workAnswerPreserved, 'employed', 'Going back to the quiz should preserve previously-picked answers, not reset them');
+    await page.click('#quizContinueBtn');
+    await page.waitForSelector('#docsGate', { state: 'visible' });
+
     await page.click('#docsGateContinue');
     await page.waitForSelector('#consentGate', { state: 'visible' });
 
