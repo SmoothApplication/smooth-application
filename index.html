@@ -647,6 +647,24 @@
   .scan-msg.info::before { content: "ℹ"; }
   .scan-msg.err { background: var(--critical-wash); color: var(--critical); border-color: var(--critical-wash); border-left-color: var(--critical); }
   .scan-msg.err::before { content: "✕"; }
+  /* 'busy' — visually identical to 'info' (same accent color/wash) but for messages shown WHILE a scan
+     is actively running (OCR, PDF/statement parsing) rather than a static informational note. Document
+     scanning can take 30-60+ seconds on a slow/low-end phone, and previously showed only a single line
+     of unmoving text for that whole wait — on a device that's already struggling, a screen that visibly
+     isn't doing anything for a minute reads as frozen, not "still working". A small spinning indicator
+     costs nothing (pure CSS, no extra library) and gives ongoing visual proof the browser is still alive,
+     the same way any native app would. Respects prefers-reduced-motion by falling back to the same static
+     "ℹ" glyph 'info' uses, rather than forcing motion on anyone who's asked their device to avoid it. */
+  .scan-msg.busy { background: var(--accent-wash); color: var(--accent); border-color: var(--accent-wash); border-left-color: var(--accent); }
+  .scan-msg.busy::before {
+    content: ""; box-sizing: border-box; width: 12px; height: 12px; margin-top: 2px;
+    border: 2px solid currentColor; border-top-color: transparent; border-radius: 50%;
+    animation: scan-spin 0.8s linear infinite;
+  }
+  @keyframes scan-spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) {
+    .scan-msg.busy::before { animation: none; content: "ℹ"; width: auto; height: auto; border: none; }
+  }
   /* The "→ Go to <section>" buttons inside a scanned refusal letter's per-reason advice (see the
      'refusalLetter' branch of analyze()) — flex-basis:100% drops it to its own line below the advice
      text rather than squeezing beside it, using the flex-wrap just enabled on .scan-msg above. */
@@ -3346,6 +3364,10 @@
     currentSessionIndex = idx;
     applySessionVisibility();
   };
+  // Same reasoning as __testGoToSession above — lets a test render a scan-status message (ok/warn/
+  // info/busy/err) directly, without needing a real file + working OCR/CDN access just to check the
+  // message box itself renders correctly for a given state.
+  window.__testSetScanMsg = function(id, cls, text){ setScanMsg(id, cls, text); };
   function renderSessionNav(keys, idx){
     var nav = document.getElementById('sessionNav');
     if (!nav) return;
@@ -7172,7 +7194,7 @@
       return;
     }
     trackEvent('doc_scan:attempted:' + (it.checkKind || 'unknown'));
-    setScanMsg(id,'info','Loading local scanning tools… (nothing leaves your browser)');
+    setScanMsg(id,'busy','Loading local scanning tools… (nothing leaves your browser)');
     ensureLibs().then(function(){
       var answers = getAnswers();
       if (file.type === 'application/pdf'){
@@ -7219,7 +7241,7 @@
               setScanMsg(id,'info','This looks like a scanned/image PDF with no selectable text, and the on-device OCR fallback ' + ocrUnavailableReason() + ' — you can still mark this item as ready manually.');
               return;
             }
-            setScanMsg(id,'info','This looks like a scanned/image PDF — reading it as a photo instead (OCR). This can take up to a minute if the scan is sideways or upside down, since that\'s checked automatically…');
+            setScanMsg(id,'busy','This looks like a scanned/image PDF — reading it as a photo instead (OCR). This can take up to a minute if the scan is sideways or upside down, since that\'s checked automatically…');
             // Scale 3 (not 2): many phone "scan to PDF" apps (CamScanner, Adobe Scan, etc.) place the
             // photographed document on a full A4/Letter page with wide white margins rather than filling
             // the frame, so the actual passport content ends up rendered at a noticeably lower effective
@@ -7252,7 +7274,7 @@
           setScanMsg(id,'err','Image scanning tool ' + ocrUnavailableReason() + '. You can still mark this item as ready manually.');
           return;
         }
-        setScanMsg(id,'info','Reading image… this can take up to 30 seconds (longer if it\'s sideways or upside down, since that\'s checked automatically).');
+        setScanMsg(id,'busy','Reading image… this can take up to 30 seconds (longer if it\'s sideways or upside down, since that\'s checked automatically).');
         loadFileToCanvas(file).then(function(canvas){
           return smartRecognize(canvas, {expectMrz: it.checkKind === 'passport'});
         }).then(function(best){
@@ -7293,7 +7315,7 @@
       }
     }
     trackEvent('doc_scan_multi:attempted:' + (it.checkKind || 'unknown'));
-    setScanMsg(id,'info','Loading local scanning tools… (nothing leaves your browser)');
+    setScanMsg(id,'busy','Loading local scanning tools… (nothing leaves your browser)');
     ensureLibs().then(function(){
       var answers = getAnswers();
       var results = [];
@@ -8707,7 +8729,7 @@
     // Same reasoning as the personal-statement analyzer: pairs with 'business_statement_analysis:completed'
     // below to turn the failure counts into an actual rate, not just a raw count.
     trackEvent('business_statement_analysis:attempted');
-    onMessage('info','Loading local analysis tools… (nothing leaves your browser)');
+    onMessage('busy','Loading local analysis tools… (nothing leaves your browser)');
     ensureLibs().then(function(){
       if (!libsLoaded.pdf && !libsLoaded.tesseract && !libsLoaded.xlsx){
         trackEvent('business_statement_analysis:libs_failed');
@@ -10156,14 +10178,14 @@
     // events from the catch handlers) into an actual failure RATE, not just a raw count with no
     // sense of how many attempts it's out of.
     trackEvent('statement_analysis:attempted');
-    onMessage('info','Loading local analysis tools… (nothing leaves your browser)');
+    onMessage('busy','Loading local analysis tools… (nothing leaves your browser)');
     ensureLibs().then(function(){
       if (!libsLoaded.pdf && !libsLoaded.tesseract && !libsLoaded.xlsx){
         trackEvent('statement_analysis:libs_failed');
         onMessage('err','Analysis tools failed to load (offline or blocked). Please fill in the cash-flow table manually.');
         return;
       }
-      onMessage('info','Reading '+files.length+' file(s)… this can take a while for scanned documents or statements with many pages.');
+      onMessage('busy','Reading '+files.length+' file(s)… this can take a while for scanned documents or statements with many pages.');
       var allLines = [];
       var perFileClosing = [];
       var perFileOpening = [];

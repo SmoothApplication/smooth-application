@@ -3,6 +3,35 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Document-scan messages now show a spinner while actively working
+
+Triggered by analytics review: 568 visits in 23 days, but only 1 applicant ever reached
+`marked_ready`, with the steepest drop-off around the document-scanning steps. 50% of traffic is
+phones and 30% is Android — and on a slow/low-end device, document scanning (OCR via Tesseract.js)
+can take 30-60+ seconds. The app already showed a message explaining this ("this can take up to 30
+seconds…"), but it was a single static line with no further feedback for the whole wait — on a
+device that's already struggling, a screen that isn't visibly doing anything for a minute reads as
+frozen, not "still working".
+
+- Added a `busy` scan-message status — visually the same accent color as the existing `info`
+  status, but with a small spinning CSS indicator instead of a static "ℹ" icon, so there's ongoing
+  visual proof the browser hasn't hung.
+- Applied to every message shown while a scan is actively running: loading the OCR/PDF/spreadsheet
+  libraries, and reading a file (image, PDF, or bank/business statement) — across the passport
+  scanner, the general document scanner, and both the personal and business statement analyzers.
+- Terminal messages ("couldn't read this file", "try a clearer photo") stay on the original static
+  `info`/`err` styling — only messages that represent active waiting change.
+- Respects `prefers-reduced-motion` — falls back to the same static icon `info` already used,
+  rather than forcing animation on anyone who's asked their device to avoid it.
+- Pure CSS (a rotating border on a pseudo-element) — no new library, no measurable weight added.
+
+This is the first, low-risk fix out of two identified from the same funnel investigation; a larger
+one (loading each country's checklist on demand instead of all four upfront, to cut the ~810KB of
+parsed JavaScript every visit currently pays for regardless of which single country they use) is
+scoped but deliberately not yet started — bigger change, wants dedicated testing.
+
+79/79 tests passing (up from 78/78 — added `scan-busy-indicator.test.js`).
+
 ## South Africa visitor visa checklist — the 4th country, live
 
 Built out the South Africa visitor visa checklist that was previously a placeholder ("coming
