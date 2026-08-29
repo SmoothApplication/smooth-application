@@ -3,6 +3,28 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Confidence quiz — a 2-minute front door ahead of the full checklist
+
+The last piece of the same street-test feedback: "too many forms... can we get a one page quiz
+test that gives us a result within 2-3 mins. Which creates a booster and confidence so we can move
+to the more detailed part and I can pay a fee."
+
+- New landing screen, shown before the consent gate: 10 quick questions (work status, income
+  steadiness, savings bracket, travel history, past refusals, ties to Nigeria, host/sponsor, and
+  whether the passport and bank statements are already in hand), all on one page.
+- Produces a plain-language result — a 🟢/🟡/🔴 tier plus the top 2-3 gaps worth closing — scored as
+  **document/evidence readiness only**. It deliberately never predicts the actual visa decision,
+  which only the consulate/DHA can make, matching the disclaimer-first posture used everywhere else
+  in this app.
+- Answers that map onto a real field later (country, work status, travel history, past refusal,
+  host/sponsor) carry straight into the full checklist, so nothing already answered gets asked
+  twice.
+- The "I can pay a fee" idea is shipped as a demand test, not a payment feature: a "notify me when
+  it's ready" card that opens a prefilled email (the same no-backend `mailto:` pattern already used
+  by "Email myself this summary" elsewhere), rather than building real billing before knowing anyone
+  wants it. See `docs/monetization-strategy.md`.
+- A "Skip the quiz" link stays available for anyone who'd rather go straight to the full checklist.
+
 ## Session pills unlocked, and required documents stated upfront
 
 Triggered by real street-test feedback: a marketer ran the product past applicants in person around

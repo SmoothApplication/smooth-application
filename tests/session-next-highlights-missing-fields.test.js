@@ -26,6 +26,9 @@ exports.run = async function(ctx){
   });
   try {
     await page.goto('http://127.0.0.1:' + PORT + '/index.html');
+    // The confidence quiz is now the first thing shown — skip it to reach the consent gate.
+    await page.waitForSelector('#quizSkipLink');
+    await page.click('#quizSkipLink');
     await page.waitForSelector('#gateCountrySelect');
     await page.selectOption('#gateCountrySelect', 'UK');
     await page.check('#gateAgree', { force: true });

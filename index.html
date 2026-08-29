@@ -271,6 +271,36 @@
   .gate-prep-list .gate-prep-cat { font-weight: 600; margin: 8px 0 2px; }
   .gate-prep-list .gate-prep-cat:first-child { margin-top: 0; }
 
+  /* Confidence quiz — new front door ahead of the consent gate, per street-tested feedback: "too
+     many forms... can we get a one page quiz test that gives us a result within 2-3 mins. Which
+     creates a booster and confidence." Reuses .consent-gate's card/blob chrome for continuity with
+     the screen it now sits in front of. Scores DOCUMENT/EVIDENCE readiness only — never a prediction
+     of the actual visa decision, which only the consulate/DHA can make; this follows the same
+     disclaimer-first posture as the rest of the app rather than promising an outcome. */
+  .quiz-q { margin-top: 14px; }
+  .quiz-q:first-child { margin-top: 0; }
+  .quiz-q label.field { margin-bottom: 4px; }
+  .quiz-actions { margin-top: 20px; }
+  .quiz-skip-link {
+    display: block; width: 100%; text-align: center; background: none; border: none; padding: 0;
+    font: inherit; color: var(--text-muted); text-decoration: underline; cursor: pointer;
+    font-size: 12.5px; margin-top: 10px;
+  }
+  .quiz-result-tier {
+    display: flex; align-items: center; gap: 8px; padding: 14px 16px; border-radius: 12px;
+    margin: 4px 0 16px; font-weight: 700; font-size: 15px;
+  }
+  .quiz-result-tier.strong { background: #0e8f821f; color: #0e8f82; }
+  .quiz-result-tier.some { background: #c17a3d1f; color: #c17a3d; }
+  .quiz-result-tier.many { background: #c0392b1f; color: #c0392b; }
+  .quiz-gap-list { margin: 0 0 18px; padding-left: 20px; font-size: 13px; line-height: 1.6; color: var(--text-secondary); }
+  .quiz-gap-list li { margin-bottom: 6px; }
+  .quiz-notify-card {
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 16px; margin: 0 0 18px; font-size: 12.5px; line-height: 1.55;
+  }
+  .quiz-notify-card b { color: var(--text-primary); }
+
   /* minmax(0, ...) — NOT plain 1fr — on the main column: a plain `1fr` track refuses to shrink below
      the min-content width of whatever it contains, so a single long unbroken string anywhere deep in
      the page (a label, a URL, a table cell) can silently force this whole grid, and the page itself,
@@ -812,7 +842,170 @@
 </head>
 <body>
 
-<div id="consentGate" class="consent-gate">
+<div id="quizGate" class="consent-gate">
+  <div class="gate-blob gate-blob-1" aria-hidden="true"></div>
+  <div class="gate-blob gate-blob-2" aria-hidden="true"></div>
+  <div class="gate-blob gate-blob-3" aria-hidden="true"></div>
+  <div class="consent-gate-card">
+    <div class="gate-icon-badge" aria-hidden="true">⚡</div>
+    <h1 class="consent-gate-title">Quick readiness check</h1>
+    <p class="consent-gate-subtitle">10 quick questions, about 2 minutes — see where you stand before diving into the full checklist. This checks how ready your documents and evidence look, not your chances of approval — only the consulate or embassy decides that.</p>
+
+    <div id="quizQuestions">
+      <div class="quiz-q">
+        <label class="field" for="q_quizCountry">Which visa are you preparing for?</label>
+        <div class="gate-select-wrap">
+          <select id="q_quizCountry">
+            <option value="" selected>Select…</option>
+            <option value="UK">🇬🇧 United Kingdom — Standard Visitor visa</option>
+            <option value="CA">🇨🇦 Canada — Visitor visa (TRV)</option>
+            <option value="US" disabled>🇺🇸 United States — coming soon</option>
+            <option value="EU">🇪🇺 Schengen — Short-stay visa (Type C)</option>
+            <option value="ZA">🇿🇦 South Africa — Visitor visa</option>
+            <option value="AU" disabled>🇦🇺 Australia — coming soon</option>
+            <option value="CN" disabled>🇨🇳 China — coming soon</option>
+          </select>
+          <span class="gate-select-chevron" aria-hidden="true">▾</span>
+        </div>
+      </div>
+
+      <div class="quiz-q">
+        <label class="field" for="q_quizWork">What's your current work status?</label>
+        <div class="gate-select-wrap">
+          <select id="q_quizWork">
+            <option value="" selected>Select…</option>
+            <option value="employed">I'm currently employed</option>
+            <option value="selfEmployed">I'm self-employed / run a business</option>
+            <option value="both">Both employed &amp; self-employed / run a business</option>
+            <option value="student">I'm currently a student</option>
+            <option value="child">Applying for a child, or travelling with one</option>
+          </select>
+          <span class="gate-select-chevron" aria-hidden="true">▾</span>
+        </div>
+      </div>
+
+      <div class="quiz-q">
+        <label class="field" for="q_quizIncome">Is your income steady month to month?</label>
+        <div class="gate-select-wrap">
+          <select id="q_quizIncome">
+            <option value="" selected>Select…</option>
+            <option value="steady">Yes, mostly steady</option>
+            <option value="variable">It varies a lot</option>
+            <option value="none">No steady income right now</option>
+          </select>
+          <span class="gate-select-chevron" aria-hidden="true">▾</span>
+        </div>
+      </div>
+
+      <div class="quiz-q">
+        <label class="field" for="q_quizSavings">Roughly how much do you already have saved toward this trip?</label>
+        <div class="gate-select-wrap">
+          <select id="q_quizSavings">
+            <option value="" selected>Select…</option>
+            <option value="under500k">Under ₦500,000</option>
+            <option value="to2m">₦500,000 – ₦2,000,000</option>
+            <option value="to5m">₦2,000,000 – ₦5,000,000</option>
+            <option value="over5m">Over ₦5,000,000</option>
+          </select>
+          <span class="gate-select-chevron" aria-hidden="true">▾</span>
+        </div>
+      </div>
+
+      <div class="quiz-q">
+        <label class="field" for="q_quizTravel">Have you travelled outside Nigeria before?</label>
+        <div class="gate-select-wrap">
+          <select id="q_quizTravel">
+            <option value="" selected>Select…</option>
+            <option value="yes">Yes — I've travelled before</option>
+            <option value="no">No — this would be my first time</option>
+          </select>
+          <span class="gate-select-chevron" aria-hidden="true">▾</span>
+        </div>
+      </div>
+
+      <div class="quiz-q">
+        <label class="field" for="q_quizRefusal">Have you ever been refused a visa (any country) in the last 5 years?</label>
+        <div class="gate-select-wrap">
+          <select id="q_quizRefusal">
+            <option value="" selected>Select…</option>
+            <option value="no">No</option>
+            <option value="yes">Yes</option>
+          </select>
+          <span class="gate-select-chevron" aria-hidden="true">▾</span>
+        </div>
+      </div>
+
+      <div class="quiz-q">
+        <label class="field" for="q_quizTies">Do you own property, or have strong family ties in Nigeria (spouse, children, dependants)?</label>
+        <div class="gate-select-wrap">
+          <select id="q_quizTies">
+            <option value="" selected>Select…</option>
+            <option value="strong">Yes, strong ties</option>
+            <option value="some">Some</option>
+            <option value="few">Not really</option>
+          </select>
+          <span class="gate-select-chevron" aria-hidden="true">▾</span>
+        </div>
+      </div>
+
+      <div class="quiz-q">
+        <label class="field" for="q_quizHost">Will a host or sponsor abroad be funding or hosting part of this trip?</label>
+        <div class="gate-select-wrap">
+          <select id="q_quizHost">
+            <option value="" selected>Select…</option>
+            <option value="none">No, I'm self-funded</option>
+            <option value="host">Yes, hosting only — I'm funding myself</option>
+            <option value="hostFunding">Yes, and they're funding part of it</option>
+          </select>
+          <span class="gate-select-chevron" aria-hidden="true">▾</span>
+        </div>
+      </div>
+
+      <div class="quiz-q">
+        <label class="field" for="q_quizPassport">Do you already have a valid international passport?</label>
+        <div class="gate-select-wrap">
+          <select id="q_quizPassport">
+            <option value="" selected>Select…</option>
+            <option value="yes">Yes</option>
+            <option value="no">No, not yet</option>
+          </select>
+          <span class="gate-select-chevron" aria-hidden="true">▾</span>
+        </div>
+      </div>
+
+      <div class="quiz-q">
+        <label class="field" for="q_quizStatements">Do you have 3-6 months of bank statements ready to download?</label>
+        <div class="gate-select-wrap">
+          <select id="q_quizStatements">
+            <option value="" selected>Select…</option>
+            <option value="yes">Yes</option>
+            <option value="notyet">Not yet</option>
+          </select>
+          <span class="gate-select-chevron" aria-hidden="true">▾</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="quiz-actions">
+      <button class="btn primary" id="quizSeeResult" style="width:100%;">See my result</button>
+    </div>
+    <button type="button" class="quiz-skip-link" id="quizSkipLink">Skip the quiz — go straight to the full checklist</button>
+
+    <div id="quizResultPanel" style="display:none;">
+      <div id="quizResultTier" class="quiz-result-tier"></div>
+      <ul id="quizGapList" class="quiz-gap-list"></ul>
+      <div class="quiz-notify-card">
+        <b>Want a fully guided walkthrough that turns this into a ready application?</b> We're building a paid guided-prep option — tell us you're interested and we'll let you know when it's ready.
+        <div style="margin-top:8px;"><button type="button" class="btn ghost" id="quizNotifyBtn">✉️ Notify me when it's ready</button></div>
+      </div>
+      <button class="btn primary" id="quizContinueBtn" style="width:100%;">Continue to the full checklist →</button>
+    </div>
+
+    <p class="gate-credit">Built by <b>SafeNetwork</b>. <a href="mailto:lalasionline@gmail.com">Email</a> · <a href="https://wa.me/2349081389969" target="_blank" rel="noopener">WhatsApp</a></p>
+  </div>
+</div>
+
+<div id="consentGate" class="consent-gate" style="display:none;">
   <div class="gate-blob gate-blob-1" aria-hidden="true"></div>
   <div class="gate-blob gate-blob-2" aria-hidden="true"></div>
   <div class="gate-blob gate-blob-3" aria-hidden="true"></div>
@@ -11148,6 +11341,153 @@
     else if (!agreed) hint.textContent = 'Tick the box above to continue.';
     else hint.textContent = '';
   }
+  /* ---------------- Confidence quiz (new front door) ---------------- */
+  // Street-tested feedback (a marketer running the product past real applicants around banks/
+  // offices in Yaba, Lagos): "too many forms... can we get a one page quiz test that gives us a
+  // result within 2-3 mins. Which creates a booster and confidence so we can move to the more
+  // detailed part." This scores DOCUMENT/EVIDENCE READINESS only — never a prediction of the actual
+  // visa decision, which only the consulate/DHA can make; that line is deliberate and matches the
+  // disclaimer-first posture used everywhere else in this app.
+  //
+  // Answers that map 1:1 onto a real field in the full checklist (country, work status, travel
+  // history, past refusal, host/sponsor) carry over automatically if the applicant continues — see
+  // applyQuizPrefillToChecklist() below — so nothing already answered here gets asked twice. The
+  // rest (income steadiness, savings bracket, ties to Nigeria, passport/statement readiness) has no
+  // clean single-field equivalent later on, so it's used only to compute the quiz's own result.
+  var quizAnswered = false;
+  var lastQuizResult = null;
+
+  function quizScore(){
+    var g = function(id){ return document.getElementById(id).value; };
+    var work = g('q_quizWork'), income = g('q_quizIncome'), savings = g('q_quizSavings'),
+        travel = g('q_quizTravel'), refusal = g('q_quizRefusal'), ties = g('q_quizTies'),
+        passport = g('q_quizPassport'), statements = g('q_quizStatements');
+    var points = 0;
+    if (work === 'employed' || work === 'selfEmployed' || work === 'both') points += 2;
+    else if (work === 'student' || work === 'child') points += 1;
+    if (income === 'steady') points += 3; else if (income === 'variable') points += 1;
+    if (savings === 'over5m') points += 3; else if (savings === 'to5m') points += 2; else if (savings === 'to2m') points += 1;
+    if (travel === 'yes') points += 2;
+    if (refusal === 'no') points += 2;
+    if (ties === 'strong') points += 3; else if (ties === 'some') points += 1;
+    if (passport === 'yes') points += 2;
+    if (statements === 'yes') points += 2;
+    // 19 = the maximum reachable above (2+3+3+2+2+3+2+2) — used only to pick a tier cutoff below,
+    // not shown to the applicant as a literal score (a bare number invites over-reading it as a
+    // prediction, which is exactly what this quiz is not).
+    var tier = points >= 13 ? 'strong' : (points >= 7 ? 'some' : 'many');
+    return {
+      points: points, tier: tier,
+      answers: {
+        work: work, income: income, savings: savings, travel: travel, refusal: refusal, ties: ties,
+        passport: passport, statements: statements,
+        country: g('q_quizCountry'), host: g('q_quizHost')
+      }
+    };
+  }
+
+  // Checked in priority order; the first 3 that match become the "biggest gaps" shown in the
+  // result. Each message names something concrete to go DO, not just a restated weak answer.
+  var QUIZ_GAP_CHECKS = [
+    { test: function(a){ return a.passport === 'no'; }, msg: "You'll need a valid international passport before you can apply — this alone can take weeks, so start now." },
+    { test: function(a){ return a.statements === 'notyet'; }, msg: 'Start downloading your last 3-6 months of bank statements now — gathering these takes longer than people expect.' },
+    { test: function(a){ return a.savings === 'under500k' || a.savings === ''; }, msg: "Your savings cushion looks thin for this trip's likely cost — worth building up before you apply." },
+    { test: function(a){ return a.refusal === 'yes'; }, msg: "A past visa refusal is worth addressing directly in your application, with a clear explanation of what's changed since." },
+    { test: function(a){ return a.ties === 'few'; }, msg: 'Strengthening your documented ties to Nigeria (property, family, employment) will help your case.' },
+    { test: function(a){ return a.income === 'none'; }, msg: 'Without steady income, lean on a strong, well-explained savings history instead.' },
+    { test: function(a){ return a.work === ''; }, msg: "Fill in your work status in the full checklist — it's one of the first things a reviewer checks." }
+  ];
+  function quizGapMessages(answers){
+    var out = [];
+    for (var i = 0; i < QUIZ_GAP_CHECKS.length && out.length < 3; i++){
+      if (QUIZ_GAP_CHECKS[i].test(answers)) out.push(QUIZ_GAP_CHECKS[i].msg);
+    }
+    return out;
+  }
+
+  var QUIZ_TIER_COPY = {
+    strong: { icon: '🟢', label: 'Strong starting position' },
+    some:   { icon: '🟡', label: 'A few gaps to close' },
+    many:   { icon: '🔴', label: 'Some real gaps to address' }
+  };
+
+  document.getElementById('quizSeeResult').addEventListener('click', function(){
+    var result = quizScore();
+    lastQuizResult = result;
+    quizAnswered = true;
+    trackEvent('quiz_completed:' + result.tier);
+    var copy = QUIZ_TIER_COPY[result.tier];
+    var tierEl = document.getElementById('quizResultTier');
+    tierEl.className = 'quiz-result-tier ' + result.tier;
+    tierEl.textContent = copy.icon + ' ' + copy.label;
+    var gaps = quizGapMessages(result.answers);
+    document.getElementById('quizGapList').innerHTML = gaps.length
+      ? gaps.map(function(m){ return '<li>' + escapeHtml(m) + '</li>'; }).join('')
+      : '<li>Nothing major stands out here — the full checklist below will confirm the details.</li>';
+    document.getElementById('quizResultPanel').style.display = 'block';
+    document.getElementById('quizResultPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
+  // Fake-door demand test for the "I can pay a fee" idea from the same street-test feedback —
+  // captures interest via a prefilled mailto (same no-backend pattern already used by "Email myself
+  // this summary" elsewhere in the app) rather than building real payment processing before knowing
+  // anyone wants it. See docs/monetization-strategy.md.
+  document.getElementById('quizNotifyBtn').addEventListener('click', function(){
+    trackEvent('quiz_notify_me_clicked');
+    var subject = encodeURIComponent('Notify me: guided visa-prep launch');
+    var body = encodeURIComponent("Hi,\n\nI just took the Smooth Application readiness quiz and I'd like to be notified when the full guided, paid walkthrough is ready.\n\nThanks!");
+    window.location.href = 'mailto:lalasionline@gmail.com?subject=' + subject + '&body=' + body;
+  });
+
+  document.getElementById('quizSkipLink').addEventListener('click', function(){
+    trackEvent('quiz_skipped');
+    document.getElementById('quizGate').style.display = 'none';
+    document.getElementById('consentGate').style.display = 'flex';
+    window.scrollTo(0,0);
+  });
+
+  document.getElementById('quizContinueBtn').addEventListener('click', function(){
+    trackEvent('quiz_continue_to_checklist:' + (lastQuizResult ? lastQuizResult.tier : 'unknown'));
+    document.getElementById('quizGate').style.display = 'none';
+    document.getElementById('consentGate').style.display = 'flex';
+    var qa = lastQuizResult ? lastQuizResult.answers : null;
+    if (qa && qa.country && COUNTRIES[qa.country] && COUNTRIES[qa.country].ready){
+      document.getElementById('gateCountrySelect').value = qa.country;
+      document.getElementById('gateCountrySelect').dispatchEvent(new Event('change', {bubbles:true}));
+    }
+    window.scrollTo(0,0);
+  });
+
+  // Carries the subset of quiz answers that map 1:1 onto real checklist fields into those fields —
+  // called once, right after the applicant clicks through the consent gate into the actual
+  // checklist (see the second gateContinue listener below). Deliberately narrow: only wired for
+  // fields where the quiz question and the real one are asking literally the same thing, so nothing
+  // here is guessed or misrepresented.
+  function applyQuizPrefillToChecklist(){
+    if (!lastQuizResult) return;
+    var qa = lastQuizResult.answers;
+    var workEl = document.getElementById('f_workStatus');
+    if (qa.work && workEl.value !== qa.work){
+      workEl.value = qa.work;
+      workEl.dispatchEvent(new Event('change', {bubbles:true}));
+    }
+    var travelEl = document.getElementById('te_firstTime');
+    if (qa.travel) travelEl.value = qa.travel;
+    var refusalEl = document.getElementById('f_hasRefusal');
+    if (qa.refusal) refusalEl.checked = (qa.refusal === 'yes');
+    var hostEl = document.getElementById('f_hasHost');
+    var hostFundingEl = document.getElementById('f_hostFunding');
+    if (qa.host === 'host' || qa.host === 'hostFunding'){
+      hostEl.checked = true;
+      hostFundingEl.checked = (qa.host === 'hostFunding');
+    } else if (qa.host === 'none'){
+      hostEl.checked = false;
+      hostFundingEl.checked = false;
+    }
+    render();
+    lastQuizResult = null; // one-shot — don't re-apply if the applicant later changes country manually
+  }
+
   document.getElementById('gateCountrySelect').addEventListener('change', function(){
     populateGateDisclaimer();
     populateGatePrepChecklist();
@@ -11169,6 +11509,14 @@
     document.getElementById('consentGate').style.display = 'none';
     document.getElementById('appWrap').style.display = 'block';
     window.scrollTo(0,0);
+  });
+  // Runs after the gateContinue handler just above (same click, same element — listeners fire in
+  // registration order), so switchCountry()/render() have already populated the checklist DOM this
+  // writes into. Kept as a second, separate listener rather than folded into the one above so the
+  // original consent-gate flow stays untouched and easy to read on its own.
+  document.getElementById('gateContinue').addEventListener('click', function(){
+    var code = document.getElementById('gateCountrySelect').value;
+    if (quizAnswered && COUNTRIES[code] && COUNTRIES[code].ready) applyQuizPrefillToChecklist();
   });
   document.getElementById('btnChangeCountry').addEventListener('click', function(){
     document.getElementById('gateCountrySelect').value = currentCountry;
