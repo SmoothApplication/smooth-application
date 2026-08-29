@@ -59,13 +59,16 @@ async function newPageAt(browser, urlPath, opts){
 }
 
 // Selects a country, ticks the disclaimer checkbox, and clicks through the consent gate — the
-// entry point every other test needs to get past first. The confidence quiz (see
-// confidence-quiz.test.js) now loads ahead of the consent gate, so this skips it first — tests that
-// need the quiz itself drive it directly instead of using this helper.
+// entry point every other test needs to get past first. Two screens now load ahead of the consent
+// gate — the confidence quiz (confidence-quiz.test.js) and the "two documents" page
+// (docs-gate.test.js) — so this skips both first; tests that need either of those directly drive
+// them instead of using this helper.
 async function passConsentGate(page, options){
   var country = (options && options.country) || 'UK';
   await page.waitForSelector('#quizSkipLink');
   await page.click('#quizSkipLink');
+  await page.waitForSelector('#docsGateContinue');
+  await page.click('#docsGateContinue');
   await page.waitForSelector('#gateCountrySelect');
   await page.selectOption('#gateCountrySelect', country);
   await page.check('#gateAgree', { force: true });

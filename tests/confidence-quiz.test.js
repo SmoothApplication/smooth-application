@@ -1,10 +1,12 @@
 'use strict';
 // Regression test for the "confidence quiz" front door — street-tested feedback asked for "a one
 // page quiz test that gives us a result within 2-3 mins" as a low-friction on-ramp ahead of the
-// full checklist. This covers: the quiz loading first (consent gate hidden until skipped/finished),
-// scoring producing a result + gap list, the fake-door "notify me" interest capture, quiz answers
-// carrying into the corresponding real checklist fields, and the skip-straight-through path other
-// tests rely on via helpers.passConsentGate.
+// full checklist. This covers: the quiz loading first (consent gate hidden until the applicant gets
+// there), scoring producing a result + gap list, the fake-door "notify me" interest capture, quiz
+// answers carrying into the corresponding real checklist fields, and the skip-straight-through path
+// other tests rely on via helpers.passConsentGate. See docs-gate.test.js for the "two documents"
+// page this quiz now leads into (both the quiz's own Continue and its skip link land there, not on
+// the consent gate directly).
 const assert = require('assert');
 const { newPageAt } = require('./helpers');
 
@@ -58,14 +60,18 @@ exports.run = async function(ctx){
     assert.ok(trackedAfterNotify.indexOf('quiz_notify_me_clicked') !== -1,
       'Clicking notify-me should record quiz_notify_me_clicked, got: ' + JSON.stringify(trackedAfterNotify));
 
-    // Continuing hides the quiz, shows the consent gate with the quiz's country pre-selected, and
-    // (after finishing the consent gate) carries the mapped answers into the real checklist fields.
+    // Continuing hides the quiz and shows the "two documents" page next (see docs-gate.test.js) —
+    // not the consent gate directly. The quiz's country choice is already sitting on the (still
+    // hidden) consent gate underneath, ready for when docsGateContinue reveals it.
     await page.click('#quizContinueBtn');
-    await page.waitForSelector('#consentGate', { state: 'visible' });
+    await page.waitForSelector('#docsGate', { state: 'visible' });
     var quizHiddenAfter = await page.$eval('#quizGate', function(el){ return el.style.display === 'none'; });
     assert.strictEqual(quizHiddenAfter, true, 'Quiz should be hidden after continuing');
     var preselectedCountry = await page.$eval('#gateCountrySelect', function(el){ return el.value; });
-    assert.strictEqual(preselectedCountry, 'UK', 'Consent gate should have the quiz-chosen country pre-selected');
+    assert.strictEqual(preselectedCountry, 'UK', 'Consent gate should have the quiz-chosen country pre-selected, even while still hidden behind the docs page');
+
+    await page.click('#docsGateContinue');
+    await page.waitForSelector('#consentGate', { state: 'visible' });
 
     await page.check('#gateAgree', { force: true });
     await page.click('#gateContinue');
@@ -86,13 +92,13 @@ exports.run = async function(ctx){
     await page.context().close();
   }
 
-  // Part 2: the skip link (used by every other test via helpers.passConsentGate) bypasses the quiz
-  // entirely and lands straight on the consent gate, with no quiz answers applied.
+  // Part 2: the skip link (used by every other test via helpers.passConsentGate) bypasses only the
+  // quiz's own questions — it still lands on the docs page next, with no quiz answers applied.
   var page2 = await newPageAt(ctx.browser, '/index.html');
   try {
     await page2.waitForSelector('#quizSkipLink');
     await page2.click('#quizSkipLink');
-    await page2.waitForSelector('#gateCountrySelect', { state: 'visible' });
+    await page2.waitForSelector('#docsGate', { state: 'visible' });
     var quizHiddenAfterSkip = await page2.$eval('#quizGate', function(el){ return el.style.display === 'none'; });
     assert.strictEqual(quizHiddenAfterSkip, true, 'Quiz should be hidden after skipping');
   } finally {

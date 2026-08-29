@@ -3,6 +3,22 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## "Two documents" page — splitting the busy consent gate
+
+The consent gate (country picker + a full "what you'll need" list + the legal disclaimer + a
+checkbox, all on one screen) had gotten too busy. Split the single clearest message out of it into
+its own dedicated page, shown right after the confidence quiz (whether the quiz was answered or
+skipped):
+
+- New page states just two things, clearly: a valid international passport, and 3-6 months of bank
+  statements — the two documents almost every applicant needs, and the two that consistently take
+  longest to gather.
+- The old country-specific "what you'll likely need to gather first" list is removed from the
+  consent gate entirely — that content isn't lost, it's what the checklist itself shows, one page
+  later, tailored to the applicant's actual answers rather than repeated twice before they've even
+  started.
+- Flow is now: confidence quiz → two documents → consent gate (country + disclaimer) → checklist.
+
 ## Confidence quiz — a 2-minute front door ahead of the full checklist
 
 The last piece of the same street-test feedback: "too many forms... can we get a one page quiz

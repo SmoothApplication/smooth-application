@@ -254,22 +254,24 @@
      (and takes no layout space beyond a small min-height) once the button is actually enabled. */
   .gate-continue-hint { font-size: 12px; color: var(--text-muted); text-align: center; margin: 8px 0 0; min-height: 1em; }
 
-  /* "What you'll likely need to gather first" — stated upfront and always visible, not tucked behind
-     a click-to-expand <details>. Real street-test feedback (applicants tested in person around banks/
-     offices in Yaba) asked for exactly this: "State it clearly that I need my international passport
-     and 3-6 months downloaded bank statement as we proceed." A collapsed summary is too easy to skip
-     entirely, and this is the single most consequential thing to know before starting — the passport
-     and statements take the longest to pull together, so surfacing it immediately (styled like the
-     disclaimer box below it, not like an optional dropdown) gives the applicant a head start instead
-     of discovering it piecemeal mid-form. */
-  .gate-prep-details { margin: 10px 0 0; background: var(--accent-wash); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 10px; padding: 10px 14px; }
-  .gate-prep-heading { font-weight: 700; font-size: 13px; color: var(--text-primary); }
-  .gate-prep-list { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); font-size: 12.5px; line-height: 1.6; }
-  .gate-prep-list p { margin: 0 0 6px; color: var(--text-secondary); }
-  .gate-prep-list ul { margin: 0 0 8px; padding-left: 18px; }
-  .gate-prep-list ul:last-child { margin-bottom: 0; }
-  .gate-prep-list .gate-prep-cat { font-weight: 600; margin: 8px 0 2px; }
-  .gate-prep-list .gate-prep-cat:first-child { margin-top: 0; }
+  /* "Two documents make this a smooth ride" — its own dedicated page between the quiz and the
+     consent gate. Previously this same "gather these first" message lived as a block inside the
+     consent gate (a "gate-prep-details"/gatePrepChecklist list of every required document across
+     every category) — real feedback was that page had gotten too busy (country picker + a long
+     document list + the legal disclaimer + a checkbox, all at once). Splitting the single clearest
+     part of that list — the two documents almost every applicant needs, which also take the longest
+     to gather — onto its own page lets it actually stand out, and leaves the consent gate to just
+     country + disclaimer + consent. The full, country-specific document list still isn't lost: it's
+     what the checklist itself is, one page later. */
+  .docs-gate-item {
+    display: flex; gap: 14px; align-items: flex-start; background: var(--surface-1);
+    border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin-top: 14px;
+  }
+  .docs-gate-item:first-of-type { margin-top: 6px; }
+  .docs-gate-icon { font-size: 26px; line-height: 1; flex-shrink: 0; }
+  .docs-gate-item-title { font-weight: 700; font-size: 14px; color: var(--text-primary); margin-bottom: 3px; }
+  .docs-gate-item-desc { font-size: 12.5px; color: var(--text-secondary); line-height: 1.5; }
+  .docs-gate-note { font-size: 12px; color: var(--text-muted); margin: 14px 0 0; line-height: 1.5; }
 
   /* Confidence quiz — new front door ahead of the consent gate, per street-tested feedback: "too
      many forms... can we get a one page quiz test that gives us a result within 2-3 mins. Which
@@ -989,7 +991,7 @@
     <div class="quiz-actions">
       <button class="btn primary" id="quizSeeResult" style="width:100%;">See my result</button>
     </div>
-    <button type="button" class="quiz-skip-link" id="quizSkipLink">Skip the quiz — go straight to the full checklist</button>
+    <button type="button" class="quiz-skip-link" id="quizSkipLink">Skip the quiz →</button>
 
     <div id="quizResultPanel" style="display:none;">
       <div id="quizResultTier" class="quiz-result-tier"></div>
@@ -998,9 +1000,41 @@
         <b>Want a fully guided walkthrough that turns this into a ready application?</b> We're building a paid guided-prep option — tell us you're interested and we'll let you know when it's ready.
         <div style="margin-top:8px;"><button type="button" class="btn ghost" id="quizNotifyBtn">✉️ Notify me when it's ready</button></div>
       </div>
-      <button class="btn primary" id="quizContinueBtn" style="width:100%;">Continue to the full checklist →</button>
+      <button class="btn primary" id="quizContinueBtn" style="width:100%;">Continue →</button>
     </div>
 
+    <p class="gate-credit">Built by <b>SafeNetwork</b>. <a href="mailto:lalasionline@gmail.com">Email</a> · <a href="https://wa.me/2349081389969" target="_blank" rel="noopener">WhatsApp</a></p>
+  </div>
+</div>
+
+<div id="docsGate" class="consent-gate" style="display:none;">
+  <div class="gate-blob gate-blob-1" aria-hidden="true"></div>
+  <div class="gate-blob gate-blob-2" aria-hidden="true"></div>
+  <div class="gate-blob gate-blob-3" aria-hidden="true"></div>
+  <div class="consent-gate-card">
+    <div class="gate-icon-badge" aria-hidden="true">🧳</div>
+    <h1 class="consent-gate-title">Two documents make this a smooth ride</h1>
+    <p class="consent-gate-subtitle">Everything ahead branches off your own situation — but almost every applicant needs these two, and both take longer to gather than people expect. Get a head start on them now.</p>
+
+    <div class="docs-gate-item">
+      <div class="docs-gate-icon" aria-hidden="true">🛂</div>
+      <div>
+        <div class="docs-gate-item-title">Your international passport</div>
+        <div class="docs-gate-item-desc">Valid, ideally for 6+ months beyond your planned return date. If yours has expired or is close to it, renewing it is usually the slowest step in this whole process — start that first.</div>
+      </div>
+    </div>
+
+    <div class="docs-gate-item">
+      <div class="docs-gate-icon" aria-hidden="true">🏦</div>
+      <div>
+        <div class="docs-gate-item-title">3-6 months of bank statements</div>
+        <div class="docs-gate-item-desc">Downloaded from your banking app, not just screenshots. If you're pulling from more than one account, give yourself extra time — this consistently takes longer than people plan for.</div>
+      </div>
+    </div>
+
+    <p class="docs-gate-note">The checklist ahead adjusts to your specific visa and situation — this is just the head start worth getting on right away.</p>
+
+    <button class="btn primary" id="docsGateContinue" style="width:100%; margin-top:6px;">Continue →</button>
     <p class="gate-credit">Built by <b>SafeNetwork</b>. <a href="mailto:lalasionline@gmail.com">Email</a> · <a href="https://wa.me/2349081389969" target="_blank" rel="noopener">WhatsApp</a></p>
   </div>
 </div>
@@ -1030,10 +1064,6 @@
         <option value="CN" disabled>🇨🇳 China — coming soon</option>
       </select>
       <span class="gate-select-chevron" aria-hidden="true">▾</span>
-    </div>
-    <div class="gate-prep-details">
-      <div class="gate-prep-heading">📋 What you'll likely need to gather first</div>
-      <div id="gatePrepChecklist" class="gate-prep-list"></div>
     </div>
     <div class="consent-gate-disclaimer">
       <span class="icon">ℹ️</span>
@@ -11300,33 +11330,6 @@
       box.innerHTML = '<b>Coming soon.</b> A full checklist for this country isn\'t built yet — pick United Kingdom or Canada for now, or check back later.';
     }
   }
-  // Shows only the documents that are ALWAYS required regardless of individual circumstances (no
-  // appliesIf condition) — the ones worth going to gather right away, before even starting the form.
-  // A handful of extra items can still turn up once trip details are filled in (e.g. a host's documents,
-  // or a student's sponsor letter) — that's flagged explicitly rather than implied as a complete list.
-  function populateGatePrepChecklist(){
-    var sel = document.getElementById('gateCountrySelect');
-    var code = sel.value;
-    var box = document.getElementById('gatePrepChecklist');
-    if (!box) return;
-    if (!COUNTRIES[code] || !COUNTRIES[code].ready){
-      box.innerHTML = '';
-      return;
-    }
-    var core = COUNTRIES[code].checklist.filter(function(it){ return it.weight === 'required' && typeof it.appliesIf !== 'function'; });
-    var byCat = {};
-    var catOrder = [];
-    core.forEach(function(it){
-      if (!byCat[it.cat]){ byCat[it.cat] = []; catOrder.push(it.cat); }
-      byCat[it.cat].push(it);
-    });
-    var html = '<p>These apply to pretty much every applicant, so they\'re worth starting on now — pulling bank statements from your banking app and getting documents scanned both take longer than people expect, especially with more than one statement to download:</p>';
-    catOrder.forEach(function(cat){
-      html += '<div class="gate-prep-cat">'+escapeHtml(cat)+'</div><ul>' + byCat[cat].map(function(it){ return '<li>'+escapeHtml(it.label)+'</li>'; }).join('') + '</ul>';
-    });
-    html += '<p style="margin-top:6px;">A few more documents may apply once you answer specific questions in the form (e.g. if a host or sponsor is involved) — the checklist adjusts automatically as you go.</p>';
-    box.innerHTML = html;
-  }
   // The Continue button starts (and often stays) disabled with no visual explanation of why —
   // real feedback was that an unexplained disabled button reads as broken rather than gated,
   // especially for a less tech-confident visitor on a form this consequential. This fills in the
@@ -11439,22 +11442,34 @@
     window.location.href = 'mailto:lalasionline@gmail.com?subject=' + subject + '&body=' + body;
   });
 
+  // Both the skip link and the quiz's own "Continue" lead to the same next stop: the dedicated
+  // "two documents" page (docsGate), not straight to the consent gate. Skipping only skips the
+  // quiz's QUESTIONS — the document head-start is worth seeing either way.
   document.getElementById('quizSkipLink').addEventListener('click', function(){
     trackEvent('quiz_skipped');
     document.getElementById('quizGate').style.display = 'none';
-    document.getElementById('consentGate').style.display = 'flex';
+    document.getElementById('docsGate').style.display = 'flex';
     window.scrollTo(0,0);
   });
 
   document.getElementById('quizContinueBtn').addEventListener('click', function(){
-    trackEvent('quiz_continue_to_checklist:' + (lastQuizResult ? lastQuizResult.tier : 'unknown'));
+    trackEvent('quiz_continue:' + (lastQuizResult ? lastQuizResult.tier : 'unknown'));
     document.getElementById('quizGate').style.display = 'none';
-    document.getElementById('consentGate').style.display = 'flex';
+    document.getElementById('docsGate').style.display = 'flex';
+    // Pre-select the country on the (still-hidden) consent gate now, so it's already right by the
+    // time docsGateContinue reveals it — see the change listener on gateCountrySelect below.
     var qa = lastQuizResult ? lastQuizResult.answers : null;
     if (qa && qa.country && COUNTRIES[qa.country] && COUNTRIES[qa.country].ready){
       document.getElementById('gateCountrySelect').value = qa.country;
       document.getElementById('gateCountrySelect').dispatchEvent(new Event('change', {bubbles:true}));
     }
+    window.scrollTo(0,0);
+  });
+
+  document.getElementById('docsGateContinue').addEventListener('click', function(){
+    trackEvent('docs_gate_continue');
+    document.getElementById('docsGate').style.display = 'none';
+    document.getElementById('consentGate').style.display = 'flex';
     window.scrollTo(0,0);
   });
 
@@ -11490,7 +11505,6 @@
 
   document.getElementById('gateCountrySelect').addEventListener('change', function(){
     populateGateDisclaimer();
-    populateGatePrepChecklist();
     document.getElementById('gateAgree').checked = false;
     document.getElementById('gateContinue').disabled = true;
     updateGateContinueHint();
@@ -11521,7 +11535,6 @@
   document.getElementById('btnChangeCountry').addEventListener('click', function(){
     document.getElementById('gateCountrySelect').value = currentCountry;
     populateGateDisclaimer();
-    populateGatePrepChecklist();
     document.getElementById('gateAgree').checked = false;
     document.getElementById('gateContinue').disabled = true;
     updateGateContinueHint();
@@ -11530,7 +11543,6 @@
     window.scrollTo(0,0);
   });
   populateGateDisclaimer();
-  populateGatePrepChecklist();
   updateGateContinueHint();
 
   render();

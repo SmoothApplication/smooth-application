@@ -5,10 +5,13 @@ const { newPageAt } = require('./helpers');
 exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
-    // The confidence quiz is now the first thing shown — skip it to reach the consent gate this
-    // test actually exercises (see confidence-quiz.test.js for the quiz's own behavior).
+    // The confidence quiz and the "two documents" page are now shown first — skip through both to
+    // reach the consent gate this test actually exercises (see confidence-quiz.test.js and
+    // docs-gate.test.js for their own behavior).
     await page.waitForSelector('#quizSkipLink');
     await page.click('#quizSkipLink');
+    await page.waitForSelector('#docsGateContinue');
+    await page.click('#docsGateContinue');
     await page.waitForSelector('#gateCountrySelect');
 
     // Continue must start disabled — no country picked, disclaimer not agreed to.
