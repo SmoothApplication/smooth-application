@@ -1320,6 +1320,12 @@
             <div class="item-tip" style="margin-top:4px;">Eti Osa spans very different rent levels — this refines the estimate below instead of blending them all into one number.</div>
           </div>
         </div>
+        <div id="rs_premiumPocketRow" style="display:none; margin:-4px 0 14px;">
+          <div class="checkrow" style="margin-top:0;">
+            <input type="checkbox" id="rs_premiumPocket">
+            <label for="rs_premiumPocket" id="rs_premiumPocketLabel">Premium pocket</label>
+          </div>
+        </div>
         <div class="row">
           <div>
             <label class="field" for="rs_addressNumber">House/street number</label>
@@ -1333,7 +1339,7 @@
 
         <div id="rs_costBox" class="doc-reminder" style="margin-top:10px;">
           <p style="margin:0 0 6px; font-weight:600;">Estimated yearly cost of living</p>
-          <p class="item-tip" style="margin:0 0 10px;">Rent is pre-filled with a typical range for your state/LGA, adjusted for how many bedrooms you picked above, and upkeep/school fees with common starting figures — not a guarantee of what you actually pay. Check every number below and correct it to match your real costs.</p>
+          <p class="item-tip" style="margin:0 0 10px;">Rent is pre-filled with a typical range for your state/LGA, adjusted for how many bedrooms you picked above, and upkeep/school fees with common starting figures — not a guarantee of what you actually pay. Rents can vary a lot even within one named area (e.g. Magodo Phase 1 vs Phase 2, or the pricier pockets of Yaba) — check every number below and correct it to match your real costs.</p>
           <div class="row">
             <div>
               <label class="field" for="rs_annualRent">Annual rent (₦)</label>
@@ -3114,9 +3120,26 @@
     'Lekki Phase 1': [8700000, 17400000],
     'Ajah / Sangotedo / Lekki (Phase 2 and beyond)': [870000, 5200000]
   };
-  function getEstimatedAnnualRent(state, lga, bedrooms, etiOsaArea){
+  // Same underlying problem as Eti Osa above, but a different shape: a single well-known premium
+  // enclave sitting inside an otherwise fairly uniform LGA, rather than several genuinely different
+  // areas needing their own picker — so a plain checkbox rather than a dropdown. Real user knowledge
+  // is what caught both of these (not something inferable from this table's own numbers — each LGA's
+  // EXISTING range already looked reasonably narrow, which was itself the problem: the enclave's own
+  // listings were getting silently averaged away by the much larger volume of ordinary flats around
+  // it, the same way Eti Osa's range looked plausible while still being wrong). Sourced from current
+  // listing aggregates, checked August 2026: Ikeja GRA 3-bed lists ₦15-35M/year (vs the ₦2-4.5M base
+  // Ikeja range above, which still applies to Alausa's own general average, Opebi, Oregun, and the
+  // Airport Road axis); Ogudu (GRA) 3-bed averages ₦4M, range ₦3-12.5M (vs the ₦1.2-2.8M base Kosofe
+  // range, which still applies to Ojota, Ketu, Mile 12). Figures below are the same pre-bedroom-
+  // multiplier baseline the rest of this table uses, per the ETI_OSA_SUB_AREA_RENT comment above.
+  var LAGOS_PREMIUM_POCKET = {
+    'Ikeja': { label: 'Ikeja GRA', hint: 'not Alausa, Opebi, Oregun, or the Airport Road axis', range: [13000000, 30400000] },
+    'Kosofe': { label: 'Ogudu (GRA)', hint: 'not Ojota, Ketu, or Mile 12', range: [2600000, 10870000] }
+  };
+  function getEstimatedAnnualRent(state, lga, bedrooms, etiOsaArea, premiumPocket){
     var range;
     if (state === 'Lagos' && lga === 'Eti Osa' && etiOsaArea && ETI_OSA_SUB_AREA_RENT[etiOsaArea]) range = ETI_OSA_SUB_AREA_RENT[etiOsaArea];
+    else if (state === 'Lagos' && premiumPocket && LAGOS_PREMIUM_POCKET[lga]) range = LAGOS_PREMIUM_POCKET[lga].range;
     else if (state === 'Lagos' && lga && LAGOS_LGA_ANNUAL_RENT[lga]) range = LAGOS_LGA_ANNUAL_RENT[lga];
     else if (state === 'Lagos') range = [700000, 3000000]; // Lagos picked, LGA not yet — wide citywide range
     else { var tier = STATE_RENT_TIER[state] || 'other'; range = RENT_TIER_ANNUAL[tier]; }
@@ -3298,6 +3321,7 @@
       livingState: document.getElementById('rs_state').value,
       livingLga: document.getElementById('rs_lga').value,
       etiOsaArea: document.getElementById('rs_etiOsaArea').value,
+      premiumPocket: document.getElementById('rs_premiumPocket').checked,
       bedrooms: document.getElementById('rs_bedrooms').value,
       addressNumber: document.getElementById('rs_addressNumber').value.trim(),
       addressName: document.getElementById('rs_addressName').value.trim(),
@@ -4301,7 +4325,7 @@
    // Session 3: Your responsibilities
    // rs_state has its own dedicated change listener (repopulates the LGA dropdown, then renders) —
    // left out of this generic list to avoid double-rendering on every state change.
-   'rs_married','rs_spouseName','rs_numKids','rs_lga','rs_etiOsaArea','rs_bedrooms','rs_addressNumber','rs_addressName','rs_annualRent','rs_monthlyUpkeep','rs_schoolFeePerTerm','rs_agedParents','rs_fatherName','rs_motherName','rs_fatherDeceased','rs_motherDeceased','rs_remittance','rs_verifyConsent']
+   'rs_married','rs_spouseName','rs_numKids','rs_lga','rs_etiOsaArea','rs_premiumPocket','rs_bedrooms','rs_addressNumber','rs_addressName','rs_annualRent','rs_monthlyUpkeep','rs_schoolFeePerTerm','rs_agedParents','rs_fatherName','rs_motherName','rs_fatherDeceased','rs_motherDeceased','rs_remittance','rs_verifyConsent']
     .forEach(function(id){
       var el = document.getElementById(id);
       el.addEventListener('change', render);
@@ -4830,6 +4854,20 @@
     var etiOsaRow = document.getElementById('rs_etiOsaAreaRow');
     if (etiOsaRow) etiOsaRow.style.display = (a.livingState === 'Lagos' && a.livingLga === 'Eti Osa') ? 'block' : 'none';
 
+    // See the LAGOS_PREMIUM_POCKET comment above getEstimatedAnnualRent() — Ikeja GRA and Ogudu
+    // (GRA) each sit well above the rest of their own LGA, real user knowledge caught both. Label
+    // text updates per-LGA since it's the same checkbox slot for either.
+    var pocketRow = document.getElementById('rs_premiumPocketRow');
+    var pocketInfo = (a.livingState === 'Lagos') ? LAGOS_PREMIUM_POCKET[a.livingLga] : null;
+    if (pocketRow) pocketRow.style.display = pocketInfo ? 'block' : 'none';
+    if (pocketInfo){
+      var pocketLabel = document.getElementById('rs_premiumPocketLabel');
+      if (pocketLabel) pocketLabel.textContent = 'This address is in ' + pocketInfo.label + ' (' + pocketInfo.hint + ')';
+    }
+    // Left checked/unchecked as-is when hidden (same as the Eti Osa dropdown above) — harmless
+    // either way, since getEstimatedAnnualRent() only ever consults it for an LGA that's actually
+    // in LAGOS_PREMIUM_POCKET, so a stale checked value for a different LGA has no effect.
+
     var rentEl = document.getElementById('rs_annualRent');
     var upkeepEl = document.getElementById('rs_monthlyUpkeep');
     var schoolEl = document.getElementById('rs_schoolFeePerTerm');
@@ -4838,7 +4876,7 @@
     // still holds exactly what we last auto-filled it with (tracked via data-autofilled). The
     // moment it differs, the applicant has typed their own number and it's never touched again.
     if (rentEl && a.livingState && (!rentEl.value || rentEl.value === rentEl.dataset.autofilled)){
-      var range = getEstimatedAnnualRent(a.livingState, a.livingLga, a.bedrooms, a.etiOsaArea);
+      var range = getEstimatedAnnualRent(a.livingState, a.livingLga, a.bedrooms, a.etiOsaArea, a.premiumPocket);
       var estimate = String(Math.round((range[0] + range[1]) / 2));
       rentEl.value = estimate;
       rentEl.dataset.autofilled = estimate;
@@ -11058,6 +11096,7 @@
       document.getElementById('rs_state').value = payload.answers.livingState || '';
       renderLgaOptions(payload.answers.livingState || '', payload.answers.livingLga || '');
       document.getElementById('rs_etiOsaArea').value = payload.answers.etiOsaArea || '';
+      document.getElementById('rs_premiumPocket').checked = !!payload.answers.premiumPocket;
       document.getElementById('rs_bedrooms').value = payload.answers.bedrooms || '';
       document.getElementById('rs_addressNumber').value = payload.answers.addressNumber || '';
       document.getElementById('rs_addressName').value = payload.answers.addressName || '';
@@ -11298,6 +11337,7 @@
     document.getElementById('rs_state').value = '';
     renderLgaOptions('', '');
     document.getElementById('rs_etiOsaArea').value = '';
+    document.getElementById('rs_premiumPocket').checked = false;
     document.getElementById('rs_bedrooms').value = '';
     document.getElementById('rs_addressNumber').value = '';
     document.getElementById('rs_addressName').value = '';

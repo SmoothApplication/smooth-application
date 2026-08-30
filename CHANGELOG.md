@@ -3,6 +3,29 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Ikeja GRA and Ogudu: two more Lagos rent pockets that were getting averaged away
+
+Follow-up to the Eti Osa fix below — user knowledge, not something inferable from this table's own
+numbers, flagged Ikeja GRA/Alausa/the Airport Road axis and Ogudu as likely having the same problem.
+Checked both against real listings: Ikeja GRA lists ₦15-35M/year for a 3-bed vs the ₦2-4.5M base
+Ikeja range (worse than Eti Osa's original distortion — Ikeja's range looked narrow and reasonable
+on paper, which was itself the problem, since it meant GRA's own listings were being diluted away
+rather than captured at all). Ogudu averages ₦4M vs the ₦1.2-2.8M base Kosofe range.
+
+- Added a "premium pocket" checkbox, shown only for Ikeja and Kosofe, with per-LGA label text
+  ("This address is in Ikeja GRA…" / "…in Ogudu (GRA)…"). Unlike Eti Osa (3 genuinely different
+  areas with no sensible default), this is a binary distinction, so a checkbox rather than a
+  dropdown — one slot, relabelled per LGA rather than two separate controls.
+- Left unchecked, every existing estimate is byte-for-byte unchanged — verified directly, not
+  assumed.
+- Went looking for a systematic way to verify rent across all of Lagos rather than one named area
+  at a time — there isn't one (no rent API, no registry, and this app has no backend to scrape and
+  maintain one). Decided against chasing further geographic precision (e.g. Magodo Phase 1 vs
+  Phase 2) for the same reason: there's no natural stopping point once you're subdividing named
+  estates into phases, and the tool already never overwrites what someone types themselves. Added
+  a line to the existing disclaimer instead, naming that exact case, so the "check and correct
+  this" message actually lands for the cases too fine-grained to ever fully table.
+
 ## Eti Osa rent estimate: Lekki Phase 1 and Ajah no longer share the same number
 
 Real user report, two screenshots: a Lekki Phase 1 address and a Thomas Estate, Ajah address —
