@@ -3,6 +3,16 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## A cold visitor now sees the "Smooth Application" name from the first screen
+
+Neither the quiz nor the two-documents page said what site you were even on — the name and trust
+badges only showed up on the third screen (the consent gate). For traffic arriving from the
+Nairaland ad — a cold click, no prior context — that's a real gap.
+
+- Added a small, compact "🛂 Smooth Application" line to the top of both the quiz and the
+  two-documents page. Deliberately not the full header (logo, tagline, all three trust badges) —
+  that would undo the decluttering both screens just got. Just enough to name the site.
+
 ## "Two documents" page decluttered — headline info only, detail on tap
 
 Direct feedback on a screenshot of the page: "humans have short attention span... can we just have
