@@ -315,6 +315,26 @@
     padding: 14px 16px; margin: 0 0 18px; font-size: 12.5px; line-height: 1.55;
   }
   .quiz-notify-card b { color: var(--text-primary); }
+  /* New front-of-front-door: a short intro ahead of the quiz itself, added after GoatCounter data
+     (Aug 2026) showed ~87% of visits never started a session — the quiz used to BE the landing
+     screen, ten "Select..." dropdowns stacked with no stated payoff and "Skip the quiz" buried as a
+     text link below all ten. Now the first thing anyone sees states what this gets them and that
+     it's free, with Start and Skip equally visible with no scrolling required, on any screen size. */
+  .quiz-free-badge {
+    display: inline-block; font-size: 11.5px; font-weight: 700; color: #0e8f82;
+    background: #0e8f821f; border-radius: 20px; padding: 4px 10px; margin-bottom: 10px;
+  }
+  /* The 10 questions themselves are now split across 4 short steps (a progress bar + Back/Next)
+     instead of one long stacked form — same reasoning as above, one screenful at a time reads as a
+     quick quiz rather than a form to fill out. quizScore() reads every answer straight off its
+     <select> by id regardless of which step is showing, so this is purely a display concern. */
+  .quiz-actions-paged { display: flex; gap: 10px; margin-top: 20px; }
+  .quiz-actions-paged .btn { flex: 1; }
+  .quiz-progress { margin-bottom: 4px; }
+  .quiz-progress-bars { display: flex; gap: 6px; margin-bottom: 8px; }
+  .quiz-progress-bar { flex: 1; height: 4px; border-radius: 2px; background: var(--border); }
+  .quiz-progress-bar.done, .quiz-progress-bar.current { background: var(--accent); }
+  .quiz-progress-label { font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 12px; }
 
   /* minmax(0, ...) — NOT plain 1fr — on the main column: a plain `1fr` track refuses to shrink below
      the min-content width of whatever it contains, so a single long unbroken string anywhere deep in
@@ -879,11 +899,31 @@
       <div class="gate-icon-badge" aria-hidden="true">⚡</div>
       <span class="gate-brand-mark">Smooth Application</span>
     </div>
+
+    <div id="quizIntro">
+      <span class="quiz-free-badge">Free · no sign-in</span>
+      <h1 class="consent-gate-title">Your visa checklist, built for you</h1>
+      <p class="consent-gate-subtitle">Answer a few quick questions and get a personal document checklist for UK, Canada, Schengen, or South Africa — about 2 minutes. This checks how ready your documents and evidence look, not your chances of approval — only the consulate or embassy decides that.</p>
+      <div class="quiz-actions">
+        <button type="button" class="btn primary" id="quizStartBtn" style="width:100%;">Start the quick check</button>
+      </div>
+      <button type="button" class="btn ghost" id="quizSkipLink" style="width:100%; margin-top:10px;">Skip straight to the checklist →</button>
+    </div>
+
+    <div id="quizFormWrap" style="display:none;">
     <h1 class="consent-gate-title">Quick readiness check</h1>
-    <p class="consent-gate-subtitle">10 quick questions, about 2 minutes — see where you stand before diving into the full checklist. This checks how ready your documents and evidence look, not your chances of approval — only the consulate or embassy decides that.</p>
+    <div class="quiz-progress">
+      <div class="quiz-progress-bars">
+        <span class="quiz-progress-bar" data-quiz-progress="1"></span>
+        <span class="quiz-progress-bar" data-quiz-progress="2"></span>
+        <span class="quiz-progress-bar" data-quiz-progress="3"></span>
+        <span class="quiz-progress-bar" data-quiz-progress="4"></span>
+      </div>
+      <span class="quiz-progress-label" id="quizProgressLabel">Step 1 of 4</span>
+    </div>
 
     <div id="quizQuestions">
-      <div class="quiz-q">
+      <div class="quiz-q" data-quiz-page="1">
         <label class="field" for="q_quizCountry">Which visa are you preparing for?</label>
         <div class="gate-select-wrap">
           <select id="q_quizCountry">
@@ -900,7 +940,7 @@
         </div>
       </div>
 
-      <div class="quiz-q">
+      <div class="quiz-q" data-quiz-page="1">
         <label class="field" for="q_quizWork">What's your current work status?</label>
         <div class="gate-select-wrap">
           <select id="q_quizWork">
@@ -915,7 +955,7 @@
         </div>
       </div>
 
-      <div class="quiz-q">
+      <div class="quiz-q" data-quiz-page="1">
         <label class="field" for="q_quizIncome">Is your income steady month to month?</label>
         <div class="gate-select-wrap">
           <select id="q_quizIncome">
@@ -928,7 +968,7 @@
         </div>
       </div>
 
-      <div class="quiz-q">
+      <div class="quiz-q" data-quiz-page="2">
         <label class="field" for="q_quizSavings">Roughly how much do you already have saved toward this trip?</label>
         <div class="gate-select-wrap">
           <select id="q_quizSavings">
@@ -942,7 +982,7 @@
         </div>
       </div>
 
-      <div class="quiz-q">
+      <div class="quiz-q" data-quiz-page="2">
         <label class="field" for="q_quizTravel">Have you travelled outside Nigeria before?</label>
         <div class="gate-select-wrap">
           <select id="q_quizTravel">
@@ -954,7 +994,7 @@
         </div>
       </div>
 
-      <div class="quiz-q">
+      <div class="quiz-q" data-quiz-page="2">
         <label class="field" for="q_quizRefusal">Have you ever been refused a visa (any country) in the last 5 years?</label>
         <div class="gate-select-wrap">
           <select id="q_quizRefusal">
@@ -966,7 +1006,7 @@
         </div>
       </div>
 
-      <div class="quiz-q">
+      <div class="quiz-q" data-quiz-page="3">
         <label class="field" for="q_quizTies">Do you own property, or have strong family ties in Nigeria (spouse, children, dependants)?</label>
         <div class="gate-select-wrap">
           <select id="q_quizTies">
@@ -979,7 +1019,7 @@
         </div>
       </div>
 
-      <div class="quiz-q">
+      <div class="quiz-q" data-quiz-page="3">
         <label class="field" for="q_quizHost">Will a host or sponsor abroad be funding or hosting part of this trip?</label>
         <div class="gate-select-wrap">
           <select id="q_quizHost">
@@ -992,7 +1032,7 @@
         </div>
       </div>
 
-      <div class="quiz-q">
+      <div class="quiz-q" data-quiz-page="4">
         <label class="field" for="q_quizPassport">Do you already have a valid international passport?</label>
         <div class="gate-select-wrap">
           <select id="q_quizPassport">
@@ -1004,7 +1044,7 @@
         </div>
       </div>
 
-      <div class="quiz-q">
+      <div class="quiz-q" data-quiz-page="4">
         <label class="field" for="q_quizStatements">Do you have 3-6 months of bank statements ready to download?</label>
         <div class="gate-select-wrap">
           <select id="q_quizStatements">
@@ -1017,10 +1057,12 @@
       </div>
     </div>
 
-    <div class="quiz-actions">
-      <button class="btn primary" id="quizSeeResult" style="width:100%;">See my result</button>
+    <div class="quiz-actions-paged">
+      <button type="button" class="btn ghost" id="quizBackBtn" style="display:none;">← Back</button>
+      <button type="button" class="btn primary" id="quizNextBtn">Next →</button>
+      <button type="button" class="btn primary" id="quizSeeResult" style="display:none;">See my result</button>
     </div>
-    <button type="button" class="gate-text-link" id="quizSkipLink">Skip the quiz →</button>
+    </div>
 
     <div id="quizResultPanel" style="display:none;">
       <div id="quizResultTier" class="quiz-result-tier"></div>
@@ -11603,6 +11645,61 @@
     some:   { icon: '🟡', label: 'A few gaps to close' },
     many:   { icon: '🔴', label: 'Some real gaps to address' }
   };
+
+  // Paged quiz front door — real landing-page data (GoatCounter, Aug 2026) showed ~87% of visits
+  // never even started a session, and the quiz used to BE the very first screen: all 10 questions
+  // stacked at once with "Skip the quiz" buried as a text link below them, no stated payoff above
+  // the fold. #quizIntro now states what this gets an applicant and that it's free, with Start and
+  // Skip both visible with zero scrolling; #quizFormWrap then breaks the same 10 questions into 4
+  // short steps with a progress bar. quizScore() above reads every answer straight off its <select>
+  // by id regardless of which step is currently showing, so paging is purely a display concern —
+  // nothing about scoring or the gap-message logic needed to change.
+  var QUIZ_PAGE_COUNT = 4;
+  var quizCurrentPage = 1;
+  function showQuizPage(n){
+    quizCurrentPage = n;
+    var qs = document.querySelectorAll('#quizQuestions .quiz-q');
+    var seenOnPage = false;
+    for (var i = 0; i < qs.length; i++){
+      var page = parseInt(qs[i].getAttribute('data-quiz-page'), 10);
+      if (page === n){
+        qs[i].style.display = '';
+        qs[i].style.marginTop = seenOnPage ? '' : '0';
+        seenOnPage = true;
+      } else {
+        qs[i].style.display = 'none';
+      }
+    }
+    var bars = document.querySelectorAll('.quiz-progress-bar');
+    for (var b = 0; b < bars.length; b++){
+      var barPage = parseInt(bars[b].getAttribute('data-quiz-progress'), 10);
+      bars[b].className = 'quiz-progress-bar' + (barPage < n ? ' done' : (barPage === n ? ' current' : ''));
+    }
+    document.getElementById('quizProgressLabel').textContent = 'Step ' + n + ' of ' + QUIZ_PAGE_COUNT;
+    document.getElementById('quizBackBtn').style.display = n === 1 ? 'none' : '';
+    document.getElementById('quizNextBtn').style.display = n === QUIZ_PAGE_COUNT ? 'none' : '';
+    document.getElementById('quizSeeResult').style.display = n === QUIZ_PAGE_COUNT ? '' : 'none';
+    // #quizGate (the .consent-gate wrapper) is itself the scroll container (position:fixed +
+    // overflow-y:auto), not the window/body — a plain window.scrollTo(0,0) here would be a no-op
+    // and leave the applicant scrolled past a now-much-shorter page of 2-3 questions.
+    document.getElementById('quizGate').scrollTop = 0;
+  }
+
+  document.getElementById('quizStartBtn').addEventListener('click', function(){
+    trackEvent('quiz_start');
+    document.getElementById('quizIntro').style.display = 'none';
+    document.getElementById('quizFormWrap').style.display = 'block';
+    showQuizPage(1);
+  });
+  document.getElementById('quizNextBtn').addEventListener('click', function(){
+    if (quizCurrentPage < QUIZ_PAGE_COUNT){
+      showQuizPage(quizCurrentPage + 1);
+      trackEvent('quiz_page:' + quizCurrentPage);
+    }
+  });
+  document.getElementById('quizBackBtn').addEventListener('click', function(){
+    if (quizCurrentPage > 1) showQuizPage(quizCurrentPage - 1);
+  });
 
   document.getElementById('quizSeeResult').addEventListener('click', function(){
     var result = quizScore();

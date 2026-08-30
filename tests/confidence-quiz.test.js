@@ -2,11 +2,14 @@
 // Regression test for the "confidence quiz" front door — street-tested feedback asked for "a one
 // page quiz test that gives us a result within 2-3 mins" as a low-friction on-ramp ahead of the
 // full checklist. This covers: the quiz loading first (consent gate hidden until the applicant gets
-// there), scoring producing a result + gap list, the fake-door "notify me" interest capture, quiz
-// answers carrying into the corresponding real checklist fields, and the skip-straight-through path
-// other tests rely on via helpers.passConsentGate. See docs-gate.test.js for the "two documents"
-// page this quiz now leads into (both the quiz's own Continue and its skip link land there, not on
-// the consent gate directly).
+// there), the #quizIntro screen (added after GoatCounter data showed ~87% of visits never started a
+// session — Start and Skip now both visible with zero scrolling, before any question is asked), the
+// 4-step paged quiz that replaced the old single stacked form, scoring producing a result + gap
+// list, the fake-door "notify me" interest capture, quiz answers carrying into the corresponding
+// real checklist fields, and the skip-straight-through path other tests rely on via
+// helpers.passConsentGate. See docs-gate.test.js for the "two documents" page this quiz now leads
+// into (both the quiz's own Continue and its skip link land there, not on the consent gate
+// directly).
 const assert = require('assert');
 const { newPageAt } = require('./helpers');
 
@@ -21,22 +24,63 @@ exports.run = async function(ctx){
     var gateHiddenInitially = await page.$eval('#consentGate', function(el){ return el.style.display === 'none'; });
     assert.strictEqual(gateHiddenInitially, true, 'The consent gate should stay hidden until the quiz is skipped or finished');
 
+    // The intro screen is what actually loads first — states the payoff and that it's free, with
+    // Start and Skip both visible with no scrolling — the quiz's own questions stay hidden until
+    // Start is clicked.
+    var introVisible = await page.$eval('#quizIntro', function(el){ return getComputedStyle(el).display !== 'none'; });
+    assert.strictEqual(introVisible, true, 'The intro screen should be visible on first load');
+    var formHiddenInitially = await page.$eval('#quizFormWrap', function(el){ return getComputedStyle(el).display === 'none'; });
+    assert.strictEqual(formHiddenInitially, true, 'The paged quiz form should stay hidden until Start is clicked');
+
     // Stub analytics so quiz_* events can be observed.
     await page.evaluate(function(){
       window.__trackedEvents = [];
       window.goatcounter = { count: function(o){ window.__trackedEvents.push(o.path); } };
     });
 
+    await page.click('#quizStartBtn');
+    await page.waitForSelector('#quizFormWrap', { state: 'visible' });
+    var introHiddenAfterStart = await page.$eval('#quizIntro', function(el){ return getComputedStyle(el).display === 'none'; });
+    assert.strictEqual(introHiddenAfterStart, true, 'Starting the quiz should hide the intro screen');
+    var trackedAfterStart = await page.evaluate(function(){ return window.__trackedEvents.slice(); });
+    assert.ok(trackedAfterStart.indexOf('quiz_start') !== -1, 'Clicking Start should record a quiz_start event, got: ' + JSON.stringify(trackedAfterStart));
+
     // Answer every question with values chosen to land in the "some gaps" tier and trigger at
-    // least one gap message (no passport yet, statements not ready).
+    // least one gap message (no passport yet, statements not ready) — paging through all 4 steps,
+    // since each step's questions are hidden until its own step is showing.
+    var stepLabel = await page.$eval('#quizProgressLabel', function(el){ return el.textContent; });
+    assert.strictEqual(stepLabel, 'Step 1 of 4', 'Should start on step 1 of 4, got: ' + stepLabel);
+    var backHiddenOnStep1 = await page.$eval('#quizBackBtn', function(el){ return getComputedStyle(el).display === 'none'; });
+    assert.strictEqual(backHiddenOnStep1, true, 'Back button should be hidden on the first step');
+
     await page.selectOption('#q_quizCountry', 'UK');
     await page.selectOption('#q_quizWork', 'employed');
     await page.selectOption('#q_quizIncome', 'steady');
+    await page.click('#quizNextBtn');
+    await page.waitForFunction(function(){ return document.getElementById('quizProgressLabel').textContent === 'Step 2 of 4'; });
+
     await page.selectOption('#q_quizSavings', 'to2m');
     await page.selectOption('#q_quizTravel', 'no');
     await page.selectOption('#q_quizRefusal', 'no');
+    await page.click('#quizNextBtn');
+    await page.waitForFunction(function(){ return document.getElementById('quizProgressLabel').textContent === 'Step 3 of 4'; });
+
     await page.selectOption('#q_quizTies', 'some');
     await page.selectOption('#q_quizHost', 'none');
+    await page.click('#quizNextBtn');
+    await page.waitForFunction(function(){ return document.getElementById('quizProgressLabel').textContent === 'Step 4 of 4'; });
+
+    // Last step: Next is gone, "See my result" takes its place — and Back still works, preserving
+    // earlier answers rather than resetting them.
+    var nextHiddenOnLastStep = await page.$eval('#quizNextBtn', function(el){ return getComputedStyle(el).display === 'none'; });
+    assert.strictEqual(nextHiddenOnLastStep, true, 'Next button should be hidden on the last step');
+    await page.click('#quizBackBtn');
+    await page.waitForFunction(function(){ return document.getElementById('quizProgressLabel').textContent === 'Step 3 of 4'; });
+    var tiesPreserved = await page.$eval('#q_quizTies', function(el){ return el.value; });
+    assert.strictEqual(tiesPreserved, 'some', 'Going back a step should preserve the previously-picked answer, not reset it');
+    await page.click('#quizNextBtn');
+    await page.waitForFunction(function(){ return document.getElementById('quizProgressLabel').textContent === 'Step 4 of 4'; });
+
     await page.selectOption('#q_quizPassport', 'no');
     await page.selectOption('#q_quizStatements', 'notyet');
 

@@ -3,6 +3,33 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## A real front door: intro screen + paged quiz, instead of 10 questions stacked at once
+
+GoatCounter data (Aug 2026, 684 visits/24 days) showed ~87% of visits never even started a
+session — only ~91 `session_started:*` against 684 visits, despite the mid-funnel work shipped
+earlier this batch (docs-gate declutter, brand mark) showing real signal of its own
+(`docs_gate_continue` beating `docs_gate_back_to_quiz` better than 2:1). The likely cause: the
+confidence quiz WAS the landing screen, and a cold visitor's first sight of the product was ten
+stacked "Select…" dropdowns with no stated payoff, no mention it's free, and "Skip the quiz"
+buried as a text link below all ten — on mobile (46% of traffic) that's a full screen of scrolling
+before any exit is even visible. Same underlying complaint as the "looks like an embassy form"
+office feedback the docs-gate page was decluttered for, just hitting one screen earlier.
+
+- Added `#quizIntro`: a short first screen stating what the tool gets an applicant and that it's
+  free/no-sign-in, with "Start the quick check" and "Skip straight to the checklist" both visible
+  with zero scrolling on any screen size — the same skip destination and `#quizSkipLink` id/handler
+  as before, just restyled as a real button instead of a bottom-of-page text link.
+- Split the same 10 questions across 4 short steps (`#quizFormWrap`, `data-quiz-page` on each
+  `.quiz-q`) with a progress bar and Back/Next, instead of one long stacked form. `quizScore()`
+  reads every answer straight off its `<select>` by id regardless of which step is showing, so this
+  is purely a display change — no scoring or gap-message logic touched.
+- `#quizGate` is itself the scroll container (`position:fixed` + `overflow-y:auto`, not the window),
+  so paging resets `quizGate.scrollTop` rather than a no-op `window.scrollTo(0,0)`.
+- Verified: syntax-checked the full inline script (no Playwright/Chromium available in this
+  sandbox — network-restricted, same limitation noted throughout this changelog); confidence-quiz
+  test rewritten to drive Start → 4 paged steps (with a Back-preserves-answers check) → result,
+  rather than filling all 10 fields on one screen.
+
 ## Ikeja GRA and Ogudu: two more Lagos rent pockets that were getting averaged away
 
 Follow-up to the Eti Osa fix below — user knowledge, not something inferable from this table's own
