@@ -3,6 +3,20 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## "Two documents" page decluttered — headline info only, detail on tap
+
+Direct feedback on a screenshot of the page: "humans have short attention span... can we just have
+the major information so the applicant can pick the major information." Each of the two document
+cards had a full explanatory sentence always shown; the intro and closing paragraphs both said a
+version of "the rest depends on your situation" too.
+
+- Each card now shows a short, scannable line (e.g. "Valid 6+ months past your return date.")
+  instead of a full sentence — the nuance ("renewing is usually the slowest step, start that
+  first") moved behind the same "Why?" toggle just shipped for the finance calculator, for
+  consistency.
+- Cut the redundant closing paragraph entirely and shortened the intro to one line — it was saying
+  the same thing twice.
+
 ## Financial readiness calculator: two explanatory tips collapsed behind "Why?"
 
 Real feedback from an in-person street test: the checklist "looks as long as an embassy form."

@@ -271,7 +271,6 @@
   .docs-gate-icon { font-size: 26px; line-height: 1; flex-shrink: 0; }
   .docs-gate-item-title { font-weight: 700; font-size: 14px; color: var(--text-primary); margin-bottom: 3px; }
   .docs-gate-item-desc { font-size: 12.5px; color: var(--text-secondary); line-height: 1.5; }
-  .docs-gate-note { font-size: 12px; color: var(--text-muted); margin: 14px 0 0; line-height: 1.5; }
 
   /* Confidence quiz — new front door ahead of the consent gate, per street-tested feedback: "too
      many forms... can we get a one page quiz test that gives us a result within 2-3 mins. Which
@@ -1034,13 +1033,14 @@
   <div class="consent-gate-card">
     <div class="gate-icon-badge" aria-hidden="true">🧳</div>
     <h1 class="consent-gate-title">Two documents make this a smooth ride</h1>
-    <p class="consent-gate-subtitle">Everything ahead branches off your own situation — but almost every applicant needs these two, and both take longer to gather than people expect. Get a head start on them now.</p>
+    <p class="consent-gate-subtitle">Almost every applicant needs these two — get a head start now. The rest depends on your situation, covered next.</p>
 
     <div class="docs-gate-item">
       <div class="docs-gate-icon" aria-hidden="true">🛂</div>
       <div>
         <div class="docs-gate-item-title">Your international passport</div>
-        <div class="docs-gate-item-desc">Valid, ideally for 6+ months beyond your planned return date. If yours has expired or is close to it, renewing it is usually the slowest step in this whole process — start that first.</div>
+        <div class="docs-gate-item-desc">Valid 6+ months past your return date.</div>
+        <details class="tip-details"><summary>Why?</summary><div class="item-tip">If yours has expired or is close to it, renewing it is usually the slowest step in this whole process — start that first.</div></details>
       </div>
     </div>
 
@@ -1048,11 +1048,10 @@
       <div class="docs-gate-icon" aria-hidden="true">🏦</div>
       <div>
         <div class="docs-gate-item-title">3-6 months of bank statements</div>
-        <div class="docs-gate-item-desc">Downloaded from your banking app, not just screenshots. If you're pulling from more than one account, give yourself extra time — this consistently takes longer than people plan for.</div>
+        <div class="docs-gate-item-desc">Downloaded from your banking app, not screenshots.</div>
+        <details class="tip-details"><summary>Why?</summary><div class="item-tip">If you're pulling from more than one account, give yourself extra time — this consistently takes longer than people plan for.</div></details>
       </div>
     </div>
-
-    <p class="docs-gate-note">The checklist ahead adjusts to your specific visa and situation — this is just the head start worth getting on right away.</p>
 
     <button class="btn primary" id="docsGateContinue" style="width:100%; margin-top:6px;">Continue →</button>
     <button type="button" class="gate-text-link" id="docsGateBack">← Back to the quick check</button>
