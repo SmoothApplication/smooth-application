@@ -9,9 +9,11 @@ Neither the quiz nor the two-documents page said what site you were even on — 
 badges only showed up on the third screen (the consent gate). For traffic arriving from the
 Nairaland ad — a cold click, no prior context — that's a real gap.
 
-- Added a small, compact "🛂 Smooth Application" line to the top of both the quiz and the
+- Added a small, compact "Smooth Application" name to the top of both the quiz and the
   two-documents page. Deliberately not the full header (logo, tagline, all three trust badges) —
   that would undo the decluttering both screens just got. Just enough to name the site.
+- Feedback on the first version (annotated screenshot): it sat on its own line above the page's
+  icon, two elements stacked. Moved to sit beside the icon instead — one compact row.
 
 ## "Two documents" page decluttered — headline info only, detail on tap
 

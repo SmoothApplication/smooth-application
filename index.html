@@ -202,9 +202,13 @@
   /* A cold visitor (a Nairaland ad click, say) can now land on the quiz or the two-documents page
      first, neither of which said what site they were even on — "Smooth Application" and the trust
      badges only showed up two screens later, on the consent gate. This is deliberately NOT a repeat
-     of that full header (logo + tagline + 3 badges) — just a single compact line, so the early
-     screens keep the leaner look they were just decluttered into. */
-  .gate-brand-mark { font-size: 12px; font-weight: 700; color: var(--text-secondary); letter-spacing: 0.01em; margin-bottom: 14px; display: flex; align-items: center; gap: 6px; }
+     of that full header (logo + tagline + 3 badges) — just a compact name beside the page's own
+     topic icon, so the early screens keep the leaner look they were just decluttered into. User
+     feedback (annotated screenshot): originally its own line above the icon — moved to sit beside
+     it instead, one row, not two. */
+  .gate-brand-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .gate-brand-row .gate-icon-badge { margin-bottom: 0; }
+  .gate-brand-mark { font-size: 13px; font-weight: 700; color: var(--text-secondary); letter-spacing: 0.01em; }
   /* Lighter, borderless pills — plain colored text on a faint tint reads as calm reassurance rather
      than another bordered box competing for attention next to the select and disclaimer below it. */
   .gate-trust-row { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-bottom: 20px; }
@@ -871,8 +875,10 @@
   <div class="gate-blob gate-blob-2" aria-hidden="true"></div>
   <div class="gate-blob gate-blob-3" aria-hidden="true"></div>
   <div class="consent-gate-card">
-    <div class="gate-brand-mark">🛂 Smooth Application</div>
-    <div class="gate-icon-badge" aria-hidden="true">⚡</div>
+    <div class="gate-brand-row">
+      <div class="gate-icon-badge" aria-hidden="true">⚡</div>
+      <span class="gate-brand-mark">Smooth Application</span>
+    </div>
     <h1 class="consent-gate-title">Quick readiness check</h1>
     <p class="consent-gate-subtitle">10 quick questions, about 2 minutes — see where you stand before diving into the full checklist. This checks how ready your documents and evidence look, not your chances of approval — only the consulate or embassy decides that.</p>
 
@@ -1038,8 +1044,10 @@
   <div class="gate-blob gate-blob-2" aria-hidden="true"></div>
   <div class="gate-blob gate-blob-3" aria-hidden="true"></div>
   <div class="consent-gate-card">
-    <div class="gate-brand-mark">🛂 Smooth Application</div>
-    <div class="gate-icon-badge" aria-hidden="true">🧳</div>
+    <div class="gate-brand-row">
+      <div class="gate-icon-badge" aria-hidden="true">🧳</div>
+      <span class="gate-brand-mark">Smooth Application</span>
+    </div>
     <h1 class="consent-gate-title">Two documents make this a smooth ride</h1>
     <p class="consent-gate-subtitle">Almost every applicant needs these two — get a head start now. The rest depends on your situation, covered next.</p>
 
