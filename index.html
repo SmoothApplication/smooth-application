@@ -1309,7 +1309,16 @@
               <option value="other">Others</option>
             </select>
           </div>
-          <div></div>
+          <div id="rs_etiOsaAreaRow" style="display:none;">
+            <label class="field" for="rs_etiOsaArea">Which part of Eti Osa?</label>
+            <select id="rs_etiOsaArea">
+              <option value="">Select…</option>
+              <option value="Ikoyi / Victoria Island">Ikoyi / Victoria Island</option>
+              <option value="Lekki Phase 1">Lekki Phase 1</option>
+              <option value="Ajah / Sangotedo / Lekki (Phase 2 and beyond)">Ajah / Sangotedo / Lekki (Phase 2 and beyond)</option>
+            </select>
+            <div class="item-tip" style="margin-top:4px;">Eti Osa spans very different rent levels — this refines the estimate below instead of blending them all into one number.</div>
+          </div>
         </div>
         <div class="row">
           <div>
@@ -3087,9 +3096,28 @@
     // 'other' (and no selection) deliberately has no entry — falls back to the un-scaled 2-3BR
     // baseline range below, since there's nothing more specific to scale it by.
   };
-  function getEstimatedAnnualRent(state, lga, bedrooms){
+  // Real user report: two different Eti Osa addresses — one in Lekki Phase 1, one in Thomas Estate,
+  // Ajah — came back the SAME rent estimate (₦10,350,000). Root cause: Eti Osa's single [3M, 15M]
+  // range above was already by far the widest of any Lagos LGA in this table (5x, vs ~2-2.5x for
+  // most others) because it blends genuinely incomparable neighbourhoods — Ikoyi/VI mansions,
+  // Lekki Phase 1 towers, and the much cheaper Ajah/Sangotedo corridor — into one number. House/
+  // street name was always free text, never fed into the estimate, so no LGA-level fix alone could
+  // have caught this. Sourced from current listing aggregates (Nigeria Property Centre, PropertyPro),
+  // checked August 2026: Lekki Phase 1 3-bed asks ~₦17-18M/year; Ajah 3-bed averages ~₦3M (range
+  // ₦1-6M); Victoria Island 3-bed averages ~₦27M with Ikoyi typically higher still. Figures below are
+  // the same "typical 2-3BR" pre-bedroom-multiplier baseline the rest of this table uses (divide the
+  // sourced 3-bed figures by BEDROOM_RENT_MULTIPLIER['3bed'] = 1.15), not a repeat of the 3-bed number
+  // itself — kept deliberately trimmed to the 3 sub-areas that actually diverge, not a hunt for
+  // street-level precision this tool was never going to have.
+  var ETI_OSA_SUB_AREA_RENT = {
+    'Ikoyi / Victoria Island': [13000000, 39000000],
+    'Lekki Phase 1': [8700000, 17400000],
+    'Ajah / Sangotedo / Lekki (Phase 2 and beyond)': [870000, 5200000]
+  };
+  function getEstimatedAnnualRent(state, lga, bedrooms, etiOsaArea){
     var range;
-    if (state === 'Lagos' && lga && LAGOS_LGA_ANNUAL_RENT[lga]) range = LAGOS_LGA_ANNUAL_RENT[lga];
+    if (state === 'Lagos' && lga === 'Eti Osa' && etiOsaArea && ETI_OSA_SUB_AREA_RENT[etiOsaArea]) range = ETI_OSA_SUB_AREA_RENT[etiOsaArea];
+    else if (state === 'Lagos' && lga && LAGOS_LGA_ANNUAL_RENT[lga]) range = LAGOS_LGA_ANNUAL_RENT[lga];
     else if (state === 'Lagos') range = [700000, 3000000]; // Lagos picked, LGA not yet — wide citywide range
     else { var tier = STATE_RENT_TIER[state] || 'other'; range = RENT_TIER_ANNUAL[tier]; }
     var m = BEDROOM_RENT_MULTIPLIER[bedrooms];
@@ -3269,6 +3297,7 @@
       numKids: document.getElementById('rs_numKids').value,
       livingState: document.getElementById('rs_state').value,
       livingLga: document.getElementById('rs_lga').value,
+      etiOsaArea: document.getElementById('rs_etiOsaArea').value,
       bedrooms: document.getElementById('rs_bedrooms').value,
       addressNumber: document.getElementById('rs_addressNumber').value.trim(),
       addressName: document.getElementById('rs_addressName').value.trim(),
@@ -4272,7 +4301,7 @@
    // Session 3: Your responsibilities
    // rs_state has its own dedicated change listener (repopulates the LGA dropdown, then renders) —
    // left out of this generic list to avoid double-rendering on every state change.
-   'rs_married','rs_spouseName','rs_numKids','rs_lga','rs_bedrooms','rs_addressNumber','rs_addressName','rs_annualRent','rs_monthlyUpkeep','rs_schoolFeePerTerm','rs_agedParents','rs_fatherName','rs_motherName','rs_fatherDeceased','rs_motherDeceased','rs_remittance','rs_verifyConsent']
+   'rs_married','rs_spouseName','rs_numKids','rs_lga','rs_etiOsaArea','rs_bedrooms','rs_addressNumber','rs_addressName','rs_annualRent','rs_monthlyUpkeep','rs_schoolFeePerTerm','rs_agedParents','rs_fatherName','rs_motherName','rs_fatherDeceased','rs_motherDeceased','rs_remittance','rs_verifyConsent']
     .forEach(function(id){
       var el = document.getElementById(id);
       el.addEventListener('change', render);
@@ -4794,6 +4823,13 @@
     var numKids = parseInt(a.numKids, 10) || 0;
     if (schoolRow) schoolRow.style.display = numKids > 0 ? 'block' : 'none';
 
+    // Eti Osa alone spans Ikoyi/VI mansions through Lekki Phase 1 towers to the much cheaper
+    // Ajah/Sangotedo corridor — see the ETI_OSA_SUB_AREA_RENT comment above getEstimatedAnnualRent()
+    // for the real user report this fixes. Only shown for that one LGA; every other LGA still uses
+    // its single figure, same as before.
+    var etiOsaRow = document.getElementById('rs_etiOsaAreaRow');
+    if (etiOsaRow) etiOsaRow.style.display = (a.livingState === 'Lagos' && a.livingLga === 'Eti Osa') ? 'block' : 'none';
+
     var rentEl = document.getElementById('rs_annualRent');
     var upkeepEl = document.getElementById('rs_monthlyUpkeep');
     var schoolEl = document.getElementById('rs_schoolFeePerTerm');
@@ -4802,7 +4838,7 @@
     // still holds exactly what we last auto-filled it with (tracked via data-autofilled). The
     // moment it differs, the applicant has typed their own number and it's never touched again.
     if (rentEl && a.livingState && (!rentEl.value || rentEl.value === rentEl.dataset.autofilled)){
-      var range = getEstimatedAnnualRent(a.livingState, a.livingLga, a.bedrooms);
+      var range = getEstimatedAnnualRent(a.livingState, a.livingLga, a.bedrooms, a.etiOsaArea);
       var estimate = String(Math.round((range[0] + range[1]) / 2));
       rentEl.value = estimate;
       rentEl.dataset.autofilled = estimate;
@@ -11021,6 +11057,7 @@
       document.getElementById('rs_numKids').value = payload.answers.numKids || '';
       document.getElementById('rs_state').value = payload.answers.livingState || '';
       renderLgaOptions(payload.answers.livingState || '', payload.answers.livingLga || '');
+      document.getElementById('rs_etiOsaArea').value = payload.answers.etiOsaArea || '';
       document.getElementById('rs_bedrooms').value = payload.answers.bedrooms || '';
       document.getElementById('rs_addressNumber').value = payload.answers.addressNumber || '';
       document.getElementById('rs_addressName').value = payload.answers.addressName || '';
@@ -11260,6 +11297,7 @@
     document.getElementById('rs_numKids').value = '';
     document.getElementById('rs_state').value = '';
     renderLgaOptions('', '');
+    document.getElementById('rs_etiOsaArea').value = '';
     document.getElementById('rs_bedrooms').value = '';
     document.getElementById('rs_addressNumber').value = '';
     document.getElementById('rs_addressName').value = '';

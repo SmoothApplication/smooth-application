@@ -3,6 +3,28 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Eti Osa rent estimate: Lekki Phase 1 and Ajah no longer share the same number
+
+Real user report, two screenshots: a Lekki Phase 1 address and a Thomas Estate, Ajah address —
+both Lagos / Eti Osa / 3 bedroom — came back the identical ₦10,350,000 rent estimate. Root cause:
+Eti Osa's single [₦3M, ₦15M] range was already the widest of any Lagos LGA in this table (a 5x
+spread, vs ~2-2.5x for most others), because it blends genuinely incomparable neighbourhoods —
+Ikoyi/VI, Lekki Phase 1, and the much cheaper Ajah/Sangotedo corridor — into one figure. The
+house/street name fields were always free text, never fed into the estimate, so no amount of
+address detail could have caught this on its own.
+
+- Added a "Which part of Eti Osa?" picker, shown only for that one LGA, with three sub-areas
+  (Ikoyi/Victoria Island, Lekki Phase 1, Ajah/Sangotedo/Lekki Phase 2+) sourced from current
+  listing aggregates (Nigeria Property Centre, PropertyPro), checked August 2026.
+- With no sub-area picked, the estimate still falls back to the exact same blended figure as
+  before — this only refines the number once someone specifies where in Eti Osa they live; it
+  never removes the old default.
+- Every other Lagos LGA, and every other state, is completely unaffected.
+- Verified the fix against the reported bug directly: same inputs as the two screenshots now
+  diverge (Lekki Phase 1 ≈₦15M vs Ajah ≈₦3.5M at the 3-bedroom midpoint), and confirmed the
+  no-sub-area case still reproduces the original ₦10,350,000 exactly, so nothing regresses for
+  someone who hasn't specified an area yet.
+
 ## A cold visitor now sees the "Smooth Application" name from the first screen
 
 Neither the quiz nor the two-documents page said what site you were even on — the name and trust
