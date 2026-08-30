@@ -51,7 +51,10 @@ exports.run = async function(ctx){
     var rentLekki = await page.$eval('#rs_annualRent', function(el){ return el.value; });
 
     await page.selectOption('#rs_etiOsaArea', 'Ajah / Sangotedo / Lekki (Phase 2 and beyond)');
-    await page.waitForFunction(function(){ return document.getElementById('rs_annualRent').value !== rentLekki; }, { timeout: 3000 });
+    // waitForFunction's callback runs inside the page, not this Node scope — rentLekki has to be
+    // passed in as an argument rather than closed over, or the page throws ReferenceError trying to
+    // read a variable that only exists on the Node side.
+    await page.waitForFunction(function(prev){ return document.getElementById('rs_annualRent').value !== prev; }, rentLekki, { timeout: 3000 });
     var rentAjah = await page.$eval('#rs_annualRent', function(el){ return el.value; });
 
     assert.notStrictEqual(rentLekki, rentAjah, 'Lekki Phase 1 and Ajah should no longer share the same rent estimate');
