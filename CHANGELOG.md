@@ -3,6 +3,31 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## A financial "reality check": connecting prep time, savings pace, and processing time
+
+Direct user feedback: two facts already shown on the page never spoke to each other — how many days
+you have until your planned submission date, and how many months it would actually take to close your
+funds gap by saving alone. An applicant could see "10 days to prepare" right next to a shortfall that
+would genuinely take well over a year to save up, with nothing joining the two together, and no
+mention that the destination's own processing time is a further, separate wait that starts only after
+submitting — it doesn't give you extra time to save beforehand.
+
+Both the quick "statement readiness" box and the detailed financial calculator now surface this
+explicitly once the numbers don't add up: how many days remain to prepare, how many more months of
+saving the gap would actually take at the applicant's own recent pace, and — using freshly researched,
+sourced processing-time figures for each destination — how much additional real waiting time comes
+after applying. UK: ~3 weeks (UKVI's published standard). Canada: currently ~10–11 weeks for Nigerian
+applicants (IRCC updates this weekly). Schengen: 15 calendar days legally, ~4–6 weeks in practice once
+the appointment wait is included. South Africa: 8+ weeks via the High Commission, though VFS Global's
+own handling can be faster. When this fires, the detailed calculator's message escalates from a routine
+"needs attention" to a more serious flag, and both messages close with the same suggestion an
+experienced reviewer would actually give: check for any other traceable income (an allowance, a bonus,
+anything with a paper trail) that could close the gap faster than salary alone — otherwise, the honest
+move is to push the application (and travel) date back until savings genuinely catch up.
+
+Also removed the standalone "Trip length — X night(s), Under 6 weeks" field, which was redundant next
+to the "auto-filled into the financial calculator below" note already shown under the return-date field.
+
 ## A bundled common-names list, so garbled sender names get cleaned up automatically more often
 
 Follow-up to the "Fix name" feature above. Rather than only reacting to each new piece of narration

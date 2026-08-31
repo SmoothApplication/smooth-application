@@ -633,8 +633,8 @@
   .tag.required { background: var(--critical-wash); color: var(--critical); }
   .tag.recommended { background: var(--accent-wash); color: var(--accent); }
   .item-tip { font-size: 12px; color: var(--text-secondary); margin-top: 3px; line-height: 1.45; }
-  /* !important since #f_lengthDisplay carries its own inline color (higher specificity) that this
-     needs to override whenever the dates it's describing are actually invalid. */
+  /* !important since some .item-tip elements carry their own inline color (higher specificity) that
+     this needs to override whenever the dates/figures they're describing are actually invalid. */
   .item-tip.error { color: var(--critical) !important; font-weight: 600; }
   /* Real user feedback ("looks like an embassy form"): several fields on the Financial readiness
      calculator had a full explanatory paragraph sitting under them unconditionally — every one of
@@ -1492,10 +1492,6 @@
           </div>
         </div>
         <div class="row">
-          <div>
-            <label class="field">Trip length</label>
-            <div class="item-tip" id="f_lengthDisplay" style="margin-top:9px; font-weight:600; color:var(--text-primary);">Enter your travel and return dates above to see this.</div>
-          </div>
           <div>
             <label class="field" for="f_appdate">Planned application/submission date</label>
             <input type="date" id="f_appdate">
@@ -3039,6 +3035,10 @@
       officialUrl:'https://www.gov.uk/standard-visitor', officialLinkText:'gov.uk/standard-visitor',
       vacText:'Visa Application Centre (VFS Global / TLScontact Nigeria)',
       priorityServiceName:'Priority Visa Service',
+      // UKVI's own published service standard (gov.uk/guidance/visa-processing-times-applications-outside-the-uk,
+      // last updated 26 June 2026): 3 weeks from your biometrics appointment. Real-world waits can run
+      // longer during busy periods — this text says so rather than presenting 3 weeks as a hard guarantee.
+      processingTimeText:'around 3 weeks (UKVI\'s published standard, counted from your biometrics appointment — it can take longer during busy periods)',
       statementsMonthsText:'six months',
       footerIntro:'Built from published UK government visitor-visa guidance.',
       footerLinks:[{url:'https://www.gov.uk/standard-visitor', text:'gov.uk/standard-visitor'},{url:'https://www.gov.uk/government/publications/visitor-visa-guide-to-supporting-documents', text:'gov.uk supporting documents guide'}],
@@ -3053,6 +3053,11 @@
       officialUrl:'https://www.canada.ca/en/immigration-refugees-citizenship/services/visit-canada/visitor-visa.html', officialLinkText:'canada.ca — visitor visa',
       vacText:'Visa Application Centre (VFS Global — Lagos/Abuja) or the IRCC online portal',
       priorityServiceName:'urgent-processing request',
+      // IRCC extends this specifically for Nigerian applicants and updates it weekly on their own
+      // processing-time tool — as of the schedule effective 26 August 2026, applicants from Nigeria
+      // were seeing around 76 days (roughly 11 weeks). Deliberately framed as "check the live figure"
+      // rather than a fixed promise, since this genuinely moves week to week.
+      processingTimeText:'currently around 10–11 weeks for applicants in Nigeria (IRCC updates its own processing-time tool weekly — check it for the current figure before you plan around this)',
       statementsMonthsText:'3 to 6 months',
       footerIntro:'Built from IRCC\'s official Document Checklist (IMM 5484) and published canada.ca visitor-visa guidance.',
       footerLinks:[{url:'https://www.canada.ca/en/immigration-refugees-citizenship/services/visit-canada/visitor-visa.html', text:'canada.ca — visitor visa'},{url:'https://www.canada.ca/en/immigration-refugees-citizenship/services/application/application-forms-guides/imm5484.html', text:'IRCC document checklist (IMM 5484)'}],
@@ -3068,6 +3073,11 @@
       officialUrl:'https://home-affairs.ec.europa.eu/policies/schengen/visa-policy/applying-schengen-visa_en', officialLinkText:'europa.eu — applying for a Schengen visa',
       vacText:'Visa Application Centre (VFS Global or TLScontact Nigeria, depending on the consulate)',
       priorityServiceName:'priority or express appointment service (where your consulate/VAC offers one)',
+      // The EU Visa Code's own legal standard is 15 calendar days once your application is admitted
+      // (up to 30-45 days if extra checks are needed) — but that clock only starts after you've been
+      // seen, and the wait for an appointment slot itself is what usually stretches the whole process
+      // out to 4-6 weeks in practice.
+      processingTimeText:'15 calendar days once your application is accepted (the EU Visa Code\'s legal standard; up to 30–45 days if extra checks are needed) — though with the wait for an appointment slot, the whole process commonly takes 4–6 weeks in practice',
       statementsMonthsText:'six months',
       footerIntro:'Built from the EU Visa Code and published consulate/VFS Global guidance for Nigerian applicants.',
       footerLinks:[{url:'https://home-affairs.ec.europa.eu/policies/schengen/visa-policy/applying-schengen-visa_en', text:'europa.eu — applying for a Schengen visa'},{url:'https://home-affairs.ec.europa.eu/news/schengen-visa-fee-increased-11-june-2024-2024-06-13_en', text:'EU Commission — Schengen visa fee notice'}],
@@ -3082,6 +3092,11 @@
       officialUrl:'https://visa.vfsglobal.com/one-pager/southafrica/nigeria/english/', officialLinkText:'VFS Global — South Africa visa (Nigeria)',
       vacText:'VFS Global (Lagos, Abuja or Port Harcourt) or the South African High Commission, Abuja',
       priorityServiceName:'expedited service (where VFS Global offers one)',
+      // VFS Global's own handling is typically 10-15 working days, but the South African High
+      // Commission in Nigeria publishes a minimum of 8 weeks for the application itself, and real waits
+      // reported by Nigerian applicants have run considerably longer still — matches the "longer-than-
+      // usual processing delays" note already in this country's disclaimer above.
+      processingTimeText:'commonly 8+ weeks (the High Commission\'s own published minimum) — VFS Global\'s handling is faster, around 10–15 working days, but real waits reported by Nigerian applicants have often run well past that',
       statementsMonthsText:'three months',
       footerIntro:'Built from South Africa\'s Immigration Regulations, DHA guidance, Form BI-84, and VFS Global\'s Nigeria-specific checklist.',
       footerLinks:[{url:'https://visa.vfsglobal.com/one-pager/southafrica/nigeria/english/', text:'VFS Global — South Africa visa (Nigeria)'},{url:'https://www.dha.gov.za', text:'Department of Home Affairs (DHA)'}],
@@ -5083,6 +5098,27 @@
     return (neg ? '-' : '') + '₦' + s;
   }
 
+  // User feedback: the "X day(s) until your planned submission date" countdown (Your trip details) and
+  // the "roughly N month(s) of saving to close this gap" figure (Financial readiness) never spoke to
+  // each other — an applicant could see "10 days to prepare" right next to a shortfall that would
+  // actually take 16 months of saving to close, with nothing joining those two facts together. This
+  // also brings in the destination's own processing time, since that's real waiting time that happens
+  // AFTER submission and does nothing to help the applicant save faster before then — and closes with
+  // the same alternative a careful reviewer would actually suggest: check for other traceable income
+  // (an allowance, a bonus, anything with a paper trail) before assuming the target date is fixed.
+  // Returns '' (no-op) whenever there isn't enough information yet, or the timing genuinely works out.
+  function financialTimingRealityCheck(shortfallAmt, monthlyPace, daysToPrep, country){
+    if (!(monthlyPace > 0) || !(shortfallAmt > 0)) return '';
+    if (typeof daysToPrep !== 'number' || isNaN(daysToPrep) || daysToPrep < 0) return '';
+    var monthsNeededHere = shortfallAmt / monthlyPace;
+    var daysNeededHere = monthsNeededHere * 30.44;
+    if (daysNeededHere <= daysToPrep) return '';
+    var procBit = (country && country.processingTimeText)
+      ? (' On top of that, once you do apply, ' + country.authority + '\'s own processing time is ' + country.processingTimeText + ' — real waiting time after submission that doesn\'t give you any extra time to save before you apply.')
+      : '';
+    return ' Reality check: your planned submission date gives you only ' + daysToPrep + ' day(s) to prepare, but closing this gap by saving alone would take roughly ' + Math.ceil(monthsNeededHere) + ' more month(s) at that pace — that\'s not going to happen in time.' + procBit + ' If you want to keep this travel date, check whether you have any other traceable income — an allowance, a bonus, anything else you can show a paper trail for — that can close the gap faster than salary alone; otherwise the honest move is to push your application (and travel) date back until your savings genuinely catch up.';
+  }
+
   var CF_MONTHS = 6;
   var cfTableBody = document.querySelector('#cashFlowTable tbody');
   function buildCashFlowTable(){
@@ -5189,7 +5225,6 @@
     // still type over it manually if no return date is entered yet.
     var nightsInput = document.getElementById('fc_nights');
     var tripLengthNoteEl = document.getElementById('tripLengthNote');
-    var lengthDisplayEl = document.getElementById('f_lengthDisplay');
     var returnDateInput = document.getElementById('f_returndate');
     var nightsFromDates = null;
     // True only once BOTH dates are typed in and the return date fails to land after the travel date —
@@ -5238,21 +5273,6 @@
       else if (returnDateInvalid) tripLengthNoteEl.textContent = '⚠️ Return date must be after your travel date — pick a later return date before this counts as filled in.';
       else tripLengthNoteEl.textContent = '';
     }
-    // Replaces the old manual "Planned length of stay" (short/6wk-6mo/6mo+) dropdown — deduced straight
-    // from the two dates above instead of asking the applicant to also categorize it by hand.
-    if (lengthDisplayEl){
-      lengthDisplayEl.classList.toggle('error', returnDateInvalid);
-      if (nightsFromDates !== null){
-        var lengthWeeks = nightsFromDates / 7;
-        var lengthBand = lengthWeeks < 6 ? 'Under 6 weeks' : (nightsFromDates < 183 ? '6 weeks – 6 months' : 'More than 6 months (academic visit only)');
-        lengthDisplayEl.textContent = nightsFromDates + ' night(s) — ' + lengthBand;
-      } else if (returnDateInvalid){
-        lengthDisplayEl.textContent = '⚠️ Return date must be after your travel date.';
-      } else {
-        lengthDisplayEl.textContent = 'Enter your travel and return dates above to see this.';
-      }
-    }
-
     // Quick, rough worst-case cost estimate shown right in the trip session, as soon as dates are
     // entered — before the applicant has filled in anything in the financial calculator below.
     // Deliberately reuses the SAME rates already established elsewhere in this file (bus fare from
@@ -5461,6 +5481,7 @@
                 } else {
                   savingsBits += ' At your recent average pace of about '+fmtN(monthlyNetSavings)+'/month, you\'re on track to close this gap in roughly '+Math.ceil(monthsNeededForGap)+' month(s) — comfortably before your planned travel date.';
                 }
+                savingsBits += financialTimingRealityCheck(readinessShortfall, monthlyNetSavings, daysToPrep, COUNTRIES[currentCountry]);
               } else if (hasCashFlowData && monthlyNetSavings <= 0){
                 savingsBits += ' Your recent cash flow shows you\'re not currently saving net each month — you\'ll need to cut spending or increase income for this gap to actually start closing.';
               }
@@ -5517,14 +5538,16 @@
         var pct = Math.round(totalFunds / recommendedFunds * 100);
         var shortfall = recommendedFunds - totalFunds;
         var savingsNote = '';
+        var realityCheckBit = '';
         if (answers.employed && monthlyNetSavings > 0){
           var monthsNeeded = Math.ceil(shortfall / monthlyNetSavings);
           savingsNote = ' As a salary earner, saving at your recent average pace of about '+fmtN(monthlyNetSavings)+'/month, that\'s roughly '+monthsNeeded+' more month(s) of steady saving to close the gap.';
+          realityCheckBit = financialTimingRealityCheck(shortfall, monthlyNetSavings, daysToPrep, COUNTRIES[currentCountry]);
         } else if (answers.employed && hasCashFlowData && monthlyNetSavings <= 0){
           savingsNote = ' Your recent cash flow shows you\'re not currently saving net each month (spending at or above what comes in) — you\'ll need to cut spending or increase income before this gap starts closing.';
         }
-        msgs.push({cls:'warn', text:'Your total funds cover about '+pct+'% of the recommended 2× buffer ('+fmtN(recommendedFunds)+'). Build up your account by roughly '+fmtN(shortfall)+' more — steady monthly saving looks far better to a reviewer than one big deposit — or trim your cost estimate if it\'s on the high side.'+savingsNote});
-        bump('warn'); bufferIssue = true;
+        msgs.push({cls: realityCheckBit ? 'err' : 'warn', text:'Your total funds cover about '+pct+'% of the recommended 2× buffer ('+fmtN(recommendedFunds)+'). Build up your account by roughly '+fmtN(shortfall)+' more — steady monthly saving looks far better to a reviewer than one big deposit — or trim your cost estimate if it\'s on the high side.'+savingsNote+realityCheckBit});
+        bump(realityCheckBit ? 'err' : 'warn'); bufferIssue = true;
       } else if (totalCost > 0){
         // This is the single most important moment in the whole calculator — rendered as a
         // distinct "hero" banner (see .fin-success-banner) instead of the compact .scan-msg strip
@@ -11714,7 +11737,6 @@
     document.getElementById('travelerBreakdownFields').style.display = 'block';
     document.getElementById('travelerBreakdownCollapsedNote').style.display = 'none';
     document.getElementById('tripLengthNote').textContent = '';
-    document.getElementById('f_lengthDisplay').textContent = 'Enter your travel and return dates above to see this.';
     ['f_hasHost','f_hostFunding','f_employed','f_selfEmployed','f_student','f_studentSponsor','f_hasChild','f_translation','f_readyToSubmit','f_hasRefusal'].forEach(function(id){
       document.getElementById(id).checked = false;
     });
