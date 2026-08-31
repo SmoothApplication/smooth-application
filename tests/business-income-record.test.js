@@ -86,7 +86,12 @@ exports.run = async function(ctx){
     assert.ok(/Chidinma Okeke/.test(outputHtml) && /cleaning contract, February/.test(outputHtml), 'Typed payer/purpose should appear in the compiled record');
     assert.ok(/Walk-in customer/.test(outputHtml) && /supplies sold in shop/.test(outputHtml), 'Second typed row should also appear');
     assert.ok(/not a receipt issued at the time/.test(outputHtml), 'Must explicitly disclaim this is the applicant\'s own account, not a contemporaneous receipt, got: ' + outputHtml.slice(0, 700));
-    var unspecifiedCount = (outputHtml.match(/\(not specified\)/g) || []).length;
+    // Scoped to table cells specifically (not the whole output) — the warning banner right above the
+    // table also contains the literal phrase `(not specified)` as part of its own wording, which a
+    // whole-output count would double-count against.
+    var unspecifiedCount = await page.$$eval('.biz-income-record table td', function(tds){
+      return tds.filter(function(td){ return td.textContent.trim() === '(not specified)'; }).length;
+    });
     assert.strictEqual(unspecifiedCount, 4, 'The 2 un-noted rows should show "(not specified)" for both payer and purpose (2 rows x 2 fields), got ' + unspecifiedCount);
     assert.ok(/still say "\(not specified\)"/.test(outputHtml), 'Should warn that some rows are still unspecified before attaching, got: ' + outputHtml.slice(0, 400));
   } finally {
