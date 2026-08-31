@@ -8709,6 +8709,87 @@
     'STANBIC': 'Stanbic IBTC.',
     'ONEBANK': 'A bank-branded digital transfer product name (varies by bank), not a separate institution.'
   };
+  // User feedback: rather than only reacting to each new piece of narration junk one word at a time
+  // (the HBD/TOKEN/Support pattern above), also check candidate names against a bundled list of common
+  // Yoruba, Igbo, Hausa, English and German first names and surnames — so a run like "Chidinma Okeke Fg
+  // Ij Support" can be recognised as "a real name, then reference-code noise, then narration text" and
+  // trimmed back to just the name automatically, without needing "SUPPORT" specifically stopworded.
+  // Deliberately NOT exhaustive and NOT used to reject/flag a name as invalid — Nigeria has far more
+  // names than any bundled list can cover, and a real sender's name that just isn't on this list should
+  // never be treated as suspicious. This is only ever a positive signal ("this looks like a real name"),
+  // used to decide where a name run should STOP, never to decide a run isn't a name at all. Deliberately
+  // excludes common Nigerian "virtue names" that double as everyday words (Grace, Gift, Faith, Praise,
+  // Blessing, Comfort, Precious, Victory, Mercy, Joy, Peace, Charity, Success) — those are exactly the
+  // words that also show up as narration REASON text ("gift for birthday"), so recognising them here
+  // would risk trimming a genuine name just as easily as it trims real junk; safer to leave those cases
+  // to the manual "Fix name" correction (see sourceNameIsEditable below) than to guess wrong either way.
+  var COMMON_PERSONAL_NAME_WORDS = [
+    // Yoruba
+    'ADEBAYO','ADEWALE','ADEYEMI','ADEKUNLE','OLUWASEUN','DAMILOLA','AYODELE','AYOMIDE','FOLAKE',
+    'FUNMILAYO','BUKOLA','BIMBO','BISI','KEMI','KEHINDE','TAIWO','YETUNDE','YEWANDE','FEYISAYO','IYABO',
+    'MOTUNRAYO','OLAMIDE','SEGUN','SOLA','TUNDE','WALE','YINKA','FEMI','GBENGA','KUNLE','NIYI','ROTIMI',
+    'SEYI','BOLA','BOLAJI','DELE','OPEYEMI','TOYIN','TITILAYO','ABIMBOLA','ADEBISI','ADEOLA','ADERONKE',
+    'ADETUTU','AFOLABI','AKIN','AKINTUNDE','BABATUNDE','BOSEDE','EBUN','ENIOLA','FOLASHADE','GANIYU',
+    'IBUKUN','IDOWU','IGE','KAYODE','LEKAN','MODUPE','MORENIKE','NIKE','OLABISI','OLAIDE','OLAJUMOKE',
+    'OLAKUNLE','OLANREWAJU','OLAWALE','OLAYINKA','OLUBUNMI','OLUWAFEMI','OLUWAKEMI','OLUWATOSIN',
+    'OMOTOLA','OMOLARA','OYINDAMOLA','REMI','RONKE','SADE','SIMISOLA','SUBOMI','SUNKANMI','TAYO',
+    'TEMIDAYO','TEMITAYO','TEMITOPE','TOMIWA','TOYOSI','WUNMI','YEMISI','ZAINAB','BALOGUN','OGUNDELE',
+    'OYELARAN','FASHINA','FAGBEMI','ALABI','AKINYEMI','AKINTOLA','OGUNLEYE','OGUNBIYI','SANNI','OJO',
+    // Igbo
+    'CHIDINMA','CHIDIEBERE','CHIDI','CHIOMA','CHIAMAKA','CHINWE','CHINEDU','CHUKWUEMEKA','CHUKWUDI',
+    'EBELE','EBUBECHUKWU','EMEKA','EZINNE','IFEOMA','IFEANYI','IJEOMA','IKECHUKWU','KELECHI',
+    'KOSISOCHUKWU','NDIDI','NGOZI','NKECHI','NKIRUKA','NNAMDI','NNEKA','NONSO','OBIAGELI','OBINNA',
+    'OGECHI','OKECHUKWU','ONYEKACHI','ONYINYE','OLUCHI','SOMTOCHUKWU','UGOCHI','UGONNA','UZOAMAKA',
+    'UCHENNA','ADAEZE','ADAOBI','AMARA','AMARACHI','CHUKWUMA','CHIKA','CHIZOBA','CHINYERE',
+    'CHUKWUEBUKA','EKENE','NKEMDIRIM','SOMTO','TOCHUKWU','TOBENNA','CHUKWUKA','OKEKE','OKAFOR','EZE',
+    'NWOSU','NWACHUKWU','OBI','CHUKWU','OKORO','OKONKWO','NWANKWO','IGWE','ONYEKA',
+    // Hausa
+    'AMINU','AISHA','AMINA','BELLO','FATIMA','GARBA','HAUWA','HASSAN','HUSSAINI','IBRAHIM','ISAH',
+    'KABIRU','LAWAL','MOHAMMED','MUHAMMAD','MUSA','NAFISA','RABIU','RUKAYYA','SADIQ','SANI','SADIYA',
+    'SULEIMAN','TANKO','UMAR','USMAN','YAKUBU','YUSUF','ZARA','HABIBA','HALIMA','MARYAM','SAFIYA',
+    'FATIMAH','IDRIS','NUHU','SHEHU','ABDULLAHI','ABUBAKAR','ADAMU','DANJUMA','SULE','ALIYU',
+    // English / general
+    'JOHN','JAMES','MICHAEL','WILLIAM','DAVID','RICHARD','JOSEPH','THOMAS','CHARLES','CHRISTOPHER',
+    'DANIEL','MATTHEW','ANTHONY','MARK','PAUL','STEVEN','ANDREW','KENNETH','GEORGE','EDWARD','MARY',
+    'PATRICIA','JENNIFER','LINDA','ELIZABETH','BARBARA','SUSAN','JESSICA','SARAH','KAREN','EMMANUEL',
+    'SAMUEL','PETER','STEPHEN','PHILIP','SIMON','RUTH','ESTHER','RACHEL','REBECCA','DEBORAH','HANNAH',
+    'NAOMI','SMITH','JOHNSON','WILLIAMS','BROWN','JONES','MILLER','DAVIS','WILSON','TAYLOR','ANDERSON',
+    'MOORE','JACKSON','WHITE','HARRIS','MARTIN','THOMPSON','ROBINSON','CLARK','LEWIS','WALKER','HALL',
+    'YOUNG','KING','WRIGHT','BASSEY','EKPO','ETIM','EFFIONG','UMOH','UDO','EKONG','INYANG','AKPAN',
+    // German
+    'HEINRICH','WILHELM','FRIEDRICH','KLAUS','HANS','OTTO','KARL','WERNER','GERHARD','WOLFGANG',
+    'URSULA','INGRID','GERTRUDE','HELGA','BRIGITTE','MONIKA','RENATE','ERIKA','SCHMIDT','MULLER',
+    'WEBER','SCHNEIDER','FISCHER','MEYER','WAGNER','BECKER','HOFFMANN'
+  ];
+
+  // Trims narration junk off the RIGHT end of an already-built name run, but only when it's confident
+  // enough to do so safely: the run must open with two consecutive recognised name words (a plausible
+  // "firstname surname"), AND the word being trimmed must come after at least one short (1-2 letter)
+  // connector — the same reference-code-fragment pattern already described above ("Fg Ij"). That second
+  // condition is deliberate: a real narration where an unrecognised word follows the name DIRECTLY (no
+  // connector in between) is left completely untouched, so this never disturbs the existing
+  // "similar-but-different sender" duplicate-prompt handling elsewhere, which relies on exactly that
+  // kind of trailing text to tell two look-alike senders apart.
+  function trimTrailingNonNameWords(runWords){
+    var realIdx = [];
+    for (var i = 0; i < runWords.length; i++){ if (runWords[i].length >= 3) realIdx.push(i); }
+    if (realIdx.length < 2) return runWords;
+    var firstReal = runWords[realIdx[0]], secondReal = runWords[realIdx[1]];
+    if (COMMON_PERSONAL_NAME_WORDS.indexOf(firstReal) === -1 || COMMON_PERSONAL_NAME_WORDS.indexOf(secondReal) === -1){
+      return runWords; // doesn't open with a recognised "firstname surname" pair — leave alone (e.g. a company name)
+    }
+    var lastKeepIdx = realIdx[1];
+    var sawConnectorSinceName = false;
+    for (var j = realIdx[1] + 1; j < runWords.length; j++){
+      var w = runWords[j];
+      if (w.length < 3){ lastKeepIdx = j; sawConnectorSinceName = true; continue; }
+      if (COMMON_PERSONAL_NAME_WORDS.indexOf(w) !== -1){ lastKeepIdx = j; continue; } // another recognised name word (e.g. a middle name) — keep, doesn't affect the connector check
+      if (sawConnectorSinceName) break; // unrecognised word AFTER reference-code noise — narration text, stop here
+      lastKeepIdx = j; // unrecognised word with no connector seen yet — not confident enough to trim, keep as before
+    }
+    return runWords.slice(0, lastKeepIdx + 1);
+  }
+
   function decodeNarrationSegment(seg){
     var trimmed = (seg || '').trim();
     if (!trimmed) return null;
@@ -9080,7 +9161,7 @@
     raw.forEach(function(w){
       if (!w) return;
       if (BANK_NARRATION_STOPWORDS.indexOf(w) !== -1 || LIMITED_SUFFIX_RE.test(w)){
-        if (current.length >= 2) runs.push(current.join(' '));
+        if (current.length >= 2) runs.push(trimTrailingNonNameWords(current).join(' '));
         current = [];
       } else if (w.length >= 3){
         current.push(w);
@@ -9091,7 +9172,7 @@
         current.push(w);
       }
     });
-    if (current.length >= 2) runs.push(current.join(' '));
+    if (current.length >= 2) runs.push(trimTrailingNonNameWords(current).join(' '));
     return runs;
   }
   function toTitleCase(s){

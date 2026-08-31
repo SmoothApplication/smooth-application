@@ -3,6 +3,29 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## A bundled common-names list, so garbled sender names get cleaned up automatically more often
+
+Follow-up to the "Fix name" feature above. Rather than only reacting to each new piece of narration
+junk one word at a time, candidate sender names are now also checked against a bundled (but
+deliberately non-exhaustive) list of common Yoruba, Igbo, Hausa, English and German first names and
+surnames. When a name run opens with two recognised name words, followed by short reference-code
+noise (e.g. "Fg Ij"), followed by an unrecognised word from the narration's purpose text — exactly the
+"Chidinma Okeke Fg Ij Support" pattern — the trailing purpose text is now trimmed off automatically,
+instead of needing that specific word added to the stopword list by hand. This also fixes a real
+grouping bug it surfaced: two payments from the same sender with different narration text ("Gift for
+birthday" vs "Support") were landing in two separately-named boxes instead of one.
+
+Deliberately conservative: the list is never used to reject or flag a name as "not real" — plenty of
+genuine names aren't on it, and that's fine, they're just left untouched (same as before). It also only
+trims after a short reference-code-style connector, never a word that directly follows the name, so it
+can't interfere with the existing "similar-but-different sender" duplicate-prompt feature, which relies
+on exactly that kind of trailing text to tell two look-alike senders apart. And it deliberately excludes
+common Nigerian "virtue names" that double as everyday words (Grace, Gift, Faith, Praise, Blessing,
+Comfort, Precious, Victory, Mercy, Joy, Peace, Charity, Success) — those are exactly the words that also
+show up as narration reason text, so recognising them here would risk cutting off a genuine name just as
+easily as it trims real junk. The manual "Fix name" control remains the safety net for everything this
+list doesn't catch.
+
 ## Four fixes off real testing screenshots: sender names, dividends, birthday gifts, mobile scrolling
 
 Direct feedback, off real screenshots from live testing (including a Redmi phone), covering four

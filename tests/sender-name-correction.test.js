@@ -16,6 +16,11 @@ const { newPageAt, passConsentGate, goToSessionByPill, goToFinanceStep } = requi
 // reference-code noise that extractNameCandidates' short-connector handling glues onto the name
 // (matching the reported "Fg Ij K X" pattern), landing as "Chidinma Okeke Fg Ij". Different amounts
 // so they're never swept into the recurring-"Salary" bucket — this must be its own named group.
+// The two payments also deliberately carry DIFFERENT trailing narration text ("Gift for birthday" vs
+// "Support") — real bank data varies the purpose text per payment even from the same sender, and
+// COMMON_PERSONAL_NAME_WORDS/trimTrailingNonNameWords is what keeps both trimming down to the exact
+// same "Chidinma Okeke Fg Ij" so they still land in ONE group instead of splintering into two
+// differently-named ones purely because of what each payment happened to be for.
 var FIXTURE = path.join(__dirname, 'fixtures', 'garbled-sender-name-fixture.pdf');
 
 exports.run = async function(ctx){
@@ -37,6 +42,13 @@ exports.run = async function(ctx){
 
     var nameBefore = await page.$eval('#srcbox_0 .tx-line b', function(el){ return el.textContent; });
     assert.strictEqual(nameBefore, 'Chidinma Okeke Fg Ij', 'Sanity check on the garbled extraction itself, got: "' + nameBefore + '"');
+
+    // Both payments — despite carrying different trailing narration text — must have landed in this
+    // ONE group, not splintered into two separately-named boxes.
+    var headLineText = await page.$eval('#srcbox_0 .tx-line', function(el){ return el.textContent; });
+    assert.ok(/2 payment\(s\)/.test(headLineText), 'Both payments should be grouped under one sender, got: "' + headLineText + '"');
+    var srcbox1 = await page.$('#srcbox_1');
+    assert.strictEqual(srcbox1, null, 'There should be no second named group for this sender, got a #srcbox_1 too');
 
     // "Fix name" starts hidden, toggles the edit box, and pre-fills the input with the current
     // (garbled) name — not blank, so the applicant is editing/correcting, not starting from scratch.
