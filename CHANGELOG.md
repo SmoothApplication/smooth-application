@@ -3,6 +3,39 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Four fixes off real testing screenshots: sender names, dividends, birthday gifts, mobile scrolling
+
+Direct feedback, off real screenshots from live testing (including a Redmi phone), covering four
+separate small issues found in one pass:
+
+- **Garbled sender names.** A bank narration misread had glued reference-code fragments onto an
+  otherwise-real name ("Ibukunoluwa Adedayo Afeni Fg Ij K X"). Too varied a failure mode to reliably
+  auto-clean without also breaking genuine short connectors inside real names elsewhere — per the
+  user's own suggested fix, added a "✏️ Fix name" control on each income-breakdown sender box, letting
+  the applicant correct it themselves. A pure display-label override (kept keyed by the original
+  extracted name, same pattern as every other explain-box's own store) — grouping and export both
+  still work off the underlying extracted name, so a correction can never split or merge a group,
+  only relabel what's shown for it (the box header, its collapsed summary, and the spreadsheet
+  download all pick it up).
+- **"HBD" as a name fragment.** A real inflow's narration ("...Small Hbd Token") got "Hbd"/"Token"
+  swept into the extracted NAME instead of being recognised as what they actually meant — added both
+  to the bank-narration stopword list. Separately, since HBD narrations are already recognised
+  elsewhere as "Happy Birthday", a sender group where every payment carries that narration now
+  defaults its reason straight to "Gift" — still an ordinary, editable dropdown pick, not a
+  silently-locked answer.
+- **Missing "Dividend" reason.** A real inflow ("Nig Ordinary Dividend...") had no fitting category in
+  the reason dropdown. Added.
+- **Travel-history table on mobile.** Per Redmi screenshots, the "Countries you've travelled to" table
+  (5 real columns: a country combobox, two date dropdowns, a reason field, a days field, plus delete)
+  doesn't fit a narrow phone — it was silently spilling past the screen edge with no sign there was
+  more. Wrapped it (and the overstay table, for consistency) in a horizontally-scrollable box with a
+  soft edge-fade, instead of letting it clip unnoticed or force the whole page wider.
+- Verified: syntax-checked the full inline script; new `tests/sender-name-correction.test.js` drives
+  the "Fix name" edit/save/cancel flow end-to-end against a synthetic fixture reproducing the reported
+  garbling pattern; new `tests/travel-history-mobile-scroll.test.js` populates a real travel-history
+  row at a Redmi-width (360px) viewport and confirms it's reachable via the table's own scroll box
+  while the page itself still never scrolls horizontally.
+
 ## Extra document requirements for employed applicants
 
 Direct request, continuing the same 20-years-of-consulting thread as the Business Income Record

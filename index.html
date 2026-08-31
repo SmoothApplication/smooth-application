@@ -814,6 +814,21 @@
   .cf-table th { text-align: left; font-size: 11px; color: var(--text-muted); font-weight: 600; padding: 4px; }
   .cf-table td { padding: 3px 4px; }
   .cf-table input { width: 100%; padding: 6px 7px; font-size: 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-primary); font-family: inherit; box-sizing: border-box; }
+  /* Direct mobile report (Redmi screenshots): the travel-history/overstay tables have several
+     columns that each need real width (a country combobox, two date selects, free text, a number,
+     a delete button) — on a narrow phone that content is wider than the screen no matter how the
+     columns are proportioned, unlike #cashFlowTable's fixed 4 same-shaped columns above. Rather than
+     letting that silently spill past the edge with no visible sign more was cut off, this scrolls
+     the table WITHIN its own bounded box, with a soft right-edge fade as long as there's more to see
+     — .cf-table itself keeps width:100% so nothing about a screen where it already fits changes. */
+  .cf-table-scroll { position: relative; overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 10px; }
+  .cf-table-scroll .cf-table { margin-bottom: 0; min-width: 480px; }
+  .cf-table-scroll::after {
+    content: ''; position: sticky; top: 0; right: 0; float: right; margin-right: -1px;
+    width: 18px; height: 100%; pointer-events: none;
+    background: linear-gradient(to right, transparent, var(--card));
+  }
+  @media (min-width: 620px) { .cf-table-scroll::after { display: none; } }
   /* This specific table (6 months of cash-flow entry) always has the same 4 columns — table-layout:fixed
      with an explicit narrower first column, since otherwise the browser sizes columns by header text
      length and "Month" (short) loses so much space to the longer money-column headers that the
@@ -1285,19 +1300,29 @@
 
         <div id="te_historyBox" style="display:none; margin-top:10px;">
           <label class="field" style="margin-top:0;">Countries you've travelled to</label>
+          <!-- Direct mobile report (Redmi screenshots): 5 real columns (country combobox, 2 date
+               selects, reason text, days number) plus a delete button never fit a narrow phone —
+               the table just quietly overflowed with no way to tell more was cut off past the right
+               edge. Wrapped so it scrolls WITHIN this bounded box instead, and the CSS below adds a
+               visible edge-fade + "swipe" hint so a narrow screen doesn't look like the row simply
+               ends there. -->
+          <div class="cf-table-scroll">
           <table class="cf-table" id="travelHistoryTable">
             <thead><tr><th>Country</th><th>Date travelled</th><th>Reason</th><th>Days spent</th><th></th></tr></thead>
             <tbody id="travelHistoryBody"></tbody>
           </table>
+          </div>
           <button type="button" class="btn ghost" id="btnAddTravelRow">+ Add a country</button>
 
           <div class="checkrow" style="margin-top:16px;"><input type="checkbox" id="te_hasOverstayed"><label for="te_hasOverstayed">I've overstayed a visa at some point in the past</label></div>
           <div id="te_overstayBox" style="display:none; margin-top:10px;">
             <label class="field" style="margin-top:0;">Where, and for how long</label>
+            <div class="cf-table-scroll">
             <table class="cf-table" id="overstayTable">
               <thead><tr><th>Country</th><th>Days overstayed</th><th></th></tr></thead>
               <tbody id="overstayBody"></tbody>
             </table>
+            </div>
             <button type="button" class="btn ghost" id="btnAddOverstayRow">+ Add a country</button>
           </div>
 
@@ -8634,7 +8659,12 @@
     // Same statement, a third finding: "CPWInward:<ref>/<name>..." — a wallet/collections-channel
     // inward-transfer code, not a sender's name — was itself surviving as part of the extracted
     // candidate name, same class of problem as NIP/TRF/MOB above.
-    'CPWINWARD','CPW'];
+    'CPWINWARD','CPW',
+    // Real example: "Ogochukwu Odum Small Hbd Token" — "HBD" and "TOKEN" are narration filler (an
+    // informal birthday-gift narration, already canonicalized to "Birthday" as a REASON via
+    // NARRATION_REASON_SYNONYMS above), not part of the sender's actual name — without stopwording
+    // them here too, they were surviving into the extracted NAME candidate instead.
+    'HBD','TOKEN'];
 
   // User feedback, off a real statement: most applicants have no idea what "NIP", "ROLEZ" or "CIP"
   // actually mean in their own narration line. Best-effort glossary of the channel/processor/bank
@@ -8888,6 +8918,15 @@
       if (NARRATION_REASON_SYNONYMS[i].pattern.test(reason)) return NARRATION_REASON_SYNONYMS[i].canonical;
     }
     return reason;
+  }
+  // Direct request: "Read HBD as Happy Birthday, automatically label as gift." Reuses the same
+  // "Birthday" pattern already defined above (kept as one source of truth) — used in
+  // buildIncomeSourceBreakdown to default a sender's category straight to "Gift" the moment every one
+  // of their payments carries an unmistakable birthday narration, rather than leaving an obvious case
+  // sitting on "Choose a reason…" for the applicant to fill in by hand.
+  function isBirthdayGiftNarration(narration){
+    var entry = NARRATION_REASON_SYNONYMS.filter(function(s){ return s.canonical === 'Birthday'; })[0];
+    return !!(entry && entry.pattern.test(narration || ''));
   }
 
   // User feedback, off a real Zenith/Bright Homes Cleaning statement: several of the recurring salary
@@ -10277,6 +10316,12 @@
       var isApplicantSelf = applicantName && namesLooselyMatch(applicantName, name) === 'ok';
       var type = (!isApplicantSelf && sharesSurname(name, applicantSurname)) ? 'family' : classifySourceType(grpTxns[0].narration);
       groups.push(summarizeSourceGroup(name, grpTxns, type));
+      // Auto-default to "Gift" when every payment from this sender is an unmistakable birthday
+      // narration and nothing's been chosen yet — still an ordinary, editable dropdown pick
+      // afterwards (see isBirthdayGiftNarration), not a silently-locked answer.
+      if (!sourceExplanations[name] && grpTxns.every(function(t){ return isBirthdayGiftNarration(t.narration); })){
+        sourceExplanations[name] = {category:'gift', detail:''};
+      }
     });
     if (otherTxns.length) groups.push(summarizeSourceGroup('Other / one-off inflows (no clear sender name)', otherTxns, 'other'));
     if (reversalTxns.length) groups.push(summarizeSourceGroup('Reversals (money returned to you)', reversalTxns, 'reversal'));
@@ -10307,6 +10352,10 @@
   var INCOME_SOURCE_CATEGORIES = [
     {value:'salary', label:'Salary'},
     {value:'business', label:'Business'},
+    // Real example, off an actual statement's own inflow: a ₦143 "Nig Ordinary Dividend" credit had
+    // no fitting category before this — the closest was "Business", which reads wrong for a personal
+    // shareholding rather than the applicant's own business income.
+    {value:'dividend', label:'Dividend'},
     {value:'family', label:'Family'},
     {value:'contribution', label:'Contribution'},
     {value:'work', label:'Work'},
@@ -10383,6 +10432,19 @@
     return label;
   }
   function sourceKey(group){ return group.name; }
+  // Direct request: a bank narration can get badly misread ("Ibukunoluwa Adedayo Afeni Fg Ij K X" —
+  // trailing reference-code fragments glued onto an otherwise-real name by extractNameCandidates) in
+  // ways too varied to reliably auto-clean without also breaking genuine short connectors inside real
+  // names elsewhere. Rather than guessing harder, this lets the applicant correct it themselves — kept
+  // keyed by the ORIGINAL extracted name (same key as sourceExplanations/sourcePerPaymentMode above),
+  // as a pure display-label override: grouping/keying/export all still use g.name underneath, so this
+  // can never split or merge a group, only relabel what's shown for it (see displaySourceName below).
+  var senderNameCorrections = {};
+  function sourceNameIsEditable(type){ return type === 'personal' || type === 'company' || type === 'family'; }
+  function displaySourceName(g){
+    var corrected = senderNameCorrections[sourceKey(g)];
+    return (corrected && corrected.trim()) ? corrected.trim() : g.name;
+  }
 
   function sourceTypeBadge(type){
     if (type === 'salary') return '<span class="src-tag salary">Salary</span>';
@@ -10429,7 +10491,9 @@
     var perPayment = !!sourcePerPaymentMode[key];
     var existing = normalizeSourceExplanation(sourceExplanations[key]);
     var explained = perPayment ? sourceGroupAllPaymentsExplained(g) : sourceExplanationIsFilled(existing);
-    var headLine = '<b>'+escapeHtml(g.name)+'</b> '+sourceTypeBadge(g.type)+' — '+g.count+' payment(s), '+fmtN(g.total)+' total ('+g.firstDate.toDateString()+' – '+g.lastDate.toDateString()+')';
+    var displayName = displaySourceName(g);
+    var nameEditable = sourceNameIsEditable(g.type);
+    var headLine = '<b>'+escapeHtml(displayName)+'</b> '+sourceTypeBadge(g.type)+' — '+g.count+' payment(s), '+fmtN(g.total)+' total ('+g.firstDate.toDateString()+' – '+g.lastDate.toDateString()+')';
     if (collapsed){
       var summaryText = perPayment
         ? sourceGroupExplainedCount(g)+'/'+g.count+' payments explained individually'
@@ -10526,8 +10590,24 @@
         ? modeToggleHtml + groupNoteBlock
           + '<div id="srcexplain_status_'+idx+'">'+(explained ? '<div class="scan-msg ok compact">Saved — auto-saved in this browser, and included if you export it.</div>' : '')+'</div>'
         : (g.type === 'reversal' ? '<div class="item-tip" style="margin-top:4px;">Detected from "RVSL"/"reversal" in the narration — this is your own money coming back (e.g. a failed payment refunded), not new income, so it needs no explanation.</div>' : '');
+    // Direct request: let the applicant correct a name that's been visibly mangled by a bad bank-
+    // narration read, rather than the app guessing harder at cleanup heuristics. Editable only for
+    // groups whose g.name IS a genuinely extracted sender (personal/company/family) — "Salary",
+    // "Other / one-off inflows…" and "Reversals…" are synthetic labels, not names, so never editable.
+    var editNameBtnHtml = nameEditable
+      ? ' <button type="button" class="btn ghost no-print" id="srcnameedit_'+idx+'" style="font-size:10px; padding:1px 6px; vertical-align:middle;">✏️ Fix name</button>'
+      : '';
+    var editNameBoxHtml = nameEditable
+      ? '<div id="srcnameeditbox_'+idx+'" class="no-print" style="display:none; margin:2px 0 8px;">'
+        + '<input type="text" id="srcnameinput_'+idx+'" value="'+escapeHtml(displayName)+'" style="max-width:280px;"> '
+        + '<button type="button" class="btn" id="srcnamesave_'+idx+'" style="font-size:11px; padding:3px 10px;">Save</button> '
+        + '<button type="button" class="btn ghost" id="srcnamecancel_'+idx+'" style="font-size:11px; padding:3px 10px;">Cancel</button>'
+        + '<div class="item-tip" style="margin-top:4px;">If the bank narration was misread — extra letters or reference codes glued onto the real name — correct it here. Your correction is what shows everywhere else, including any download; nothing about which payments belong to this sender changes.</div>'
+        + '</div>'
+      : '';
     return '<div class="explain-box'+(explained ? ' explained' : '')+'" id="srcbox_'+idx+'">'
-      + '<div class="tx-line">'+headLine+'</div>'
+      + '<div class="tx-line">'+headLine+editNameBtnHtml+'</div>'
+      + editNameBoxHtml
       + '<details style="margin:4px 0;" id="srcpayments_'+idx+'"><summary style="cursor:pointer; font-size:12px; color:var(--text-secondary);">Show individual payment(s)</summary>'+txList+'</details>'
       + noteBlock
       + '</div>';
@@ -10562,6 +10642,34 @@
       return;
     }
     if (!sourceNeedsNote(g.type)) return;
+
+    // "Fix name" — toggles the inline correction box; Save writes a display-only override keyed by
+    // the ORIGINAL extracted name (so it survives this same box's own re-render) and re-renders this
+    // box to reflect it; Cancel just closes the box without saving anything.
+    if (sourceNameIsEditable(g.type)){
+      var editBtn = document.getElementById('srcnameedit_'+idx);
+      var editBox = document.getElementById('srcnameeditbox_'+idx);
+      if (editBtn && editBox){
+        editBtn.addEventListener('click', function(){
+          editBox.style.display = editBox.style.display === 'none' ? 'block' : 'none';
+          var inputEl = document.getElementById('srcnameinput_'+idx);
+          if (inputEl && editBox.style.display === 'block'){ inputEl.focus(); inputEl.select(); }
+        });
+        var saveBtn = document.getElementById('srcnamesave_'+idx);
+        var cancelBtn = document.getElementById('srcnamecancel_'+idx);
+        if (saveBtn) saveBtn.addEventListener('click', function(){
+          var inputEl = document.getElementById('srcnameinput_'+idx);
+          var val = inputEl ? inputEl.value.trim() : '';
+          if (val && val !== g.name) senderNameCorrections[key] = val; else delete senderNameCorrections[key];
+          scheduleAutoSave();
+          var boxEl = document.getElementById('srcbox_'+idx);
+          if (!boxEl) return;
+          boxEl.outerHTML = renderSourceBoxHtml(idx, key, g, false);
+          wireSourceBox(groups, g, idx);
+        });
+        if (cancelBtn) cancelBtn.addEventListener('click', function(){ editBox.style.display = 'none'; });
+      }
+    }
 
     // "Same reason for all" vs "different reasons per payment" toggle — switching it re-renders
     // just this one box (same surgical outerHTML-replace pattern as expand/collapse) rather than
@@ -10745,9 +10853,9 @@
         // in this section gets left out of the download.
         var txNote = inflowExplanationSummary(inflowExplanations[inflowKey(t)]) || (i === 0 ? groupNote : '');
         var reason = extractNarrationReason(t.narration, nameWords);
-        aoa.push([i === 0 ? g.name : '', i === 0 ? g.type : '', t.date.toDateString(), Math.round(t.credit), reason || '', t.narration || '(none)', txNote]);
+        aoa.push([i === 0 ? displaySourceName(g) : '', i === 0 ? g.type : '', t.date.toDateString(), Math.round(t.credit), reason || '', t.narration || '(none)', txNote]);
       });
-      aoa.push(['', '', '', '', '', 'Subtotal for '+g.name+':', g.total]);
+      aoa.push(['', '', '', '', '', 'Subtotal for '+displaySourceName(g)+':', g.total]);
       aoa.push([]);
     });
     aoa.push(['', '', '', '', '', 'GRAND TOTAL:', grandTotal]);
@@ -11275,7 +11383,7 @@
       date: document.getElementById('decl_date').value,
       confirmed: document.getElementById('decl_confirm').checked
     };
-    return { country: currentCountry, answers: getAnswers(), state: state, financials: getFinancials(), inflowExplanations: inflowExplanations, sourceExplanations: sourceExplanations, sourcePerPaymentMode: sourcePerPaymentMode, senderMergeDecisions: senderMergeDecisions, businessIncomeLedger: businessIncomeLedger, declaration: declaration, travelHistoryRows: travelHistoryRows, overstayRows: overstayRows, exportedAt: new Date().toISOString() };
+    return { country: currentCountry, answers: getAnswers(), state: state, financials: getFinancials(), inflowExplanations: inflowExplanations, sourceExplanations: sourceExplanations, sourcePerPaymentMode: sourcePerPaymentMode, senderMergeDecisions: senderMergeDecisions, senderNameCorrections: senderNameCorrections, businessIncomeLedger: businessIncomeLedger, declaration: declaration, travelHistoryRows: travelHistoryRows, overstayRows: overstayRows, exportedAt: new Date().toISOString() };
   }
 
   document.getElementById('btnExport').addEventListener('click', function(){
@@ -11394,6 +11502,15 @@
         if (v === 'merge' || v === 'separate') normalizedDup[k] = v;
       });
       senderMergeDecisions = normalizedDup;
+    }
+    if (payload.senderNameCorrections && typeof payload.senderNameCorrections === 'object'){
+      // Plain string values only — a corrected display name, keyed by the original extracted name.
+      var normalizedNameFixes = {};
+      Object.keys(payload.senderNameCorrections).forEach(function(k){
+        var v = payload.senderNameCorrections[k];
+        if (typeof v === 'string' && v.trim()) normalizedNameFixes[k] = v.trim();
+      });
+      senderNameCorrections = normalizedNameFixes;
     }
     if (payload.sourceExplanations && typeof payload.sourceExplanations === 'object'){
       // Sessions saved before the category-dropdown change stored a plain free-text string per source —
@@ -11552,6 +11669,7 @@
     window.__hasCashFlowData = false;
     inflowExplanations = {};
     senderMergeDecisions = {};
+    senderNameCorrections = {};
     sourceExplanations = {};
     sourcePerPaymentMode = {};
     lastBusinessDrawings = null;
