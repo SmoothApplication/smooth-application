@@ -3,6 +3,27 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Funded opportunities & exchange programs directory
+
+Feedback from an in-person street test with UNILAG students: several who worked through the checklist
+and reached the financial-readiness reality check (see below) asked whether the platform could also
+help them travel *without* needing that much money — internships, exchange programs, scholarships.
+
+This adds a new, always-visible session, "Funded opportunities," listing 10 hand-verified, currently
+real programs (Global UGRAD, Mastercard Foundation Scholars, Trent International Global Citizen
+Scholarship, DAAD In-Country/In-Region Scholarships, Chevening, Fulbright Nigeria, Commonwealth Shared
+Scholarship, Erasmus Mundus, the Mandela Washington Fellowship, and AIESEC Global Volunteer). Research
+for this found that most "fully funded" programs Nigerian students hear about actually require either
+committing to a brand-new full degree abroad or already holding an undergraduate degree — very few let
+someone travel short-term while staying enrolled at their home university. Rather than presenting all
+10 as equally reachable, each is tagged with a `pathway` (semester exchange / full-degree scholarship /
+postgrad-only / professional fellowship / paid program) and an honest eligibility note — e.g. AIESEC's
+real fees and Fulbright Nigeria's PhD-only eligibility are called out plainly rather than left implied.
+A prominent, unmissable scam warning sits above the list: a genuine program never asks for payment to
+be selected, and every official link points at the program's own site. Filterable by pathway; each
+entry cites its official source and a "last checked" date so the info reads as time-bound, not as
+permanent fact.
+
 ## Decluttering: explanatory tips collapsed behind "Why?" toggles, app-wide
 
 Direct feedback: too many always-visible paragraphs sitting under fields make the page feel busy —

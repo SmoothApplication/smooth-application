@@ -779,6 +779,27 @@
 
   .avoid-note { font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
 
+  /* Funded-opportunities directory (see #opportunitiesCard). Filter buttons reuse the same visual
+     language as a segmented control — plain bordered pills, one highlighted as active — rather than
+     inventing a new control just for this one card. */
+  .opp-filter-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+  .opp-filter-btn {
+    border: 1px solid var(--border); background: var(--surface-1); color: var(--text-secondary);
+    border-radius: 999px; padding: 5px 12px; font-size: 12px; cursor: pointer; transition: all .15s ease;
+  }
+  .opp-filter-btn:hover { border-color: var(--accent); color: var(--text-primary); }
+  .opp-filter-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .opp-card { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin: 0 0 10px; background: var(--surface-1); }
+  .opp-card h3 { margin: 0 0 4px; font-size: 14.5px; }
+  .opp-badge {
+    display: inline-block; font-size: 10.5px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase;
+    border-radius: 999px; padding: 2px 8px; margin: 0 0 6px; color: #fff;
+  }
+  .opp-card p { margin: 4px 0; font-size: 12.5px; line-height: 1.5; color: var(--text-secondary); }
+  .opp-card .opp-label { font-weight: 600; color: var(--text-primary); }
+  .opp-card .opp-link { display: inline-block; margin-top: 6px; font-size: 12.5px; font-weight: 600; }
+  .opp-empty { font-size: 12.5px; color: var(--text-secondary); padding: 8px 0; }
+
   .contact-links { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
   .testimonial {
     border-left: 3px solid var(--accent); background: var(--accent-wash); border-radius: 8px;
@@ -2023,6 +2044,28 @@
       </div>
 
       <div id="checklistRoot"></div>
+
+      <!-- Direct student feedback from an in-person test at UNILAG: several who came through the
+           checklist and hit the financial-readiness reality check asked whether the platform could
+           also point them toward a way to travel WITHOUT needing this much money — internships, paid
+           exchange, scholarships. This is that directory: real, verifiable, currently-running funded
+           programs, each tagged with a `pathway` so it's honest about what each one actually requires
+           (most "fully funded" scholarships turn out to require either committing to a brand-new
+           degree abroad or already holding a postgraduate qualification — very few let a current
+           undergraduate go abroad short-term while staying enrolled at home). Static content, not
+           tied to `state`/answers, so it's built once via renderOpportunities() rather than on every
+           render() pass. See the OPPORTUNITIES array and PATHWAY_META near renderBusinessIncomeLedger
+           for the data and the scam-warning rationale. -->
+      <div class="card" id="opportunitiesCard" data-session-key="opportunities" style="border-left: 4px solid #1a8a5f;">
+        <h2 style="margin-top:0;"><span class="card-icon-badge" style="background:#1a8a5f1f; color:#1a8a5f;">🎓</span> Funded opportunities &amp; exchange programs</h2>
+        <p class="item-tip" style="margin-top:-4px;">Can't yet afford the trip you're preparing for above? These are real, currently-running programs — scholarships, exchanges, and fellowships — that cover some or all of the cost for students in Nigeria. This list is separate from the visa checklist above; it isn't visa-specific, and Smooth Application isn't affiliated with any program on it.</p>
+        <div class="doc-reminder" style="border-color:#a83d3d; background:#a83d3d14; margin:6px 0 10px;">
+          <b>⚠️ Watch for scams.</b> A genuine scholarship, exchange, or fellowship never asks you to pay to be selected, to release your winnings, or to "process" your visa through them. Apply only through the official link shown for each program below — never through an agent, a WhatsApp/Telegram group, or a lookalike site that contacts you first. If in doubt, search the program's name plus the word "scam" before you pay anything or share your documents.
+        </div>
+        <div id="oppFilterRow" class="opp-filter-row"></div>
+        <div id="oppList"></div>
+        <p class="item-tip" style="margin-top:10px;">Details above (funding, eligibility, deadlines) change year to year — always confirm the current cycle on the program's own official site before relying on anything here. Last checked: <span id="oppLastVerified"></span>.</p>
+      </div>
 
       <div class="card" id="finalSummaryCard" data-session-key="review" style="border-left: 4px solid #1b6fa8;">
         <h2 style="margin-top:0;">Are you ready?</h2>
@@ -3540,11 +3583,19 @@
     // itself (rarely hardcoded that way) absorbs the +1 shift instead. See the #bizLedgerCard HTML
     // comment above for why this session exists at all.
     if (a.selfEmployed) keys.push('bizLedger');
+    // Funded-opportunities directory: unlike bizLedger, this isn't conditional on anything the
+    // applicant has entered — every visitor sees it, since "I can't afford this yet" is exactly the
+    // situation it's meant to help with. Appended here (after every checklist category and bizLedger,
+    // still right before 'review') for the same reason bizLedger is appended here rather than spliced
+    // in earlier: it can't shift the index of any 'cat:...' or 'review' session that existing tests
+    // navigate to by hardcoded pill number.
+    keys.push('opportunities');
     keys.push('review');
     return keys;
   }
   function sessionLabel(key){
     if (key === 'review') return 'Final review';
+    if (key === 'opportunities') return 'Funded opportunities';
     if (key === 'passport') return 'Validate your International Passport';
     if (key === 'travelExperience') return 'Travel Experience';
     if (key === 'responsibilities') return 'Your responsibilities';
@@ -3725,7 +3776,7 @@
       var bizMissing = bizNoted < bizCredits.length ? [{id:null, label:(bizCredits.length-bizNoted)+' payment(s) below still need a note'}] : [];
       return {percent: Math.round(bizNoted/bizCredits.length*100), points: bizNoted, total: bizCredits.length, missing: bizMissing};
     }
-    return {percent:0, points:0, total:0, missing:[]}; // 'review' isn't a fill-in section
+    return {percent:0, points:0, total:0, missing:[]}; // 'review' and 'opportunities' aren't fill-in sections — nothing to fill in a directory you just browse
   }
   // A session's pill shows "done" once every item that currently applies within it is checked — a
   // quick at-a-glance progress map across sessions, not just within whichever one is on screen.
@@ -9545,6 +9596,170 @@
     });
   }
 
+  // Funded opportunities & exchange programs directory (see the #opportunitiesCard HTML comment for
+  // why this exists — direct UNILAG student-test feedback: "can this help us travel without needing
+  // this much money?"). Static, curated, hand-verified data — no scraping, no user submissions — kept
+  // deliberately small (10 programs) so every single entry can be fact-checked rather than optimizing
+  // for a long list. Each program is tagged with `pathway`, the single most important honesty signal
+  // here: research for this feature found that most "fully funded" scholarships Nigerian students
+  // hear about actually require EITHER committing to a brand-new full degree abroad (full-degree-
+  // scholarship) OR already holding an undergraduate degree (postgrad-only) — very few let someone
+  // go abroad short-term while remaining enrolled at their home university (semester-exchange, the
+  // pathway the UNILAG testers were actually asking about). Rather than presenting all 10 as equally
+  // reachable "free money", the pathway tag and eligibilityNote say plainly what each one requires.
+  // lastVerified is the month this list's facts (funding amounts, eligibility rules, official URLs)
+  // were last checked against each program's own site — shown to the applicant so stale info reads as
+  // stale, not as current fact; update it whenever this array itself is revisited and re-checked.
+  var OPPORTUNITIES_LAST_VERIFIED = 'August 2026';
+  var PATHWAY_META = {
+    'semester-exchange': { label: 'Semester exchange — stay enrolled at home', color: '#1a8a5f' },
+    'full-degree-scholarship': { label: 'Full-degree scholarship — new admission required', color: '#8a6d1a' },
+    'postgrad-only': { label: "Postgraduate only — needs a first degree already", color: '#3d5a99' },
+    'professional-fellowship': { label: 'Professional fellowship — not for current students', color: '#7a3d99' },
+    'paid-program': { label: 'Paid program — real fees apply', color: '#a83d3d' }
+  };
+  var OPPORTUNITIES = [
+    {
+      id: 'global-ugrad', name: 'Global UGRAD (Global Undergraduate Exchange Program)',
+      pathway: 'semester-exchange',
+      funding: 'Fully funded: flights, tuition, a monthly stipend, and health insurance.',
+      summary: 'One semester of non-degree study at a US college or university, plus community service and professional development — you stay enrolled at your Nigerian university and return afterwards to finish your degree.',
+      eligibilityNote: 'Must be a current undergraduate with at least one full year of study left after the exchange, so you genuinely return to finish at home. Open to Nigerian applicants. Never any application fee.',
+      whenToApply: 'Applications typically open around September–October for study the following academic year — confirm the current cycle with the U.S. Embassy Nigeria education office.',
+      officialUrl: 'https://exchanges.state.gov/non-us/program/global-undergraduate-exchange-program-global-ugrad',
+      officialUrlText: 'exchanges.state.gov (U.S. Department of State)'
+    },
+    {
+      id: 'mastercard-scholars', name: 'Mastercard Foundation Scholars Program',
+      pathway: 'full-degree-scholarship',
+      funding: 'Fully funded at the partner university: tuition, accommodation, flights, and a living stipend.',
+      summary: 'Full undergraduate or Master’s scholarships delivered through partner universities in Africa, Europe, and North America (e.g. University of Cape Town, University of Pretoria, University of Edinburgh, McGill).',
+      eligibilityNote: 'Not something you apply for while staying at UNILAG — you apply directly to a partner university’s own admissions process, and only if admitted are you considered for the scholarship itself. No PhD-level awards.',
+      whenToApply: 'Deadlines vary by partner university — each runs its own admissions cycle.',
+      officialUrl: 'https://mastercardfdn.org/en/what-we-do/our-programs/mastercard-foundation-scholars-program/',
+      officialUrlText: 'mastercardfdn.org'
+    },
+    {
+      id: 'trent-global-citizen', name: 'Trent International Global Citizen Scholarship (Canada)',
+      pathway: 'full-degree-scholarship',
+      funding: 'Up to CAD $40,000/year toward tuition and mandatory fees (up to $160,000 over 4 years) — not full living costs.',
+      summary: 'A renewable entrance scholarship for new international undergraduates admitted to Trent University in Canada.',
+      eligibilityNote: 'For NEW admits only — this means starting a fresh 4-year degree at Trent, not continuing at UNILAG. Needs a final high-school average of 80%+ plus demonstrated leadership/community service.',
+      whenToApply: 'Apply for admission first; the scholarship application opens once you hold an offer — check the current deadline on Trent’s own site.',
+      officialUrl: 'https://www.trentu.ca/futurestudents/scholarships-tuition/international-scholarships-awards',
+      officialUrlText: 'trentu.ca'
+    },
+    {
+      id: 'daad-in-country', name: 'DAAD In-Country/In-Region Scholarship Programme',
+      pathway: 'postgrad-only',
+      funding: 'Fully funded Master’s study (tuition, stipend, often travel) at a participating African university.',
+      summary: 'German-government-funded Master’s scholarships delivered through partner universities in Sub-Saharan Africa, including some Nigerian institutions.',
+      eligibilityNote: 'Postgraduate only — you need a completed first degree already. Aimed particularly at future university teachers/researchers. Apply through the specific participating university’s own call, not DAAD directly.',
+      whenToApply: 'Calls are published by each participating university and listed in DAAD’s own scholarship database.',
+      officialUrl: 'https://www.daad.de/en/information-services-for-higher-education-institutions/further-information-on-daad-programmes/in-countryin-region-programme-in-developing-countries/',
+      officialUrlText: 'daad.de'
+    },
+    {
+      id: 'chevening', name: 'Chevening Scholarship (UK)',
+      pathway: 'postgrad-only',
+      funding: 'Fully funded one-year UK Master’s: tuition, monthly stipend, flights, and additional allowances.',
+      summary: 'A UK government scholarship for future leaders to complete a one-year Master’s degree at any UK university, in any subject.',
+      eligibilityNote: 'Needs a completed undergraduate degree PLUS at least 2 years (2,800 hours) of work experience gained after graduating. Not reachable while still an undergraduate — one to plan toward after finishing your degree and building work experience.',
+      whenToApply: 'Applications typically open in August and close in early November, for study starting the following September.',
+      officialUrl: 'https://www.chevening.org/scholarships/who-can-apply/',
+      officialUrlText: 'chevening.org'
+    },
+    {
+      id: 'fulbright-nigeria', name: 'Fulbright Foreign Student Program — Nigeria',
+      pathway: 'postgrad-only',
+      funding: 'Fully funded PhD research placement in the US (this Nigeria-specific track), funded by the U.S. Department of State.',
+      summary: 'A U.S. government exchange program — but in Nigeria specifically, this track supports early-career Nigerian university faculty carrying out part of their doctoral research in the US.',
+      eligibilityNote: 'Important: the U.S. Embassy Nigeria’s own guidance states Master’s and first-degree applicants are NOT eligible for this Nigeria track — it’s for applicants already at least 2 years into a PhD at a Nigerian university or research institute. Don’t confuse it with the general Fulbright Master’s programs some other countries run.',
+      whenToApply: 'Announced annually via the U.S. Embassy Nigeria education page.',
+      officialUrl: 'https://ng.usembassy.gov/the-fulbright-foreign-student-program/',
+      officialUrlText: 'ng.usembassy.gov'
+    },
+    {
+      id: 'commonwealth-shared', name: 'Commonwealth Shared Scholarship (UK)',
+      pathway: 'postgrad-only',
+      funding: 'Fully funded one-year Master’s in the UK: tuition, stipend, flights, and other allowances.',
+      summary: 'UK-government-funded Master’s scholarships for students from low- and middle-income Commonwealth countries, including Nigeria, on selected courses jointly supported by UK universities.',
+      eligibilityNote: 'Postgraduate only — needs a first degree of at least upper-second-class (2:1) standard already. Must show you couldn’t otherwise afford UK study, and must not have lived/worked a year or more in a high-income country.',
+      whenToApply: 'Applications typically open around October–November for the following academic year — eligible courses change each cycle.',
+      officialUrl: 'https://cscuk.fcdo.gov.uk/commonwealth-shared-scholarships-eligible-courses/',
+      officialUrlText: 'cscuk.fcdo.gov.uk'
+    },
+    {
+      id: 'erasmus-mundus', name: 'Erasmus Mundus Joint Master Degrees',
+      pathway: 'postgrad-only',
+      funding: 'Fully funded for scholarship recipients: tuition, travel, installation, and a monthly living allowance, across 2+ European countries.',
+      summary: 'Prestigious joint Master’s programmes taught across at least two universities in Europe (sometimes beyond), with full scholarships available for the strongest applicants.',
+      eligibilityNote: 'Needs a completed bachelor’s degree, or to be in your final year, before the programme starts. Each joint Master’s has its own consortium, requirements, and application portal — apply directly to the specific programme.',
+      whenToApply: 'Most programmes open applications October–January for study starting the following autumn — exact timing varies by programme.',
+      officialUrl: 'https://erasmus-plus.ec.europa.eu/opportunities/individuals/students/erasmus-mundus-joint-masters',
+      officialUrlText: 'erasmus-plus.ec.europa.eu'
+    },
+    {
+      id: 'mandela-washington', name: 'Mandela Washington Fellowship (YALI)',
+      pathway: 'professional-fellowship',
+      funding: 'Fully funded: a 6-week US academic/leadership institute — flights, housing, and a stipend.',
+      summary: 'A US government leadership program for young African leaders — a 6-week institute at a US university in one of three tracks: business & entrepreneurship, civic engagement, or public management.',
+      eligibilityNote: 'Not a current-student program in the ordinary sense — you must be 25–35 (exceptional 21–24 year-olds are rarely considered) with an established record of leadership and impact already, not a course of study. Best suited to someone who has already graduated and built a track record.',
+      whenToApply: 'Applications typically open around September–October each year.',
+      officialUrl: 'https://yali.state.gov/mwf/',
+      officialUrlText: 'yali.state.gov'
+    },
+    {
+      id: 'aiesec-global-volunteer', name: 'AIESEC Global Volunteer',
+      pathway: 'paid-program',
+      funding: 'NOT fully funded — expect an AIESEC program fee (reportedly around €349) plus a separate project-matching fee (reportedly $150–$350); flights, visas, and insurance are on top of that.',
+      summary: 'A 6–8 week volunteer placement abroad on a social-impact project, arranged through your nearest AIESEC local committee — genuinely open to students, but marketed more as "free" than it actually is.',
+      eligibilityNote: 'Ages 18–30, open to current students — but budget for it like any paid trip once AIESEC’s own fees, flights, visa costs, and insurance are added up. Treat any figure you’re first quoted as a floor, not the total.',
+      whenToApply: 'Rolling — browse live opportunities once you’ve joined a local committee.',
+      officialUrl: 'https://aiesec.org/global-volunteer',
+      officialUrlText: 'aiesec.org'
+    }
+  ];
+  var oppFilter = 'all';
+  function renderOpportunities(){
+    var filterRow = document.getElementById('oppFilterRow');
+    var listEl = document.getElementById('oppList');
+    var verifiedEl = document.getElementById('oppLastVerified');
+    if (!filterRow || !listEl) return;
+    if (verifiedEl) verifiedEl.textContent = OPPORTUNITIES_LAST_VERIFIED;
+    var counts = {};
+    OPPORTUNITIES.forEach(function(o){ counts[o.pathway] = (counts[o.pathway]||0) + 1; });
+    var filterKeys = ['all'].concat(Object.keys(PATHWAY_META).filter(function(k){ return counts[k]; }));
+    filterRow.innerHTML = filterKeys.map(function(k){
+      var label = k === 'all' ? ('All (' + OPPORTUNITIES.length + ')') : (PATHWAY_META[k].label + ' (' + counts[k] + ')');
+      var cls = 'opp-filter-btn' + (oppFilter === k ? ' active' : '');
+      return '<button type="button" class="'+cls+'" data-pathway="'+k+'">'+label+'</button>';
+    }).join('');
+    Array.prototype.forEach.call(filterRow.querySelectorAll('.opp-filter-btn'), function(btn){
+      btn.addEventListener('click', function(){
+        oppFilter = btn.getAttribute('data-pathway');
+        renderOpportunities();
+      });
+    });
+    var shown = oppFilter === 'all' ? OPPORTUNITIES : OPPORTUNITIES.filter(function(o){ return o.pathway === oppFilter; });
+    if (!shown.length){
+      listEl.innerHTML = '<p class="opp-empty">No programs currently listed in this category.</p>';
+      return;
+    }
+    listEl.innerHTML = shown.map(function(o){
+      var meta = PATHWAY_META[o.pathway];
+      return '<div class="opp-card" id="opp_'+o.id+'">'
+        + '<span class="opp-badge" style="background:'+meta.color+';">'+meta.label+'</span>'
+        + '<h3>'+o.name+'</h3>'
+        + '<p>'+o.summary+'</p>'
+        + '<p><span class="opp-label">Funding: </span>'+o.funding+'</p>'
+        + '<p><span class="opp-label">Eligibility: </span>'+o.eligibilityNote+'</p>'
+        + '<p><span class="opp-label">When to apply: </span>'+o.whenToApply+'</p>'
+        + '<a class="opp-link" href="'+o.officialUrl+'" target="_blank" rel="noopener noreferrer">Official site: '+o.officialUrlText+' ↗</a>'
+        + '</div>';
+    }).join('');
+  }
+
   // Shared pipeline behind BOTH the dedicated "Analyze statement(s)" uploader in the Financial Calculator
   // AND the "Personal bank statements" checklist item's own Scan button — one analysis, fed from either
   // entry point, always auto-filling the same cash-flow table. onMessage(clsOrArray[, text]) renders wherever
@@ -12297,6 +12512,7 @@
   updateGateContinueHint();
 
   render();
+  renderOpportunities(); // static directory, independent of country/answers — built once, not on every render() pass
 
   // Offline app-shell support (PWA). Registers a same-origin service worker that caches only this
   // page, the manifest, and the icons — never a document you upload, never a CDN library (see
