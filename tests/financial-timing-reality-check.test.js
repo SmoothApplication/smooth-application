@@ -48,7 +48,8 @@ exports.run = async function(ctx){
     await page.fill('#f_employerName', 'Good Employer Ltd');
     await page.waitForTimeout(300);
 
-    await goToSessionByPill(page, 4); // 'Financial readiness'
+    await goToSessionByPill(page, 4); // 'Income & bank statement analysis' — holds the cash-flow table
+    await goToFinanceStep(page, 2); // '2. Cash flow & scores' tab — the cash-flow table lives here, not the default 'Upload statements' step
 
     // A steady ₦250,000/month salary, no spending tracked here, so monthlyNetSavings works out to
     // exactly 250,000 — and a last closing balance of ₦32,000, matching the user's own real numbers.
@@ -83,11 +84,16 @@ exports.run = async function(ctx){
       'Should suggest pushing the date back as the honest alternative, got: ' + readinessHtml.slice(0, 1600));
 
     // ---- Detailed financial calculator (its own totalCost/closing-balance fields) ----
+    // This is a SEPARATE top-level session ('Financial readiness calculator', pill 5) from the one
+    // above ('Income & bank statement analysis', pill 4) — computeFinancials() reads both sessions'
+    // fields together regardless of which is currently on screen, but Playwright still needs the
+    // fields themselves visible (i.e. their own session actually selected) before it can fill them.
     // Chosen so recommendedFunds lands on exactly ₦4,000,000 (2× a ₦2,000,000 total trip cost) — the
     // user's own round-number target. Closing balance here is deliberately ₦300,000, not the ₦32,000
     // used above — this calculator has its own separate "below ₦200,000 floor" error that takes
     // priority and would otherwise mask the reality-check message entirely; ₦300,000 clears that
     // floor while still leaving a large gap against the ₦4,000,000 target.
+    await goToSessionByPill(page, 5); // 'Financial readiness calculator'
     await page.fill('#fc_flight', '1400000');
     await page.fill('#fc_accom', '50000'); // × 6 nights = 300,000
     await page.fill('#fc_transport', '100000');
