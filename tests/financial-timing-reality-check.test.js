@@ -97,6 +97,10 @@ exports.run = async function(ctx){
     await page.fill('#fc_flight', '1400000');
     await page.fill('#fc_accom', '50000'); // × 6 nights = 300,000
     await page.fill('#fc_transport', '100000');
+    // fc_shopping/fc_sightseeing live inside a collapsed "🛍️ Shopping & sightseeing estimate"
+    // <details> block, closed by default — open it before Playwright can fill either field (same
+    // pattern xss-escaping.test.js already uses for this same block).
+    await page.evaluate(function(){ document.getElementById('fc_shopping').closest('details').open = true; });
     await page.fill('#fc_shopping', '100000');
     await page.fill('#fc_sightseeing', '100000');
     await page.fill('#fc_closing', '300000');
