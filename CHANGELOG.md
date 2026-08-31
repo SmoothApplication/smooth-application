@@ -3,6 +3,25 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Decluttering: explanatory tips collapsed behind "Why?" toggles, app-wide
+
+Direct feedback: too many always-visible paragraphs sitting under fields make the page feel busy —
+"the page is too busy," pointing specifically at the passport name/expiry-date explanations. This had
+already been fixed once for the Financial readiness calculator alone (see below); this batch applies
+the same distinction and the same reusable `.tip-details` "Why?" toggle everywhere else in the app.
+
+Fourteen more explanatory tips — passport name and expiry date, Schengen single-entry visa FYI, Eti
+Osa rent-band note, adolescent/child flight-discount note, employer/business name and alt-name
+explanations, flight departure/return date auto-fill notes, the day-trip cap rationale, the past-refusal
+advice, and the print-button explanation — are now collapsed behind a "Why?" link, same pattern already
+proven on the Financial readiness calculator. The text isn't deleted, just tucked away until tapped.
+
+Deliberately left alone, same distinction as before: privacy disclosures (what happens to your
+email/phone), actual validation rules (e.g. the closing-balance figure must match your uploaded
+statements), short one-line hints, dynamic status messages that change with form state, and the primary
+instructional paragraph that introduces a whole section (not a decorative aside). Collapsing any of
+those would hide something the applicant actually needs to see, not just declutter.
+
 ## A financial "reality check": connecting prep time, savings pace, and processing time
 
 Direct user feedback: two facts already shown on the page never spoke to each other — how many days

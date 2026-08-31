@@ -1220,7 +1220,7 @@
           <div>
             <label class="field" for="pv_name">Full name (from your passport)</label>
             <input type="text" id="pv_name" placeholder="Scan your passport, or type your name in yourself">
-            <div class="item-tip">Auto-filled straight from your passport scan when available — OCR isn't perfect, so check it exactly matches your passport and correct it here if not. This is the same name used everywhere else in your checklist (including "Your trip details" further along), kept in sync either way.</div>
+            <details class="tip-details"><summary>Why?</summary><div class="item-tip">Auto-filled straight from your passport scan when available — OCR isn't perfect, so check it exactly matches your passport and correct it here if not. This is the same name used everywhere else in your checklist (including "Your trip details" further along), kept in sync either way.</div></details>
           </div>
           <div>
             <label class="field" for="f_passportNumber">Passport number</label>
@@ -1231,7 +1231,7 @@
           <div>
             <label class="field" for="f_passportExpiry">Passport expiry date</label>
             <input type="date" id="f_passportExpiry">
-            <div class="item-tip">Verify this is right against your physical passport. If the scan got it wrong, or nothing was detected, type the correct date in yourself.</div>
+            <details class="tip-details"><summary>Why?</summary><div class="item-tip">Verify this is right against your physical passport. If the scan got it wrong, or nothing was detected, type the correct date in yourself.</div></details>
           </div>
           <div></div>
         </div>
@@ -1279,7 +1279,7 @@
               <option value="yes">Yes, that works for me</option>
               <option value="no">No, I'd prefer more flexibility</option>
             </select>
-            <div class="item-tip">Just for your own planning — this doesn't affect your checklist and doesn't block anything here. A first-time Schengen applicant is typically granted a single-entry visa valid for around 10-15 days, covering the specific trip applied for, rather than a longer multiple-entry visa — that tends to come with a stronger travel history on later applications.</div>
+            <details class="tip-details"><summary>Why?</summary><div class="item-tip">Just for your own planning — this doesn't affect your checklist and doesn't block anything here. A first-time Schengen applicant is typically granted a single-entry visa valid for around 10-15 days, covering the specific trip applied for, rather than a longer multiple-entry visa — that tends to come with a stronger travel history on later applications.</div></details>
           </div>
 
           <div id="te_euUkAdviceBox" class="scan-msg info" style="display:none; margin-top:10px;">
@@ -1391,7 +1391,7 @@
               <option value="Lekki Phase 1">Lekki Phase 1</option>
               <option value="Ajah / Sangotedo / Lekki (Phase 2 and beyond)">Ajah / Sangotedo / Lekki (Phase 2 and beyond)</option>
             </select>
-            <div class="item-tip" style="margin-top:4px;">Eti Osa spans very different rent levels — this refines the estimate below instead of blending them all into one number.</div>
+            <details class="tip-details"><summary>Why?</summary><div class="item-tip">Eti Osa spans very different rent levels — this refines the estimate below instead of blending them all into one number.</div></details>
           </div>
         </div>
         <div id="rs_premiumPocketRow" style="display:none; margin:-4px 0 14px;">
@@ -1518,7 +1518,7 @@
           </div>
           <div>
             <label class="field">&nbsp;</label>
-            <div class="item-tip" id="travellerFlightNote" style="margin-top:6px;">Flights for adolescents and children are usually discounted — the calculator below applies a typical estimate (90% of the adult fare for adolescents, 75% for children). Adjust the flight cost per traveller if your actual quote differs.</div>
+            <details class="tip-details"><summary>Why?</summary><div class="item-tip" id="travellerFlightNote">Flights for adolescents and children are usually discounted — the calculator below applies a typical estimate (90% of the adult fare for adolescents, 75% for children). Adjust the flight cost per traveller if your actual quote differs.</div></details>
           </div>
         </div>
         <div id="travelerBreakdownRow" style="display:none;">
@@ -1570,10 +1570,10 @@
         <div id="employerNameRow" style="display:none; padding-left:24px; margin:-2px 0 8px;">
           <label class="field" for="f_employerName">Employer / company name <span style="color:var(--danger, #c0392b);">*</span></label>
           <input type="text" id="f_employerName" placeholder="e.g. Zenith Bank Plc" style="max-width:340px;">
-          <div class="item-tip" style="margin-top:4px;">Used below to check this name actually turns up on your bank statement — a strong, expected signal to a reviewer.</div>
+          <details class="tip-details"><summary>Why?</summary><div class="item-tip">Used below to check this name actually turns up on your bank statement — a strong, expected signal to a reviewer.</div></details>
           <label class="field" style="margin-top:6px;" for="f_employerAltName">Also known as / abbreviation used in your statement (optional)</label>
           <input type="text" id="f_employerAltName" placeholder="e.g. Grace CYC" style="max-width:340px;">
-          <div class="item-tip" style="margin-top:4px;">Banks often shorten a name in the narration (initials, an acronym, a branch code). If your statement doesn't spell out the full name above, add the short form actually used so this check can still find it.</div>
+          <details class="tip-details"><summary>Why?</summary><div class="item-tip">Banks often shorten a name in the narration (initials, an acronym, a branch code). If your statement doesn't spell out the full name above, add the short form actually used so this check can still find it.</div></details>
         </div>
         <div id="employedUploadRow" style="display:none; padding-left:24px; margin:-2px 0 8px;">
           <div class="upload-row no-print" style="margin:4px 0;">
@@ -1586,10 +1586,10 @@
         <div id="businessNameRow" style="display:none; padding-left:24px; margin:-2px 0 8px;">
           <label class="field" for="f_businessName">Business name <span style="color:var(--danger, #c0392b);">*</span></label>
           <input type="text" id="f_businessName" placeholder="e.g. Okafor Fashion House" style="max-width:340px;">
-          <div class="item-tip" style="margin-top:4px;">Used below to check this name actually turns up on your bank statement — a strong, expected signal to a reviewer.</div>
+          <details class="tip-details"><summary>Why?</summary><div class="item-tip">Used below to check this name actually turns up on your bank statement — a strong, expected signal to a reviewer.</div></details>
           <label class="field" style="margin-top:6px;" for="f_businessAltName">Also known as / abbreviation used in your statement (optional)</label>
           <input type="text" id="f_businessAltName" placeholder="e.g. CNC Solutions" style="max-width:340px;">
-          <div class="item-tip" style="margin-top:4px;">Banks often shorten a name in the narration (initials, an acronym, a branch code). If your statement doesn't spell out the full name above, add the short form actually used so this check can still find it.</div>
+          <details class="tip-details"><summary>Why?</summary><div class="item-tip">Banks often shorten a name in the narration (initials, an acronym, a branch code). If your statement doesn't spell out the full name above, add the short form actually used so this check can still find it.</div></details>
         </div>
         <div id="workStatusBothNote" class="item-tip" style="display:none; padding-left:24px; margin:-2px 0 8px;">You've selected "employed &amp; self-employed" — please fill in both names above, since you'll want evidence for each one below.</div>
         <div class="doc-reminder" id="selfEmployedNote" style="display:none;">
@@ -1848,13 +1848,13 @@
             <div>
               <label class="field" for="fc_depDate">Departure date</label>
               <input type="date" id="fc_depDate">
-              <div class="item-tip" style="margin-top:4px;">Auto-filled from your travel date above — change it here if your actual flight leaves on a different day.</div>
+              <details class="tip-details"><summary>Why?</summary><div class="item-tip">Auto-filled from your travel date above — change it here if your actual flight leaves on a different day.</div></details>
             </div>
           </div>
           <div style="margin-bottom:14px;">
             <label class="field" for="fc_arrDate">Return/arrival-back date</label>
             <input type="date" id="fc_arrDate" style="max-width:260px;">
-            <div class="item-tip" style="margin-top:4px;">Auto-filled from your return date above — change it here if your actual flight arrives back on a different day.</div>
+            <details class="tip-details"><summary>Why?</summary><div class="item-tip">Auto-filled from your return date above — change it here if your actual flight arrives back on a different day.</div></details>
           </div>
           <button type="button" class="btn ghost no-print" id="btnVerifyFlightPrice" disabled style="margin-top:6px; font-size:11px; padding:4px 8px;">🔍 Check typical fares online</button>
           <div class="item-tip" id="flightVerifyNote" style="margin-top:4px;">Fill in both dates above to compare current typical fares across airlines — opens a search in a new tab. This app has no flight-price API, so it can't fetch or guarantee an exact price for you; treat the results as a sanity-check, not a quote.</div>
@@ -1881,7 +1881,7 @@
             <div>
               <label class="field" for="th_oneoffCount">One-off trips (airport transfer, day trip, etc.)</label>
               <input type="text" inputmode="numeric" id="th_oneoffCount" placeholder="e.g. 2" max="2">
-              <div class="item-tip" style="margin-top:4px;">Capped at 2 — for repeat day-to-day travel use the modes above (rate × number of days) instead. It's more realistic, and reads better to a reviewer, to budget around one trip per day rather than stacking up separate one-offs.</div>
+              <details class="tip-details"><summary>Why?</summary><div class="item-tip">Capped at 2 — for repeat day-to-day travel use the modes above (rate × number of days) instead. It's more realistic, and reads better to a reviewer, to budget around one trip per day rather than stacking up separate one-offs.</div></details>
             </div>
             <div>
               <label class="field" for="th_oneoffRate">Cost per one-off trip (£)</label>
@@ -2018,7 +2018,7 @@
           </div>
           <label class="field" for="f_refusalDetails">For each refusal, list the country and year (one per line)</label>
           <textarea id="f_refusalDetails" rows="2" placeholder="e.g. United Kingdom, 2024&#10;Schengen (France), 2022"></textarea>
-          <div class="item-tip" style="margin-top:4px;">Being upfront about a past refusal — with a clear explanation of what's changed since — reads far better to a reviewer than a refusal they discover independently. Attach the refusal letter(s) under "Previous visa refusal documentation" below.</div>
+          <details class="tip-details"><summary>Why?</summary><div class="item-tip">Being upfront about a past refusal — with a clear explanation of what's changed since — reads far better to a reviewer than a refusal they discover independently. Attach the refusal letter(s) under "Previous visa refusal documentation" below.</div></details>
         </div>
       </div>
 
@@ -2120,7 +2120,7 @@
         <p class="item-tip" id="autoSaveIndicator" style="margin:2px 0 8px; font-weight:600;"></p>
         <div class="sidebar-actions">
           <button class="btn primary" id="btnPrint">🖨️ Save full report as PDF</button>
-          <p class="item-tip" style="margin:-4px 0 4px;">Opens your browser's print dialog — choose "Save as PDF" as the destination. Includes your trip details, checklist, and all financial-readiness results; upload buttons and other controls are left out automatically.</p>
+          <details class="tip-details"><summary>Why?</summary><p class="item-tip" style="margin:4px 0 0;">Opens your browser's print dialog — choose "Save as PDF" as the destination. Includes your trip details, checklist, and all financial-readiness results; upload buttons and other controls are left out automatically.</p></details>
           <button class="btn" id="btnExport">⬇️ Export progress (.json)</button>
           <button class="btn" id="btnImportTrigger">⬆️ Import progress</button>
           <input type="file" id="importFile" accept="application/json" style="display:none;">
