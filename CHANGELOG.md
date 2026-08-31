@@ -3,6 +3,27 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Extra document requirements for employed applicants
+
+Direct request, continuing the same 20-years-of-consulting thread as the Business Income Record
+below: an employer's leave-approval letter and employment letter already existed as required
+documents, but real experience flags two gaps — nothing corroborates the employment letter itself
+(a staff ID card, a photo at the actual workplace), and nothing tells the applicant their own name
+has to tally exactly across the employment letter, the checklist, and their bank statement, which is
+a common, avoidable source of reviewer doubt.
+
+- Two new required documents for employed applicants — Staff ID card (`staffId`) and A photo of
+  yourself at your workplace (`officePhoto`) — alongside the existing leave-approval and employment
+  letters, across all 4 countries (UK/Canada/Schengen/South Africa checklists).
+- Employment letter's own tip now explicitly states the applicant's name must match exactly across
+  the letter, the checklist, and the bank statement — guidance text only (deliberately not an
+  automated OCR name-extraction/match, unlike the existing business-statement checks, since there's
+  no reliable way to extract a name from an arbitrary letter document the way there is from a
+  passport's MRZ or a bank statement's structured columns).
+- Verified: syntax-checked the full inline script; new `tests/employed-supporting-documents.test.js`
+  checks both new items are required once "employed" is declared (and absent before it is), and that
+  the employment letter's tip carries the name-match guidance.
+
 ## Business Income Record: an honest alternative to generating receipts
 
 Direct request, from 20 years of real UK/Canada visa consulting experience: SME clients often have
