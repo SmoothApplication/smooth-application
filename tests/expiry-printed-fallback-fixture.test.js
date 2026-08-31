@@ -39,7 +39,11 @@ exports.run = async function(ctx){
     var html = await page.$eval('#passportValidateResult', function(el){ return el.innerHTML; });
     assert.ok(!/Expires[\s\S]{0,80}not detected/.test(html),
       'Expiry should no longer come back "not detected" when a printed fallback is available, got: ' + html.slice(0, 800));
-    assert.ok(/Expires[\s\S]{0,40}2027/.test(html),
+    // {0,40} was too tight for the actual markup between the label and value (the
+    // `<span class="passport-row-value">` wrapper alone runs ~45 chars) — not a real product bug,
+    // just a stale regex budget; loosened to match the {0,80}/{0,1200} budgets already used by the
+    // other assertions in this same test.
+    assert.ok(/Expires[\s\S]{0,80}2027/.test(html),
       'Expiry should show the year recovered from the printed text (2027), got: ' + html.slice(0, 800));
     assert.ok(/Auto-corrected/.test(html) && /expiry date/.test(html),
       'Should explain that the expiry date was matched against the printed text instead of the MRZ, got: ' + html.slice(0, 1200));

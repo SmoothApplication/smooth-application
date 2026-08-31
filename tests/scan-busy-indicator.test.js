@@ -13,7 +13,10 @@ exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page, { country: 'UK' });
-    await page.waitForSelector('#passportValidateResult');
+    // #passportValidateResult starts as an empty <div></div> — zero size until something is put in
+    // it (the very next line does exactly that via the test hook) — so the default 'visible' wait
+    // state never resolves; 'attached' is all that's actually needed here.
+    await page.waitForSelector('#passportValidateResult', { state: 'attached' });
 
     // A 'busy' message renders with the busy class (spinner) rather than the static 'info' one.
     await page.evaluate(function(){ window.__testSetScanMsg('passport', 'busy', 'Reading image… this can take up to 30 seconds.'); });
