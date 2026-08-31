@@ -3,6 +3,43 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Business Income Record: an honest alternative to generating receipts
+
+Direct request, from 20 years of real UK/Canada visa consulting experience: SME clients often have
+genuine business bank-account inflows (a market sale, a walk-in customer, an informal client) with
+no formal receipt behind them, which a caseworker reads as unexplained business income. The original
+ask was to auto-generate matching receipts from the business statement's own amounts (using the
+applicant's letterhead/logo) — declined: a document backdated and amount-matched to a bank statement
+is a false document under UK Home Office rules (refusal grounds, up to a 10-year re-entry ban for the
+applicant), and a batch of uniform, freshly-generated receipts is itself a detectable pattern to a
+caseworker. Proposed and built the safer alternative instead — the applicant's own honest, dated-today
+account of each inflow, never styled or worded as a receipt, attached *alongside* the business
+statement rather than replacing it.
+
+- New "Business Income Record" session, shown only once an applicant marks themselves self-employed —
+  scanning a business bank statement (the existing "Business bank statements" checklist item) now also
+  lists every credit inflow it detected as its own row here, each with a "Who paid this?" / "What was
+  it for?" pair the applicant fills in from their own knowledge. A live count ("N of M payments noted")
+  tracks progress, and answers auto-save the same way every other explain-box in the app already does.
+- "Build my Business Income Record" compiles a clean, dated table (business name, and every payment's
+  date/amount/payer/purpose) with an explicit statement that this is the applicant's own account
+  prepared today, not a receipt issued at the time of the transaction — and honestly flags any row
+  still left blank ("(not specified)") rather than inventing something for it. Lives inside the normal
+  page flow, so it's automatically included in "Save full report as PDF".
+- New session key (`bizLedger`) appended after every checklist category rather than spliced into the
+  middle of the session list, specifically so it can't shift the index of any `cat:...` session that
+  earlier tests already navigate to by a hardcoded pill number — only `review` absorbs the +1 shift,
+  and only for self-employed applicants.
+- A `@media print` guard (`.biz-ledger-hidden`) keeps this session out of a non-self-employed
+  applicant's PDF — the existing blanket "force every `[data-session-key]` open for print" rule has no
+  way to know this session was never added to their session list otherwise.
+- Verified: syntax-checked the full inline script (no Playwright/Chromium available in this sandbox —
+  same standing limitation noted throughout this changelog); new
+  `tests/business-income-record.test.js` drives a real scan (reusing the existing
+  `bank-statement-sample.pdf` fixture's 4 credit inflows) through noting some rows, building the
+  record, and checking the compiled output's content, disclaimer, and "(not specified)" honesty
+  fallback for the rows left blank.
+
 ## A real front door: intro screen + paged quiz, instead of 10 questions stacked at once
 
 GoatCounter data (Aug 2026, 684 visits/24 days) showed ~87% of visits never even started a

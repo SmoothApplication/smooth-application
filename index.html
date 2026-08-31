@@ -439,6 +439,13 @@
   @media print { .session-nav { display: none !important; } }
   /* Print must show every session's card regardless of which one is currently on screen. */
   @media print { [data-session-key], #checklistRoot > [data-cat] { display: block !important; } }
+  /* Exception: bizLedgerCard (Business Income Record) is only ever relevant to self-employed
+     applicants — render() hides it entirely (not just collapses it) for everyone else. Without this,
+     the blanket rule above would force it open on print even for a non-self-employed applicant,
+     showing an empty/irrelevant card in their PDF. #ID beats the [data-session-key] attribute
+     selector above even though both carry !important, so this correctly wins only when JS has also
+     added .biz-ledger-hidden (kept in sync with the inline display:none in render()). */
+  @media print { #bizLedgerCard.biz-ledger-hidden { display: none !important; } }
 
   /* ---------------- Income & bank statement analysis: internal step tabs ---------------- */
   /* A small tab bar *within* the finance2 session, same visual language as the outer session
@@ -1763,6 +1770,32 @@
           <button type="button" class="btn ghost fin-step-prev" data-fin-prev="5">← Back</button>
         </div>
         </div>
+        </div>
+      </details>
+
+      <!-- User request (20 years of real UK/Canada visa consulting experience, relayed directly): SME
+           clients often have genuine business bank-account inflows with no formal receipt behind them
+           (market sales, walk-in customers, informal clients) — leaving those inflows "unexplained" to
+           a caseworker. The original ask was to auto-generate receipts matching the statement amounts;
+           declined, since a manufactured document backdated/amount-matched to a bank statement is a
+           false document under UK Home Office rules (refusal grounds, up to a 10-year re-entry ban) and
+           a batch of uniform receipts is itself a detectable pattern. This is the safer alternative: the
+           applicant's OWN honest, dated-today account of each inflow — never styled as a receipt, never
+           claimed to be contemporaneous — attached ALONGSIDE the business statement, not replacing it.
+           Only ever holds credits already visible on a statement the applicant uploaded themselves. -->
+      <details class="card collapsible biz-ledger-hidden" id="bizLedgerCard" data-session-key="bizLedger" style="border-left-color:#a8601f; display:none;">
+        <summary class="card-summary">
+          <h2><span class="card-icon-badge" style="background:#a8601f1f; color:#a8601f;">🧾</span> Business Income Record</h2>
+          <span class="chevron">▸</span>
+        </summary>
+        <div class="card-body">
+        <p class="fin-note" style="margin-top:0;">Some genuine business payments never came with a formal receipt — a market sale, a walk-in customer, an informal client. Rather than manufacturing paperwork that doesn't exist, this builds one honest, dated record in your own words explaining each incoming payment on your business statement. Attach it <b>alongside</b> your business statement — it explains the inflows, it doesn't replace them.</p>
+        <div id="bizLedgerIntro" class="item-tip">Scan your business bank statement under "Business bank statements" (Financial evidence, below) to list its incoming payments here automatically.</div>
+        <div id="bizLedgerRows"></div>
+        <div id="bizLedgerActions" class="no-print" style="display:none; margin-top:10px;">
+          <button type="button" class="btn primary" id="btnBuildBizLedger">📄 Build my Business Income Record</button>
+        </div>
+        <div id="bizLedgerOutput"></div>
         </div>
       </details>
 
@@ -3435,14 +3468,22 @@
     // restores the original per-topic session list: passport, travel experience, responsibilities,
     // and trip details are each their own session again, same for the two finance sessions, and each
     // applicable document-checklist category gets its own session again too.
-    var keys = ['passport', 'travelExperience', 'responsibilities', 'trip', 'finance2', 'finance'];
     var a = getAnswers();
+    var keys = ['passport', 'travelExperience', 'responsibilities', 'trip', 'finance2', 'finance'];
     var byCat = {};
     CHECKLIST.forEach(function(it){
       if (!itemApplies(it, a)) return;
       byCat[it.cat] = (byCat[it.cat] || 0) + 1;
     });
     CAT_ORDER.forEach(function(cat){ if (byCat[cat]) keys.push('cat:' + cat); });
+    // Business Income Record: its own session, but only for applicants who actually have a business
+    // statement to explain — everyone else never sees an empty "nothing to note yet" page. Appended
+    // here (after every checklist category, right before 'review') rather than spliced in earlier so
+    // it can't shift the index of any 'cat:...' session — several existing tests navigate straight to
+    // a checklist category by a hardcoded pill index while self-employed is set, and only 'review'
+    // itself (rarely hardcoded that way) absorbs the +1 shift instead. See the #bizLedgerCard HTML
+    // comment above for why this session exists at all.
+    if (a.selfEmployed) keys.push('bizLedger');
     keys.push('review');
     return keys;
   }
@@ -3454,6 +3495,7 @@
     if (key === 'trip') return 'Your trip details';
     if (key === 'finance') return 'Financial readiness calculator';
     if (key === 'finance2') return 'Income & bank statement analysis';
+    if (key === 'bizLedger') return 'Business Income Record';
     if (key.indexOf('cat:') === 0) return key.slice(4);
     return key;
   }
@@ -3619,6 +3661,13 @@
         return false;
       }).length;
       return {percent: Math.round(rsFilled/rsFields.length*100), points: rsFilled, total: rsFields.length, missing: rsMissing};
+    }
+    if (key === 'bizLedger'){
+      var bizCredits = lastBusinessCredits || [];
+      if (!bizCredits.length) return {percent:0, points:0, total:0, missing:[]}; // nothing scanned yet
+      var bizNoted = bizCredits.filter(function(t){ return bizLedgerEntryIsFilled(businessIncomeLedger[inflowKey(t)]); }).length;
+      var bizMissing = bizNoted < bizCredits.length ? [{id:null, label:(bizCredits.length-bizNoted)+' payment(s) below still need a note'}] : [];
+      return {percent: Math.round(bizNoted/bizCredits.length*100), points: bizNoted, total: bizCredits.length, missing: bizMissing};
     }
     return {percent:0, points:0, total:0, missing:[]}; // 'review' isn't a fill-in section
   }
@@ -3947,6 +3996,14 @@
     document.getElementById('employerNameRow').style.display = a.employed ? 'block' : 'none';
     document.getElementById('businessNameRow').style.display = a.selfEmployed ? 'block' : 'none';
     document.getElementById('workStatusBothNote').style.display = (a.employed && a.selfEmployed) ? 'block' : 'none';
+    // Normal show/hide (which session is currently on screen) is owned by applySessionVisibility()
+    // now that 'bizLedger' is a real session key (see getVisibleSessionKeys) — this only maintains
+    // the .biz-ledger-hidden class, which the @media print override (near [data-session-key]'s
+    // force-open rule) uses to keep this card out of a non-self-employed applicant's PDF, since that
+    // blanket print rule has no way to know whether 'bizLedger' was ever added to this applicant's
+    // session list.
+    var bizLedgerCardEl = document.getElementById('bizLedgerCard');
+    if (bizLedgerCardEl) bizLedgerCardEl.classList.toggle('biz-ledger-hidden', !a.selfEmployed);
     document.getElementById('refusalRow').style.display = a.hasRefusal ? 'block' : 'none';
     document.getElementById('studentSponsorBlock').style.display = a.student ? 'block' : 'none';
     document.getElementById('sponsorRelationshipRow').style.display = (a.student && a.studentSponsor) ? 'block' : 'none';
@@ -9101,6 +9158,15 @@
   // (re-)scans, in whichever order the applicant uploads them.
   var lastBusinessDrawings = null; // array of {date, amount} debits out of the business statement
   var lastPersonalCredits = null;  // array of {date, amount} credits into the personal statement
+  // Business Income Record (see the card comment above bizLedgerCard in the HTML): the incoming
+  // payments (credits) on the most recently scanned business statement, and the applicant's own
+  // "who paid / what for" note on each one — keyed by inflowKey(t) (defined below), same stable-key
+  // pattern as inflowExplanations, so notes survive a re-scan/re-render and export/import together.
+  var lastBusinessCredits = null;   // array of transaction objects, transient — repopulated on each scan
+  var businessIncomeLedger = {};    // inflowKey(t) -> {payer, purpose} — persisted (see buildPayload/restorePayload)
+  function bizLedgerEntryIsFilled(e){
+    return !!(e && e.payer && e.payer.trim() && e.purpose && e.purpose.trim());
+  }
   var CROSSCHECK_DAY_WINDOW = 10;   // a bank-to-bank transfer can take a few days to land
   var CROSSCHECK_AMOUNT_TOLERANCE = 0.12; // allow for bank fees/rounding between the two statements
   function crossCheckBusinessDrawings(){
@@ -9231,6 +9297,11 @@
           if (bizIncomeEl) bizIncomeEl.innerHTML = '<div class="scan-msg warn">No recurring personal drawing detected from the business account yet.</div>';
         }
         lastBusinessDrawings = match.transactions;
+        lastBusinessCredits = txns.filter(function(t){ return t.credit > 0 && !isReversalNarration(t.narration); });
+        if (lastBusinessCredits.length){
+          results.push({cls:'info', text:'Found '+lastBusinessCredits.length+' incoming payment(s) into the business — add a quick note on who paid and what it was for under "Business Income Record" below to build a clean, dated record for your visa application.'});
+        }
+        renderBusinessIncomeLedger();
         if (!lastPersonalCredits){
           results.push({cls:'info', text:'Once you also scan your personal bank statements above, this tool will automatically cross-check whether these business payments actually land there — the strongest proof that you\'re personally being paid from the business.'});
         } else {
@@ -9248,6 +9319,70 @@
       console.error('Business statement analysis setup failed', err);
       logClientError('business_statement_analysis_setup', err);
       onMessage('err','Something went wrong before this business statement could even be read — sorry about that. '+reportProblemLinksHtml('business statement analysis')+' In the meantime, you can review the statement yourself for a recurring personal salary/drawing.');
+    });
+  }
+
+  // Business Income Record card (see the HTML comment above #bizLedgerCard). Rebuilds the whole
+  // rows list from lastBusinessCredits + businessIncomeLedger every call — small dataset (one
+  // statement's worth of incoming payments), so a full re-render on each scan/restore is simplest
+  // and can't drift out of sync the way a surgical patch could.
+  function renderBusinessIncomeLedger(){
+    var card = document.getElementById('bizLedgerCard');
+    if (!card) return;
+    var introEl = document.getElementById('bizLedgerIntro');
+    var rowsEl = document.getElementById('bizLedgerRows');
+    var actionsEl = document.getElementById('bizLedgerActions');
+    var outputEl = document.getElementById('bizLedgerOutput');
+    var credits = lastBusinessCredits || [];
+    if (!credits.length){
+      introEl.style.display = 'block';
+      rowsEl.innerHTML = '';
+      actionsEl.style.display = 'none';
+      outputEl.innerHTML = '';
+      return;
+    }
+    introEl.style.display = 'none';
+    var filledCount = credits.filter(function(t){ return bizLedgerEntryIsFilled(businessIncomeLedger[inflowKey(t)]); }).length;
+    rowsEl.innerHTML = '<div class="item-tip" id="bizLedgerCount" style="margin-bottom:8px;">'+filledCount+' of '+credits.length+' payment(s) noted so far. For each, add who paid and what it was for — from your own knowledge of the transaction, in your own words.</div>'
+      + credits.map(function(t, i){
+        var existing = businessIncomeLedger[inflowKey(t)] || {};
+        return '<div class="explain-box'+(bizLedgerEntryIsFilled(existing) ? ' explained' : '')+'" id="bizLedgerRow_'+i+'">'
+          + '<div class="tx-line">'+t.date.toDateString()+' — '+fmtN(t.credit)+(t.narration ? ' ("'+escapeHtml(t.narration)+'")' : ' (no narration on statement)')+'</div>'
+          + '<label class="field" for="bizPayer_'+i+'">Who paid this?</label>'
+          + '<input type="text" id="bizPayer_'+i+'" placeholder="e.g. Chidinma Okeke, or &quot;walk-in customer&quot;" value="'+escapeHtml(existing.payer||'')+'">'
+          + '<label class="field" style="margin-top:6px;" for="bizPurpose_'+i+'">What was it for?</label>'
+          + '<input type="text" id="bizPurpose_'+i+'" placeholder="e.g. Payment for 2 bags of rice" value="'+escapeHtml(existing.purpose||'')+'">'
+          + '</div>';
+      }).join('');
+    actionsEl.style.display = 'block';
+    wireBusinessIncomeLedgerRows(credits);
+  }
+  function wireBusinessIncomeLedgerRows(credits){
+    credits.forEach(function(t, i){
+      var key = inflowKey(t);
+      var payerEl = document.getElementById('bizPayer_'+i);
+      var purposeEl = document.getElementById('bizPurpose_'+i);
+      var rowEl = document.getElementById('bizLedgerRow_'+i);
+      if (!payerEl || !purposeEl) return;
+      var saveTimer = null;
+      function save(){
+        if (saveTimer) clearTimeout(saveTimer);
+        saveTimer = setTimeout(function(){
+          var payer = payerEl.value, purpose = purposeEl.value;
+          var filled = payer.trim() || purpose.trim();
+          if (filled) businessIncomeLedger[key] = {payer: payer, purpose: purpose};
+          else delete businessIncomeLedger[key];
+          if (rowEl) rowEl.classList.toggle('explained', bizLedgerEntryIsFilled(businessIncomeLedger[key]));
+          var countEl = document.getElementById('bizLedgerCount');
+          if (countEl){
+            var filledCount = credits.filter(function(tt){ return bizLedgerEntryIsFilled(businessIncomeLedger[inflowKey(tt)]); }).length;
+            countEl.textContent = filledCount+' of '+credits.length+' payment(s) noted so far. For each, add who paid and what it was for — from your own knowledge of the transaction, in your own words.';
+          }
+          scheduleAutoSave();
+        }, 500);
+      }
+      payerEl.addEventListener('input', save);
+      purposeEl.addEventListener('input', save);
     });
   }
 
@@ -11052,6 +11187,52 @@
   /* ---------------- Export / import / print / reset ---------------- */
   document.getElementById('btnPrint').addEventListener('click', function(){ window.print(); });
 
+  // Compiles the Business Income Record: a clean, dated-today table of the applicant's own notes on
+  // each business-statement inflow — explicitly labelled as their own account, never styled or worded
+  // as a receipt. Included automatically in "Save full report as PDF" (window.print(), above) since
+  // this whole card lives inside the normal page flow, same as every other session.
+  document.getElementById('btnBuildBizLedger').addEventListener('click', function(){
+    var credits = lastBusinessCredits || [];
+    if (!credits.length) return;
+    var a = getAnswers();
+    var bizName = a.businessName || 'my business';
+    var today = new Date();
+    var rows = credits.map(function(t){
+      var e = businessIncomeLedger[inflowKey(t)] || {};
+      return {
+        date: t.date, amount: t.credit,
+        payer: (e.payer||'').trim() || '(not specified)',
+        purpose: (e.purpose||'').trim() || '(not specified)'
+      };
+    });
+    var unspecified = rows.filter(function(r){ return r.payer === '(not specified)' || r.purpose === '(not specified)'; }).length;
+    var warnHtml = unspecified
+      ? '<div class="scan-msg warn compact" style="margin-bottom:8px;">'+unspecified+' row(s) still say "(not specified)" — go back and fill those in above before attaching this, so every payment is actually explained.</div>'
+      : '';
+    var html = '<div class="biz-income-record" style="border:1px solid var(--border); border-radius:10px; padding:14px; margin-top:10px; background:var(--surface-1);">'
+      + warnHtml
+      + '<h3 style="margin:0 0 4px;">Business Income Record — '+escapeHtml(bizName)+'</h3>'
+      + '<p style="margin:0 0 10px; font-size:12px; color:var(--text-secondary);">Prepared by the business owner on '+today.toDateString()+', from their own knowledge of these transactions, to accompany the business bank statement submitted with this application. This is the applicant\'s own account of each payment — not a receipt issued at the time of the transaction.</p>'
+      + '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:12.5px;"><thead><tr>'
+      + '<th style="text-align:left; border-bottom:1px solid var(--border); padding:4px 6px;">Date</th>'
+      + '<th style="text-align:left; border-bottom:1px solid var(--border); padding:4px 6px;">Amount</th>'
+      + '<th style="text-align:left; border-bottom:1px solid var(--border); padding:4px 6px;">Paid by</th>'
+      + '<th style="text-align:left; border-bottom:1px solid var(--border); padding:4px 6px;">What it was for</th>'
+      + '</tr></thead><tbody>'
+      + rows.map(function(r){
+          return '<tr><td style="padding:4px 6px; border-bottom:1px solid var(--border);">'+r.date.toDateString()+'</td>'
+            + '<td style="padding:4px 6px; border-bottom:1px solid var(--border);">'+fmtN(r.amount)+'</td>'
+            + '<td style="padding:4px 6px; border-bottom:1px solid var(--border);">'+escapeHtml(r.payer)+'</td>'
+            + '<td style="padding:4px 6px; border-bottom:1px solid var(--border);">'+escapeHtml(r.purpose)+'</td></tr>';
+        }).join('')
+      + '</tbody></table></div>'
+      + '<p style="margin:10px 0 0; font-size:12px; color:var(--text-secondary);">Attach this alongside your business bank statement — it explains the inflows shown there; it does not replace the statement itself. Use "Save full report as PDF" above to include it with everything else.</p>'
+      + '</div>';
+    document.getElementById('bizLedgerOutput').innerHTML = html;
+    trackEvent('biz_income_record:built');
+    document.getElementById('bizLedgerOutput').scrollIntoView({behavior:'smooth', block:'nearest'});
+  });
+
   function getFinancials(){
     var fin = {};
     ['fc_nights','fc_flight','fc_accom','fc_transport','fc_shopping','fc_shoppingPlace','fc_sightseeing','fc_opening','fc_closing','fc_forexSavings','fc_airline','fc_depDate','fc_arrDate','fc_accomAddress'].forEach(function(id){
@@ -11078,7 +11259,7 @@
       date: document.getElementById('decl_date').value,
       confirmed: document.getElementById('decl_confirm').checked
     };
-    return { country: currentCountry, answers: getAnswers(), state: state, financials: getFinancials(), inflowExplanations: inflowExplanations, sourceExplanations: sourceExplanations, sourcePerPaymentMode: sourcePerPaymentMode, senderMergeDecisions: senderMergeDecisions, declaration: declaration, travelHistoryRows: travelHistoryRows, overstayRows: overstayRows, exportedAt: new Date().toISOString() };
+    return { country: currentCountry, answers: getAnswers(), state: state, financials: getFinancials(), inflowExplanations: inflowExplanations, sourceExplanations: sourceExplanations, sourcePerPaymentMode: sourcePerPaymentMode, senderMergeDecisions: senderMergeDecisions, businessIncomeLedger: businessIncomeLedger, declaration: declaration, travelHistoryRows: travelHistoryRows, overstayRows: overstayRows, exportedAt: new Date().toISOString() };
   }
 
   document.getElementById('btnExport').addEventListener('click', function(){
@@ -11176,6 +11357,17 @@
         if (n) normalizedInflows[k] = n;
       });
       inflowExplanations = normalizedInflows;
+    }
+    if (payload.businessIncomeLedger && typeof payload.businessIncomeLedger === 'object'){
+      // Simple {payer, purpose} shape, no legacy format to migrate — unlike inflowExplanations this
+      // note is only ever shown once the matching business statement is re-scanned in this session
+      // (lastBusinessCredits is transient, not persisted), same as lastBusinessDrawings today.
+      var normalizedBizLedger = {};
+      Object.keys(payload.businessIncomeLedger).forEach(function(k){
+        var e = payload.businessIncomeLedger[k];
+        if (e && typeof e === 'object' && (e.payer || e.purpose)) normalizedBizLedger[k] = {payer: e.payer || '', purpose: e.purpose || ''};
+      });
+      businessIncomeLedger = normalizedBizLedger;
     }
     if (payload.senderMergeDecisions && typeof payload.senderMergeDecisions === 'object'){
       // Only ever 'merge' or 'separate' strings (see senderMergeDecisions above) — filter out
@@ -11348,6 +11540,9 @@
     sourcePerPaymentMode = {};
     lastBusinessDrawings = null;
     lastPersonalCredits = null;
+    lastBusinessCredits = null;
+    businessIncomeLedger = {};
+    renderBusinessIncomeLedger();
     currentSessionIndex = 0;
     ['stmtFile1','stmtFile2','stmtFile3'].forEach(function(id){ document.getElementById(id).value = ''; });
     document.getElementById('btnAnalyzeStatements').disabled = true;
@@ -11499,6 +11694,9 @@
     CAT_ORDER = COUNTRIES[code].catOrder;
     lastBusinessDrawings = null;
     lastPersonalCredits = null;
+    lastBusinessCredits = null;
+    businessIncomeLedger = {};
+    renderBusinessIncomeLedger();
     currentSessionIndex = 0;
     categoryOpenState = {};
     itemCollapsed = {};
