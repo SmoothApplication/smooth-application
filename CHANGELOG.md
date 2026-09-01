@@ -3,6 +3,43 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fixed: passport expiry date "not detected" on a real live scan
+
+Direct user report, off a real passport scan on the live site: "Expires: not detected," with the MRZ
+checksum row reading only 2/4 matched, even though the passport's printed expiry date was perfectly
+legible. Root cause: the MRZ's expiry field had a letter where a digit should be (a common OCR
+misread, e.g. an "O" read in place of a "0") — a genuinely non-digit character, which the earlier
+digit-swap correction (added for a previous, different bug — see the date-of-birth entry below) can't
+fix at all, since that machinery only ever swaps one confusable DIGIT for another, never a letter for
+a digit. The date field's own `/^\d{6}$/` format check rejected it outright before the checksum
+machinery ever got a chance to run.
+
+Fixed with a new `fixMrzDateLetters()` step: since MRZ date fields are digits-only by spec, a letter
+there can only ever be a look-alike OCR misread of a digit, never a genuine value — so, unlike the
+swap-correction (which must stay conservative, since fields like the passport number legitimately mix
+letters and digits), it's safe to normalize a stray letter back to its look-alike digit unconditionally,
+before the checksum runs. Still honestly disclosed as an "Auto-corrected" row, not silently shown as if
+the MRZ had simply read cleanly all along. Also broadened the plain-text "Date of Expiry" fallback (a
+second, independent OCR read of the printed label) to try a looser bare-word match and to look a little
+before the label too, not just after — the label sits close to the photo/security-hologram on most bio
+pages, an area that tends to OCR worse than plain text elsewhere.
+
+## Personal application tracker (Phase 2 of the funded-opportunities work)
+
+Direct follow-on from the opportunities directory below: once students had a list of real programs,
+the natural next step was somewhere to track their own applications to more than one at once. Adds
+a second card, "My application tracker," in the same "Funded opportunities" session.
+
+Every program in the directory now has its own "+ Add to my tracker" toggle button, which creates a
+row below with an editable status (Researching / Preparing documents / Submitted / Interview / Accepted
+/ Not selected / Paused), an optional deadline, and free-text notes — plus a separate "track a program
+not listed above" box for anything outside the curated 10 (a university's own scholarship, a state
+scholarship board, anything). Saved under its own `smoothApplication_oppTracker_v1` localStorage key,
+independent of the per-country autosave the rest of the app uses — which scholarships someone is
+applying to has nothing to do with which visa checklist they currently have open, so it isn't reset or
+duplicated when switching visa countries, and survives a reload like everything else here: on-device
+only, nothing sent anywhere.
+
 ## Funded opportunities & exchange programs directory
 
 Feedback from an in-person street test with UNILAG students: several who worked through the checklist

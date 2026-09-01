@@ -799,6 +799,8 @@
   .opp-card .opp-label { font-weight: 600; color: var(--text-primary); }
   .opp-card .opp-link { display: inline-block; margin-top: 6px; font-size: 12.5px; font-weight: 600; }
   .opp-empty { font-size: 12.5px; color: var(--text-secondary); padding: 8px 0; }
+  .opp-track-btn.tracked { border-color: var(--good); color: var(--good); background: var(--good-wash); }
+  .tracker-row select, .tracker-row input[type="date"], .tracker-row textarea { font-size: 12.5px; }
 
   .contact-links { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
   .testimonial {
@@ -2065,6 +2067,25 @@
         <div id="oppFilterRow" class="opp-filter-row"></div>
         <div id="oppList"></div>
         <p class="item-tip" style="margin-top:10px;">Details above (funding, eligibility, deadlines) change year to year — always confirm the current cycle on the program's own official site before relying on anything here. Last checked: <span id="oppLastVerified"></span>.</p>
+      </div>
+
+      <!-- Phase 2 of the same UNILAG street-test feedback: once students had a list of real programs,
+           the natural next ask was somewhere to track their own applications to more than one at once.
+           Deliberately its own card (same data-session-key, so it shows/hides together with the
+           directory above) rather than merged into it — the directory is reference material anyone
+           browses; the tracker is personal, editable, and often empty at first. Saved under its own
+           localStorage key (see APP_TRACKER_KEY near renderTracker()) rather than folded into
+           buildPayload()/AUTOSAVE_PREFIX — those are keyed per visa country (storageKey() includes
+           currentCountry) and reset/reload on every country switch, but which scholarships someone is
+           applying to has nothing to do with which visa checklist they currently have open. -->
+      <div class="card" id="appTrackerCard" data-session-key="opportunities" style="border-left: 4px solid #1a8a5f;">
+        <h2 style="margin-top:0;"><span class="card-icon-badge" style="background:#1a8a5f1f; color:#1a8a5f;">📋</span> My application tracker</h2>
+        <p class="item-tip" style="margin-top:-4px;">Applying to more than one program above? Keep track of where each one stands. This stays on this device only — same "nothing leaves your browser" rule as the rest of this tool.</p>
+        <div id="trackerList"></div>
+        <div class="no-print" style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+          <input type="text" id="trackerCustomName" placeholder="Track a program not listed above — type its name" style="flex:1; min-width:220px;">
+          <button type="button" class="btn" id="btnAddCustomTracker">+ Add to my tracker</button>
+        </div>
       </div>
 
       <div class="card" id="finalSummaryCard" data-session-key="review" style="border-left: 4px solid #1b6fa8;">
@@ -6723,6 +6744,25 @@
     for (var i=0;i<str.length;i++) sum += mrzCharValue(str[i]) * weights[i % 3];
     return sum % 10;
   }
+  // Real user report: a passport whose expiry field OCR'd with a letter in place of a digit (e.g. an
+  // "O" instead of "0") came back "Expires: not detected" — nothing wrong with the passport, but a
+  // genuinely non-digit character in a date field can't be checksum-corrected by the confusable-DIGIT
+  // swap below at all (a letter has no entry in MRZ_CONFUSABLE_DIGITS), so both the checksum test and
+  // mrzDateToDate's own `/^\d{6}$/` guard failed outright before that machinery ever got a chance to
+  // run — and the same misread letter, sitting close to the photo/security-hologram area of the page,
+  // meant the plain-text "Date of Expiry" fallback below sometimes doesn't find a usable date either.
+  // The MRZ date fields are digits-only by spec (ICAO 9303) — a letter can ONLY ever be a look-alike
+  // OCR misread of a digit here, never a genuine value, so unlike the swap-correction below (which
+  // must stay conservative because a field like the passport number legitimately mixes letters and
+  // digits) this is safe to apply unconditionally, the same reasoning MRZ_NAME_DIGIT_FIX already uses
+  // in the other direction for the (letters-only) name field. Applied BEFORE the checksum/swap
+  // machinery runs, so a field that's otherwise clean just has its one bad character normalized back
+  // to a real digit and validates immediately; genuinely wrong digits still fall through to the
+  // swap-correction and, failing that, the printed-text fallback exactly as before.
+  var MRZ_DATE_LETTER_FIX = { 'O':'0', 'Q':'0', 'D':'0', 'I':'1', 'L':'1', 'Z':'2', 'S':'5', 'G':'6', 'B':'8' };
+  function fixMrzDateLetters(str){
+    return (str || '').replace(/[A-Z]/g, function(c){ return MRZ_DATE_LETTER_FIX[c] || c; });
+  }
   // Real-world report: a passport's date of birth read as "3/9/1938" instead of the true "3/9/1988" —
   // an "8" OCR'd as a "3", the same kind of look-alike-glyph misread already handled for letters in the
   // name field (see MRZ_NAME_DIGIT_FIX above), but this time inside a field that legitimately contains
@@ -6853,7 +6893,12 @@
     for (var i=0;i<rawLines.length;i++){
       if (rawLines[i].length < 34) continue; // cheap skip before the heavier normalize/regex work below
       var norm = normalizeMrzLine(rawLines[i], 44);
-      if (!norm || !MRZ_LINE2_SHAPE_RE.test(norm)) continue;
+      if (!norm) continue;
+      // Same letter-for-digit OCR fix validateMrz() applies below (see fixMrzDateLetters above) —
+      // done before the shape regex test, since a stray letter in either date field would otherwise
+      // fail that strict \d{6} shape check outright and this candidate line would never even be tried.
+      norm = norm.slice(0,13) + fixMrzDateLetters(norm.slice(13,19)) + norm.slice(19,21) + fixMrzDateLetters(norm.slice(21,27)) + norm.slice(27);
+      if (!MRZ_LINE2_SHAPE_RE.test(norm)) continue;
       var passportNum = norm.slice(0,9), pnCheck = norm[9];
       var birth = norm.slice(13,19), birthCheck = norm[19];
       var expiry = norm.slice(21,27), expiryCheck = norm[27];
@@ -6877,8 +6922,16 @@
     }
 
     var passportNum = line2.slice(0,9), pnCheck = line2[9];
-    var birth = line2.slice(13,19), birthCheck = line2[19];
-    var expiry = line2.slice(21,27), expiryCheck = line2[27];
+    // fixMrzDateLetters here, not on passportNum below — the date fields are digits-only by spec, so a
+    // letter there can only be OCR noise (see the comment above the function); the passport number
+    // field legitimately mixes letters and digits, so it's left exactly as read. Tracked against the
+    // raw (pre-fix) slice so a genuine letter-for-digit fix is disclosed as an "Auto-corrected" row
+    // below, same as the digit-swap correction already is — never silently shown as if the MRZ had
+    // simply read cleanly in the first place.
+    var birthRawSlice = line2.slice(13,19), birthCheck = line2[19];
+    var expiryRawSlice = line2.slice(21,27), expiryCheck = line2[27];
+    var birth = fixMrzDateLetters(birthRawSlice), birthLetterFixed = birth !== birthRawSlice;
+    var expiry = fixMrzDateLetters(expiryRawSlice), expiryLetterFixed = expiry !== expiryRawSlice;
     var personalNum = line2.slice(28,42), personalCheck = line2[42];
     var compositeCheck = line2[43];
 
@@ -6913,7 +6966,7 @@
     var passed = relevant.filter(function(k){ return checks[k]; });
     return { checks: checks, passedCount: passed.length, totalCount: relevant.length,
       birth: birth, expiry: expiry,
-      corrections: { birthDate: !!birthCorrected, expiryDate: !!expiryCorrected } };
+      corrections: { birthDate: !!birthCorrected || birthLetterFixed, expiryDate: !!expiryCorrected || expiryLetterFixed } };
   }
 
   // Full structured read of the TD3 (passport) MRZ — document type, issuing country, name, passport number,
@@ -7168,7 +7221,7 @@
     if (mrz && mrz.corrections && mrz.corrections.birthDate) correctedFieldNames.push('date of birth');
     if (mrz && mrz.corrections && mrz.corrections.expiryDate) correctedFieldNames.push('expiry date');
     if (correctedFieldNames.length){
-      rows += row('Auto-corrected', 'One digit in the ' + correctedFieldNames.join(' and ') + ' looked like a common OCR misread (e.g. an "8" read as a "3") and was corrected using the passport\'s own check digit as a mathematical check — still worth confirming against the physical document.', true);
+      rows += row('Auto-corrected', 'One character in the ' + correctedFieldNames.join(' and ') + ' looked like a common OCR misread (e.g. an "8" read as a "3", or a letter like "O" read in place of a digit) and was corrected using the passport\'s own check digit as a mathematical check — still worth confirming against the physical document.', true);
     }
     // Some confusable digit pairs (like "3"/"8") mathematically CAN'T be told apart by the check digit
     // alone once a field has more than one of them — swapping any one of several positions restores an
@@ -7335,15 +7388,31 @@
   // had this same printed-text fallback to catch it. Scoped to a plausible near-future window (most
   // passports are valid 5-10 years), not extractPrintedBirthDate's near-past-only window.
   var EXPIRY_DATE_LABEL_RE = /(date\s*of\s*expir|expir\w*\s*date|exp\.?\s*date|date\s*d[’']?expiration)/i;
+  // Real user report, even after fixMrzDateLetters above: the label match itself still came back empty
+  // on one real scan — the "Date of Expiry / Date d'Expiration" label sits close to the photo and
+  // security hologram on most bio pages, an area that tends to OCR worse than the plain label/value
+  // text elsewhere on the page, so the full "date ... expir..." phrase sometimes doesn't survive
+  // intact even when a shorter fragment of it does. Tried only as a second, looser pass — after the
+  // more specific pattern above has already failed to find anything — since a bare "expir" is common
+  // enough in unrelated prose (e.g. a "may result in expiry of your status" disclaimer) that using it
+  // as the FIRST attempt would risk anchoring on the wrong part of the page.
+  var EXPIRY_BARE_LABEL_RE = /expir\w*/i;
   function extractPrintedExpiryDate(text){
     if (!text) return null;
     var vizText = stripMrzLines(text);
-    var m = EXPIRY_DATE_LABEL_RE.exec(vizText);
-    if (!m) return null;
-    var windowText = vizText.slice(m.index, m.index + m[0].length + 60);
     var nowYear = new Date().getFullYear();
-    var found = extractDates(windowText, { minYear: nowYear - 1, maxYear: nowYear + 15 });
-    return found.length ? found[0] : null;
+    var tryLabel = function(re){
+      var m = re.exec(vizText);
+      if (!m) return null;
+      // Looks a little before the label too, not just after — a real bio page's two-column layout
+      // (issue date + authority side by side) doesn't always put the value strictly after its label
+      // the way extractPrintedBirthDate's simpler, single-column layout usually does.
+      var start = Math.max(0, m.index - 30);
+      var windowText = vizText.slice(start, m.index + m[0].length + 60);
+      var found = extractDates(windowText, { minYear: nowYear - 1, maxYear: nowYear + 15 });
+      return found.length ? found[0] : null;
+    };
+    return tryLabel(EXPIRY_DATE_LABEL_RE) || tryLabel(EXPIRY_BARE_LABEL_RE);
   }
 
   function analyze(kind, text, answers){
@@ -9748,6 +9817,7 @@
     }
     listEl.innerHTML = shown.map(function(o){
       var meta = PATHWAY_META[o.pathway];
+      var tracked = isTracked(o.id);
       return '<div class="opp-card" id="opp_'+o.id+'">'
         + '<span class="opp-badge" style="background:'+meta.color+';">'+meta.label+'</span>'
         + '<h3>'+o.name+'</h3>'
@@ -9756,8 +9826,141 @@
         + '<p><span class="opp-label">Eligibility: </span>'+o.eligibilityNote+'</p>'
         + '<p><span class="opp-label">When to apply: </span>'+o.whenToApply+'</p>'
         + '<a class="opp-link" href="'+o.officialUrl+'" target="_blank" rel="noopener noreferrer">Official site: '+o.officialUrlText+' ↗</a>'
+        + '<button type="button" class="btn no-print opp-track-btn'+(tracked ? ' tracked' : '')+'" style="margin:8px 0 0; display:block;" data-track-id="'+o.id+'">'+(tracked ? '✓ In my tracker' : '+ Add to my tracker')+'</button>'
         + '</div>';
     }).join('');
+    Array.prototype.forEach.call(listEl.querySelectorAll('.opp-track-btn'), function(btn){
+      btn.addEventListener('click', function(){
+        var id = btn.getAttribute('data-track-id');
+        var program = OPPORTUNITIES.filter(function(o){ return o.id === id; })[0];
+        if (!program) return;
+        toggleTrack(id, program.name);
+      });
+    });
+  }
+
+  // Personal application tracker — Phase 2 of the same UNILAG street-test feedback that produced the
+  // opportunities directory above (see the #appTrackerCard HTML comment for why this lives under its
+  // own storage key rather than inside buildPayload()'s per-country autosave). Each entry can point at
+  // one of the 10 curated OPPORTUNITIES (programId set, name kept alongside it so a later edit to the
+  // curated list can't silently rename or blank out something someone is already tracking) or be a
+  // free-typed custom entry (programId null) for a program not in the curated list at all.
+  var APP_TRACKER_KEY = 'smoothApplication_oppTracker_v1';
+  var TRACKER_STATUS_OPTIONS = [
+    { value: 'researching', label: 'Researching' },
+    { value: 'preparing', label: 'Preparing documents' },
+    { value: 'submitted', label: 'Submitted — waiting to hear back' },
+    { value: 'interview', label: 'Interview / next stage' },
+    { value: 'accepted', label: 'Accepted 🎉' },
+    { value: 'not-selected', label: 'Not selected this time' },
+    { value: 'paused', label: 'Paused / revisiting later' }
+  ];
+  var trackerEntries = [];
+  function loadTrackerEntries(){
+    try {
+      var raw = localStorage.getItem(APP_TRACKER_KEY);
+      if (!raw) return;
+      var parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return;
+      // Rebuild each entry from scratch rather than trusting the stored shape wholesale — same
+      // defensive normalization used for every other imported/restored structure in this app (see
+      // applyPayload above), so a hand-edited or older-format export can't inject anything unexpected.
+      trackerEntries = parsed.filter(function(e){ return e && typeof e === 'object' && typeof e.id === 'string'; }).map(function(e){
+        return {
+          id: e.id,
+          programId: typeof e.programId === 'string' ? e.programId : null,
+          name: typeof e.name === 'string' ? e.name : '',
+          status: TRACKER_STATUS_OPTIONS.some(function(s){ return s.value === e.status; }) ? e.status : 'researching',
+          deadline: typeof e.deadline === 'string' ? e.deadline : '',
+          notes: typeof e.notes === 'string' ? e.notes : ''
+        };
+      });
+    } catch(e){
+      // Storage unavailable or corrupt — start with an empty tracker rather than breaking the page.
+    }
+  }
+  var trackerSaveTimer = null;
+  function saveTrackerEntries(){
+    clearTimeout(trackerSaveTimer);
+    trackerSaveTimer = setTimeout(function(){
+      try { localStorage.setItem(APP_TRACKER_KEY, JSON.stringify(trackerEntries)); } catch(e){ /* fail silently, same as the main autosave */ }
+    }, 400);
+  }
+  function isTracked(programId){
+    return trackerEntries.some(function(e){ return e.programId === programId; });
+  }
+  function toggleTrack(programId, name){
+    var existing = trackerEntries.filter(function(e){ return e.programId === programId; })[0];
+    if (existing){
+      trackerEntries = trackerEntries.filter(function(e){ return e !== existing; });
+    } else {
+      trackerEntries.push({ id: 'trk_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8), programId: programId, name: name, status: 'researching', deadline: '', notes: '' });
+    }
+    saveTrackerEntries();
+    renderOpportunities();
+    renderTracker();
+  }
+  document.getElementById('btnAddCustomTracker').addEventListener('click', function(){
+    var input = document.getElementById('trackerCustomName');
+    var name = (input.value || '').trim();
+    if (!name) return;
+    trackerEntries.push({ id: 'trk_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8), programId: null, name: name, status: 'researching', deadline: '', notes: '' });
+    input.value = '';
+    saveTrackerEntries();
+    renderTracker();
+  });
+  function renderTracker(){
+    var listEl = document.getElementById('trackerList');
+    if (!listEl) return;
+    if (!trackerEntries.length){
+      listEl.innerHTML = '<p class="opp-empty">Nothing tracked yet — click "+ Add to my tracker" on any program above, or type one in below.</p>';
+      return;
+    }
+    listEl.innerHTML = trackerEntries.map(function(e){
+      var statusOptionsHtml = TRACKER_STATUS_OPTIONS.map(function(s){
+        return '<option value="'+s.value+'"'+(s.value === e.status ? ' selected' : '')+'>'+s.label+'</option>';
+      }).join('');
+      return '<div class="opp-card tracker-row" id="track_'+e.id+'">'
+        + '<h3>'+escapeHtml(e.name || 'Untitled')+'</h3>'
+        + '<div class="row" style="margin-top:6px;">'
+        + '<div><label class="field" for="track_status_'+e.id+'">Status</label><select id="track_status_'+e.id+'" class="tracker-status" data-id="'+e.id+'">'+statusOptionsHtml+'</select></div>'
+        + '<div><label class="field" for="track_deadline_'+e.id+'">Deadline (optional)</label><input type="date" id="track_deadline_'+e.id+'" class="tracker-deadline" data-id="'+e.id+'" value="'+escapeHtml(e.deadline||'')+'"></div>'
+        + '</div>'
+        + '<label class="field" style="margin-top:6px;" for="track_notes_'+e.id+'">Notes</label>'
+        + '<textarea id="track_notes_'+e.id+'" class="tracker-notes" data-id="'+e.id+'" rows="2" placeholder="e.g. submitted 12 Aug, waiting on a referee letter">'+escapeHtml(e.notes||'')+'</textarea>'
+        + '<button type="button" class="btn no-print" style="margin-top:6px;" data-remove-id="'+e.id+'">Remove from tracker</button>'
+        + '</div>';
+    }).join('');
+    Array.prototype.forEach.call(listEl.querySelectorAll('.tracker-status'), function(sel){
+      sel.addEventListener('change', function(){
+        var entry = trackerEntries.filter(function(e){ return e.id === sel.getAttribute('data-id'); })[0];
+        if (entry){ entry.status = sel.value; saveTrackerEntries(); }
+      });
+    });
+    Array.prototype.forEach.call(listEl.querySelectorAll('.tracker-deadline'), function(inp){
+      inp.addEventListener('input', function(){
+        var entry = trackerEntries.filter(function(e){ return e.id === inp.getAttribute('data-id'); })[0];
+        if (entry){ entry.deadline = inp.value; saveTrackerEntries(); }
+      });
+    });
+    Array.prototype.forEach.call(listEl.querySelectorAll('.tracker-notes'), function(ta){
+      ta.addEventListener('input', function(){
+        var entry = trackerEntries.filter(function(e){ return e.id === ta.getAttribute('data-id'); })[0];
+        if (entry){ entry.notes = ta.value; saveTrackerEntries(); }
+      });
+    });
+    Array.prototype.forEach.call(listEl.querySelectorAll('[data-remove-id]'), function(btn){
+      btn.addEventListener('click', function(){
+        var id = btn.getAttribute('data-remove-id');
+        var removed = trackerEntries.filter(function(e){ return e.id === id; })[0];
+        trackerEntries = trackerEntries.filter(function(e){ return e.id !== id; });
+        saveTrackerEntries();
+        renderTracker();
+        // If the removed entry pointed at one of the curated programs, its "+ Add to my tracker"
+        // button needs to flip back from "✓ In my tracker" — only worth a re-render in that case.
+        if (removed && removed.programId) renderOpportunities();
+      });
+    });
   }
 
   // Shared pipeline behind BOTH the dedicated "Analyze statement(s)" uploader in the Financial Calculator
@@ -12512,7 +12715,9 @@
   updateGateContinueHint();
 
   render();
+  loadTrackerEntries(); // independent of country/answers — its own storage key, loaded once
   renderOpportunities(); // static directory, independent of country/answers — built once, not on every render() pass
+  renderTracker();
 
   // Offline app-shell support (PWA). Registers a same-origin service worker that caches only this
   // page, the manifest, and the icons — never a document you upload, never a CDN library (see
