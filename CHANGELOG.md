@@ -3,6 +3,14 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## CI: bumped Node 20 → 22 (Node 20 has reached end-of-life)
+
+Small maintenance fix, not user-facing. The CI workflow's `actions/setup-node` step was still
+pinned to Node 20, which is now past its end-of-life date — GitHub Actions was already silently
+running it on Node 24 under the hood and surfacing a deprecation warning on every run. Bumped to
+Node 22 (current LTS) for both the `pii-scan` and `test` jobs so the pinned version matches what's
+actually supported, instead of drifting further behind.
+
 ## Corrected: Ghana road-trip cost estimate was sourced from a bad aggregator
 
 The Lagos–Accra road figure added in the travel-history cost estimates below (₦20,000–45,000) came
