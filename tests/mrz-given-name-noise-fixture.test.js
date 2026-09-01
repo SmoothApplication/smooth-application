@@ -1,6 +1,6 @@
 'use strict';
-// Real user report (shared as an actual passport photo): the MRZ auto-fill produced "Mary
-// Oluwafunmilayo K Klllllllll Afeni" instead of "Mary Oluwafunmilayo Afeni" — stray OCR noise from
+// Real user report (shared as an actual passport photo): the MRZ auto-fill produced "Faith
+// Folasade K Klllllllll Bello" instead of "Faith Folasade Bello" — stray OCR noise from
 // the name field's trailing "<" padding survived as two extra tokens ("K" and "KLLLLLLLLLL")
 // instead of clean filler, since a row of visually-identical "<" chevrons tends to get misread as
 // visually-identical letters too.

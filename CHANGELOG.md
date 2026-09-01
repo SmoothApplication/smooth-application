@@ -3,6 +3,22 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fixed CI: missing lock file, and a real PII leak the scanner caught
+
+Following up on the Node 22 bump below, checking the CI run history turned up two more real
+problems, not just the deprecation warning:
+
+- **The `test` job was failing outright.** `actions/setup-node`'s npm cache step (and separately,
+  `npm ci`) both require a `package-lock.json` to exist — but this repo deliberately doesn't commit
+  one (see the earlier "no build step" decision). Removed the cache step and switched to
+  `npm install`, which doesn't require a lock file, instead of reversing that decision.
+- **The `pii-scan` job was failing for a real reason**: a genuine client's first name, and a
+  previously-scrubbed real business name, had leaked back into `CHANGELOG.md`, `index.html`, and two
+  test files/fixtures — both already on the scanner's own denylist from an earlier leak, meaning this
+  had been quietly failing CI for a while without anyone chasing down why. Replaced both with
+  fictional equivalents, and deleted an orphaned fixture file that wasn't referenced by any test but
+  was still carrying the leaked business name. `pii-scan` is clean again.
+
 ## CI: bumped Node 20 → 22 (Node 20 has reached end-of-life)
 
 Small maintenance fix, not user-facing. The CI workflow's `actions/setup-node` step was still
@@ -459,8 +475,8 @@ individual fields.
 
 ## Passport name field made editable; two real MRZ scan bugs fixed
 
-Real user report, from an actual passport photo: the auto-filled name came back "Mary
-Oluwafunmilayo K Klllllllll Afeni" (OCR noise inserted mid-name), the expiry date came back "not
+Real user report, from an actual passport photo: the auto-filled name came back "Faith
+Folasade K Klllllllll Bello" (OCR noise inserted mid-name), the expiry date came back "not
 detected," and — the sharpest complaint — there was no way to fix the wrong name right there on the
 passport session; it was a readonly mirror pointing to a different, later session.
 

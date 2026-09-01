@@ -4917,8 +4917,8 @@
       box.innerHTML = '<div class="scan-msg warn">⚠️ Your passport '+(expired ? 'has expired' : 'has less than 6 months\' validity remaining')+' — most visa applications need at least 6 months left, so renewing it should be a priority. <a href="https://passport.immigration.gov.ng/" target="_blank" rel="noopener">Start your renewal on the official Nigeria Immigration Service site ↗</a> This doesn\'t have to stop you here though — feel free to carry on to Session 2 while you sort renewal out in parallel; none of that work goes to waste.</div>';
     }
   }
-  // Real user report: OCR read a name off an actual passport with stray garbage in it ("Mary
-  // Oluwafunmilayo K Klllllllll Afeni"), and this field was READONLY — a mirror of "Your full name
+  // Real user report: OCR read a name off an actual passport with stray garbage in it ("Faith
+  // Folasade K Klllllllll Bello"), and this field was READONLY — a mirror of "Your full name
   // (as on passport)" on the trip-details session further along, with a tip pointing there to fix
   // it. OCR will never be perfect no matter how much the reading itself improves (see the MRZ
   // parsing fix nearby), so the applicant needs to be able to correct a wrong name right where they
@@ -7247,8 +7247,8 @@
     // row of visually-identical "<" chevrons tends to get OCR'd as visually-identical letters too.
     // Originally this only stripped a single bare trailing letter (e.g. "ADAEZE CHIOMA K" ->
     // "ADAEZE CHIOMA"), but a real passport scan produced TWO such tokens mid-string — one bare
-    // letter and one long run of a repeated letter: "MARY OLUWAFUNMILAYO K KLLLLLLLLLL AFENI" instead
-    // of "MARY OLUWAFUNMILAYO". Generalized to catch both patterns anywhere in the field, not just a
+    // letter and one long run of a repeated letter: "FAITH FOLASADE K KLLLLLLLLLL BELLO" instead
+    // of "FAITH FOLASADE". Generalized to catch both patterns anywhere in the field, not just a
     // single one at the very end: a genuine given-name word is never just one bare letter, and never
     // 3+ of the same letter repeated in a row (optionally after one different leading character, from
     // the odd chevron that partially resembles a different letter) — real names don't look like that,
