@@ -52,6 +52,12 @@ exports.run = async function(ctx){
     assert.strictEqual(rowCountAfterCustom, 2, 'Adding a custom entry should add a second tracker row without touching the first');
     var customNameCleared = await page.$eval('#trackerCustomName', function(el){ return el.value; });
     assert.strictEqual(customNameCleared, '', 'The custom-name input should clear itself after adding');
+    // saveTrackerEntries() debounces its localStorage write by 400ms (see index.html) — the 50ms
+    // wait above is only enough for the DOM/row-count checks just above, not for that write to have
+    // actually landed yet. Give it the same margin as the status/deadline/notes edit above before
+    // reloading, or the custom entry just added can lose the race against the reload and appear to
+    // "not survive a reload" even though persistence itself is working correctly.
+    await page.waitForTimeout(500);
 
     // Reload the page — the tracker (both entries, with the edited status/deadline/notes) should
     // survive, proving it persists independently of the rest of the app's per-country autosave.
