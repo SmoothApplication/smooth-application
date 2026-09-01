@@ -4993,6 +4993,21 @@
           opt.classList.toggle('active', i === activeIndex);
         });
       }
+      // The travel-history/overstay tables sit inside .cf-table-scroll, a horizontally-scrolling
+      // wrapper added to fix mobile overflow (see its CSS comment) — but setting overflow-x on a
+      // container forces its computed overflow-y to 'auto' too, per the CSS spec, not just visually
+      // on mobile. That silently turned .cf-table-scroll into a vertical clipping box as well, which
+      // cut this dropdown down to a sliver since it was positioned (position:absolute) as a normal
+      // descendant of that container. Fixed by switching it to position:fixed, placed from the
+      // input's own getBoundingClientRect() each time it opens — that escapes the clipping ancestor
+      // entirely rather than fighting with it, the same trick a portal-based dropdown uses.
+      function positionList(){
+        var r = input.getBoundingClientRect();
+        list.style.position = 'fixed';
+        list.style.top = (r.bottom + 4) + 'px';
+        list.style.left = r.left + 'px';
+        list.style.width = r.width + 'px';
+      }
       function openList(query){
         var q = (query || '').trim().toLowerCase();
         currentMatches = sortedMatches(q);
@@ -5007,13 +5022,23 @@
             return '<div class="country-combo-option'+(i===0?' active':'')+'" role="option" data-value="'+escapeHtml(c)+'">'+label+'</div>';
           }).join('');
         }
+        positionList();
         list.hidden = false;
         input.setAttribute('aria-expanded', 'true');
+        // Scroll events don't bubble, so a capture-phase listener on window is the standard way to
+        // catch scrolling on ANY descendant scroller (here, .cf-table-scroll's own horizontal
+        // scroll) as well as the page itself — closing on scroll is simpler and safer than trying to
+        // keep a position:fixed list glued to an input that's moving underneath it. Added only while
+        // open and removed in closeList() below, rather than left permanently registered, since this
+        // wiring itself re-runs on every table rebuild and a listener added unconditionally here
+        // would otherwise pile up across re-renders.
+        window.addEventListener('scroll', closeList, true);
       }
       function closeList(){
         list.hidden = true;
         input.setAttribute('aria-expanded', 'false');
         activeIndex = -1;
+        window.removeEventListener('scroll', closeList, true);
       }
       function commit(value){
         input.value = value;

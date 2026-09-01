@@ -3,6 +3,25 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fixed: country dropdown was invisible when adding travel history
+
+Real user report: "when I type the country, the dropdown menu drops down and I cannot see the
+list of the country." Root cause traced live on the deployed site: `.cf-table-scroll` — the
+wrapper added earlier to fix this same table's horizontal overflow on mobile — sets
+`overflow-x: auto`, but per the CSS spec that silently forces its computed `overflow-y` to `auto`
+too, not just visually on small screens. That turned it into a vertical clipping box as well, and
+the country dropdown was a normal `position: absolute` descendant of it, so it got clipped down to
+a sliver a couple of pixels tall — invisible, but still technically there and still working if you
+knew blindly where to click. Fixed by making the dropdown `position: fixed`, placed from the
+input's own position each time it opens, so it escapes that clipping ancestor entirely — same
+trick a portal-based dropdown uses. Also closes the list on any scroll (page or the table's own
+horizontal scroll) rather than trying to keep a fixed-position list chasing a moving input.
+Verified the fix directly on the live site before shipping it. Added
+`tests/country-combo-dropdown-not-clipped.test.js` — a plain click-based test wouldn't reliably
+catch this again since Playwright auto-scrolls elements into view before clicking, which can paper
+over exactly this kind of clipping bug, so it asserts the list's real rendered height and CSS
+position instead.
+
 ## Fixed CI: missing lock file, and a real PII leak the scanner caught
 
 Following up on the Node 22 bump below, checking the CI run history turned up two more real
