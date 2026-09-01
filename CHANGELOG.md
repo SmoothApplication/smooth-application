@@ -3,6 +3,47 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Corrected: Ghana road-trip cost estimate was sourced from a bad aggregator
+
+The Lagos–Accra road figure added in the travel-history cost estimates below (₦20,000–45,000) came
+from a third-party SEO aggregator site, not the transport company itself. The founder checked ABC
+Transport's own live booking site directly and found their Sprinter Service listed at ₦100,000
+one-way — more than double what the aggregator reported. Updated the figure to the verified, direct-
+from-source number, noted a Standard Coach seat may be cheaper, and softened the "road is far
+cheaper than flying" comparison note, since that price gap is narrower than the original (wrong)
+figure suggested. Lesson for next time: check the operator's own site before an aggregator's.
+
+## Spouse-sponsor decision tool, and road/flight cost estimates for travel-history trips
+
+Field-work insight, shared directly: "who actually applies, and whose money pays for it" is a real,
+open decision for a married applicant — this checklist previously assumed it was always "you, self-
+funded" by default. Added three follow-up questions under "I'm married" (Your responsibilities):
+is your spouse willing to fund this trip, are they employed, do they already hold a UK visa or have
+UK travel history. These feed ONE clear recommendation instead of leaving the applicant to piece the
+logic together:
+
+- Spouse already has UK visa/travel history → suggests framing the trip as them taking you along on
+  their next visit — narrative guidance only, doesn't touch the checklist.
+- Spouse willing and employed → recommends they act as your financial sponsor, and explains plainly
+  what that requires (their own 6-month bank statements, a signed letter confirming the relationship
+  and that they're funding the trip) — current UK guidance is consistent that undeclared third-party
+  funds are usually disregarded outright, so this needs to be stated, not left implicit. Applicant
+  still has to actively tick a confirm box for this to add the actual document requirement to their
+  checklist — advisory, never automatic, same pattern as the existing student-sponsor checkbox.
+- Spouse willing but not employed → cautions that sponsor evidence needs genuine income of its own.
+- Spouse not willing → confirms no changes needed, applicant continues self-funded as before.
+
+Also softened the bank-statement account-holder-name-mismatch warning: if the applicant has declared
+their spouse as sponsor and the mismatched name matches the spouse's, it now reads as a confirmation
+("this looks like your spouse's statement, as expected") rather than the same alarming warning shown
+for a genuine mistake.
+
+Separately: added a rough road-vs-flight cost estimate to the existing Ghana/Kenya/Ethiopia/South
+Africa travel-history guides (Session 2, "no travel history yet"), for a short 3–5 day trip. Ghana is
+the only one of the four with a real overland option from Nigeria (cross-border coach via Benin/Togo,
+roughly ₦20,000–45,000 one-way); the other three say so plainly rather than pretending an overland
+route exists — thousands of km through several borders, some genuinely unsafe to cross by road.
+
 ## Expiry "not detected" now points straight at the manual field, instead of dead-ending
 
 A real re-test on the same live passport photo from the earlier expiry-detection fix (see below)

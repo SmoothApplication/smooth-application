@@ -1382,6 +1382,50 @@
         <div id="rs_spouseRow" style="display:none; padding-left:24px; margin:-2px 0 8px;">
           <label class="field" for="rs_spouseName">Spouse's full name</label>
           <input type="text" id="rs_spouseName" placeholder="e.g. Chidinma Okafor">
+
+          <!-- Field-work insight: for a married applicant, WHO actually applies (and whose money pays
+               for it) is often a real, open decision — not something this checklist should silently
+               assume is always "you, self-funded". A spouse who's employed and willing can act as
+               financial sponsor instead; a spouse who already holds a UK visa changes the framing
+               entirely (a joint trip with a spouse who has a proven travel history reads very
+               differently to a reviewer than a first-time solo applicant). These three questions feed
+               renderSponsorRecommendation() below, which gives ONE clear recommendation rather than
+               leaving the applicant to piece it together — but the applicant still has to actively
+               confirm it (rs_spouseSponsoring), same "advisory, not automatic" pattern as the student-
+               sponsor checkbox above: nothing about the required-documents list changes on its own.
+               UK Home Office guidance is consistent on this point (checked against current guidance,
+               Sept 2026): third-party funds in an account that isn't declared as a sponsor's are
+               usually disregarded outright by a caseworker, so this needs to be stated plainly on the
+               application, not left implicit — the whole reason this flow exists. -->
+          <div class="row" style="margin-top:10px;">
+            <div>
+              <label class="field" for="rs_spouseWilling">Is your spouse willing to fund or sponsor this trip?</label>
+              <select id="rs_spouseWilling">
+                <option value="">Select…</option>
+                <option value="yes">Yes</option>
+                <option value="no">No / I'll fund it myself</option>
+              </select>
+            </div>
+            <div>
+              <label class="field" for="rs_spouseEmployed">Is your spouse gainfully employed or running a business?</label>
+              <select id="rs_spouseEmployed">
+                <option value="">Select…</option>
+                <option value="yes">Yes</option>
+                <option value="no">No / not currently</option>
+              </select>
+            </div>
+          </div>
+          <label class="field" for="rs_spouseUkHistory">Does your spouse currently hold a UK visa, or have they travelled to the UK before?</label>
+          <select id="rs_spouseUkHistory">
+            <option value="">Select…</option>
+            <option value="yes">Yes</option>
+            <option value="no">No</option>
+          </select>
+          <div id="rs_sponsorRecommendationBox" style="margin-top:8px;"></div>
+          <div class="checkrow" id="rs_spouseSponsoringRow" style="display:none; margin-top:6px;">
+            <input type="checkbox" id="rs_spouseSponsoring">
+            <label for="rs_spouseSponsoring">Yes — my spouse will sponsor this trip as my financial sponsor</label>
+          </div>
         </div>
 
         <div class="row">
@@ -2601,6 +2645,8 @@
       accepts:'file', multiple:true, checkKind:'businessStatement'},
     {id:'cacDocs', cat:'Financial evidence', label:'CAC registration (business registration documents)', weight:'required', appliesIf:function(a){return a.selfEmployed;},
       tip:'Your CAC certificate and other business registration documents — shows the business exists and is active.', accepts:'file', multiple:true},
+    {id:'spouseSponsorFinance', cat:'Financial evidence', label:"Spouse's financial documents + signed sponsor letter", weight:'required', appliesIf:function(a){return a.married && a.spouseSponsoring;},
+      tip:'Since your spouse is sponsoring this trip: their bank statements for the last 6 months, plus a signed letter from them stating their relationship to you and confirming they\'re funding your visit. UK guidance treats undeclared third-party funds as unexplained, so this needs to be submitted alongside your own application, not left implicit.', accepts:'file', multiple:true},
 
     // Ties to Nigeria
     {id:'leaveLetter', cat:'Ties to Nigeria', label:"Employer's leave-approval letter", weight:'required', appliesIf:function(a){return a.employed;},
@@ -2737,6 +2783,8 @@
       tip:'Your CAC certificate and other business registration documents — shows the business exists and is active.', accepts:'file', multiple:true},
     {id:'sponsorFinance', cat:'Financial evidence', label:"Sponsor's financial documents + Sponsorship/Invitation Letter (IMM 5481)", weight:'required', appliesIf:function(a){return a.hasHost && a.hostFunding;},
       tip:'Needed if a host or relative in Canada is covering some or all of your costs — their bank statements/employment letter plus the IMM 5481 form.', accepts:'file', multiple:true},
+    {id:'spouseSponsorFinance', cat:'Financial evidence', label:"Spouse's financial documents + signed sponsor letter", weight:'required', appliesIf:function(a){return a.married && a.spouseSponsoring;},
+      tip:'Since your spouse is sponsoring this trip: their bank statements for the last 3–6 months, plus a signed letter from them stating their relationship to you and confirming they\'re funding your visit — declared plainly rather than left implicit.', accepts:'file', multiple:true},
 
     // Ties to Nigeria
     {id:'leaveLetter', cat:'Ties to Nigeria', label:"Employer's leave-approval letter", weight:'required', appliesIf:function(a){return a.employed;},
@@ -2880,6 +2928,8 @@
       accepts:'file', multiple:true, checkKind:'businessStatement'},
     {id:'cacDocs', cat:'Financial evidence', label:'CAC registration (business registration documents)', weight:'required', appliesIf:function(a){return a.selfEmployed;},
       tip:'Your CAC certificate and other business registration documents — shows the business exists and is active.', accepts:'file', multiple:true},
+    {id:'spouseSponsorFinance', cat:'Financial evidence', label:"Spouse's financial documents + signed sponsor letter", weight:'required', appliesIf:function(a){return a.married && a.spouseSponsoring;},
+      tip:'Since your spouse is sponsoring this trip: their bank statements for the last 6 months, plus a signed letter from them stating their relationship to you and confirming they\'re funding your visit — declared plainly rather than left implicit.', accepts:'file', multiple:true},
 
     // Ties to Nigeria
     {id:'leaveLetter', cat:'Ties to Nigeria', label:"Employer's leave-approval letter", weight:'required', appliesIf:function(a){return a.employed;},
@@ -3021,6 +3071,8 @@
       tip:'Your CAC certificate and other business registration documents — shows the business exists and is active.', accepts:'file', multiple:true},
     {id:'sponsorFinance', cat:'Financial evidence', label:"Sponsor's financial documents (if someone else is funding this trip)", weight:'required', appliesIf:function(a){return a.hasHost && a.hostFunding;},
       tip:'Needed if a host or relative in South Africa is covering some or all of your costs — pair this with the affidavit of undertaking below.', accepts:'file', multiple:true},
+    {id:'spouseSponsorFinance', cat:'Financial evidence', label:"Spouse's financial documents + signed sponsor letter", weight:'required', appliesIf:function(a){return a.married && a.spouseSponsoring;},
+      tip:'Since your spouse is sponsoring this trip: their bank statements for the last 3 months, plus a signed letter from them stating their relationship to you and confirming they\'re funding your visit — declared plainly rather than left implicit.', accepts:'file', multiple:true},
 
     // Ties to Nigeria
     {id:'leaveLetter', cat:'Ties to Nigeria', label:"Employer's leave-approval letter", weight:'required', appliesIf:function(a){return a.employed;},
@@ -3414,7 +3466,23 @@
         'Book a return or onward flight if flying into Accra — it\'s recommended, and immigration may ask to see it.',
         'Be ready to explain your travel purpose, where you\'re staying, and when you\'re returning — immigration can ask, even though no visa is needed.',
         'No visa application, no fee, no embassy visit — you\'re done. Sources: current ECOWAS free-movement guidance and Nigeria–Ghana travel-requirement guides.'
-      ]
+      ],
+      // Field-work request: a rough road-vs-flight cost estimate for a short (3–5 day) trip, since
+      // for someone building travel history cheaply, HOW you get there matters as much as whether a
+      // visa is needed. Ghana is the one country here with a genuine overland option (via Benin and
+      // Togo) — the other three don't have one worth suggesting (see their own costEstimate.road
+      // notes below). These are rough, volatile figures — fuel prices, season, and booking window all
+      // move them a lot — treated the same as every other "starting point, not a guarantee" figure in
+      // this app. The road figure below was corrected after the founder checked ABC Transport's own
+      // live booking site directly (Sept 2026) and found their Sprinter Service listed at ₦100,000
+      // one-way, Lagos Jibowu–Accra — well above the ₦20,000–45,000 a third-party aggregator site had
+      // reported, which is what this figure originally (and wrongly) used. Direct-from-the-source beat
+      // an aggregator here; worth remembering next time a figure like this needs sourcing.
+      costEstimate: {
+        road: 'Cross-border coach — ABC Transport\'s own booking site listed their Sprinter Service (2+2 seating) at ₦100,000 one-way, Lagos Jibowu–Accra, checked directly Sept 2026; a Standard Coach seat may be cheaper if one\'s available on your date. Scheduled journey time is shown as around 14 hours, though the booking site\'s own listed arrival can span into the following day — check the exact schedule before paying.',
+        flight: 'Direct flights (Air Peace and others) — roughly $150–350 one-way (~1 hour).',
+        note: 'The price gap between road and flight is narrower than it might look at first glance — compare both directly for your actual travel dates rather than assuming road is automatically the cheaper option.'
+      }
     },
     'Kenya': {
       visaType: 'eTA required (~$30, online)',
@@ -3427,7 +3495,13 @@
         'Wait for approval — usually 48–72 hours — and download it once it lands in your email.',
         'Print or save the approval and present it with your passport on arrival. It covers a single visit of up to 90 days.',
         'Apply at least a week before you travel, in case of delays. Source: Kenya\'s official eTA guidance.'
-      ]
+      ],
+      costEstimate: {
+        road: null, // No realistic overland route from Nigeria — thousands of km through several
+                     // borders, some of them genuinely unsafe to cross overland. Not suggested here.
+        flight: 'Flight-only trip — no realistic overland route exists from Nigeria. Direct/one-stop economy fares (Kenya Airways and others) run roughly $400–750 one-way, 5–9 hours depending on routing.',
+        note: 'Intra-Africa fares vary a lot by how far ahead you book — check several dates before settling on one, and weigh this against the cheaper Ghana option if cost is the main constraint.'
+      }
     },
     'Ethiopia': {
       visaType: 'e-Visa required (~$82, online)',
@@ -3440,7 +3514,12 @@
         'Wait for your e-Visa by email — usually about 3 business days.',
         'This gets you a single entry, valid 90 days from issue, for stays of up to 30 days.',
         'Bring a Yellow Fever certificate if you\'re arriving from a country where it\'s required. Source: Ethiopia\'s official e-Visa process, current entry-requirement guides.'
-      ]
+      ],
+      costEstimate: {
+        road: null, // Same reasoning as Kenya above — not a realistic or safe overland trip from Nigeria.
+        flight: 'Flight-only trip — no realistic overland route exists from Nigeria. Ethiopian Airlines flies direct from Lagos roughly 14 times a week; economy fares vary widely, roughly $500–1,200+ one-way depending on season and how far ahead you book.',
+        note: 'This route\'s fares swing more than most on this list depending on booking window — worth comparing several dates rather than booking the first price you see.'
+      }
     },
     'Morocco': {
       visaType: 'Embassy visa (most applicants)',
@@ -3464,7 +3543,12 @@
         'Attend your appointment, submit your documents, and give your biometric data (fingerprints/photo).',
         'Pay the fee — around ZAR 1,520 (roughly $80) plus VFS\'s own service fee, paid at the centre.',
         'Get your passport back in about 10–15 business days with the visa sticker or a decision letter. Source: current South Africa visitor-visa guidance for Nigerian applicants.'
-      ]
+      ],
+      costEstimate: {
+        road: null, // Same reasoning as Kenya/Ethiopia above — not a realistic or safe overland trip from Nigeria.
+        flight: 'Flight-only trip — no realistic overland route exists from Nigeria. Direct/one-stop economy fares (Ethiopian Airlines and others) run roughly $320–820 one-way, 8–12 hours depending on routing.',
+        note: 'This is also the most document-heavy of the five (see the visa steps above) — factor in the visa fee, VFS service fee, and biometrics appointment time alongside the flight cost.'
+      }
     }
   };
   var teSelectedGuideCountry = '';
@@ -3481,12 +3565,29 @@
     if (!box) return;
     var g = TE_NO_HISTORY_GUIDES[teSelectedGuideCountry];
     if (!g){ box.innerHTML = ''; return; }
+    // Field-work request: a rough cost estimate for getting there and back on a short (3–5 day) trip,
+    // road vs flight — see costEstimate on each TE_NO_HISTORY_GUIDES entry above. Kept as its own box,
+    // visually separate from the visa steps, since it's a different kind of information (volatile
+    // travel cost, not visa requirements) with its own disclaimer rather than folding it into the same
+    // "confirm on the official site" note above, which is specifically about visa fees/requirements.
+    var costHtml = '';
+    if (g.costEstimate){
+      var ce = g.costEstimate;
+      costHtml = '<div class="scan-msg" style="margin-top:8px;">'
+        + '<div style="font-weight:700; margin-bottom:4px;">Roughly, getting there and back (3–5 day trip)</div>'
+        + (ce.road ? '<div style="margin-bottom:4px;"><b>By road:</b> '+escapeHtml(ce.road)+'</div>' : '<div style="margin-bottom:4px;"><b>By road:</b> Not a realistic option from Nigeria — no safe or practical overland route exists to '+escapeHtml(teSelectedGuideCountry)+'.</div>')
+        + '<div style="margin-bottom:4px;"><b>By flight:</b> '+escapeHtml(ce.flight)+'</div>'
+        + (ce.note ? '<div class="item-tip" style="margin-top:4px;">'+escapeHtml(ce.note)+'</div>' : '')
+        + '<div class="item-tip" style="margin-top:4px;">Rough figures only — fares and fuel prices move constantly. Check current prices directly with an airline/transport operator before booking.</div>'
+        + '</div>';
+    }
     box.innerHTML = '<div class="scan-msg info" style="margin-top:4px;">'
       + '<div style="font-weight:700; margin-bottom:2px;">'+escapeHtml(teSelectedGuideCountry)+' — <span style="font-weight:600;">'+escapeHtml(g.visaType)+'</span></div>'
       + '<div style="margin-bottom:8px;">'+escapeHtml(g.summary)+'</div>'
       + '<ol style="margin:0; padding-left:20px;">' + g.steps.map(function(s){ return '<li style="margin-bottom:5px;">'+escapeHtml(s)+'</li>'; }).join('') + '</ol>'
       + '<div class="item-tip" style="margin-top:8px;">Requirements, fees, and processing times change — always confirm on the official government site before paying anything or booking travel. This is a starting point, current as of August 2026, not a guarantee.</div>'
-      + '</div>';
+      + '</div>'
+      + costHtml;
   }
   document.addEventListener('click', function(e){
     var btn = e.target && e.target.closest ? e.target.closest('.te-country-tab-btn') : null;
@@ -3546,6 +3647,10 @@
       // Session 3: Your responsibilities
       married: document.getElementById('rs_married').checked,
       spouseName: document.getElementById('rs_spouseName').value.trim(),
+      spouseWilling: document.getElementById('rs_spouseWilling').value,
+      spouseEmployed: document.getElementById('rs_spouseEmployed').value,
+      spouseUkHistory: document.getElementById('rs_spouseUkHistory').value,
+      spouseSponsoring: document.getElementById('rs_spouseSponsoring').checked,
       numKids: document.getElementById('rs_numKids').value,
       livingState: document.getElementById('rs_state').value,
       livingLga: document.getElementById('rs_lga').value,
@@ -4187,6 +4292,7 @@
 
     // Session 3: Your responsibilities
     document.getElementById('rs_spouseRow').style.display = a.married ? 'block' : 'none';
+    renderSponsorRecommendation(a);
     document.getElementById('rs_parentsRow').style.display = a.agedParents ? 'block' : 'none';
     // A parent marked "passed away / not applicable" gets their name field disabled and cleared —
     // keeps a stale name from lingering in the payload once someone ticks the box, and matches
@@ -4627,7 +4733,7 @@
    // Session 3: Your responsibilities
    // rs_state has its own dedicated change listener (repopulates the LGA dropdown, then renders) —
    // left out of this generic list to avoid double-rendering on every state change.
-   'rs_married','rs_spouseName','rs_numKids','rs_lga','rs_etiOsaArea','rs_premiumPocket','rs_bedrooms','rs_addressNumber','rs_addressName','rs_annualRent','rs_monthlyUpkeep','rs_schoolFeePerTerm','rs_agedParents','rs_fatherName','rs_motherName','rs_fatherDeceased','rs_motherDeceased','rs_remittance','rs_verifyConsent']
+   'rs_married','rs_spouseName','rs_spouseWilling','rs_spouseEmployed','rs_spouseUkHistory','rs_spouseSponsoring','rs_numKids','rs_lga','rs_etiOsaArea','rs_premiumPocket','rs_bedrooms','rs_addressNumber','rs_addressName','rs_annualRent','rs_monthlyUpkeep','rs_schoolFeePerTerm','rs_agedParents','rs_fatherName','rs_motherName','rs_fatherDeceased','rs_motherDeceased','rs_remittance','rs_verifyConsent']
     .forEach(function(id){
       var el = document.getElementById(id);
       el.addEventListener('change', render);
@@ -5153,6 +5259,50 @@
     var summaryHtml = lines.length ? lines.map(function(l){ return '<div class="scan-msg '+(l.indexOf('⚠️')===0?'warn':'info')+'">'+l+'</div>'; }).join('') : '';
     var successHtml = '<div class="scan-msg ok" style="margin-top:6px;">✅ You\'ve completed this section. Continue to <b>Session 3: Your responsibilities</b>.</div>';
     box.innerHTML = summaryHtml + successHtml;
+  }
+
+  // Field-work insight: "who actually applies, and whose money pays for it" is a real, open decision
+  // for a married applicant — not something this checklist should silently assume is always "you,
+  // self-funded". Gives ONE clear recommendation off the three questions in rs_spouseRow above,
+  // rather than leaving the applicant to piece the logic together themselves. Deliberately advisory
+  // only: nothing here changes the required-documents list on its own — that only happens once the
+  // applicant actively ticks rs_spouseSponsoring below the recommendation (see the checklist item
+  // this gates, spouseSponsorFinance, and the comment on why an explicit confirm matters).
+  function renderSponsorRecommendation(a){
+    var box = document.getElementById('rs_sponsorRecommendationBox');
+    var confirmRow = document.getElementById('rs_spouseSponsoringRow');
+    if (!box || !confirmRow) return;
+    if (!a.married){ box.innerHTML = ''; confirmRow.style.display = 'none'; return; }
+
+    var spouse = a.spouseName ? a.spouseName.trim() : '';
+    var spouseRef = spouse || 'your spouse';
+    var showConfirm = false;
+    var html = '';
+
+    if (a.spouseUkHistory === 'yes'){
+      html = '<div class="scan-msg info">Since '+escapeHtml(spouseRef)+' already holds a UK visa, or has travelled there before, one option worth considering: framing this as '
+        + escapeHtml(spouseRef) + ' taking you along on their next UK visit. Their own travel history and proven return to Nigeria can strengthen your ties in a reviewer\'s eyes — make sure this is stated clearly in your application, and that your marriage certificate is included as evidence of the relationship. This is a narrative choice, not a document requirement change here, so nothing else on this checklist is affected by it.</div>';
+    } else if (a.spouseWilling === 'yes' && a.spouseEmployed === 'yes'){
+      showConfirm = true;
+      html = '<div class="scan-msg ok">Since '+escapeHtml(spouseRef)+' is employed and willing, they can act as your financial sponsor instead of you self-funding. Current UK guidance is consistent on one point: money in an account that isn\'t declared as a sponsor\'s is usually disregarded by a caseworker rather than counted in your favour — so this needs to be stated plainly, not left implicit. If you go this route you\'ll need '
+        + escapeHtml(spouseRef) + '\'s own bank statements for the last 6 months, plus a signed letter from them explaining your relationship and confirming they\'re funding this trip. Tick the box below if this is the route you want — it adds that document to your checklist below.</div>';
+    } else if (a.spouseWilling === 'yes' && a.spouseEmployed === 'no'){
+      html = '<div class="scan-msg warn">Sponsor evidence needs to show genuine, provable income of its own — if '
+        + escapeHtml(spouseRef) + ' doesn\'t currently have a steady income, their statement alone may not strengthen your case the way it\'s meant to. Worth considering whether combining both your finances (clearly declared as such) makes more sense, or building up your own evidence instead.</div>';
+    } else if (a.spouseWilling === 'no'){
+      html = '<div class="scan-msg">No changes needed — you\'ll continue as your own main applicant, funded by your own finances, same as the rest of this checklist already covers.</div>';
+    }
+    box.innerHTML = html;
+
+    // If the underlying answers no longer support the sponsor route (e.g. the applicant changes
+    // spouseEmployed back to "no" after having ticked the box), un-tick it too — same "don't leave a
+    // hidden, stale confirmation quietly driving the required-documents list" reasoning as the
+    // deceased-parent name-clearing above.
+    confirmRow.style.display = showConfirm ? 'flex' : 'none';
+    if (!showConfirm){
+      var cb = document.getElementById('rs_spouseSponsoring');
+      if (cb && cb.checked) cb.checked = false;
+    }
   }
 
   // "Estimated yearly cost of living" — user feedback: "do a price research on house rent and
@@ -11628,7 +11778,17 @@
           var detectedHolderName = extractAccountHolderName(fullStatementText);
           var holderMatch = detectedHolderName ? namesLooselyMatch(workAnswers.name, detectedHolderName) : null;
           if (detectedHolderName && holderMatch === 'fail'){
-            results.push({cls:'err', text:'⚠️ This statement\'s account holder appears to be "'+escapeHtml(detectedHolderName)+'", which doesn\'t match the name you entered ("'+escapeHtml(workAnswers.name)+'"). If this is your own account, double-check you\'ve uploaded the right file, or that your name is spelled/typed the same way here as on your account. If this genuinely belongs to someone else supporting your trip (a parent, relative, etc.), it needs to go through sponsor documentation instead — a third party\'s statement generally isn\'t accepted as evidence of the applicant\'s OWN funds without a covering sponsor letter explaining the relationship.'});
+            // Married-with-a-declared-spouse-sponsor (see rs_spouseSponsoring / renderSponsorRecommendation)
+            // is the one case where a mismatched account holder is EXPECTED, not a red flag — the whole
+            // point of that flow is using the spouse's own statement instead of the applicant's. Confirms
+            // it looks right rather than raising an alarm the applicant already knowingly chose.
+            var isDeclaredSpouseStatement = workAnswers.married && workAnswers.spouseSponsoring && workAnswers.spouseName
+              && namesLooselyMatch(workAnswers.spouseName, detectedHolderName) !== 'fail';
+            if (isDeclaredSpouseStatement){
+              results.push({cls:'ok', text:'This looks like your spouse\'s statement (account holder "'+escapeHtml(detectedHolderName)+'") — since you\'ve declared them as your sponsor, that\'s expected. Just make sure their signed sponsor letter is attached alongside it (see "Spouse\'s financial documents + signed sponsor letter" in your checklist).'});
+            } else {
+              results.push({cls:'err', text:'⚠️ This statement\'s account holder appears to be "'+escapeHtml(detectedHolderName)+'", which doesn\'t match the name you entered ("'+escapeHtml(workAnswers.name)+'"). If this is your own account, double-check you\'ve uploaded the right file, or that your name is spelled/typed the same way here as on your account. If this genuinely belongs to someone else supporting your trip (a parent, spouse, relative, etc.), it needs to go through sponsor documentation instead — a third party\'s statement generally isn\'t accepted as evidence of the applicant\'s OWN funds without a covering sponsor letter explaining the relationship. If it\'s your spouse, the "Are you married" question in Your responsibilities can walk you through that.'});
+            }
           } else if (detectedHolderName && holderMatch === 'ok'){
             results.push({cls:'ok', text:'Account holder name detected as "'+escapeHtml(detectedHolderName)+'" — matches what you entered as your name, a good sign this is your own statement.'});
           } else if (!detectedHolderName){
@@ -12062,6 +12222,10 @@
       // Session 3: Your responsibilities
       document.getElementById('rs_married').checked = !!payload.answers.married;
       document.getElementById('rs_spouseName').value = payload.answers.spouseName || '';
+      document.getElementById('rs_spouseWilling').value = payload.answers.spouseWilling || '';
+      document.getElementById('rs_spouseEmployed').value = payload.answers.spouseEmployed || '';
+      document.getElementById('rs_spouseUkHistory').value = payload.answers.spouseUkHistory || '';
+      document.getElementById('rs_spouseSponsoring').checked = !!payload.answers.spouseSponsoring;
       document.getElementById('rs_numKids').value = payload.answers.numKids || '';
       document.getElementById('rs_state').value = payload.answers.livingState || '';
       renderLgaOptions(payload.answers.livingState || '', payload.answers.livingLga || '');
@@ -12326,6 +12490,10 @@
     // Session 3: Your responsibilities
     document.getElementById('rs_married').checked = false;
     document.getElementById('rs_spouseName').value = '';
+    document.getElementById('rs_spouseWilling').value = '';
+    document.getElementById('rs_spouseEmployed').value = '';
+    document.getElementById('rs_spouseUkHistory').value = '';
+    document.getElementById('rs_spouseSponsoring').checked = false;
     document.getElementById('rs_numKids').value = '';
     document.getElementById('rs_state').value = '';
     renderLgaOptions('', '');
