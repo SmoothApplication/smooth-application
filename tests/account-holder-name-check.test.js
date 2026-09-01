@@ -16,6 +16,13 @@ async function analyzeAndReadMsg(page, fixturePath){
   // scores) — harmless the first time (already on step 1), but necessary before a second/third
   // upload+analyze in the same test, since the file inputs and Analyze button only live on step 1.
   await goToFinanceStep(page, 1);
+  // A prior successful analysis on this same page hides the upload form behind a "Statement(s)
+  // analyzed" bar (see #stmtUploadDoneBar) -- bring the form back before uploading again.
+  var uploadBlockHidden = await page.$eval('#stmtUploadBlock', function(el){ return getComputedStyle(el).display === 'none'; });
+  if (uploadBlockHidden) {
+    await page.click('#btnShowStmtUpload');
+    await page.waitForSelector('#stmtUploadBlock', { state: 'visible' });
+  }
   await page.setInputFiles('#stmtFile1', fixturePath);
   await page.click('#btnAnalyzeStatements');
   // The first message to land is a transient "Loading local analysis tools…" notice -- wait for

@@ -3,6 +3,30 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Simplified: bank statement upload no longer clutters the page after analysis
+
+User feedback: "all the upload bank statements and analyze should not show once you upload your
+bank statement on this first page. It should show you the goods and the bads. The goods should
+come in a drop down menu. The bad should come in a drop down menu."
+
+Step 1 of Income & bank statement analysis used to leave the file pickers and "Analyze
+statement(s)" button sitting on screen permanently, even after a successful analysis, with the
+results piling up underneath — the exact "clumsy" complaint behind this whole simplification
+effort. Now: once a statement is actually analyzed, the upload form hides itself behind a compact
+"✅ Statement(s) analyzed — results below. Upload different statement(s)" bar (the link brings the
+form back, e.g. to add another statement). The results themselves are now split into two
+dropdowns instead of one long unstructured list: "Needs your attention" (warnings/errors/info —
+things to act on, open by default) and "✓ What looks good" (confirmations — reassurance, not
+action items, collapsed by default, unchanged from before).
+
+Verified the existing test suite still holds: the one test that re-uploads a second statement on
+the same page instance (`account-holder-name-check.test.js`) needed a small update to click
+"Upload different statement(s)" before its second upload, since the form it depends on is no
+longer always on screen. Every other test that touches statement analysis runs each
+upload+analyze on its own fresh page, so they were unaffected. Added
+`statement-upload-form-hides-after-analysis.test.js` to cover the new hide/reveal behavior and the
+two-dropdown split directly.
+
 ## Fixed: country dropdown was invisible when adding travel history
 
 Real user report: "when I type the country, the dropdown menu drops down and I cannot see the
@@ -21,6 +45,15 @@ Verified the fix directly on the live site before shipping it. Added
 catch this again since Playwright auto-scrolls elements into view before clicking, which can paper
 over exactly this kind of clipping bug, so it asserts the list's real rendered height and CSS
 position instead.
+
+**Follow-up fix**: that first version still had a gap — it opened the list a fixed 220px below the
+input with no check for whether that actually fit on screen. When the input sat near the bottom of
+the viewport, the list (being `position: fixed`, anchored to the browser window rather than the
+page) hung off the bottom edge, and no amount of scrolling could bring the hidden part into view —
+fixed elements don't move with page scroll, so the "Other" option could become permanently
+unreachable. `tests/country-combo-dropdown-not-clipped.test.js` caught this on a real `npm test`
+run. Fixed by measuring the actual space above and below the input each time the list opens, and
+clamping its height and flipping it upward when there isn't enough room below.
 
 ## Fixed CI: missing lock file, and a real PII leak the scanner caught
 

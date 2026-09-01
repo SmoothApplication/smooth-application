@@ -779,6 +779,17 @@
     margin-top: 6px; line-height: 1.5; color: var(--text-secondary);
   }
   .scan-msg-good-item::marker { color: var(--good); }
+  /* Groups every actionable finding (needs-explanation warnings, errors, informational notes) under
+     one "Needs your attention" toggle instead of stacking them loose above the good-news summary —
+     same declutter goal as .scan-msg-good just above, but this one is OPEN by default since these
+     are things to actually act on, not reassurance to tuck away. Individual findings keep their own
+     .scan-msg CLASS styling completely unchanged inside here — only the wrapping/toggle is new, so
+     nothing that already reads/matches on .scan-msg.err etc. is affected. */
+  .scan-msg-attention { margin-top: 8px; }
+  .scan-msg-attention > summary { cursor: pointer; font-weight: 700; font-size: 12.5px; list-style: none; }
+  .scan-msg-attention > summary::-webkit-details-marker { display: none; }
+  .scan-msg-attention > summary::before { content: '▾ '; }
+  .scan-msg-attention:not([open]) > summary::before { content: '▸ '; }
 
   .avoid-note { font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
 
@@ -1727,6 +1738,12 @@
 
         <div class="fin-step" data-fin-step="1">
         <h2 style="margin-top:0;">Upload your bank statement(s)</h2>
+        <!-- User feedback: once a statement is actually analyzed, the file pickers/Analyze button/
+             explanatory text just become clutter sitting above the results — this whole block hides
+             itself the moment setStmtMsg() gets a real result array (see hideStatementUploadForm()),
+             replaced by the compact done-bar below. "Upload different statement(s)" brings it back
+             for a re-analysis without losing the option. -->
+        <div id="stmtUploadBlock">
         <p class="fin-note">Upload here to auto-fill the cash-flow table and detailed reports in the next two steps — or skip ahead to Step 2 and type your totals in by hand instead.</p>
         <div class="row no-print" style="margin-bottom:4px;">
           <div>
@@ -1752,6 +1769,8 @@
             <a class="btn ghost" id="btnRemindStatementsEmail" href="#">✉️ Email myself a reminder</a>
           </div>
         </div>
+        </div>
+        <div class="item-tip no-print" id="stmtUploadDoneBar" style="display:none; margin-bottom:10px;">✅ Statement(s) analyzed — results below. <a href="#" id="btnShowStmtUpload">Upload different statement(s)</a></div>
         <div id="stmtAnalyzeMsg"></div>
         <button type="button" class="btn no-print fin-step-next" data-fin-next="2" style="margin-top:10px;">Next: Cash flow &amp; scores →</button>
         </div>
@@ -5003,10 +5022,26 @@
       // entirely rather than fighting with it, the same trick a portal-based dropdown uses.
       function positionList(){
         var r = input.getBoundingClientRect();
+        var margin = 4;
+        // A position:fixed box is anchored to the viewport, not any scrollable ancestor -- so if it's
+        // tall enough to hang off the bottom of the screen, no amount of scrolling (window or internal
+        // list scroll) can ever bring the rest of it into view. Must clamp height to whichever side
+        // (below/above the input) actually has room, and flip upward when that's the bigger side.
+        var spaceBelow = window.innerHeight - r.bottom - margin;
+        var spaceAbove = r.top - margin;
+        var openBelow = spaceBelow >= 150 || spaceBelow >= spaceAbove;
+        var height = Math.max(80, Math.min(220, openBelow ? spaceBelow : spaceAbove));
         list.style.position = 'fixed';
-        list.style.top = (r.bottom + 4) + 'px';
         list.style.left = r.left + 'px';
         list.style.width = r.width + 'px';
+        list.style.maxHeight = height + 'px';
+        if (openBelow){
+          list.style.top = (r.bottom + margin) + 'px';
+          list.style.bottom = 'auto';
+        } else {
+          list.style.top = 'auto';
+          list.style.bottom = (window.innerHeight - r.top + margin) + 'px';
+        }
       }
       function openList(query){
         var q = (query || '').trim().toLowerCase();
@@ -8326,11 +8361,45 @@
   // (cls:'ok') now collapse into one compact "What looks good" summary instead of each claiming a
   // full-width box of its own. Collapsed by default since these are reassurance, not action items;
   // still one click away for anyone who wants to read every line.
+  // User feedback (repeated): once a statement is actually analyzed, the upload form (file pickers +
+  // Analyze button + explanatory text) sitting above the results is just clutter — nobody needs it
+  // again until they want to redo the analysis. Hides that whole block (see #stmtUploadBlock in the
+  // HTML) and shows a one-line "analyzed — upload different statement(s)" bar instead. Only called on
+  // a genuine completed analysis (setStmtMsg receiving a real result array), never on a bare 'busy'/
+  // 'err' string — those need the file pickers to stay right where they are so the applicant can
+  // immediately retry.
+  function hideStatementUploadForm(){
+    var block = document.getElementById('stmtUploadBlock'), bar = document.getElementById('stmtUploadDoneBar');
+    if (block) block.style.display = 'none';
+    if (bar) bar.style.display = '';
+  }
+  function showStatementUploadForm(){
+    var block = document.getElementById('stmtUploadBlock'), bar = document.getElementById('stmtUploadDoneBar');
+    if (block) block.style.display = '';
+    if (bar) bar.style.display = 'none';
+  }
+
+  // User feedback, on this exact section: "looks too clumsy." Root cause: after analyzing a
+  // statement this could stack ten-odd full-width colored boxes in a row — errors, warnings, info,
+  // AND plain positive confirmations — all the same visual weight, so nothing actually stood out.
+  // Fix (first pass): the pure "good news" confirmations (cls:'ok') collapsed into one compact
+  // "What looks good" summary. Fix (this pass, further feedback: split into two clear groups — "the
+  // goods" and "the bads," each its own dropdown): the remaining actionable findings (err/warn/info —
+  // things that actually need a look or a decision) now group the same way under "Needs your
+  // attention," just OPEN by default since these are things to act on, not tuck away like the good
+  // news is. Individual findings keep their exact same .scan-msg CLASS markup either way — only the
+  // wrapping changed, so anything elsewhere that reads/matches on .scan-msg.err etc. is unaffected.
   function setStmtMsg(clsOrArray, text){
-    var arr = Array.isArray(clsOrArray) ? clsOrArray : [{cls: clsOrArray, text: text}];
+    var isFinalResult = Array.isArray(clsOrArray);
+    var arr = isFinalResult ? clsOrArray : [{cls: clsOrArray, text: text}];
     var actionable = arr.filter(function(r){ return r.cls !== 'ok'; });
     var confirmations = arr.filter(function(r){ return r.cls === 'ok'; });
-    var html = actionable.map(function(r){ return '<div class="scan-msg '+r.cls+'">'+r.text+'</div>'; }).join('');
+    var html = '';
+    if (actionable.length){
+      html += '<details class="scan-msg-attention" open><summary>Needs your attention ('+actionable.length+')</summary>' +
+        actionable.map(function(r){ return '<div class="scan-msg '+r.cls+'">'+r.text+'</div>'; }).join('') +
+        '</details>';
+    }
     if (confirmations.length){
       // User feedback: "bullet each point and make neat. people have low attention span." — each
       // confirmation now renders as its own <li> in a real bulleted list instead of a stacked
@@ -8341,6 +8410,7 @@
         '</ul></details>';
     }
     document.getElementById('stmtAnalyzeMsg').innerHTML = html;
+    if (isFinalResult) hideStatementUploadForm();
   }
 
   // Reconstruct visual lines from pdf.js text items using their y-position (items alone have no line breaks).
@@ -12115,6 +12185,10 @@
     if (!files.length){ setStmtMsg('err','Choose at least one bank statement file above first.'); return; }
     runStatementAnalysis(files, setStmtMsg);
   });
+  document.getElementById('btnShowStmtUpload').addEventListener('click', function(e){
+    e.preventDefault();
+    showStatementUploadForm();
+  });
 
   /* ---------------- Export / import / print / reset ---------------- */
   document.getElementById('btnPrint').addEventListener('click', function(){ window.print(); });
@@ -12491,6 +12565,7 @@
     currentSessionIndex = 0;
     ['stmtFile1','stmtFile2','stmtFile3'].forEach(function(id){ document.getElementById(id).value = ''; });
     document.getElementById('btnAnalyzeStatements').disabled = true;
+    showStatementUploadForm();
     document.getElementById('stmtAnalyzeMsg').innerHTML = '';
     buildCashFlowTable();
     // Session 1: Validate your International Passport
