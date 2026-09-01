@@ -3,6 +3,15 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Shortened the landing screen's subtitle
+
+User feedback (screenshot): the disclaimer sentence on the first screen ("This checks how ready
+your documents and evidence look, not your chances of approval - only the consulate or embassy
+decides that") made the page feel too busy. Trimmed the subtitle down to just the value prop.
+The disclaimer itself isn't gone from the app - it still shows in full on the consent gate a step
+later, before anyone can actually start using the checklist, so this just avoids saying it twice
+before the user has even started.
+
 ## Removed em dashes from all user-facing text
 
 User feedback: the app's visible copy reads as AI-written, specifically the heavy use of em dashes
