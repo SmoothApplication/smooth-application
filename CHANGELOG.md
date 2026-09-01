@@ -3,6 +3,14 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Removed the landing screen's subtitle entirely
+
+User feedback: even after shortening the subtitle to one sentence (see below), it still made the
+first screen feel too busy. Removed it. The title ("Your visa checklist, built for you"), the
+"Free - no sign-in" badge, and the "Start the quick check" button already carry the value prop on
+their own, and the "not immigration advice" disclaimer still shows in full on the consent gate a
+step later, before anyone can actually use the checklist, so nothing safety-relevant is lost.
+
 ## Shortened the landing screen's subtitle
 
 User feedback (screenshot): the disclaimer sentence on the first screen ("This checks how ready
