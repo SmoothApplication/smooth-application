@@ -622,6 +622,9 @@
   }
   .item.checked { border-color: var(--good); }
   .item.jump-highlight { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-wash); }
+  /* Same flash, for a jump target that's a plain form field rather than a whole .item card — e.g. the
+     "Expires: not detected — type it in below" link jumps straight to an <input>, not an .item. */
+  input.jump-highlight, select.jump-highlight, textarea.jump-highlight { box-shadow: 0 0 0 3px var(--accent-wash); border-color: var(--accent); }
   .item-top { display: flex; align-items: flex-start; gap: 10px; }
   .item-top input[type=checkbox] { width: 18px; height: 18px; margin-top: 2px; flex-shrink: 0; accent-color: var(--good); }
   .item-body { flex: 1; min-width: 0; }
@@ -4713,6 +4716,23 @@
     setTimeout(function(){ target.classList.remove('jump-highlight'); }, 1600);
   });
 
+  // "type it in below" — the passport-scan result card's own fix for an expiry date that came back
+  // "not detected" (see the row() call above). Delegated the same way as the #item_ links just above,
+  // since the card is rebuilt via innerHTML on every scan and a directly-attached listener wouldn't
+  // survive that. f_passportExpiry is Session 1's manual field, always present regardless of scan
+  // success — this just gets the applicant to it and puts the cursor there.
+  document.addEventListener('click', function(e){
+    var a = e.target.closest && e.target.closest('a.expiry-jump-link');
+    if (!a) return;
+    e.preventDefault();
+    var target = document.getElementById('f_passportExpiry');
+    if (!target) return;
+    revealAndScrollTo(target);
+    target.classList.add('jump-highlight');
+    setTimeout(function(){ target.classList.remove('jump-highlight'); }, 1600);
+    target.focus();
+  });
+
   // Attach a file straight to a checklist item's state from anywhere in the page (e.g. the inline
   // employment-letter prompt), then re-render so the checklist card below reflects it and run the same
   // best-effort scan it would get from its own "Scan (beta)" button.
@@ -7260,15 +7280,24 @@
       overall = 'warn'; badgeText = 'Needs attention';
     }
 
-    function row(label, value, ok){
+    function row(label, value, ok, notDetectedHtml){
       var icon = ok === true ? '✅' : (ok === false ? '⚠️' : '•');
       return '<div class="passport-row"><span class="passport-row-icon">'+icon+'</span>'
         + '<span class="passport-row-label">'+label+'</span>'
-        + '<span class="passport-row-value">'+(value != null ? escapeHtml(String(value)) : '<i>not detected</i>')+'</span></div>';
+        + '<span class="passport-row-value">'+(value != null ? escapeHtml(String(value)) : (notDetectedHtml || '<i>not detected</i>'))+'</span></div>';
     }
 
     var rows = '';
-    rows += row('Expires', expiryDate ? expiryDate.toLocaleDateString() : null, expiryDate ? expiryOk : null);
+    // Real gap: "not detected" alone is a dead end — nothing on the card told the applicant what to
+    // do next, even though a manual date field sits right below this card either way (see Session 1's
+    // f_passportExpiry, always shown regardless of scan success — see the passport-fallback copy
+    // added alongside this). Both a bad photo (glare/blur right where the expiry digits sit) and a
+    // genuine OCR misread this app can't auto-correct land here identically, so the fix is the same
+    // either way: point straight at the field they can just type it into themselves. Delegated click
+    // handler (expiry-jump-link, near revealAndScrollTo below) switches to the right session and
+    // opens/scrolls to it, same pattern as the "see X below" #item_ links.
+    var expiryNotDetectedHint = '<i>not detected</i> — <a href="#" class="expiry-jump-link">type it in below</a>';
+    rows += row('Expires', expiryDate ? expiryDate.toLocaleDateString() : null, expiryDate ? expiryOk : null, expiryNotDetectedHint);
     if (fields && fields.fullName){
       rows += row('Name (from MRZ)', fields.fullName, nameStatus === 'ok' ? true : (nameStatus === 'fail' ? false : null));
     } else if (answers.name){

@@ -3,6 +3,30 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Expiry "not detected" now points straight at the manual field, instead of dead-ending
+
+A real re-test on the same live passport photo from the earlier expiry-detection fix (see below)
+still came back "Expires: not detected", even with that fix deployed. Investigated with the actual
+image: on a low-resolution phone photo, OCR doesn't always just misread one character in an
+otherwise-correctly-positioned MRZ field (which fixMrzDateLetters and the digit-swap correction both
+already handle) — sometimes it drops or inserts a stray character entirely, which shifts every field
+after it out of position. Reproduced this exact failure mode locally (the same vendored Tesseract
+engine and model this app uses, run against the real photo): the nationality/birth-date boundary
+picked up a spurious extra character, which is exactly the kind of misread the app's existing
+whitespace-normalization already recovers from when the extra character is whitespace, but can't
+recover from when it's a stray letter or digit instead. Repairing that class of error in general
+(distinguishing "one character was inserted here" from "one character was substituted there") is a
+meaningfully bigger, riskier piece of work than anything shipped so far — not something to guess at
+from a single example without more real cases to test against.
+
+What shipped instead, safely, right now: when the expiry date comes back "not detected" — whichever
+of the above causes it — the result card no longer just states that and stops. It now links straight
+to the manual `passport expiry date` field that's always present on Session 1 regardless of scan
+success (see the passport-fallback copy from the earlier funnel-friction batch), switches to that
+session if needed, scrolls to it, and focuses it, so the applicant can just type the date in rather
+than being stuck. Added a fixture (`expiry-unrecoverable-fixture.pdf`) that deliberately can't be
+recovered by either the MRZ or the printed-text fallback, to test this dead-end path specifically.
+
 ## "WhatsApp/email myself a reminder" at the passport-scan and bank-statement steps
 
 Fieldwork finding: many applicants meet the app away from home, without their physical passport or
