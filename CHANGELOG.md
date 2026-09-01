@@ -3,6 +3,31 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Reduced funnel friction in Travel details & Accommodation, from real GoatCounter drop-off data
+
+Analytics showed people reaching the Travel details and Accommodation & UK host categories at a much
+lower rate than earlier steps, with no matching pattern in the app's own conditional gating logic —
+i.e. a genuine drop-off, not just fewer people needing those sections. A few likely causes, addressed
+together:
+
+- The "day-by-day itinerary" item (required, in all four countries) read like it wanted a formal,
+  typed-up document. The tip now says plainly that a simple typed list is fine — no template or
+  formal layout needed, just a few lines per day.
+- "Accommodation verified" (required, all four countries) never actually needed a file — ticking
+  the box was always enough — but nothing on screen said so, and it sat right next to items that DO
+  take a file upload. The tip now opens with "No document to upload here" before explaining what to
+  check.
+- The host-document requirement (needed when staying with a UK host) can stall someone who hasn't
+  heard back from their host yet, with no clear next step shown. Added a line making clear there's no
+  rush — message the host now, keep going with the rest of the checklist, and progress is saved
+  automatically so nothing is lost by coming back later.
+- `logClientError()` now distinguishes three shapes of client-side error instead of one catch-all
+  "Unknown" bucket: no error object at all (`NoErrorObject` — typically benign cross-origin/extension
+  noise), a real `Error` whose `.name` doesn't match the `XxxError` pattern (`Unknown`), and something
+  non-`Error` that was thrown (`NonErrorThrown` — a string or plain object, genuinely a different
+  situation). Still never sends `.message`, `.stack`, or any other identifying detail — only which of
+  these three shapes the error arrived in, aggregated in GoatCounter's `error:<context>:<kind>` event.
+
 ## Fixed: passport expiry date "not detected" on a real live scan
 
 Direct user report, off a real passport scan on the live site: "Expires: not detected," with the MRZ

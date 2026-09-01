@@ -2023,6 +2023,7 @@
             <li>Host's proof of address (recent utility bill)</li>
             <li id="hostFinanceReminder" style="display:none;">Host's bank statement or employment letter</li>
           </ul>
+          <p style="margin:8px 0 0;">No rush — message them now, then carry on with the rest of the checklist below while you wait. Your progress here is saved automatically, so there's nothing to lose by coming back to this section once you have what you need.</p>
         </div>
         <div class="item-tip" id="noHostDocsNote" style="margin:6px 0 0;">Not staying with a host? You'll need a hotel/accommodation booking confirmation instead — see below.</div>
       </div>
@@ -2353,8 +2354,17 @@
   function logClientError(context, err){
     if (!ANALYTICS_SITE_CODE) return;
     try {
-      var kind = 'Unknown';
-      if (err && typeof err.name === 'string' && /^[A-Za-z]+Error$/.test(err.name)) kind = err.name;
+      // Three buckets, still without ever sending err.message/stack/filenames — just which shape the
+      // error arrived in, since that alone already separates "likely benign cross-origin/extension
+      // noise" (no error object at all — window.onerror gets this for script-error cross-origin
+      // reports) from "a real thrown Error we can't further classify" from "something threw a
+      // non-Error value entirely" (a string, a plain object, etc. — genuinely a different situation
+      // from either of the above, worth telling apart in the aggregate counts).
+      var kind;
+      if (!err) kind = 'NoErrorObject';
+      else if (typeof err.name === 'string' && /^[A-Za-z]+Error$/.test(err.name)) kind = err.name;
+      else if (err instanceof Error) kind = 'Unknown';
+      else kind = 'NonErrorThrown';
       trackEvent('error:' + context + ':' + kind);
     } catch (e2) { /* error reporting must never itself break the app */ }
   }
@@ -2614,9 +2624,9 @@
     {id:'returnEvidence', cat:'Travel details', label:'Evidence of return or onward travel', weight:'required',
       tip:'Shows immigration officers you plan to leave the UK at the end of your visit.', accepts:'file'},
     {id:'ukItinerary', cat:'Travel details', label:'Day-by-day itinerary of places you plan to visit in the UK', weight:'required',
-      tip:'Named places/cities, roughly what you\'ll do each day — shows a genuine, planned visit rather than an open-ended one.', accepts:'file'},
+      tip:'Named places/cities, roughly what you\'ll do each day — shows a genuine, planned visit rather than an open-ended one. A simple typed list is fine, no formal document or template needed — a few lines per day is enough.', accepts:'file'},
     {id:'accomVerified', cat:'Travel details', label:'Accommodation verified (address is real and booking is genuine)', weight:'required',
-      tip:'Double-check the booking reference is live and the address exists — don\'t rely on an unverified reservation.'},
+      tip:'No document to upload here — just double-check the booking reference is live and the address exists, then tick this once you\'ve confirmed it yourself.'},
     {id:'sightseeing', cat:'Travel details', label:'Sightseeing plans — name and ticket of places you\'ll visit', weight:'recommended',
       tip:'For each place, note its name in your itinerary above and attach the ticket/booking confirmation here if you already have one — shows a genuine, specific plan rather than a vague one.', accepts:'file', multiple:true},
     {id:'insurance', cat:'Travel details', label:'Travel / medical insurance', weight:'recommended',
@@ -2752,9 +2762,9 @@
     {id:'returnEvidence', cat:'Travel details', label:'Evidence of return or onward travel', weight:'required',
       tip:'Shows the officer you plan to leave Canada at the end of your visit.', accepts:'file'},
     {id:'caItinerary', cat:'Travel details', label:'Day-by-day itinerary of places you plan to visit in Canada', weight:'required',
-      tip:'Named cities/provinces, roughly what you\'ll do each day — a genuine, planned visit reads far better than an open-ended one.', accepts:'file'},
+      tip:'Named cities/provinces, roughly what you\'ll do each day — a genuine, planned visit reads far better than an open-ended one. A simple typed list is fine, no formal document or template needed — a few lines per day is enough.', accepts:'file'},
     {id:'accomVerified', cat:'Travel details', label:'Accommodation verified (address is real and booking is genuine)', weight:'required',
-      tip:'Double-check the booking reference is live and the address exists — don\'t rely on an unverified reservation.'},
+      tip:'No document to upload here — just double-check the booking reference is live and the address exists, then tick this once you\'ve confirmed it yourself.'},
     {id:'sightseeing', cat:'Travel details', label:'Sightseeing plans — name and ticket of places you\'ll visit', weight:'recommended',
       tip:'For each place, note its name in your itinerary above and attach the ticket/booking confirmation here if you already have one — shows a genuine, specific plan rather than a vague one.', accepts:'file', multiple:true},
     {id:'insurance', cat:'Travel details', label:'Travel / medical insurance', weight:'recommended',
@@ -2897,9 +2907,9 @@
     {id:'returnEvidence', cat:'Travel details', label:'Evidence of return or onward travel', weight:'required',
       tip:'Shows the consulate you plan to leave the Schengen area at the end of your visit.', accepts:'file'},
     {id:'euItinerary', cat:'Travel details', label:'Day-by-day travel itinerary for your trip', weight:'required',
-      tip:'Named cities/countries and roughly what you\'ll do each day — this matters even more for a Schengen application than a single-country one, since your itinerary is also what determines which consulate you must apply to (whichever country you\'ll spend the most nights in, or your first entry point if it\'s evenly split).', accepts:'file'},
+      tip:'Named cities/countries and roughly what you\'ll do each day — this matters even more for a Schengen application than a single-country one, since your itinerary is also what determines which consulate you must apply to (whichever country you\'ll spend the most nights in, or your first entry point if it\'s evenly split). A simple typed list is fine, no formal document or template needed.', accepts:'file'},
     {id:'accomVerified', cat:'Travel details', label:'Accommodation verified (address is real and booking is genuine)', weight:'required',
-      tip:'Double-check the booking reference is live and the address exists — don\'t rely on an unverified reservation.'},
+      tip:'No document to upload here — just double-check the booking reference is live and the address exists, then tick this once you\'ve confirmed it yourself.'},
     {id:'sightseeing', cat:'Travel details', label:'Sightseeing plans — name and ticket of places you\'ll visit', weight:'recommended',
       tip:'For each place, note its name in your itinerary above and attach the ticket/booking confirmation here if you already have one — shows a genuine, specific plan rather than a vague one.', accepts:'file', multiple:true},
     {id:'coverLetter', cat:'Travel details', label:'Letter of Explanation / cover letter', weight:'recommended',
@@ -3040,9 +3050,9 @@
     {id:'returnEvidence', cat:'Travel details', label:'Evidence of return or onward travel', weight:'required',
       tip:'Shows the reviewer you plan to leave South Africa at the end of your visit.', accepts:'file'},
     {id:'zaItinerary', cat:'Travel details', label:'Day-by-day itinerary of places you plan to visit in South Africa', weight:'required',
-      tip:'Named cities/provinces, roughly what you\'ll do each day — a genuine, planned visit reads far better than an open-ended one.', accepts:'file'},
+      tip:'Named cities/provinces, roughly what you\'ll do each day — a genuine, planned visit reads far better than an open-ended one. A simple typed list is fine, no formal document or template needed — a few lines per day is enough.', accepts:'file'},
     {id:'accomVerified', cat:'Travel details', label:'Accommodation verified (address is real and booking is genuine)', weight:'required',
-      tip:'Double-check the booking reference is live and the address exists — don\'t rely on an unverified reservation.'},
+      tip:'No document to upload here — just double-check the booking reference is live and the address exists, then tick this once you\'ve confirmed it yourself.'},
     {id:'sightseeing', cat:'Travel details', label:'Sightseeing plans — name and ticket of places you\'ll visit', weight:'recommended',
       tip:'For each place, note its name in your itinerary above and attach the ticket/booking confirmation here if you already have one — shows a genuine, specific plan rather than a vague one.', accepts:'file', multiple:true},
     {id:'insurance', cat:'Travel details', label:'Travel / medical insurance', weight:'recommended',
