@@ -3,6 +3,18 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Removed em dashes from all user-facing text
+
+User feedback: the app's visible copy reads as AI-written, specifically the heavy use of em dashes
+(the "—" character). Replaced every em dash in rendered text (page titles, headings, buttons,
+status labels, tips, and message strings built in JS) with a plain hyphen. Left code comments
+untouched since those are internal developer notes, never seen by an applicant, and left the
+en dash ("–", used for numeric ranges like "3-6 months" or "₦500,000-₦2,000,000") alone too, since
+that wasn't the character flagged and serves a different, more conventional purpose.
+
+About 693 occurrences changed across index.html. Verified with a full script-block syntax check
+and a spot check of the landing page, the bank statement analysis labels, and a few status pills.
+
 ## Merged the two report tabs into one, and clarified the duplicate-sender prompt's label
 
 User request: "Move all the reports to a page called report." Income & bank statement analysis
