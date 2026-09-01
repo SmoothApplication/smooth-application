@@ -36,8 +36,8 @@ exports.run = async function(ctx){
     }, { timeout: 20000 });
     await page.waitForTimeout(400);
     // Analysis auto-advances to Step 2 (Cash flow & scores) — the consistent-senders table lives on
-    // Step 3 (Detailed reports), so its buttons aren't clickable until that tab is actually active.
-    await goToFinanceStep(page, 3);
+    // Step 5 (the "Report" tab), so its buttons aren't clickable until that tab is actually active.
+    await goToFinanceStep(page, 5);
 
     // --- Before any decision: both look-alike rows appear separately, plus a prompt asking about
     // them specifically (not about the genuinely unrelated third sender) ---------------------------
@@ -51,6 +51,7 @@ exports.run = async function(ctx){
 
     var bannerHtml = await page.$eval('#topConsistentSendersBox', function(el){ return el.innerHTML; });
     assert.ok(/sender-dup-banner/.test(bannerHtml), 'A possible-duplicate prompt banner should render, got: ' + bannerHtml.slice(0, 400));
+    assert.ok(/Likely the same name/.test(bannerHtml), 'The prompt should carry a clear "Likely the same name" label, got: ' + bannerHtml.slice(0, 400));
     assert.ok(/Tunde Bassey Ekpo/.test(bannerHtml) && /Bassey Ekpo Onb/.test(bannerHtml), 'The prompt should name both look-alike senders, got: ' + bannerHtml.slice(0, 800));
     // The genuinely unrelated sender shares no words with either look-alike name, so it should never
     // be pulled into a duplicate prompt of its own.
@@ -105,7 +106,7 @@ exports.run = async function(ctx){
       return el && /Detected \d+ transaction/.test(el.textContent);
     }, { timeout: 20000 });
     await page2.waitForTimeout(400);
-    await goToFinanceStep(page2, 3);
+    await goToFinanceStep(page2, 5);
 
     await page2.click('.sender-dup-decision-btn[data-decision="separate"]');
     await page2.waitForTimeout(200);

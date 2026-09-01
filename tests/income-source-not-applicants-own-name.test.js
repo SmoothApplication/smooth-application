@@ -71,9 +71,9 @@ exports.run = async function(ctx){
     assert.ok(!/Most frequent inflow source.*"Test Applicant"/is.test(analyzeMsgHtml),
       'Should NOT identify the applicant\'s own name as the most frequent inflow source, got: ' + analyzeMsgHtml.slice(0, 2000));
 
-    // Check 2: "Top 10 most consistent senders" (step 3) should list the real sender by name, and
-    // should never list the applicant's own name as a "sender."
-    await goToFinanceStep(page, 3);
+    // Check 2: "Top 10 most consistent senders" (step 5, the Report tab) should list the real sender
+    // by name, and should never list the applicant's own name as a "sender."
+    await goToFinanceStep(page, 5);
     await page.waitForTimeout(200);
     var sendersHtml = await page.$eval('#topConsistentSendersBox', function(el){ return el.innerHTML; });
     assert.ok(/<td>Blessing Nwosu<\/td>/i.test(sendersHtml),
@@ -81,10 +81,10 @@ exports.run = async function(ctx){
     assert.ok(!/<td>Test Applicant<\/td>/i.test(sendersHtml),
       'Top 10 most consistent senders should NOT list the applicant\'s own name as a sender, got: ' + sendersHtml.slice(0, 1500));
 
-    // Check 3: "Income sources breakdown" (step 4) group heading must never be the applicant's own
+    // Check 3: "Income sources breakdown" (step 3) group heading must never be the applicant's own
     // name (whether it lands in the generic "Salary" bucket, as it does once a single dominant sender
     // is confirmed, or its own named group).
-    await goToFinanceStep(page, 4);
+    await goToFinanceStep(page, 3);
     await page.waitForTimeout(200);
     var breakdownHtml = await page.$eval('#incomeBreakdownBox', function(el){ return el.innerHTML; });
     var groupHeadings = (breakdownHtml.match(/<b>([^<]+)<\/b>/g) || []).map(function(m){ return m.replace(/<\/?b>/g, ''); });

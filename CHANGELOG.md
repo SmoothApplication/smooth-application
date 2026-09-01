@@ -3,6 +3,32 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Merged the two report tabs into one, and clarified the duplicate-sender prompt's label
+
+User request: "Move all the reports to a page called report." Income & bank statement analysis
+used to have two separately-named report tabs — "Detailed reports" (top inflows, top consistent
+senders, financial summary — all auto-detected from the upload), sitting right after Step 2, and
+"Readiness report" (the category-by-category summary), sitting at the very end — easy to miss one
+existed at all, and confusing to have two different tabs both calling themselves a "report."
+
+Merged into a single "Report" tab, kept at the END of the flow (6 tabs became 5): 1 Upload
+statements, 2 Cash flow & scores, 3 Income sources breakdown, 4 Workplace income, 5 Report. The
+readiness summary genuinely needs Steps 1-4 filled in first to mean anything, so the merged tab
+couldn't sit where "Detailed reports" used to (right after Step 2) — it had to move to the end,
+which also nudged "Income sources breakdown" and "Workplace income" up one slot each.
+
+Also, per the same request: the "Two rows above look like they might be the same person" prompt
+(shown when two bank-statement senders look like name variants of each other) now opens with a
+clear "Likely the same name" label instead of launching straight into prose — also a more accurate
+description than "same person," since what's actually detected is two narrations sharing
+distinctive words, not a confirmed identity match.
+
+Renumbering touched a lot of `goToFinanceStep(page, N)` calls across the test suite (every test
+that navigates directly to a specific tab) — updated each to the tab's new number, verified against
+which DOM box the test actually needs rather than assumed from the old number. Added a
+"Likely the same name" assertion to `sender-duplicate-prompt.test.js` to cover the new label
+directly.
+
 ## Simplified: bank statement upload no longer clutters the page after analysis
 
 User feedback: "all the upload bank statements and analyze should not show once you upload your

@@ -107,7 +107,8 @@ async function goToSessionByLabel(page, label){
 }
 
 // Clicks one of the "Income & bank statement analysis" session's own internal step tabs (1 Upload,
-// 2 Cash flow & scores, 3 Detailed reports — see .fin-steps-nav in index.html). Needed any time a
+// 2 Cash flow & scores, 3 Income sources breakdown, 4 Workplace income, 5 Report — see
+// .fin-steps-nav in index.html). Needed any time a
 // test interacts with an element that lives in a step other than whichever one is currently active,
 // e.g. filling the cash-flow table directly (step 2) without first uploading a statement, or
 // re-uploading a second statement after the first analysis auto-advanced away from step 1.

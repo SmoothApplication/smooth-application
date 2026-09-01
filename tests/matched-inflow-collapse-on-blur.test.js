@@ -34,8 +34,8 @@ exports.run = async function(ctx){
     await page.waitForSelector('#matchedIncomeInflowsBox .explain-box', { timeout: 20000 });
     await page.waitForTimeout(300);
 
-    // Employer-matched inflows (the "Allowance"-tagged ones) now live on Step 5 — navigate there.
-    await goToFinanceStep(page, 5);
+    // Employer-matched inflows (the "Allowance"-tagged ones) now live on Step 4 — navigate there.
+    await goToFinanceStep(page, 4);
     await page.waitForSelector('#employerIncomeInflowsBox .explain-box', { timeout: 20000 });
 
     // Open an already-explained box (same as clicking "✏️ Edit" to double-check it)...

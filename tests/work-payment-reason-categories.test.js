@@ -43,8 +43,8 @@ exports.run = async function(ctx){
     }, { timeout: 20000 });
     await page.waitForTimeout(400);
 
-    // Only an employer was declared here, so these render on the "Workplace income" tab (Step 5).
-    await goToFinanceStep(page, 5);
+    // Only an employer was declared here, so these render on the "Workplace income" tab (Step 4).
+    await goToFinanceStep(page, 4);
     await page.waitForSelector('#employerIncomeInflowsBox .explain-box', { timeout: 20000 });
 
     // Both matched inflows are auto-tagged on first sight, so their boxes start collapsed — expand both.

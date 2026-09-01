@@ -83,9 +83,9 @@ exports.run = async function(ctx){
     assert.ok(empSummaries.filter(function(s){ return /— Allowance$/.test(s); }).length === 3, 'The 3 employer inflows, all narrated "Allowance", should be pre-tagged "Allowance" (read from their own narration, not defaulted to "Salary" just because they matched the employer), got: ' + JSON.stringify(empSummaries));
 
     // Still fully editable — a wrongly-matched payment should be re-classifiable, same as any other
-    // inflow explanation on this page. Employer inflows live on Step 5 now, so navigate there first —
-    // Step 2's content (and its own unprefixed matchbox_0) is hidden while Step 5 is active.
-    await goToFinanceStep(page, 5);
+    // inflow explanation on this page. Employer inflows live on Step 4 now, so navigate there first —
+    // Step 2's content (and its own unprefixed matchbox_0) is hidden while Step 4 is active.
+    await goToFinanceStep(page, 4);
     await page.click('#matchcollapsed_emp_0');
     await page.waitForSelector('#match_cat_emp_0');
     await page.selectOption('#match_cat_emp_0', 'others');

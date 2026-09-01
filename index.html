@@ -1724,16 +1724,21 @@
              clickable in any order (nothing here is gated behind completing a previous tab, since a
              returning user might only want to re-check one report, or might skip upload entirely and
              type cash-flow totals in by hand) so only one job's worth of content is on screen at once.
-             The income-sources breakdown (tab 4) later got split out of tab 3 into its own tab too,
-             per direct feedback that it's usually the single most consequential report of the bunch —
-             see the comment on data-fin-step="4" below. -->
+             The income-sources breakdown (tab 3) later got split out of the reports tab into its own
+             tab too, per direct feedback that it's usually the single most consequential report of
+             the bunch — see the comment on data-fin-step="3" below.
+
+             User feedback: two separately-named report tabs ("Detailed reports" and "Readiness
+             report") was itself confusing tab clutter — sat at opposite ends of the flow, easy to
+             miss one existed at all. Merged into a single "Report" tab at the end (see the comment
+             on data-fin-step="5" below), so every report lives in one place, read after all the
+             input tabs are filled in rather than split with input tabs in between. -->
         <div class="fin-steps-nav no-print" role="tablist">
           <button type="button" class="fin-step-tab" data-fin-step="1" role="tab">1. Upload statements</button>
           <button type="button" class="fin-step-tab" data-fin-step="2" role="tab">2. Cash flow &amp; scores</button>
-          <button type="button" class="fin-step-tab" data-fin-step="3" role="tab">3. Detailed reports</button>
-          <button type="button" class="fin-step-tab" data-fin-step="4" role="tab">4. Income sources breakdown</button>
-          <button type="button" class="fin-step-tab" data-fin-step="5" role="tab">5. Workplace income</button>
-          <button type="button" class="fin-step-tab" data-fin-step="6" role="tab">6. Readiness report</button>
+          <button type="button" class="fin-step-tab" data-fin-step="3" role="tab">3. Income sources breakdown</button>
+          <button type="button" class="fin-step-tab" data-fin-step="4" role="tab">4. Workplace income</button>
+          <button type="button" class="fin-step-tab" data-fin-step="5" role="tab">5. Report</button>
         </div>
 
         <div class="fin-step" data-fin-step="1">
@@ -1812,13 +1817,57 @@
         <div id="statementReadinessBox"></div>
         <div class="session-nav-btns no-print" style="margin-top:12px;">
           <button type="button" class="btn ghost fin-step-prev" data-fin-prev="1">← Back</button>
-          <button type="button" class="btn fin-step-next" data-fin-next="3">Next: Detailed reports →</button>
+          <button type="button" class="btn fin-step-next" data-fin-next="3">Next: Income sources breakdown →</button>
         </div>
         </div>
 
+        <!-- User feedback: "I think this page is where most decisions about your income is decided
+             by the visa officer." Split into its own tab (previously the last section of the reports
+             tab, sharing a screen with the top-inflows/top-senders reports) so this — arguably the
+             single most consequential report in the whole session — gets its own uncluttered screen
+             rather than being the third thing on a page someone might stop reading partway down. -->
         <div class="fin-step" data-fin-step="3">
-        <h2 style="margin-top:0;">📊 What your statement(s) show</h2>
-        <p class="fin-note" style="margin-top:8px;">Automatically detected from your upload(s) in Step 1.</p>
+        <h2 style="margin-top:0;">Income sources breakdown</h2>
+        <p class="fin-note" style="margin-top:0;">Groups every inflow by who sent it — salary, named senders/companies, and a catch-all for anything with no clear sender — the same approach many applicants use to pre-empt "income not explained" refusals. In our experience this is one of the pages most worth getting right, since unexplained income is a common source of trouble. Add a short note per source; it's kept with your progress.</p>
+        <div id="incomeBreakdownBox"></div>
+        <button type="button" class="btn ghost no-print" id="btnDownloadBreakdown" style="display:none; margin-top:8px;">⬇️ Download breakdown as spreadsheet</button>
+        <div class="item-tip no-print" id="downloadBreakdownNote" style="display:none; margin-top:4px;">The spreadsheet always reflects your latest explanations — from the "inflow(s) need an explanation" boxes on the previous tab and from the notes you add per source below — so fill those in first, then download.</div>
+        <div class="session-nav-btns no-print" style="margin-top:12px;">
+          <button type="button" class="btn ghost fin-step-prev" data-fin-prev="2">← Back</button>
+          <button type="button" class="btn fin-step-next" data-fin-next="4">Next: Workplace income →</button>
+        </div>
+        </div>
+
+        <!-- User request: a dedicated tab to address every inflow matched against a declared EMPLOYER
+             specifically, separate from the business/self-employed breakdown that stays on Step 2 —
+             previously employer-matched inflows rendered mixed in with business-matched ones inside
+             matchedIncomeInflowsBox on Step 2. Reuses the exact same per-transaction explain-box UI
+             (renderMatchedInflowBoxHtml et al.) via a second call to renderMatchedIncomeInflows, just
+             targeting this tab's own box + a distinct DOM-id prefix ('emp_') so the two renders never
+             collide on element IDs — see the prefix parameter added there. Only ever populated with
+             groups whose label is 'employer'; business groups still render into matchedIncomeInflowsBox
+             on Step 2 as before. -->
+        <div class="fin-step" data-fin-step="4">
+        <h2 style="margin-top:0;">Workplace income</h2>
+        <p class="fin-note" style="margin-top:0;">Every inflow in this statement matched against the employer you entered under "Work status" — pulled out into its own tab so you can go through and confirm each salary payment without it being mixed in with your business inflows or the rest of Step 2. If you're self-employed rather than employed, or your employer name found no matches, this tab will be empty.</p>
+        <div id="employerIncomeInflowsBox"></div>
+        <div class="session-nav-btns no-print" style="margin-top:12px;">
+          <button type="button" class="btn ghost fin-step-prev" data-fin-prev="3">← Back</button>
+          <button type="button" class="btn fin-step-next" data-fin-next="5">Next: Report →</button>
+        </div>
+        </div>
+
+        <!-- User request: "Move all the reports to a page called report." Used to be two separate
+             tabs — "Detailed reports" (top inflows, top consistent senders, financial summary — all
+             auto-detected from the upload) and, at the very end, "Readiness report" (the category
+             summary below) — which read as two different, easy-to-miss report tabs rather than one
+             obvious place to check everything. Merged into a single tab, kept at the END of the flow
+             (rather than where "Detailed reports" used to sit, right after Step 2) since the
+             readiness summary below genuinely needs Steps 1-4 all filled in first — see
+             computeReadinessReportRows()'s own comment further down. -->
+        <div class="fin-step" data-fin-step="5">
+        <h2 style="margin-top:0;">Report</h2>
+        <p class="fin-note" style="margin-top:8px;">Automatically detected from your upload(s) in Step 1, plus an overall readiness summary once Steps 2-4 are filled in.</p>
 
         <h4 class="subcat-heading" style="margin-top:18px;">Top 10 inflows</h4>
         <p class="fin-note" style="margin-top:0;">The 10 largest individual credits detected in your uploaded statement(s), ranked by amount — a quick way to see at a glance which inflows stand out most, and are most likely to draw a question.</p>
@@ -1841,64 +1890,22 @@
         <p class="fin-note" style="margin-top:0;">Everything above, pulled into one summary: what came in and went out over your statement window, how strong your closing balance looks against the recommended buffer, and — if it's not there yet — roughly how much more and how long, at your current saving pace.</p>
         <div id="financialSummaryBox"></div>
 
-        <div class="session-nav-btns no-print" style="margin-top:12px;">
-          <button type="button" class="btn ghost fin-step-prev" data-fin-prev="2">← Back</button>
-          <button type="button" class="btn fin-step-next" data-fin-next="4">Next: Income sources breakdown →</button>
-        </div>
-        </div>
-
-        <!-- User feedback: "I think this page is where most decisions about your income is decided
-             by the visa officer." Split into its own tab (previously the last section of step 3,
-             sharing a screen with the top-inflows/top-senders reports) so this — arguably the single
-             most consequential report in the whole session — gets its own uncluttered screen rather
-             than being the third thing on a page someone might stop reading partway down. -->
-        <div class="fin-step" data-fin-step="4">
-        <h2 style="margin-top:0;">Income sources breakdown</h2>
-        <p class="fin-note" style="margin-top:0;">Groups every inflow by who sent it — salary, named senders/companies, and a catch-all for anything with no clear sender — the same approach many applicants use to pre-empt "income not explained" refusals. In our experience this is one of the pages most worth getting right, since unexplained income is a common source of trouble. Add a short note per source; it's kept with your progress.</p>
-        <div id="incomeBreakdownBox"></div>
-        <button type="button" class="btn ghost no-print" id="btnDownloadBreakdown" style="display:none; margin-top:8px;">⬇️ Download breakdown as spreadsheet</button>
-        <div class="item-tip no-print" id="downloadBreakdownNote" style="display:none; margin-top:4px;">The spreadsheet always reflects your latest explanations — from the "inflow(s) need an explanation" boxes on the previous tab and from the notes you add per source below — so fill those in first, then download.</div>
-        <div class="session-nav-btns no-print" style="margin-top:12px;">
-          <button type="button" class="btn ghost fin-step-prev" data-fin-prev="3">← Back</button>
-          <button type="button" class="btn fin-step-next" data-fin-next="5">Next: Workplace income →</button>
-        </div>
-        </div>
-
-        <!-- User request: a dedicated tab to address every inflow matched against a declared EMPLOYER
-             specifically, separate from the business/self-employed breakdown that stays on Step 2 —
-             previously employer-matched inflows rendered mixed in with business-matched ones inside
-             matchedIncomeInflowsBox on Step 2. Reuses the exact same per-transaction explain-box UI
-             (renderMatchedInflowBoxHtml et al.) via a second call to renderMatchedIncomeInflows, just
-             targeting this tab's own box + a distinct DOM-id prefix ('emp_') so the two renders never
-             collide on element IDs — see the prefix parameter added there. Only ever populated with
-             groups whose label is 'employer'; business groups still render into matchedIncomeInflowsBox
-             on Step 2 as before. -->
-        <div class="fin-step" data-fin-step="5">
-        <h2 style="margin-top:0;">Workplace income</h2>
-        <p class="fin-note" style="margin-top:0;">Every inflow in this statement matched against the employer you entered under "Work status" — pulled out into its own tab so you can go through and confirm each salary payment without it being mixed in with your business inflows or the rest of Step 2. If you're self-employed rather than employed, or your employer name found no matches, this tab will be empty.</p>
-        <div id="employerIncomeInflowsBox"></div>
-        <div class="session-nav-btns no-print" style="margin-top:12px;">
-          <button type="button" class="btn ghost fin-step-prev" data-fin-prev="4">← Back</button>
-          <button type="button" class="btn fin-step-next" data-fin-next="6">Next: Readiness report →</button>
-        </div>
-        </div>
-
         <!-- User request, as "CTO" priority #3 off the friend's product review + monetization planning:
              a single summary of financial readiness using CATEGORY status (Missing / Needs review /
              Looks complete / Not assessed) instead of one raw percentage — meant to be the free-tier
              "payoff" for finishing this session, and read at a glance rather than requiring the
-             applicant to go back through every one of Steps 1-5 themselves. Deliberately reuses
-             signals ALREADY computed and shown elsewhere on Steps 2-5 (the incomePill/balancePill
+             applicant to go back through every one of Steps 1-4 themselves. Deliberately reuses
+             signals ALREADY computed and shown elsewhere on Steps 2-4 (the incomePill/balancePill
              classes, window.__lastUnexplainedInflows, window.__lastIncomeBreakdown,
              window.__lastNameChecks) rather than re-deriving new thresholds — this is a presentation
              layer over existing state, not a new scoring model, so it can't drift out of sync with
              what those steps already say. See computeReadinessReportRows(). -->
-        <div class="fin-step" data-fin-step="6">
-        <h2 style="margin-top:0;">Readiness report</h2>
-        <p class="fin-note" style="margin-top:0;">A category-by-category summary of financial readiness, pulled together from everything filled in on Steps 1-5 — not a single score, since different parts of your evidence can be in very different states at once.</p>
+        <h4 class="subcat-heading" style="margin-top:24px;">Readiness summary</h4>
+        <p class="fin-note" style="margin-top:0;">A category-by-category summary of financial readiness, pulled together from everything filled in on Steps 1-4 — not a single score, since different parts of your evidence can be in very different states at once.</p>
         <div id="readinessReportBox"></div>
+
         <div class="session-nav-btns no-print" style="margin-top:12px;">
-          <button type="button" class="btn ghost fin-step-prev" data-fin-prev="5">← Back</button>
+          <button type="button" class="btn ghost fin-step-prev" data-fin-prev="4">← Back</button>
         </div>
         </div>
         </div>
@@ -4373,7 +4380,7 @@
 
     updateScore();
     applySessionVisibility();
-    // "Workplace/Business income evidence" on the Readiness report (Step 6) reads answers.employed/
+    // "Workplace/Business income evidence" on the Report tab's readiness summary (Step 5) reads answers.employed/
     // employerName/selfEmployed/businessName — all fields wired to render(), not computeFinancials()
     // (see the id list above) — so without this, editing the declared employer/business name left the
     // report showing stale "Not assessed"/"Missing" state until something else (e.g. a financial
@@ -5799,7 +5806,7 @@
       }
     }
     var hasCashFlowData = rows.length >= 2;
-    // Exposed globally so the Readiness report tab (Step 6) can tell "nothing uploaded/entered yet"
+    // Exposed globally so the Report tab's readiness summary (Step 5) can tell "nothing uploaded/entered yet"
     // apart from "entered, but this category still needs work" without re-deriving the same >= 2
     // months threshold — see computeReadinessReportRows().
     window.__hasCashFlowData = hasCashFlowData;
@@ -6180,7 +6187,7 @@
       }
     }
 
-    // ---- Financial summary table (Step 3, "Detailed reports") ----
+    // ---- Financial summary table (Step 5, "Report") ----
     // User request: "Add Income generation, Closing balance strength, how much is needed to balance,
     // how long it would take to get the desired balance... [as] a summary of financials." Every
     // figure below is one already computed just above in THIS SAME function (the cash-flow totals,
@@ -6261,9 +6268,9 @@
     // same fields (fc_flight, fc_accom, fc_transport, fc_closing) — without this it only updated on
     // the next navigation, so the header could still read "0% filled" long after fields were typed in.
     applySessionVisibility();
-    // Readiness report (Step 6) reads the incomePill/balancePill classes this function just set, plus
+    // Report tab's readiness summary (Step 5) reads the incomePill/balancePill classes this function just set, plus
     // the window.__lastX globals kept in sync elsewhere — re-render every time this runs, same as
-    // applySessionVisibility() above, so it never goes stale relative to what Steps 2-5 show.
+    // applySessionVisibility() above, so it never goes stale relative to what Steps 2-4 show.
     if (typeof renderReadinessReport === 'function') renderReadinessReport();
   }
 
@@ -10839,7 +10846,7 @@
     });
   }
 
-  // ---- Readiness report (Step 6) ----
+  // ---- Report tab's readiness summary (Step 5) ----
   // User request, as CTO priority #3 off the friend's product review + monetization planning: a
   // single summary of financial readiness using CATEGORY status instead of one raw percentage — the
   // free-tier "payoff" for finishing this session. Status vocabulary used throughout:
@@ -10848,7 +10855,7 @@
   //   looks_complete — nothing outstanding in this category
   //   not_assessed   — doesn't apply given what this applicant declared (e.g. business income
   //                    evidence when only "Employed" was declared under Work status)
-  // Deliberately reuses signals ALREADY computed and shown elsewhere on Steps 2-5 (the incomePill/
+  // Deliberately reuses signals ALREADY computed and shown elsewhere on Steps 2-4 (the incomePill/
   // balancePill classes computeFinancials() sets, window.__lastUnexplainedInflows,
   // window.__lastIncomeBreakdown, window.__lastNameChecks) rather than re-deriving new thresholds —
   // this is a presentation layer over existing state, not a new scoring model, so it can't drift out
@@ -10930,12 +10937,12 @@
       breakdownDetail = 'All ' + groupsNeedingNote.length + ' income source(s) that need a note have one.';
     } else {
       breakdownStatus = 'needs_review';
-      breakdownDetail = (groupsNeedingNote.length - explainedGroups.length) + ' of ' + groupsNeedingNote.length + ' income source(s) below still need a note — see Step 4.';
+      breakdownDetail = (groupsNeedingNote.length - explainedGroups.length) + ' of ' + groupsNeedingNote.length + ' income source(s) below still need a note — see Step 3.';
     }
     rows.push({key:'breakdown', label:'Income sources breakdown', status: breakdownStatus, detail: breakdownDetail});
 
     // Workplace (employer) and business income evidence — same logic, different declared name and
-    // different matched-inflow tab (Step 5 for employer, Step 2 for business).
+    // different matched-inflow tab (Step 4 for employer, Step 2 for business).
     var nameChecks = window.__lastNameChecks || [];
     function evidenceRow(key, label, declared, declaredName, stepHint, checkLabel){
       if (!declared || !declaredName){
@@ -10960,7 +10967,7 @@
       }
       return {key:key, label:label, status:'needs_review', detail: entry.inflowCount + ' inflow(s) found from "'+declaredName+'", but not all are explained yet — see '+stepHint+'.'};
     }
-    rows.push(evidenceRow('workplace', 'Workplace income evidence', answers.employed, answers.employerName, 'Step 5', 'employer'));
+    rows.push(evidenceRow('workplace', 'Workplace income evidence', answers.employed, answers.employerName, 'Step 4', 'employer'));
     rows.push(evidenceRow('business', 'Business income evidence', answers.selfEmployed, answers.businessName, 'Step 2', 'business'));
 
     return rows;
@@ -11069,9 +11076,13 @@
     var pending = (result && result.pendingDuplicates) || [];
     var html = '';
     // One prompt per unanswered look-alike pair — deliberately never auto-merged, since two real
-    // family members can legitimately share a surname; this is a question, not a correction.
+    // family members can legitimately share a surname; this is a question, not a correction. User
+    // request: give this its own clear label ("Likely the same name") rather than opening straight
+    // into prose — also more accurate than the old "same person" phrasing, since what's actually
+    // detected is two narrations sharing distinctive words, not a confirmed identity match.
     pending.forEach(function(p){
       html += '<div class="scan-msg warn sender-dup-banner" style="margin-bottom:8px;">'
+        + '<div style="font-weight:700; margin-bottom:4px;">Likely the same name</div>'
         + '<div>Two rows above look like they might be the <strong>same person</strong>: "'+escapeHtml(p.nameA)+'" and "'+escapeHtml(p.nameB)+'" — both mention '+escapeHtml(p.shared.join(' and '))+'. Bank narrations often shorten or reorder a name, or append your bank\'s own transaction code, so this could be one consistent sender split across two rows, or two different people who share a name. Which is it?'
         + '<div style="margin-top:8px;">'
         + '<button type="button" class="btn sender-dup-decision-btn" data-decision="merge" data-name-a="'+escapeHtml(p.nameA)+'" data-name-b="'+escapeHtml(p.nameB)+'" style="margin-right:8px;">Yes, same person — merge them</button>'
@@ -11847,9 +11858,9 @@
         renderIncomeBreakdown(buildIncomeSourceBreakdown(recentTxns, getAnswers().name));
         // Auto-advance from the Upload tab to the Cash flow & scores tab so the applicant sees the
         // direct result of what they just uploaded without an extra click — same "nobody has to
-        // remember to go find it" idea as the old auto-opening report group this replaced. Step 3's
-        // detailed report is one more click away (Next) rather than also jumped to automatically,
-        // since two auto-jumps in a row would feel like the page is driving, not the applicant.
+        // remember to go find it" idea as the old auto-opening report group this replaced. The
+        // detailed Report tab is a few clicks away rather than also jumped to automatically, since
+        // two auto-jumps in a row would feel like the page is driving, not the applicant.
         if (typeof setFinanceStep === 'function') setFinanceStep(2, false);
 
         computeFinancials();
@@ -12005,14 +12016,14 @@
             }
           });
           // Split by declared source: employer-matched groups get their own "Workplace income" tab
-          // (Step 5), business-matched groups keep rendering on Step 2 as before — see the user
+          // (Step 4), business-matched groups keep rendering on Step 2 as before — see the user
           // request that added the employer tab, and the boxId/prefix comment on
           // renderMatchedIncomeInflows above.
           var businessIncomeGroups = matchedIncomeGroups.filter(function(g){ return g.label !== 'employer'; });
           var employerIncomeGroups = matchedIncomeGroups.filter(function(g){ return g.label === 'employer'; });
           renderMatchedIncomeInflows(businessIncomeGroups, 'matchedIncomeInflowsBox');
           renderMatchedIncomeInflows(employerIncomeGroups, 'employerIncomeInflowsBox', 'emp_');
-          // Kept for the Readiness report tab (Step 6) — nameChecks (not just matchedIncomeGroups)
+          // Kept for the Report tab's readiness summary (Step 5) — nameChecks (not just matchedIncomeGroups)
           // covers EVERY declared name, including one that was typed but never actually found in the
           // statement (found:false, inflowCount:0) or found only in passing text with no direct
           // credit match (found:true, inflowCount:0) — cases matchedIncomeGroups deliberately excludes

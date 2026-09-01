@@ -1,10 +1,11 @@
 'use strict';
 // User request, as "CTO" priority #3 off the friend's product review + monetization planning: a new
-// "Readiness report" tab (Step 6, inside Income & bank statement analysis) summarizing financial
-// readiness using CATEGORY status (Missing / Needs review / Looks complete / Not assessed) instead of
-// a single raw percentage. Deliberately reuses signals already computed elsewhere on Steps 2-5
-// (incomePill/balancePill classes, window.__lastUnexplainedInflows, window.__lastIncomeBreakdown,
-// window.__lastNameChecks) — see computeReadinessReportRows() in index.html.
+// readiness summary (Step 5, the "Report" tab inside Income & bank statement analysis) summarizing
+// financial readiness using CATEGORY status (Missing / Needs review / Looks complete / Not assessed)
+// instead of a single raw percentage. Deliberately reuses signals already computed elsewhere on
+// Steps 2-4 (incomePill/balancePill classes, window.__lastUnexplainedInflows,
+// window.__lastIncomeBreakdown, window.__lastNameChecks) — see computeReadinessReportRows() in
+// index.html.
 const assert = require('assert');
 const path = require('path');
 const { newPageAt, passConsentGate, goToSessionByPill, goToFinanceStep } = require('./helpers');
@@ -18,7 +19,7 @@ exports.run = async function(ctx){
   try {
     await passConsentGate(page1);
     await goToSessionByPill(page1, 4); // finance2 — 'Income & bank statement analysis'
-    await goToFinanceStep(page1, 6);
+    await goToFinanceStep(page1, 5);
     await page1.waitForSelector('#readinessReportBox');
 
     var freshText = await page1.$eval('#readinessReportBox', function(el){ return el.innerText; });
@@ -35,7 +36,7 @@ exports.run = async function(ctx){
     await page1.selectOption('#f_workStatus', 'employed');
     await page1.fill('#f_employerName', 'Some Employer Ltd');
     await goToSessionByPill(page1, 4);
-    await goToFinanceStep(page1, 6);
+    await goToFinanceStep(page1, 5);
     var afterEmployerText = await page1.$eval('#readinessReportBox', function(el){ return el.innerText; });
     assert.ok(/Workplace income evidence[\s\S]*?Missing[\s\S]*?Upload a bank statement on Step 1 to check for "Some Employer Ltd"/.test(afterEmployerText),
       'Declaring an employer should flip Workplace income evidence to Missing, referencing the declared name, got: ' + afterEmployerText);
@@ -62,7 +63,7 @@ exports.run = async function(ctx){
     await page2.waitForSelector('#matchedIncomeInflowsBox .explain-box', { timeout: 20000 });
     await page2.waitForTimeout(300);
 
-    await goToFinanceStep(page2, 6);
+    await goToFinanceStep(page2, 5);
     await page2.waitForSelector('#readinessReportBox');
     var fullText = await page2.$eval('#readinessReportBox', function(el){ return el.innerText; });
 
@@ -75,10 +76,10 @@ exports.run = async function(ctx){
     assert.ok(/Business income evidence[\s\S]*?Looks complete[\s\S]*?Bright Homes Cleaning Solutions Ltd/.test(fullText),
       'Business income evidence should read Looks complete once every business-matched inflow is explained, got: ' + fullText);
     // The matched-inflow explain-box being auto-tagged does NOT automatically fill in the SEPARATE
-    // "Income sources breakdown" (Step 4) note for that same sender — this category should still
-    // correctly flag that gap rather than reading everything as done just because Steps 2/5 are clean.
+    // "Income sources breakdown" (Step 3) note for that same sender — this category should still
+    // correctly flag that gap rather than reading everything as done just because Steps 2/4 are clean.
     assert.ok(/Income sources breakdown[\s\S]*?Needs review/.test(fullText),
-      'Income sources breakdown should still show Needs review while its own Step 4 note is unfilled, got: ' + fullText);
+      'Income sources breakdown should still show Needs review while its own Step 3 note is unfilled, got: ' + fullText);
   } finally {
     await page2.context().close();
   }

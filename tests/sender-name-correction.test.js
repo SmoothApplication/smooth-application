@@ -37,7 +37,7 @@ exports.run = async function(ctx){
     }, { timeout: 20000 });
     await page.waitForTimeout(300);
 
-    await goToFinanceStep(page, 4);
+    await goToFinanceStep(page, 3);
     await page.waitForSelector('#srcbox_0');
 
     var nameBefore = await page.$eval('#srcbox_0 .tx-line b', function(el){ return el.textContent; });

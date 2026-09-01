@@ -97,8 +97,8 @@ exports.run = async function(ctx){
     // --- Items 8/10: bank narration code glossary, surfaced on the matched-employer inflow boxes ----
     // Matched inflows are auto-explained (and so start collapsed) — expand the first one to see the
     // full box, including the narration decode toggle. Employer-matched inflows live on their own
-    // "Workplace income" tab (Step 5) now.
-    await goToFinanceStep(page, 5);
+    // "Workplace income" tab (Step 4) now.
+    await goToFinanceStep(page, 4);
     await page.waitForSelector('#matchcollapsed_emp_0');
     await page.click('#matchcollapsed_emp_0');
     await page.waitForSelector('#match_cat_emp_0');

@@ -1,7 +1,7 @@
 'use strict';
 // User request: "Add Income generation, Closing balance strength, how much is needed to balance,
 // how long it would take to get the desired balance... Let the table [come] after as [a] summary of
-// financials." A new #financialSummaryBox table on Step 3 ("Detailed reports") pulls together figures
+// financials." A new #financialSummaryBox table on Step 5 (the "Report" tab) pulls together figures
 // already computed elsewhere on the page (cash-flow totals, the Strong/Needs attention/Weak balance
 // badge, the shortfall/months-to-save note) into one glanceable table — see the block right after
 // balancePillPctEl inside computeFinancials() in index.html.
@@ -48,7 +48,7 @@ exports.run = async function(ctx){
       return el && /Detected \d+ transaction/.test(el.textContent);
     }, { timeout: 20000 });
     await page.waitForTimeout(400);
-    await goToFinanceStep(page, 3);
+    await goToFinanceStep(page, 5);
 
     // --- Before any trip cost is entered: totals/averages are real, but there's nothing yet to grade
     // the closing balance against ------------------------------------------------------------------
@@ -76,12 +76,12 @@ exports.run = async function(ctx){
     // 2× buffer (2 × 200,000 = 400,000), so the summary should read "already there" ------------------
     // fc_flight lives on the SEPARATE "Financial readiness calculator" session/card (session key
     // 'finance'), distinct from the "Income & bank statement analysis" session (key 'finance2', with
-    // its own Step 1-6 sub-tabs) this test has been in so far — not another sub-tab within it.
+    // its own Step 1-5 sub-tabs) this test has been in so far — not another sub-tab within it.
     await goToSessionByLabel(page, 'Financial readiness calculator');
     await page.fill('#fc_flight', '200000');
     await page.waitForTimeout(300);
     await goToSessionByLabel(page, 'Income & bank statement analysis');
-    await goToFinanceStep(page, 3);
+    await goToFinanceStep(page, 5);
 
     var rows2 = await page.$eval('#financialSummaryBox', function(el){
       return Array.from(el.querySelectorAll('tbody tr')).map(function(r){

@@ -35,7 +35,7 @@ exports.run = async function(ctx){
     }, { timeout: 20000 });
     await page.waitForTimeout(300);
 
-    await goToFinanceStep(page, 4);
+    await goToFinanceStep(page, 3);
     await page.waitForSelector('#srcbox_2'); // "Mary Smith" — a family-type box needing a note
 
     // Scenario A: payments panel left CLOSED — the existing "save & tidy away" behaviour is unchanged,

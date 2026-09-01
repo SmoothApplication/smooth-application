@@ -59,11 +59,11 @@ exports.run = async function(ctx){
     }
     assert.strictEqual(bizVisibleFlags.filter(Boolean).length, 0, 'Collapsing the business group should hide all 3 of its boxes, got visible count: ' + bizVisibleFlags.filter(Boolean).length);
 
-    // Employer-matched inflows now live on their own "Workplace income" tab (Step 5) — same
+    // Employer-matched inflows now live on their own "Workplace income" tab (Step 4) — same
     // collapsible-group behavior, checked on that tab.
-    await goToFinanceStep(page1, 5);
+    await goToFinanceStep(page1, 4);
     var empGroupCount = await page1.$$eval('#employerIncomeInflowsBox details.report-group', function(els){ return els.length; });
-    assert.strictEqual(empGroupCount, 1, 'Step 5 should wrap the employer-matched inflows in one collapsible group, got: ' + empGroupCount);
+    assert.strictEqual(empGroupCount, 1, 'Step 4 should wrap the employer-matched inflows in one collapsible group, got: ' + empGroupCount);
 
     var empStartsOpen = await page1.$$eval('#employerIncomeInflowsBox details.report-group', function(els){ return els.every(function(el){ return el.open; }); });
     assert.strictEqual(empStartsOpen, true, 'Employer group should start OPEN so nothing looks different than before this change');

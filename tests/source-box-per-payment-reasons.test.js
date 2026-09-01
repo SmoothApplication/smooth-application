@@ -33,7 +33,7 @@ exports.run = async function(ctx){
     }, { timeout: 20000 });
     await page.waitForTimeout(300);
 
-    await goToFinanceStep(page, 4);
+    await goToFinanceStep(page, 3);
     await page.waitForSelector('#srcbox_2'); // "Mary Smith" — 3 payments, a family-type box needing a note
 
     // The "same / different" choice should default to "same" — unchanged existing behavior — and
