@@ -56,6 +56,7 @@ exports.run = async function(ctx){
     // Reload the page — the tracker (both entries, with the edited status/deadline/notes) should
     // survive, proving it persists independently of the rest of the app's per-country autosave.
     await page.reload();
+    await passConsentGate(page);
     await goToSessionByLabel(page, 'Funded opportunities');
     await page.waitForSelector('#appTrackerCard');
     var rowCountAfterReload = await page.$$eval('#trackerList .tracker-row', function(els){ return els.length; });
