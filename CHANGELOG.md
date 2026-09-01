@@ -3,6 +3,30 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## "WhatsApp/email myself a reminder" at the passport-scan and bank-statement steps
+
+Fieldwork finding: many applicants meet the app away from home, without their physical passport or
+downloaded bank statements on them — often on the same phone they're using right now — and have to
+go get the document and come back later, which they simply forget to do. Progress already survives
+a same-device return (it's saved automatically to that browser, restored on reopen — see the
+"Welcome back" banner), so the real gap was never technical persistence, just the reminder itself.
+
+Added a "📱 WhatsApp myself a reminder / ✉️ Email myself a reminder" prompt right at both
+friction points — the passport scan and the bank-statement upload step — each opening a pre-filled
+message naming what to bring back and a link to this exact page. Same no-backend, nothing-sent-
+anywhere pattern as the existing "Email myself this summary" button at final review, just offered
+earlier, where it's actually needed, with WhatsApp offered first since it's this audience's proven
+channel elsewhere in the app. Links are real, precomputed `<a href>`s recomputed on every render (not
+a JS `location.href` redirect on click) — the same fix already applied to the quiz notify-me links,
+after a real user report that a JS-driven `mailto:` redirect silently does nothing on phones with no
+mail app configured.
+
+Also confirmed and clarified, rather than built from scratch: both friction points already had a
+manual, no-scan fallback (type the passport number/expiry directly; type cash-flow totals directly
+instead of uploading a statement) — the passport section's intro copy just didn't say so as plainly
+as the bank-statement section's already did. Aligned the copy so both make the "don't have it on you
+right now? that's fine" option equally obvious.
+
 ## Reduced funnel friction in Travel details & Accommodation, from real GoatCounter drop-off data
 
 Analytics showed people reaching the Travel details and Accommodation & UK host categories at a much

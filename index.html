@@ -1232,10 +1232,25 @@
           <span class="chevron">▸</span>
         </summary>
         <div class="card-body">
-        <p class="item-tip" style="margin-top:0;">Scan your passport's bio page below — your name, passport number, and expiry date will be read straight off it and filled in automatically. Check each one against your physical passport and correct anything that's wrong before moving on.</p>
+        <p class="item-tip" style="margin-top:0;">Scan your passport's bio page below — your name, passport number, and expiry date will be read straight off it and filled in automatically. Check each one against your physical passport and correct anything that's wrong before moving on. Don't have your passport on you right now? No problem — skip the scan and type your details into the fields below instead; nothing here requires the scan.</p>
         <div class="upload-row no-print" style="margin:4px 0 14px;">
           <input type="file" id="file_passportValidate" accept="image/*,application/pdf">
           <button type="button" class="btn" id="btnPassportValidateAttach" disabled>📎 Scan passport</button>
+        </div>
+        <!-- Field-work finding: many applicants hit this step away from home, without the physical
+             passport on them, on the same phone they're using right now — and simply forget to come
+             back once they're home with it. Progress already survives a same-device return via
+             localStorage (see "Welcome back" banner), so the only real gap is the reminder itself.
+             Mirrors the existing "Email myself this summary" pattern (mailto:, nothing sent anywhere)
+             with WhatsApp offered first, since it's this audience's proven channel elsewhere in the
+             app (footer credit, feedback links, quiz notify-me). Hrefs are (re)computed by
+             updateResumeReminderLinks(), called from render(), so they always reflect the current
+             country/visa name. -->
+        <div class="item-tip no-print" style="margin:0 0 14px;">Need to go get your passport first? Send yourself a reminder with the link back to this page:
+          <div style="margin-top:6px; display:flex; gap:8px; flex-wrap:wrap;">
+            <a class="btn ghost" id="btnRemindPassportWhatsApp" href="#" target="_blank" rel="noopener">📱 WhatsApp myself a reminder</a>
+            <a class="btn ghost" id="btnRemindPassportEmail" href="#">✉️ Email myself a reminder</a>
+          </div>
         </div>
         <div id="passportValidateMsg" class="item-tip no-print" style="margin:2px 0 10px;"></div>
         <div id="passportValidateResult"></div>
@@ -1684,6 +1699,12 @@
           <button class="btn primary" id="btnAnalyzeStatements" disabled>🔍 Analyze statement(s) — beta</button>
         </div>
         <p class="fin-note no-print" style="margin-bottom:10px;">Up to 3 separate statement files (e.g. one per account, or one per date range) — PDF, a photo/scan, or an Excel export (.xlsx/.xls). Processed entirely in your browser — nothing is uploaded anywhere. This is a best-effort reader: bank formats vary, so always check the auto-filled numbers in the next step against your real statement.</p>
+        <div class="item-tip no-print" style="margin:0 0 10px;">Haven't downloaded your 3–6 months of statements yet? Send yourself a reminder with the link back to this page:
+          <div style="margin-top:6px; display:flex; gap:8px; flex-wrap:wrap;">
+            <a class="btn ghost" id="btnRemindStatementsWhatsApp" href="#" target="_blank" rel="noopener">📱 WhatsApp myself a reminder</a>
+            <a class="btn ghost" id="btnRemindStatementsEmail" href="#">✉️ Email myself a reminder</a>
+          </div>
+        </div>
         <div id="stmtAnalyzeMsg"></div>
         <button type="button" class="btn no-print fin-step-next" data-fin-next="2" style="margin-top:10px;">Next: Cash flow &amp; scores →</button>
         </div>
@@ -4180,6 +4201,8 @@
     // status message in sync with whatever the trip session's own f_name field currently holds
     // (the applicant can edit it there even without re-scanning).
     updatePassportValidateStatus(a);
+    updateResumeReminderLinks('btnRemindPassportWhatsApp', 'btnRemindPassportEmail', 'my international passport', 'passport');
+    updateResumeReminderLinks('btnRemindStatementsWhatsApp', 'btnRemindStatementsEmail', 'my last 3–6 months of bank statements', 'statements');
 
     var byCat = {};
     CHECKLIST.forEach(function(it){
@@ -4506,6 +4529,45 @@
   }
   wireEmailSummaryButton('btnEmailSummaryFinal');
   wireEmailSummaryButton('btnEmailSummarySidebar');
+
+  // "WhatsApp/email myself a reminder" — the same on-device, nothing-sent-anywhere mailto: pattern as
+  // "Email myself this summary" above, but offered right at the two friction points fieldwork actually
+  // flagged (the passport scan and the bank-statement upload), not just at the final review. WhatsApp
+  // is the primary link (real <a href>, precomputed — NOT a JS location.href redirect on click, since
+  // that's the exact pattern already found broken for mailto: on phones with no mail app configured;
+  // see the quiz notify-me comment above). Deliberately short — just enough to get the applicant back
+  // to this page — not the full status dump the end-of-checklist summary sends.
+  function buildResumeReminderMessage(whatToBring){
+    var visaName = COUNTRIES[currentCountry] ? COUNTRIES[currentCountry].visaName : 'visa';
+    var lines = [];
+    lines.push('Reminder to myself: finish my Smooth Application ' + visaName + ' checklist.');
+    lines.push('');
+    lines.push('What I need to have ready: ' + whatToBring);
+    lines.push('');
+    lines.push('Continue where I left off: ' + window.location.origin + window.location.pathname);
+    lines.push('(My progress is saved automatically in this browser — open this link on the SAME phone to pick back up.)');
+    return lines.join('\n');
+  }
+  function updateResumeReminderLinks(waId, emailId, whatToBring, trackLabel){
+    var waLink = document.getElementById(waId);
+    var emailLink = document.getElementById(emailId);
+    if (!waLink && !emailLink) return;
+    var msg = buildResumeReminderMessage(whatToBring);
+    if (waLink){
+      waLink.href = 'https://wa.me/?text=' + encodeURIComponent(msg);
+      if (!waLink.dataset.reminderWired){
+        waLink.dataset.reminderWired = '1';
+        waLink.addEventListener('click', function(){ trackEvent('resume_reminder_clicked:' + trackLabel + ':whatsapp'); });
+      }
+    }
+    if (emailLink){
+      emailLink.href = 'mailto:?subject=' + encodeURIComponent('Reminder: finish my Smooth Application checklist') + '&body=' + encodeURIComponent(msg);
+      if (!emailLink.dataset.reminderWired){
+        emailLink.dataset.reminderWired = '1';
+        emailLink.addEventListener('click', function(){ trackEvent('resume_reminder_clicked:' + trackLabel + ':email'); });
+      }
+    }
+  }
 
   // The WhatsApp/email links inside a gated section report (see sessionReportCardHtml()) live
   // inside #sessionReportCard, which is rebuilt via innerHTML on nearly every keystroke — a
