@@ -47,6 +47,15 @@
        see .status-pill.neutral below. */
     --neutral:      #55636c;
     --neutral-wash: #e7ebed;
+    /* Serif display stack for headline-level text only (app title, session/category headings) — the
+       one new element the "next direction" mockup proposed adopting everywhere, layered on top of
+       the existing Ocean & Coastal palette rather than replacing it. Deliberately a SYSTEM serif
+       stack, not a Google Fonts import: this app promises documents never leave the device, and a
+       webfont request is itself a third-party network call that isn't disclosed anywhere in the
+       Privacy Policy — same reasoning already applied to .consent-gate-title's font choice below.
+       Georgia/Palatino-family fonts ship on effectively every desktop OS and iOS; Android falls back
+       to its default serif, which is still a real serif (just not this exact face). */
+    --serif: Georgia, "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, serif;
   }
   @media (prefers-color-scheme: dark) {
     :root:where(:not([data-theme="light"])) {
@@ -114,7 +123,7 @@
   .wrap { max-width: 980px; margin: 0 auto; padding: 24px 20px 80px; }
 
   header.top { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
-  h1 { font-size: 22px; margin: 0 0 4px; }
+  h1 { font-family: var(--serif); font-weight: 700; font-size: 23px; letter-spacing: -0.01em; margin: 0 0 4px; }
   .country-indicator {
     display: inline-flex; align-items: center; gap: 6px; margin: 0; font-size: 12.5px; font-weight: 600;
     color: var(--accent); background: var(--accent-wash); padding: 3px 10px; border-radius: 999px;
@@ -386,7 +395,7 @@
     padding: 18px 20px; margin-bottom: 18px;
     box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 14px rgba(0,0,0,0.03);
   }
-  .card h2 { font-size: 15px; margin: 0 0 14px; }
+  .card h2 { font-family: var(--serif); font-weight: 700; font-size: 16.5px; letter-spacing: -0.005em; margin: 0 0 14px; }
   .card h2 .cat-count { font-weight: 400; color: var(--text-muted); font-size: 12px; margin-left: 6px; }
   .subcat-heading { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); margin: 18px 0 8px; padding-top: 12px; border-top: 1px solid var(--border); }
   .subcat-heading:first-of-type { border-top: none; padding-top: 0; margin-top: 4px; }
@@ -501,6 +510,32 @@
   .fin-step.active { display: block; }
   /* Print (Save full report as PDF) must include all three steps regardless of which tab is active. */
   @media print { .fin-step { display: block !important; } .fin-steps-nav { display: none !important; } }
+
+  /* "Advanced details" dropdown (mockup "2e") — one-click shortcuts into a specific deep-dive box on
+     tabs 3/4/5 without visiting each tab in turn. Plain native <details>, same accessible-for-free
+     pattern already used by .report-group above. */
+  .fin-advanced-menu { position: relative; }
+  .fin-advanced-menu summary {
+    list-style: none; cursor: pointer; user-select: none;
+    display: inline-flex; align-items: center; gap: 6px;
+    border: 1px solid var(--border); background: var(--card); color: var(--text-primary);
+    border-radius: 999px; padding: 6px 14px; font-size: 12px; font-weight: 700;
+  }
+  .fin-advanced-menu summary::-webkit-details-marker { display: none; }
+  .fin-advanced-menu summary::after { content: '▾'; color: var(--text-muted); font-size: 9px; }
+  .fin-advanced-menu[open] summary::after { content: '▴'; }
+  .fin-advanced-menu-body {
+    position: absolute; top: calc(100% + 6px); right: 0; z-index: 5; width: 230px;
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    box-shadow: 0 18px 40px -16px rgba(0,0,0,0.28); padding: 6px;
+  }
+  .fin-advanced-item {
+    display: block; width: 100%; text-align: left; border: none; background: transparent;
+    color: var(--text-primary); font-size: 12.5px; font-family: inherit; padding: 9px 10px;
+    border-radius: 6px; cursor: pointer;
+  }
+  .fin-advanced-item:hover { background: var(--surface-2); }
+  @media print { .fin-advanced-menu { display: none !important; } }
 
   /* A Save + Next bar directly below whichever session's card is currently on screen — same idea as
      .session-nav up top, but placed where the applicant's hands already are after filling in a page,
@@ -734,7 +769,10 @@
        a comfortable finger target, without touching font-size (which would reflow/wrap the many
        differently-worded buttons in ways that would all need individually re-checking). */
     border: 1px solid var(--border); background: var(--card); color: var(--text-primary);
-    border-radius: 8px; padding: 8px 14px; font-size: 11.5px; cursor: pointer; font-family: inherit;
+    /* border-radius 8px→10px and weight 400→600 (font-size and padding left untouched, per the note
+       above about not risking reflow across the many differently-worded buttons in this app) — the
+       shape/weight lift the "next direction" mockup's buttons show, at zero layout risk. */
+    border-radius: 10px; padding: 8px 14px; font-size: 11.5px; font-weight: 600; cursor: pointer; font-family: inherit;
     transition: border-color .15s ease, color .15s ease, background .15s ease;
   }
   .btn:hover { border-color: var(--accent); color: var(--accent); }
@@ -1882,6 +1920,25 @@
           <button type="button" class="fin-step-tab" data-fin-step="3" role="tab">3. Income sources breakdown</button>
           <button type="button" class="fin-step-tab" data-fin-step="4" role="tab">4. Workplace income</button>
           <button type="button" class="fin-step-tab" data-fin-step="5" role="tab">5. Report</button>
+          <!-- Mockup "2e" (desktop dashboard): the same 6 tabs collapsed down to 2, with everything
+               else behind an "Advanced details" dropdown. A full rebuild of the tab bar risked
+               breaking the many existing tests hardcoded to .fin-step-tab[data-fin-step="N"]
+               (goToFinanceStep in helpers.js) plus every downstream test that depends on it, for a
+               screen most people never revisit once Step 2's summary answers their question — so
+               this keeps all 5 tabs exactly as they were (nothing here changes for mobile, or for
+               anyone who prefers the explicit tabs) and ADDS the one-click shortcut the mockup's
+               dropdown was really solving for: jumping straight to one specific deep-dive box
+               without clicking through tabs 3/4/5 in order first. -->
+          <details class="fin-advanced-menu no-print" style="margin-left:auto;">
+            <summary>Advanced details</summary>
+            <div class="fin-advanced-menu-body" role="menu">
+              <button type="button" class="fin-advanced-item" data-fin-jump="5" data-fin-jump-box="topInflowsBox">Top 10 inflows</button>
+              <button type="button" class="fin-advanced-item" data-fin-jump="5" data-fin-jump-box="topConsistentSendersBox">Most consistent senders</button>
+              <button type="button" class="fin-advanced-item" data-fin-jump="3" data-fin-jump-box="incomeBreakdownBox">Income sources breakdown</button>
+              <button type="button" class="fin-advanced-item" data-fin-jump="4" data-fin-jump-box="employerIncomeInflowsBox">Workplace income</button>
+              <button type="button" class="fin-advanced-item" data-fin-jump="3" data-fin-jump-box="btnDownloadBreakdown">Download spreadsheet</button>
+            </div>
+          </details>
         </div>
 
         <div class="fin-step" data-fin-step="1">
@@ -2052,8 +2109,16 @@
         <p class="fin-note" style="margin-top:0;">A category-by-category summary of financial readiness, pulled together from everything filled in on Steps 1-4 - not a single score, since different parts of your evidence can be in very different states at once.</p>
         <div id="readinessReportBox"></div>
 
+        <!-- This used to be the ONLY control on the Report step besides "← Back" — a category-by-
+             category summary immediately followed by a button pointing backward reads as a dead end
+             ("false finish line": GoatCounter funnel data showed most engaged visitors never move past
+             here). Forward navigation out of the finance session already exists via the real session
+             footer's Next button below the fold, past this closed <details> card's boundary — this
+             just surfaces the same, already-safe action (attemptAdvanceSession, same gate the footer
+             Next button itself uses) right where the applicant's eye actually lands. -->
         <div class="session-nav-btns no-print" style="margin-top:12px;">
           <button type="button" class="btn ghost fin-step-prev" data-fin-prev="4">← Back</button>
+          <button type="button" class="btn primary" id="btnFinReportContinue">Next: see your document checklist →</button>
         </div>
         </div>
         </div>
@@ -5645,12 +5710,32 @@
   document.querySelectorAll('.fin-step-tab').forEach(function(el){
     el.addEventListener('click', function(){ setFinanceStep(parseInt(el.getAttribute('data-fin-step'), 10)); });
   });
+  // "Advanced details" dropdown (mockup "2e") — jumps straight to one specific deep-dive box on
+  // tabs 3/4/5, then closes itself so it doesn't sit open over the content it just revealed.
+  document.querySelectorAll('.fin-advanced-item').forEach(function(el){
+    el.addEventListener('click', function(){
+      var step = parseInt(el.getAttribute('data-fin-jump'), 10);
+      var boxId = el.getAttribute('data-fin-jump-box');
+      setFinanceStep(step, false);
+      var menu = el.closest('.fin-advanced-menu');
+      if (menu) menu.open = false;
+      setTimeout(function(){
+        var box = document.getElementById(boxId);
+        if (box) box.scrollIntoView({behavior:'smooth', block:'start'});
+      }, 50);
+    });
+  });
   document.querySelectorAll('.fin-step-next').forEach(function(el){
     el.addEventListener('click', function(){ setFinanceStep(parseInt(el.getAttribute('data-fin-next'), 10)); });
   });
   document.querySelectorAll('.fin-step-prev').forEach(function(el){
     el.addEventListener('click', function(){ setFinanceStep(parseInt(el.getAttribute('data-fin-prev'), 10)); });
   });
+  // Report step's forward CTA — deliberately NOT another .fin-step-next (there's no step 6 to move
+  // to within this session), it moves to the NEXT SESSION, via the exact same gate/highlight-missing
+  // logic the real session-footer Next button uses (see attemptAdvanceSession above).
+  var btnFinReportContinue = document.getElementById('btnFinReportContinue');
+  if (btnFinReportContinue) btnFinReportContinue.addEventListener('click', function(){ attemptAdvanceSession(currentSessionIndex + 1); });
   setFinanceStep(1, false);
 
   // Country-visit "grading" summary — informal guidance copy, not an eligibility prediction, built

@@ -3,6 +3,77 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fidelity check against "SA MOCK UP.pdf" (the agreed Turn-2 mockup set, 2a–2e), plus 2e
+
+Went back through screens 2a–2e against the app as it stands today, since three of the five had
+been marked built in the task list already:
+
+- **2a (landing)** and **2d (statement upload)**: match. 2a's exact headline differs from the
+  mockup's ("Your visa checklist, built for you" vs. "See what's missing before you pay the fee.")
+  and the quiz is paged in small groups rather than strictly one question per screen — both
+  deliberate, already-documented later changes made off direct user feedback ("even the trimmed
+  subtitle made this feel too busy" / grouped questions), not drift. Left alone.
+- **2b (country + consent gate)**: the mockup's searchable filter box was already tried and
+  deliberately dropped — see the comment above `#gateCountryList` in index.html: "only 7 items, no
+  need for search." Left as the reasoned decision it already was.
+- **2c (guided passport scan + a separate "confirm the scan" step)**: real gap — the live camera
+  capture is still a small inline card, not the mockup's full-screen guided capture, and there's no
+  confirm-and-edit step before a scan result gets applied. NOT built in this pass: this is the
+  exact screen flagged "not now" earlier in this same conversation, and it's the highest-risk
+  surface in the app to change blind (the camera capture handler was just hardened against a race
+  condition this session, with no way for me to test the result live). Worth its own dedicated pass
+  when there's room to verify it properly rather than folding it into this one.
+- **2e (desktop statement dashboard — 2 tabs instead of 6, an "Advanced details" dropdown for the
+  rest)**: this was the one screen never built (task #93). Rebuilding the tab bar itself risked
+  breaking every test hardcoded to `.fin-step-tab[data-fin-step="N"]` (`goToFinanceStep` in
+  helpers.js, and everything downstream of it) for a screen most people never revisit once Step 2's
+  summary answers their question — so all 5 original tabs stay exactly as they were, and a new
+  "Advanced details" dropdown was added alongside them with one-click shortcuts straight to Top 10
+  inflows, Most consistent senders, Income sources breakdown, Workplace income, and Download
+  spreadsheet — the same destinations the mockup's own dropdown named, reached without visiting
+  tabs 3/4/5 in order first. Added `fin-advanced-details-menu.test.js`.
+
+## Serif headline treatment app-wide, bolder buttons, and a real "next" on the Report step
+
+Three changes, off a full visual-pass request comparing the live app against the earlier
+"next direction" mockup (`smooth-application-next-direction.html`). That mockup's own text called
+out most of its screens as already shipped, with "a serif headline treatment layered on top" named
+as the one genuinely new element worth adopting everywhere — so that's the actual scope here, not a
+rebuild: the Ocean & Coastal color palette, card shapes, and pill badges the mockup used were
+already lifted directly from this app, confirmed by reading both side by side.
+
+1. **Serif headlines.** Added a `--serif` token (`h1`, the app title, and every session/category
+   card's `h2`) using a *system* serif stack (Georgia/Palatino family) — deliberately NOT a Google
+   Fonts import like the mockup file itself used. This app promises documents never leave the
+   device; a webfont request is itself a third-party network call not disclosed anywhere in the
+   Privacy Policy, so it doesn't get pulled in just for a typography lift. Same reasoning already
+   applied to `.consent-gate-title`'s font choice (`ui-rounded`, also a system font) — left that one
+   alone since it's already a considered, matching decision.
+2. **Bolder, rounder buttons.** `.btn`: `border-radius` 8px→10px, weight 400→600. Font-size and
+   padding deliberately untouched — a prior comment on this same rule already flags that changing
+   those risks reflow across the many differently-worded buttons across the app, each of which would
+   need individually re-checking.
+3. **Report step "false finish line" fix.** The bank-statement-analysis session's Step 5 ("Report")
+   showed a readiness summary immediately followed only by "← Back" — GoatCounter funnel data traced
+   here as the largest single drop-off point, since the real forward Next control sits below the
+   fold, past this step's closed `<details>` boundary. Added `#btnFinReportContinue` ("Next: see
+   your document checklist →") right under the summary, wired to the same `attemptAdvanceSession()`
+   gate the real session-footer Next button already uses (highlights missing fields and hard-blocks
+   below 70% ready, same as always) — not a new bypass, just a visible way to reach the existing one.
+
+No test asserted exact `font-size`/`border-radius`/`font-weight` values anywhere in the suite
+(checked before making these changes), so none of this should be able to break an existing test on
+styling grounds alone. Added `fin-report-continue-cta.test.js` for the new button (checks both the
+hard-block-when-incomplete and advance-when-ready paths). Full inline `<script>` block re-checked
+via `new Function()` after every edit — no syntax errors.
+
+Not done in this pass, and worth flagging: the mockup's own screens 05/07/08 ("Confirm the scan",
+and the statement-results dashboard, mobile + desktop) are marked "Proposed" in that file, not
+"Live" — those are real, not-yet-built features (dashboard = task #93, already tracked), not part of
+this visual-polish pass. The mockup's full-screen dark camera-capture treatment (screen 04) is
+likewise still just the mockup's own aspiration, not something this pass touched — user explicitly
+said "not now" on rebuilding that screen specifically.
+
 ## Fixed stale test assertions left over from the earlier em-dash sweep
 
 Not a behaviour change - a test-suite-only fix. An earlier pass replaced em dashes with hyphens

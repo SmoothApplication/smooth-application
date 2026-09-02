@@ -1,0 +1,251 @@
+<title>The Visual Pass</title>
+<style>
+  /* ================= Tokens — the app's OWN Ocean & Coastal palette, lifted exactly from
+     index.html, since this page exists to preview changes to that exact app. Not reinvented. ===== */
+  :root {
+    --surface-1:   #f7fafb;
+    --surface-2:   #eef3f5;
+    --card:        #ffffff;
+    --text-primary:   #12232e;
+    --text-secondary: #4c6270;
+    --text-muted:     #566a76;
+    --gridline:    #dce6ea;
+    --border:      rgba(18,35,46,0.12);
+    --accent:      #12699a;
+    --accent-wash: #d8eaf3;
+    --good:        #0f8266;
+    --good-wash:   #dcf3ea;
+    --neutral:     #55636c;
+    --neutral-wash:#e7ebed;
+    --serif: Georgia, "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, serif;
+    --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --surface-1: #14232b;
+      --surface-2: #0b161c;
+      --card: #1b2b34;
+      --text-primary: #f2f7f9;
+      --text-secondary: #b7c7d0;
+      --text-muted: #83969f;
+      --gridline: #26363f;
+      --border: rgba(242,247,249,0.14);
+      --accent: #2585b3;
+      --accent-wash: #15303f;
+      --good: #34b893;
+      --good-wash: #0f3a2e;
+      --neutral: #9fb0b8;
+      --neutral-wash: #26363f;
+    }
+  }
+  :root[data-theme="dark"] {
+    --surface-1: #14232b;
+    --surface-2: #0b161c;
+    --card: #1b2b34;
+    --text-primary: #f2f7f9;
+    --text-secondary: #b7c7d0;
+    --text-muted: #83969f;
+    --gridline: #26363f;
+    --border: rgba(242,247,249,0.14);
+    --accent: #2585b3;
+    --accent-wash: #15303f;
+    --good: #34b893;
+    --good-wash: #0f3a2e;
+    --neutral: #9fb0b8;
+    --neutral-wash: #26363f;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--surface-2); color: var(--text-primary);
+    font-family: var(--sans); -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 900px; margin: 0 auto; padding: 48px 24px 90px; }
+
+  .intro { margin-bottom: 44px; }
+  .eyebrow {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--accent); font-weight: 600; margin: 0 0 12px;
+  }
+  .intro h1 {
+    font-family: var(--serif); font-weight: 700; font-size: clamp(26px, 4vw, 34px);
+    line-height: 1.18; margin: 0 0 12px; text-wrap: balance; letter-spacing: -0.01em;
+  }
+  .intro p { font-size: 14.5px; line-height: 1.65; color: var(--text-secondary); max-width: 64ch; margin: 0; }
+  .intro p + p { margin-top: 10px; }
+  .intro b { color: var(--text-primary); font-weight: 600; }
+
+  section.compare { margin-bottom: 52px; }
+  .compare-head { margin-bottom: 16px; }
+  .compare-label { font-size: 17px; font-weight: 700; margin: 0 0 4px; }
+  .compare-note { font-size: 13px; color: var(--text-secondary); line-height: 1.55; margin: 0; max-width: 62ch; }
+
+  .panels { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 680px) { .panels { grid-template-columns: 1fr; } }
+
+  .panel {
+    border: 1px solid var(--border); border-radius: 14px; overflow: hidden; background: var(--card);
+  }
+  .panel-tag {
+    display: flex; align-items: center; gap: 8px; padding: 10px 16px;
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase;
+    font-weight: 700; border-bottom: 1px solid var(--border);
+  }
+  .panel.before .panel-tag { color: var(--neutral); background: var(--neutral-wash); }
+  .panel.after .panel-tag { color: var(--good); background: var(--good-wash); }
+  .panel-body { padding: 20px 18px; background: var(--surface-1); }
+
+  /* ---- mini app-chrome recreation, values pulled straight from index.html ---- */
+  .m-h1-before { font-size: 22px; margin: 0 0 4px; color: var(--text-primary); }
+  .m-h1-after { font-family: var(--serif); font-weight: 700; font-size: 23px; letter-spacing: -0.01em; margin: 0 0 4px; color: var(--text-primary); }
+  .m-country {
+    display: inline-flex; align-items: center; gap: 6px; margin: 0; font-size: 12.5px; font-weight: 600;
+    color: var(--accent); background: var(--accent-wash); padding: 3px 10px; border-radius: 999px;
+  }
+
+  .m-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; margin-top: 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 14px rgba(0,0,0,0.03); }
+  .m-h2-before { font-size: 15px; margin: 0 0 12px; color: var(--text-primary); }
+  .m-h2-after { font-family: var(--serif); font-weight: 700; font-size: 16.5px; letter-spacing: -0.005em; margin: 0 0 12px; color: var(--text-primary); }
+
+  .m-btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .m-btn-before, .m-btn-after {
+    border: 1px solid var(--border); background: var(--card); color: var(--text-primary);
+    padding: 8px 14px; font-size: 11.5px; font-family: inherit; cursor: default;
+  }
+  .m-btn-before { border-radius: 8px; font-weight: 400; }
+  .m-btn-after { border-radius: 10px; font-weight: 600; }
+
+  .m-report-summary { font-size: 13px; color: var(--text-secondary); line-height: 1.6; margin: 0 0 14px; }
+  .m-report-summary b { color: var(--text-primary); }
+  .m-nav-btns { display: flex; gap: 10px; }
+  .m-btn-ghost {
+    flex: 1; text-align: center; border: 1px solid var(--border); background: transparent; color: var(--text-primary);
+    border-radius: 10px; padding: 10px 14px; font-size: 11.5px; font-weight: 600; font-family: inherit;
+  }
+  .m-btn-primary {
+    flex: 1; text-align: center; border: 1px solid var(--accent); background: var(--accent); color: #fff;
+    border-radius: 10px; padding: 10px 14px; font-size: 11.5px; font-weight: 600; font-family: inherit;
+  }
+  .m-deadend { font-size: 11.5px; color: var(--text-muted); text-align: center; margin-top: 10px; font-style: italic; }
+
+  .fold-line {
+    display: flex; align-items: center; gap: 10px; margin: 16px 0 -2px; color: var(--text-muted);
+    font-family: var(--mono); font-size: 9.5px; letter-spacing: .05em; text-transform: uppercase;
+  }
+  .fold-line::before, .fold-line::after { content: ""; flex: 1; height: 1px; background: repeating-linear-gradient(90deg, var(--gridline) 0 4px, transparent 4px 8px); }
+
+  .closing { border-top: 1px solid var(--gridline); padding-top: 24px; margin-top: 8px; }
+  .closing p { font-size: 13.5px; color: var(--text-secondary); line-height: 1.6; max-width: 62ch; margin: 0; }
+</style>
+
+<div class="wrap">
+
+  <div class="intro">
+    <p class="eyebrow">Live preview · not the deployed site</p>
+    <h1>The visual pass, shown in place</h1>
+    <p>Three changes, recreated here with the app's own colors and CSS values so you can see them
+      without waiting on a deploy. <b>Left is what's live now, right is what's in index.html</b>
+      waiting on your next push.</p>
+    <p>All three ship together in your next <code style="font-family:var(--mono); font-size:12.5px; background:var(--surface-1); padding:1px 6px; border-radius:4px; border:1px solid var(--border);">npm test</code> → push.</p>
+  </div>
+
+  <section class="compare">
+    <div class="compare-head">
+      <p class="compare-label">1. Serif headlines</p>
+      <p class="compare-note">The app title and every session/category heading pick up a serif —
+        Georgia, a system font, not a web font — so it costs nothing and breaks no privacy promise.</p>
+    </div>
+    <div class="panels">
+      <div class="panel before">
+        <div class="panel-tag">● Before</div>
+        <div class="panel-body">
+          <h1 class="m-h1-before">Smooth Application</h1>
+          <p class="m-country">🇬🇧 UK Standard Visitor visa</p>
+          <div class="m-card">
+            <h2 class="m-h2-before">Validate your International Passport</h2>
+          </div>
+        </div>
+      </div>
+      <div class="panel after">
+        <div class="panel-tag">● After</div>
+        <div class="panel-body">
+          <h1 class="m-h1-after">Smooth Application</h1>
+          <p class="m-country">🇬🇧 UK Standard Visitor visa</p>
+          <div class="m-card">
+            <h2 class="m-h2-after">Validate your International Passport</h2>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="compare">
+    <div class="compare-head">
+      <p class="compare-label">2. Bolder, rounder buttons</p>
+      <p class="compare-note">Corner radius 8px → 10px, weight regular → 600. Size and padding are
+        untouched on purpose — nudging those risks wrapping across the many buttons in the app.</p>
+    </div>
+    <div class="panels">
+      <div class="panel before">
+        <div class="panel-tag">● Before</div>
+        <div class="panel-body">
+          <div class="m-btn-row">
+            <button class="m-btn-before">📎 Scan passport</button>
+            <button class="m-btn-before">📷 Scan with camera</button>
+          </div>
+        </div>
+      </div>
+      <div class="panel after">
+        <div class="panel-tag">● After</div>
+        <div class="panel-body">
+          <div class="m-btn-row">
+            <button class="m-btn-after">📎 Scan passport</button>
+            <button class="m-btn-after">📷 Scan with camera</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="compare">
+    <div class="compare-head">
+      <p class="compare-label">3. Report step, no longer a dead end</p>
+      <p class="compare-note">Your analytics showed most people never got past this screen — a
+        readiness summary with only "← Back" underneath it. The real forward button existed, just
+        below the fold, past a closed accordion. Now it's right here.</p>
+    </div>
+    <div class="panels">
+      <div class="panel before">
+        <div class="panel-tag">● Before</div>
+        <div class="panel-body">
+          <p class="m-report-summary"><b>6 categories checked</b> — 2 look complete, 3 need review, 1 missing.</p>
+          <div class="m-nav-btns">
+            <button class="m-btn-ghost">← Back</button>
+          </div>
+          <p class="m-deadend">↓ real "Next" lives further down, past a closed card</p>
+        </div>
+      </div>
+      <div class="panel after">
+        <div class="panel-tag">● After</div>
+        <div class="panel-body">
+          <p class="m-report-summary"><b>6 categories checked</b> — 2 look complete, 3 need review, 1 missing.</p>
+          <div class="fold-line">was the fold</div>
+          <div class="m-nav-btns" style="margin-top:14px;">
+            <button class="m-btn-ghost">← Back</button>
+            <button class="m-btn-primary">Next: see your document checklist →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="closing">
+    <p>Not shown here: the two screens the earlier mockup marked "Proposed" rather than "Live" — a
+      dedicated scan-confirm step, and the statement-results dashboard. Those are real, unbuilt
+      features (the dashboard is already on your task list) — worth a separate conversation whenever
+      you want to build them, not a styling change like the three above.</p>
+  </div>
+
+</div>
