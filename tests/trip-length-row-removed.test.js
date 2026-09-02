@@ -28,7 +28,7 @@ exports.run = async function(ctx){
     await page.fill('#f_returndate', '2027-06-07');
     await page.waitForTimeout(300);
     var noteText = await page.$eval('#tripLengthNote', function(el){ return el.textContent; });
-    assert.ok(/6 night\(s\) — auto-filled into the financial calculator below/.test(noteText),
+    assert.ok(/6 night\(s\) - auto-filled into the financial calculator below/.test(noteText),
       'The auto-fill note under Return date should still work, got: "' + noteText + '"');
 
     await page.fill('#f_appdate', '2027-05-01');

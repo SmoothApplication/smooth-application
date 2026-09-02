@@ -82,7 +82,7 @@ exports.run = async function(ctx){
     await page.waitForSelector('.biz-income-record', { timeout: 3000 });
     var outputHtml = await page.$eval('#bizLedgerOutput', function(el){ return el.innerHTML; });
 
-    assert.ok(/Business Income Record — Golden Bloom Cleaning Services Ltd/.test(outputHtml), 'Should title the record with the applicant\'s own business name, got: ' + outputHtml.slice(0, 400));
+    assert.ok(/Business Income Record - Golden Bloom Cleaning Services Ltd/.test(outputHtml), 'Should title the record with the applicant\'s own business name, got: ' + outputHtml.slice(0, 400));
     assert.ok(/Chidinma Okeke/.test(outputHtml) && /cleaning contract, February/.test(outputHtml), 'Typed payer/purpose should appear in the compiled record');
     assert.ok(/Walk-in customer/.test(outputHtml) && /supplies sold in shop/.test(outputHtml), 'Second typed row should also appear');
     assert.ok(/not a receipt issued at the time/.test(outputHtml), 'Must explicitly disclaim this is the applicant\'s own account, not a contemporaneous receipt, got: ' + outputHtml.slice(0, 700));

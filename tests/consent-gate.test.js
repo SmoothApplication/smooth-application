@@ -12,13 +12,18 @@ exports.run = async function(ctx){
     await page.click('#quizSkipLink');
     await page.waitForSelector('#docsGateContinue');
     await page.click('#docsGateContinue');
-    await page.waitForSelector('#gateCountrySelect');
+    // The country picker is a tappable list now, not a native <select> — see the "mockup 2b" comment
+    // on .gate-country-list in index.html. #gateCountrySelect still exists and drives the real app
+    // logic, but it's visually hidden, so waitForSelector's default visible-state check (and
+    // selectOption(), which also requires visibility) can't target it — wait for the visible tappable
+    // option instead, same as passConsentGate() in helpers.js does.
+    await page.waitForSelector('.gate-country-option[data-code="UK"]');
 
     // Continue must start disabled — no country picked, disclaimer not agreed to.
     var initiallyDisabled = await page.$eval('#gateContinue', function(el){ return el.disabled; });
     assert.strictEqual(initiallyDisabled, true, 'Continue button should start disabled');
 
-    await page.selectOption('#gateCountrySelect', 'UK');
+    await page.click('.gate-country-option[data-code="UK"]');
     var stillDisabledBeforeAgree = await page.$eval('#gateContinue', function(el){ return el.disabled; });
     assert.strictEqual(stillDisabledBeforeAgree, true, 'Continue should stay disabled until the disclaimer checkbox is ticked');
 

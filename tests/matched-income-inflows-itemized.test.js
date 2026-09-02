@@ -77,10 +77,10 @@ exports.run = async function(ctx){
     // (Grace Covenant Youth Church) payments "Allowance" and the BUSINESS (Bright Homes Cleaning) payments "Salary" —
     // the pre-tag should follow what each payment's own narration says, not which field it matched.
     var bizSummaries = await page.$$eval('#matchedIncomeInflowsBox .tx-line', function(els){ return els.map(function(e){ return e.textContent; }); });
-    assert.ok(bizSummaries.filter(function(s){ return /— Salary$/.test(s); }).length === 3, 'The 3 business inflows, all narrated "Salary", should be pre-tagged "Salary" (read from their own narration, not defaulted to "Business" just because they matched the business), got: ' + JSON.stringify(bizSummaries));
+    assert.ok(bizSummaries.filter(function(s){ return /- Salary$/.test(s); }).length === 3, 'The 3 business inflows, all narrated "Salary", should be pre-tagged "Salary" (read from their own narration, not defaulted to "Business" just because they matched the business), got: ' + JSON.stringify(bizSummaries));
 
     var empSummaries = await page.$$eval('#employerIncomeInflowsBox .tx-line', function(els){ return els.map(function(e){ return e.textContent; }); });
-    assert.ok(empSummaries.filter(function(s){ return /— Allowance$/.test(s); }).length === 3, 'The 3 employer inflows, all narrated "Allowance", should be pre-tagged "Allowance" (read from their own narration, not defaulted to "Salary" just because they matched the employer), got: ' + JSON.stringify(empSummaries));
+    assert.ok(empSummaries.filter(function(s){ return /- Allowance$/.test(s); }).length === 3, 'The 3 employer inflows, all narrated "Allowance", should be pre-tagged "Allowance" (read from their own narration, not defaulted to "Salary" just because they matched the employer), got: ' + JSON.stringify(empSummaries));
 
     // Still fully editable — a wrongly-matched payment should be re-classifiable, same as any other
     // inflow explanation on this page. Employer inflows live on Step 4 now, so navigate there first —

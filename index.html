@@ -224,6 +224,31 @@
   }
   .gate-credit a { color: var(--text-muted); text-decoration: underline; }
   .gate-credit b { color: var(--text-secondary); }
+  .gate-country-list { margin-top: 6px; display: flex; flex-direction: column; gap: 8px; }
+  .gate-country-option {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%;
+    text-align: left; padding: 11px 14px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--surface-1); color: var(--text-primary); cursor: pointer;
+    transition: border-color .15s ease, box-shadow .15s ease; font: inherit;
+  }
+  .gate-country-option:hover:not(:disabled) { border-color: var(--accent); }
+  .gate-country-option:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-wash); }
+  .gate-country-option:disabled { cursor: not-allowed; opacity: 0.55; }
+  .gate-country-option-text { display: flex; flex-direction: column; gap: 2px; }
+  .gate-country-option-text b { font-size: 13.5px; }
+  .gate-country-option-sub { font-size: 12px; color: var(--text-secondary); }
+  .gate-country-badge {
+    flex-shrink: 0; font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em; padding: 3px 8px;
+    border-radius: 6px; font-family: var(--mono, monospace);
+  }
+  .gate-country-badge.ready { background: var(--good-wash); color: var(--good); }
+  .gate-country-badge.soon { background: var(--neutral-wash); color: var(--text-muted); }
+  .gate-country-confirmed {
+    margin-top: 6px; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 11px 14px; border-radius: 10px; border: 1px solid var(--good); background: var(--good-wash);
+  }
+  .gate-country-confirmed-name { display: block; font-size: 13.5px; }
+  .gate-country-confirmed-sub { display: block; font-size: 12px; color: var(--text-secondary); }
   .gate-select-wrap { position: relative; margin-top: 6px; }
   .gate-select-wrap .gate-select-chevron {
     position: absolute; right: 12px; top: 50%; transform: translateY(-50%); pointer-events: none;
@@ -324,6 +349,11 @@
     display: inline-block; font-size: 11.5px; font-weight: 700; color: #0e8f82;
     background: #0e8f821f; border-radius: 20px; padding: 4px 10px; margin-bottom: 10px;
   }
+  .quiz-intro-faq { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); }
+  .quiz-intro-faq .tip-details { margin-top: 10px; }
+  .quiz-intro-faq .tip-details:first-child { margin-top: 0; }
+  .quiz-intro-faq .tip-details summary { font-size: 13px; color: var(--text-primary); font-weight: 600; }
+  .quiz-intro-faq .tip-details summary::before { color: var(--accent); }
   /* The 10 questions themselves are now split across 4 short steps (a progress bar + Back/Next)
      instead of one long stacked form — same reasoning as above, one screenful at a time reads as a
      quick quiz rather than a form to fill out. quizScore() reads every answer straight off its
@@ -681,6 +711,24 @@
      own content size the way normal text does, so a fixed cap can still push narrow phones a few
      pixels past the viewport; scaling the cap down on narrow screens avoids that. */
   .upload-row input[type=file] { font-size: 11px; max-width: min(230px, 60vw); color: var(--text-secondary); }
+
+  /* Guided passport camera capture (mockup 2c) — a bordered card holding the live video and its
+     framing guide, kept visually distinct from the plain upload row above it. */
+  .passport-cam-panel { margin: 10px 0 14px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); }
+  .passport-cam-video-wrap { position: relative; width: 100%; max-width: 420px; margin: 0 auto; background: #000; border-radius: 8px; overflow: hidden; }
+  .passport-cam-video-wrap video { width: 100%; display: block; }
+  /* The dashed box + huge box-shadow spread is a cheap way to dim everything OUTSIDE the frame
+     without a second overlay element — it reads as "line the MRZ up in here" at a glance, the same
+     way most ID-scanning camera UIs guide a shot. */
+  .passport-cam-frame {
+    position: absolute; left: 6%; right: 6%; bottom: 8%; height: 20%;
+    border: 2px dashed #fff; border-radius: 4px; pointer-events: none;
+    box-shadow: 0 0 0 2000px rgba(0,0,0,.4);
+  }
+  .passport-cam-frame-label {
+    position: absolute; top: -20px; left: -2px; right: -2px; text-align: center;
+    color: #fff; font-size: 10.5px; line-height: 1.3; text-shadow: 0 1px 2px rgba(0,0,0,.9);
+  }
   .btn {
     /* padding bumped from 6px 12px — a bit more tap height on every button across the app, closer to
        a comfortable finger target, without touching font-size (which would reflow/wrap the many
@@ -827,6 +875,10 @@
 
   /* Financial calculator */
   .fin-note { font-size: 12px; color: var(--text-secondary); margin: -6px 0 12px; line-height: 1.45; }
+  /* Mockup 2d: a small reassurance badge next to the Analyze button, instead of the same point
+     buried mid-paragraph in the .fin-note below - the "nothing leaves your device" promise is worth
+     seeing at the exact moment someone's about to hand over a bank statement. */
+  .stmt-local-note { font-size: 11px; color: var(--text-secondary); align-self: center; }
   .fin-breakdown { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; background: var(--surface-1); font-size: 12.5px; margin-bottom: 10px; }
   .fin-breakdown .fb-row { display: flex; justify-content: space-between; padding: 3px 0; color: var(--text-secondary); }
   .fin-breakdown .fb-row.total { border-top: 1px solid var(--gridline); margin-top: 4px; padding-top: 6px; font-weight: 700; color: var(--text-primary); }
@@ -945,9 +997,49 @@
     background: none; border: none; padding: 0; font: inherit; color: var(--text-muted);
     text-decoration: underline; cursor: pointer;
   }
+
+  /* ---------------- Reasons tab ----------------
+     User request: pull the "Why?" toggles and the small explanatory asides out of the main flow
+     entirely, into one place reachable from anywhere. This floating tab is a direct sibling of
+     <body> (position:fixed, not nested inside any gate/session markup) specifically so it shows up
+     on every screen this app has - the quiz, the consent gate, every session - not just inside the
+     main checklist. The modal it opens reuses the existing .legal-modal-* styling (Privacy/Terms)
+     rather than inventing a second modal language for the same idea. */
+  .reasons-tab {
+    position: fixed; right: 18px; bottom: 18px; z-index: 1050;
+    display: flex; align-items: center; gap: 7px; border: none; cursor: pointer;
+    background: var(--accent); color: #fff; font-family: inherit; font-size: 12.5px; font-weight: 700;
+    padding: 11px 16px; border-radius: 100px; box-shadow: 0 6px 20px rgba(18,35,46,0.28);
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .reasons-tab:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(18,35,46,0.34); }
+  .reasons-tab .count {
+    background: rgba(255,255,255,0.25); border-radius: 100px; padding: 1px 7px; font-size: 11px;
+  }
+  @media (max-width: 520px) {
+    .reasons-tab { right: 12px; bottom: 12px; padding: 10px 14px; font-size: 12px; }
+  }
+  .reasons-group + .reasons-group { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
+  .reasons-group-title { font-size: 12px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: .03em; margin: 0 0 10px; }
+  .reasons-item + .reasons-item { margin-top: 12px; }
+  .reasons-item-q { font-size: 13px; font-weight: 600; color: var(--text-primary); margin: 0 0 3px; }
+  .reasons-item-a { font-size: 13px; color: var(--text-secondary); line-height: 1.55; margin: 0; }
 </style>
 </head>
 <body>
+
+<button type="button" class="reasons-tab no-print" id="reasonsTabBtn" aria-haspopup="dialog">📖 Reasons <span class="count" id="reasonsTabCount"></span></button>
+
+<div class="legal-modal-overlay" id="reasonsModalOverlay" hidden>
+  <div class="legal-modal-card" role="dialog" aria-modal="true" aria-labelledby="reasonsModalTitle">
+    <div class="legal-modal-header">
+      <h2 id="reasonsModalTitle">Why some things work this way</h2>
+      <button type="button" class="legal-modal-close" id="reasonsModalClose" aria-label="Close">✕</button>
+    </div>
+    <div class="legal-modal-status">The explanations that used to sit next to each field now live here instead, grouped by section - the fields themselves stay short. Safety and privacy notes are the one exception: those still show in place, since they matter in the moment, not after the fact.</div>
+    <div class="legal-modal-body" id="reasonsModalBody"></div>
+  </div>
+</div>
 
 <div id="quizGate" class="consent-gate">
   <div class="gate-blob gate-blob-1" aria-hidden="true"></div>
@@ -970,6 +1062,16 @@
         <button type="button" class="btn primary" id="quizStartBtn" style="width:100%;">Start the quick check</button>
       </div>
       <button type="button" class="btn ghost" id="quizSkipLink" style="width:100%; margin-top:10px;">Skip straight to the checklist →</button>
+      <!-- Design pass (mockup "2a"): three collapsed questions instead of leaving the reassurance
+           text (privacy, "not an approval predictor", country coverage) as always-visible paragraphs
+           the way earlier versions of this screen did. Reuses the existing .tip-details "Why?" pattern
+           for visual consistency with the rest of the app rather than inventing a new disclosure
+           widget. Collapsed by default so the screen stays as short as the badge/title/buttons alone. -->
+      <div class="quiz-intro-faq">
+        <details class="tip-details"><summary>Why trust a free tool with this?</summary><div class="item-tip">Your documents and files are scanned entirely in your browser and never uploaded anywhere. No account, no ads, no catch - built by SafeNetwork from official gov.uk, IRCC, EU, and South African DHA guidance.</div></details>
+        <details class="tip-details"><summary>Does this predict approval?</summary><div class="item-tip">No. This is guidance, not immigration advice - it checks how ready your documents and evidence look, not your chances of approval. Only the consulate or embassy decides that.</div></details>
+        <details class="tip-details"><summary>Which countries?</summary><div class="item-tip">UK Standard Visitor, Canada visitor (TRV), Schengen short-stay (Type C), and South Africa visitor visas are all live. United States, Australia, and China are coming soon.</div></details>
+      </div>
     </div>
 
     <div id="quizFormWrap" style="display:none;">
@@ -1192,8 +1294,23 @@
       <span class="gate-trust-badge">🆓 Free, always</span>
       <span class="gate-trust-badge">🇳🇬 Built for Nigerian applicants</span>
     </div>
-    <label class="field" for="gateCountrySelect">Which visa are you preparing for?</label>
-    <div class="gate-select-wrap">
+    <!-- Design pass (mockup "2b"): a native <select> hides all the options behind one tap on
+         Android and shows no READY/SOON status until opened. Replaced with a plain always-visible
+         tappable list (only 7 items -- no need for search) that collapses into a one-line confirmed
+         summary + "Change" link once an actual choice is made, per the mockup's two-state design.
+         The <select> itself stays in the DOM, just visually hidden -- it's still the real data
+         model every existing script below reads/writes via .value and 'change' events, so none of
+         that wiring needed to change; this list is purely a view built on top of it. -->
+    <label class="field" id="gateCountryLabel">Which visa are you preparing for?</label>
+    <div id="gateCountryList" class="gate-country-list" role="listbox" aria-labelledby="gateCountryLabel"></div>
+    <div id="gateCountryConfirmed" class="gate-country-confirmed" style="display:none;">
+      <div>
+        <b class="gate-country-confirmed-name"></b>
+        <span class="gate-country-confirmed-sub"></span>
+      </div>
+      <button type="button" class="gate-text-link" id="gateCountryChange">Change</button>
+    </div>
+    <div class="gate-select-wrap" style="display:none;" aria-hidden="true">
       <select id="gateCountrySelect">
         <option value="UK">🇬🇧 United Kingdom - Standard Visitor visa</option>
         <option value="CA">🇨🇦 Canada - Visitor visa (TRV)</option>
@@ -1253,6 +1370,29 @@
         <div class="upload-row no-print" style="margin:4px 0 14px;">
           <input type="file" id="file_passportValidate" accept="image/*,application/pdf">
           <button type="button" class="btn" id="btnPassportValidateAttach" disabled>📎 Scan passport</button>
+          <button type="button" class="btn ghost" id="btnPassportCamOpen">📷 Scan with camera</button>
+        </div>
+        <!-- Mockup 2c: a guided live-camera capture as an alternative to picking an existing photo/PDF
+             file above. Feeds the exact same OCR pipeline (smartRecognize/applyScanResult) as the file
+             upload — see the wiring below — so this is only a different way to get a photo IN, not a
+             second reading path. Panel starts hidden; opened only on demand, and only if the browser
+             actually supports getUserMedia (see the click handler below), so this never gets in the way
+             of applicants on a browser/device without camera access, or who don't have their passport
+             on them right now - the plain upload button and the manual fields further down always work
+             regardless. -->
+        <div id="passportCamPanel" class="passport-cam-panel no-print" style="display:none;">
+          <div class="passport-cam-video-wrap">
+            <video id="passportCamVideo" autoplay playsinline muted></video>
+            <div class="passport-cam-frame"><div class="passport-cam-frame-label">Line up the strip of text at the bottom of the page (the MRZ) inside this box</div></div>
+          </div>
+          <canvas id="passportCamCanvas" style="display:none;"></canvas>
+          <div id="passportCamHint" class="item-tip" style="margin:8px 0;"></div>
+          <div id="passportCamRetakeMsg" class="scan-msg warn" style="display:none;"></div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:6px;">
+            <button type="button" class="btn primary" id="btnPassportCamCapture">📸 Capture</button>
+            <button type="button" class="btn ghost" id="btnPassportCamClose">Cancel</button>
+          </div>
+          <p class="item-tip" style="margin-top:10px;">Camera not working, or don't have your passport on you? <a href="#" id="passportCamUseUpload">Upload a photo instead</a>, or just type your details into the fields below - nothing here requires the scan.</p>
         </div>
         <!-- Field-work finding: many applicants hit this step away from home, without the physical
              passport on them, on the same phone they're using right now - and simply forget to come
@@ -1346,7 +1486,7 @@
 
         <div id="te_noHistoryBox" class="doc-reminder" style="display:none; margin-top:10px;">
           <p style="margin:0 0 8px; font-weight:600;">No travel history yet - that's fine, plenty of successful applicants start here.</p>
-          <p class="item-tip" style="margin:0 0 10px;">Having visited an African country before is genuinely useful travel history for a UK/Schengen application. These five are commonly picked because they're straightforward for Nigerians to visit - pick one to see exactly what's involved.</p>
+          <p class="item-tip" data-reason="1" style="margin:0 0 10px;">Having visited an African country before is genuinely useful travel history for a UK/Schengen application. These five are commonly picked because they're straightforward for Nigerians to visit - pick one to see exactly what's involved.</p>
           <label class="field" style="margin-top:0;">Plan a visit to build travel history</label>
           <div id="teCountryTabs" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px;"></div>
           <div id="teCountryGuide"></div>
@@ -1512,7 +1652,7 @@
 
         <div id="rs_costBox" class="doc-reminder" style="margin-top:10px;">
           <p style="margin:0 0 6px; font-weight:600;">Estimated yearly cost of living</p>
-          <p class="item-tip" style="margin:0 0 10px;">Rent is pre-filled with a typical range for your state/LGA, adjusted for how many bedrooms you picked above, and upkeep/school fees with common starting figures - not a guarantee of what you actually pay. Rents can vary a lot even within one named area (e.g. Magodo Phase 1 vs Phase 2, or the pricier pockets of Yaba) - check every number below and correct it to match your real costs.</p>
+          <p class="item-tip" data-reason="1" style="margin:0 0 10px;">Rent is pre-filled with a typical range for your state/LGA, adjusted for how many bedrooms you picked above, and upkeep/school fees with common starting figures - not a guarantee of what you actually pay. Rents can vary a lot even within one named area (e.g. Magodo Phase 1 vs Phase 2, or the pricier pockets of Yaba) - check every number below and correct it to match your real costs.</p>
           <div class="row">
             <div>
               <label class="field" for="rs_annualRent">Annual rent (₦)</label>
@@ -1753,24 +1893,29 @@
              for a re-analysis without losing the option. -->
         <div id="stmtUploadBlock">
         <p class="fin-note">Upload here to auto-fill the cash-flow table and detailed reports in the next two steps - or skip ahead to Step 2 and type your totals in by hand instead.</p>
-        <div class="row no-print" style="margin-bottom:4px;">
-          <div>
-            <label class="field" for="stmtFile1">Bank statement 1</label>
-            <input type="file" id="stmtFile1" accept="application/pdf,image/*,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
-          </div>
-          <div>
-            <label class="field" for="stmtFile2">Bank statement 2 (optional)</label>
-            <input type="file" id="stmtFile2" accept="application/pdf,image/*,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
-          </div>
-        </div>
+        <!-- Mockup 2d: lead with a single account, not three pickers at once - "Add another account"
+             reveals statement 2 (then statement 3) only if actually needed, rather than presenting
+             every applicant with two "(optional)" fields most will never touch. Both stay fully in
+             the DOM either way (just hidden), so nothing about getStatementFiles()/analysis changes -
+             this is purely how many pickers are visible up front. -->
         <div class="no-print" style="margin-bottom:4px;">
-          <label class="field" for="stmtFile3">Bank statement 3 (optional)</label>
+          <label class="field" for="stmtFile1">Bank statement</label>
+          <input type="file" id="stmtFile1" accept="application/pdf,image/*,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
+        </div>
+        <div class="no-print" id="stmtFile2Row" style="display:none; margin-bottom:4px;">
+          <label class="field" for="stmtFile2">Bank statement 2</label>
+          <input type="file" id="stmtFile2" accept="application/pdf,image/*,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
+        </div>
+        <div class="no-print" id="stmtFile3Row" style="display:none; margin-bottom:4px;">
+          <label class="field" for="stmtFile3">Bank statement 3</label>
           <input type="file" id="stmtFile3" accept="application/pdf,image/*,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
         </div>
-        <div class="upload-row no-print" style="margin-bottom:4px;">
+        <button type="button" class="btn ghost no-print" id="btnStmtAddAccount" style="margin-bottom:10px;">+ Add another account</button>
+        <div class="upload-row no-print" style="margin-bottom:6px;">
           <button class="btn primary" id="btnAnalyzeStatements" disabled>🔍 Analyze statement(s) - beta</button>
+          <span class="stmt-local-note no-print">🔒 Runs on your phone - nothing is uploaded anywhere</span>
         </div>
-        <p class="fin-note no-print" style="margin-bottom:10px;">Up to 3 separate statement files (e.g. one per account, or one per date range) - PDF, a photo/scan, or an Excel export (.xlsx/.xls). Processed entirely in your browser - nothing is uploaded anywhere. This is a best-effort reader: bank formats vary, so always check the auto-filled numbers in the next step against your real statement.</p>
+        <p class="fin-note no-print" style="margin-bottom:10px;">Up to 3 separate statement files (e.g. one per account, or one per date range) - PDF, a photo/scan, or an Excel export (.xlsx/.xls). This is a best-effort reader: bank formats vary, so always check the auto-filled numbers in the next step against your real statement.</p>
         <div class="item-tip no-print" style="margin:0 0 10px;">Haven't downloaded your 3–6 months of statements yet? Send yourself a reminder with the link back to this page:
           <div style="margin-top:6px; display:flex; gap:8px; flex-wrap:wrap;">
             <a class="btn ghost" id="btnRemindStatementsWhatsApp" href="#" target="_blank" rel="noopener">📱 WhatsApp myself a reminder</a>
@@ -1778,7 +1923,7 @@
           </div>
         </div>
         </div>
-        <div class="item-tip no-print" id="stmtUploadDoneBar" style="display:none; margin-bottom:10px;">✅ Statement(s) analyzed - results below. <a href="#" id="btnShowStmtUpload">Upload different statement(s)</a></div>
+        <div class="item-tip no-print" id="stmtUploadDoneBar" style="display:none; margin-bottom:10px;">✅ <span id="stmtUploadDoneBarText">Ready</span> - results below. <a href="#" id="btnShowStmtUpload">Upload different statement(s)</a></div>
         <div id="stmtAnalyzeMsg"></div>
         <button type="button" class="btn no-print fin-step-next" data-fin-next="2" style="margin-top:10px;">Next: Cash flow &amp; scores →</button>
         </div>
@@ -2158,7 +2303,7 @@
            for the data and the scam-warning rationale. -->
       <div class="card" id="opportunitiesCard" data-session-key="opportunities" style="border-left: 4px solid #1a8a5f;">
         <h2 style="margin-top:0;"><span class="card-icon-badge" style="background:#1a8a5f1f; color:#1a8a5f;">🎓</span> Funded opportunities &amp; exchange programs</h2>
-        <p class="item-tip" style="margin-top:-4px;">Can't yet afford the trip you're preparing for above? These are real, currently-running programs - scholarships, exchanges, and fellowships - that cover some or all of the cost for students in Nigeria. This list is separate from the visa checklist above; it isn't visa-specific, and Smooth Application isn't affiliated with any program on it.</p>
+        <p class="item-tip" data-reason="1" style="margin-top:-4px;">Can't yet afford the trip you're preparing for above? These are real, currently-running programs - scholarships, exchanges, and fellowships - that cover some or all of the cost for students in Nigeria. This list is separate from the visa checklist above; it isn't visa-specific, and Smooth Application isn't affiliated with any program on it.</p>
         <div class="doc-reminder" style="border-color:#a83d3d; background:#a83d3d14; margin:6px 0 10px;">
           <b>⚠️ Watch for scams.</b> A genuine scholarship, exchange, or fellowship never asks you to pay to be selected, to release your winnings, or to "process" your visa through them. Apply only through the official link shown for each program below - never through an agent, a WhatsApp/Telegram group, or a lookalike site that contacts you first. If in doubt, search the program's name plus the word "scam" before you pay anything or share your documents.
         </div>
@@ -2210,7 +2355,7 @@
           <span class="chevron">▸</span>
         </summary>
         <div class="card-body">
-        <p class="item-tip" style="margin-top:-6px;">This is a personal record for your own use, confirming the information above is accurate to your knowledge - it isn't part of any official government form, nothing is sent anywhere, and no account or sign-in is needed. Fill it in whenever suits you: before you start, or once your report is ready.</p>
+        <p class="item-tip" data-reason="1" style="margin-top:-6px;">This is a personal record for your own use, confirming the information above is accurate to your knowledge - it isn't part of any official government form, nothing is sent anywhere, and no account or sign-in is needed. Fill it in whenever suits you: before you start, or once your report is ready.</p>
         <div class="row">
           <div><label class="field" for="decl_name">Full name</label><input type="text" id="decl_name" placeholder="e.g. Adaeze Grace Nnamdi"></div>
           <div><label class="field" for="decl_date">Date</label><input type="date" id="decl_date"></div>
@@ -2228,7 +2373,7 @@
           <span class="chevron">▸</span>
         </summary>
         <div class="card-body">
-        <p class="item-tip" style="margin-top:-6px; font-size:13px; line-height:1.6;">Hi, I'm <b>SafeNetwork</b>. I built Smooth Application after seeing how many honest, well-qualified visa applications get refused not because the applicant didn't qualify, but because the application didn't clearly show it. This tool distills that experience into a free, practical checklist. It's a personal project, not a company or a paid service - and it's free to use, full stop.</p>
+        <p class="item-tip" data-reason="1" style="margin-top:-6px; font-size:13px; line-height:1.6;">Hi, I'm <b>SafeNetwork</b>. I built Smooth Application after seeing how many honest, well-qualified visa applications get refused not because the applicant didn't qualify, but because the application didn't clearly show it. This tool distills that experience into a free, practical checklist. It's a personal project, not a company or a paid service - and it's free to use, full stop.</p>
         <p class="item-tip" style="font-size:13px; margin-bottom:8px;">Questions, feedback, or something looks wrong? I'd genuinely like to hear about it:</p>
         <div class="contact-links no-print">
           <a class="btn" href="mailto:lalasionline@gmail.com">✉️ lalasionline@gmail.com</a>
@@ -2617,6 +2762,83 @@
     var footerTermsLink = document.getElementById('footerTermsLink');
     if (footerPrivacyLink) footerPrivacyLink.addEventListener('click', function(){ open('privacy'); });
     if (footerTermsLink) footerTermsLink.addEventListener('click', function(){ open('terms'); });
+  })();
+
+  /* ---------------- Reasons tab ----------------
+     User request: pull the "Why?" toggles (details.tip-details, used throughout every session) and a
+     curated set of purely explanatory/framing paragraphs (marked data-reason="1" by hand, one at a
+     time - see the CHANGELOG entry for exactly which and why) out of the main flow, into one place
+     reachable from anywhere via the floating tab.
+     Deliberately NOT swept automatically: every OTHER .item-tip in this app - checklist items' own
+     "what this document is" description (it.tip, rendered fresh on every render() call), validation
+     rules (e.g. the closing-balance total must match), dynamic status/prompt text in the bank-
+     statement analyzer, and every privacy/consent/legal notice. Those either get regenerated by JS
+     after this runs (so a DOM sweep would just miss them, or worse, race it) or are exactly the kind
+     of information a person needs in the moment, not tucked away after the fact - moving them would
+     make the app harder to use correctly, not easier. Only the specifically-marked items above move.
+     Runs once, early - collectReasons() removes marked elements from the DOM as it reads them, so
+     this must run before anything else might rely on them still being present (nothing does; they're
+     inert content, not read by any other function). */
+  var REASONS = [];
+  function collectReasons(){
+    function sessionLabelFor(el){
+      var card = el.closest('[data-session-key]');
+      if (card){
+        var h2 = card.querySelector('.card-summary h2');
+        if (h2) return h2.textContent.trim();
+      }
+      return 'Getting started';
+    }
+    document.querySelectorAll('details.tip-details').forEach(function(d){
+      var summary = d.querySelector('summary');
+      var body = d.querySelector('.item-tip');
+      if (!summary || !body) return;
+      REASONS.push({ session: sessionLabelFor(d), q: summary.textContent.trim(), a: body.innerHTML });
+      d.remove();
+    });
+    document.querySelectorAll('[data-reason="1"]').forEach(function(el){
+      REASONS.push({ session: sessionLabelFor(el), q: null, a: el.innerHTML });
+      el.remove();
+    });
+  }
+  function renderReasonsModal(){
+    var body = document.getElementById('reasonsModalBody');
+    var countEl = document.getElementById('reasonsTabCount');
+    if (!body) return;
+    if (countEl) countEl.textContent = REASONS.length;
+    var groups = {};
+    var order = [];
+    REASONS.forEach(function(r){
+      if (!groups[r.session]){ groups[r.session] = []; order.push(r.session); }
+      groups[r.session].push(r);
+    });
+    body.innerHTML = order.map(function(session){
+      var items = groups[session].map(function(r){
+        var q = r.q ? '<p class="reasons-item-q">'+escapeHtml(r.q)+'</p>' : '';
+        return '<div class="reasons-item">'+q+'<p class="reasons-item-a">'+r.a+'</p></div>';
+      }).join('');
+      return '<div class="reasons-group"><p class="reasons-group-title">'+escapeHtml(session)+'</p>'+items+'</div>';
+    }).join('') || '<p class="reasons-item-a">Nothing collapsed yet.</p>';
+  }
+  (function initReasonsModal(){
+    collectReasons();
+    renderReasonsModal();
+    var overlay = document.getElementById('reasonsModalOverlay');
+    var tabBtn = document.getElementById('reasonsTabBtn');
+    var closeBtn = document.getElementById('reasonsModalClose');
+    if (!overlay || !tabBtn) return;
+    function open(){
+      overlay.hidden = false;
+      document.body.style.overflow = 'hidden';
+    }
+    function close(){
+      overlay.hidden = true;
+      document.body.style.overflow = '';
+    }
+    tabBtn.addEventListener('click', open);
+    if (closeBtn) closeBtn.addEventListener('click', close);
+    overlay.addEventListener('click', function(e){ if (e.target === overlay) close(); });
+    document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && !overlay.hidden) close(); });
   })();
 
   /* ---------------- Theme toggle ---------------- */
@@ -4912,6 +5134,132 @@
     document.getElementById('passportValidateMsg').textContent = 'Reading "'+file.name+'" now (can take up to 30 seconds for a photo) - the result will appear right here…';
     attachFileToItem('passport', file, {skipReveal:true});
   });
+
+  /* ---------------- Session 1: guided camera scan (mockup 2c) ----------------
+     A live-camera alternative to picking an existing photo/PDF above — feeds the exact same OCR
+     pipeline (smartRecognize -> applyScanResult) the file upload uses, so this only changes how a
+     photo of the bio page gets INTO that pipeline, not anything about how it's read or scored.
+     Falls back cleanly whenever the browser/device can't do this: no getUserMedia support, the
+     permission prompt gets declined, or no camera is found at all — in every case the plain upload
+     button and the manual "type it in" fields below keep working exactly as before. */
+  (function(){
+    var panel = document.getElementById('passportCamPanel');
+    var video = document.getElementById('passportCamVideo');
+    var canvas = document.getElementById('passportCamCanvas');
+    var openBtn = document.getElementById('btnPassportCamOpen');
+    var captureBtn = document.getElementById('btnPassportCamCapture');
+    var closeBtn = document.getElementById('btnPassportCamClose');
+    var uploadInsteadLink = document.getElementById('passportCamUseUpload');
+    var retakeMsg = document.getElementById('passportCamRetakeMsg');
+    var hint = document.getElementById('passportCamHint');
+    if (!panel || !video || !openBtn) return; // markup missing — fail open, upload button still works
+    var stream = null;
+
+    function stopStream(){
+      if (stream){
+        stream.getTracks().forEach(function(t){ t.stop(); });
+        stream = null;
+      }
+    }
+    function closePanel(){
+      stopStream();
+      panel.style.display = 'none';
+    }
+
+    openBtn.addEventListener('click', function(){
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+        document.getElementById('passportValidateMsg').textContent = 'Camera access isn\'t available in this browser - use "Scan passport" above to upload a photo instead, or type your details in below.';
+        return;
+      }
+      panel.style.display = 'block';
+      retakeMsg.style.display = 'none';
+      hint.textContent = 'Hold your passport\'s photo page flat and steady, with the strip of text at the bottom (the MRZ) inside the frame, then capture.';
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } } }).then(function(s){
+        stream = s;
+        video.srcObject = s;
+      }).catch(function(){
+        panel.style.display = 'none';
+        document.getElementById('passportValidateMsg').textContent = 'Couldn\'t access your camera (permission declined, or none found) - use "Scan passport" above to upload a photo instead, or type your details in below.';
+      });
+    });
+
+    closeBtn.addEventListener('click', closePanel);
+    uploadInsteadLink.addEventListener('click', function(e){
+      e.preventDefault();
+      closePanel();
+      document.getElementById('file_passportValidate').click();
+    });
+
+    // Average luminance of a small downsampled copy of a just-captured still — cheap enough to run
+    // once per capture (not on every live video frame) without pulling in a whole exposure-metering
+    // library for what's really a single yes/no "is this too dark to bother OCRing" check.
+    function averageBrightness(cv){
+      var sampleW = 80, sampleH = Math.max(1, Math.round(sampleW * (cv.height / (cv.width || 1))));
+      var s = document.createElement('canvas');
+      s.width = sampleW; s.height = sampleH;
+      var sctx = s.getContext('2d');
+      sctx.drawImage(cv, 0, 0, s.width, s.height);
+      var data;
+      try { data = sctx.getImageData(0, 0, s.width, s.height).data; }
+      catch (e) { return 128; } // fail open — don't block a capture just because we couldn't measure it
+      var total = 0, count = 0;
+      for (var i = 0; i < data.length; i += 4){
+        total += 0.299*data[i] + 0.587*data[i+1] + 0.114*data[i+2];
+        count++;
+      }
+      return count ? total / count : 128;
+    }
+
+    captureBtn.addEventListener('click', function(){
+      if (!video.videoWidth){ return; } // stream not actually ready yet — nothing to capture
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+      if (averageBrightness(canvas) < 55){
+        // Too dark to be worth a 20-30s OCR pass — same underexposed-warning + retake the mockup
+        // calls for. Stream stays open so the same Capture button can just be pressed again.
+        retakeMsg.style.display = '';
+        retakeMsg.textContent = '⚠ That looks quite dark - try moving somewhere brighter, or shine a light/torch on the passport, then capture again.';
+        return;
+      }
+      retakeMsg.style.display = 'none';
+      var capturedCanvas = document.createElement('canvas');
+      capturedCanvas.width = canvas.width; capturedCanvas.height = canvas.height;
+      capturedCanvas.getContext('2d').drawImage(canvas, 0, 0);
+      closePanel();
+      var passportItem = CHECKLIST.filter(function(i){ return i.id === 'passport'; })[0];
+      if (!passportItem) return;
+      state.passport.checked = true;
+      state.passport.fileName = 'Camera scan';
+      render();
+      document.getElementById('passportValidateMsg').textContent = 'Reading your camera capture now (can take up to 30 seconds) - the result will appear right here…';
+      trackEvent('doc_scan:attempted:passport');
+      ensureLibs().then(function(){
+        return smartRecognize(capturedCanvas, { expectMrz: true });
+      }).then(function(best){
+        var text = best ? best.text : '';
+        if (!text.trim()){
+          setScanMsg('passport', 'info', 'Couldn\'t extract readable text from that capture - try again with better light and the bio page flat, or use "Scan passport" to upload a photo instead.');
+          return;
+        }
+        applyScanResult(passportItem, 'passport', text, getAnswers(), 'Camera scan');
+        // Mockup 2c: the confirm step specifically flags the expiry date for a manual double-check
+        // rather than trusting OCR outright — reuses the same jump-highlight the result card's own
+        // "type it in below" link uses (see the expiry-jump-link listener above), triggered
+        // automatically here since there's no card link to click yet on a first-ever scan.
+        setTimeout(function(){
+          var expiryEl = document.getElementById('f_passportExpiry');
+          if (!expiryEl) return;
+          revealAndScrollTo(expiryEl);
+          expiryEl.classList.add('jump-highlight');
+          setTimeout(function(){ expiryEl.classList.remove('jump-highlight'); }, 1600);
+        }, 300);
+      }).catch(function(err){
+        logClientError('doc_scan_camera', err);
+        setScanMsg('passport', 'err', 'Something went wrong reading that capture - sorry about that. ' + reportProblemLinksHtml('document scan') + ' You can still type your details in manually below.');
+      });
+    });
+  })();
   function dateToIsoStr(d){
     return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
   }
@@ -8378,8 +8726,17 @@
   // a genuine completed analysis (setStmtMsg receiving a real result array), never on a bare 'busy'/
   // 'err' string — those need the file pickers to stay right where they are so the applicant can
   // immediately retry.
-  function hideStatementUploadForm(){
+  // monthsDetected (mockup 2d): when known, the done-bar reads "Ready · N month(s) detected" instead
+  // of a bare "Ready" - the one number an applicant most wants confirmed at a glance (did it actually
+  // find my last few months, not just SOME transactions) without opening the results below.
+  function hideStatementUploadForm(monthsDetected){
     var block = document.getElementById('stmtUploadBlock'), bar = document.getElementById('stmtUploadDoneBar');
+    var textEl = document.getElementById('stmtUploadDoneBarText');
+    if (textEl){
+      textEl.textContent = (typeof monthsDetected === 'number' && monthsDetected > 0)
+        ? 'Ready · ' + monthsDetected + ' month' + (monthsDetected === 1 ? '' : 's') + ' detected'
+        : 'Ready';
+    }
     if (block) block.style.display = 'none';
     if (bar) bar.style.display = '';
   }
@@ -8399,7 +8756,10 @@
   // attention," just OPEN by default since these are things to act on, not tuck away like the good
   // news is. Individual findings keep their exact same .scan-msg CLASS markup either way — only the
   // wrapping changed, so anything elsewhere that reads/matches on .scan-msg.err etc. is unaffected.
-  function setStmtMsg(clsOrArray, text){
+  // meta.months (mockup 2d): the month count runStatementAnalysis detected, threaded through to the
+  // "Ready · N month(s) detected" done-bar (see hideStatementUploadForm) - optional, and only ever
+  // passed on the real final-result call, never the 'busy'/'err' string calls.
+  function setStmtMsg(clsOrArray, text, meta){
     var isFinalResult = Array.isArray(clsOrArray);
     var arr = isFinalResult ? clsOrArray : [{cls: clsOrArray, text: text}];
     var actionable = arr.filter(function(r){ return r.cls !== 'ok'; });
@@ -8420,7 +8780,7 @@
         '</ul></details>';
     }
     document.getElementById('stmtAnalyzeMsg').innerHTML = html;
-    if (isFinalResult) hideStatementUploadForm();
+    if (isFinalResult) hideStatementUploadForm(meta && meta.months);
   }
 
   // Reconstruct visual lines from pdf.js text items using their y-position (items alone have no line breaks).
@@ -12155,7 +12515,7 @@
         // transaction was successfully parsed and the results actually rendered, i.e. a genuinely
         // successful analysis, not just "didn't crash".
         trackEvent('statement_analysis:completed');
-        onMessage(results);
+        onMessage(results, {months: months.length});
       }).catch(function(err){
         // Before this, a bug anywhere in the parsing/rendering above (e.g. an unusual statement
         // layout from a bank this tool hasn't seen before) failed completely silently: the
@@ -12202,6 +12562,20 @@
   document.getElementById('btnShowStmtUpload').addEventListener('click', function(e){
     e.preventDefault();
     showStatementUploadForm();
+  });
+
+  // Mockup 2d: "Add another account" reveals statement 2, then statement 3, one at a time — rather
+  // than showing all 3 pickers up front for the ~1-account-only majority. Both rows stay real inputs
+  // in the DOM the whole time (never removed), so getStatementFiles()/runStatementAnalysis need no
+  // changes at all — this only ever changes what's visible.
+  document.getElementById('btnStmtAddAccount').addEventListener('click', function(){
+    var row2 = document.getElementById('stmtFile2Row'), row3 = document.getElementById('stmtFile3Row');
+    if (row2.style.display === 'none'){
+      row2.style.display = '';
+    } else if (row3.style.display === 'none'){
+      row3.style.display = '';
+      this.style.display = 'none'; // already at the 3-statement cap runStatementAnalysis enforces
+    }
   });
 
   /* ---------------- Export / import / print / reset ---------------- */
@@ -13055,11 +13429,53 @@
     lastQuizResult = null; // one-shot - don't re-apply if the applicant later changes country manually
   }
 
+  // Tappable-list front end for #gateCountrySelect (see the HTML comment above .gate-country-list).
+  // COUNTRY_GATE_ORDER matches the hidden <select>'s own option order exactly, so the two never
+  // silently drift apart.
+  var COUNTRY_GATE_ORDER = ['UK', 'CA', 'US', 'EU', 'ZA', 'AU', 'CN'];
+  function buildGateCountryList(){
+    var list = document.getElementById('gateCountryList');
+    list.innerHTML = COUNTRY_GATE_ORDER.map(function(code){
+      var c = COUNTRIES[code];
+      var badge = c.ready ? '<span class="gate-country-badge ready">READY</span>' : '<span class="gate-country-badge soon">SOON</span>';
+      return '<button type="button" class="gate-country-option" data-code="' + code + '" role="option"' + (c.ready ? '' : ' disabled') + '>' +
+        '<span class="gate-country-option-text"><b>' + c.flag + ' ' + escapeHtml(c.name) + '</b><span class="gate-country-option-sub">' + escapeHtml(c.visaName || 'Coming soon') + '</span></span>' +
+        badge + '</button>';
+    }).join('');
+  }
+  function showGateCountryConfirmed(code){
+    var c = COUNTRIES[code];
+    if (!c || !c.ready) return;
+    document.getElementById('gateCountryList').style.display = 'none';
+    var confirmed = document.getElementById('gateCountryConfirmed');
+    confirmed.querySelector('.gate-country-confirmed-name').textContent = c.flag + ' ' + c.name;
+    confirmed.querySelector('.gate-country-confirmed-sub').textContent = c.visaName;
+    confirmed.style.display = 'flex';
+  }
+  function showGateCountryList(){
+    document.getElementById('gateCountryList').style.display = 'flex';
+    document.getElementById('gateCountryConfirmed').style.display = 'none';
+  }
+  buildGateCountryList();
+  document.getElementById('gateCountryList').addEventListener('click', function(e){
+    var btn = e.target.closest('.gate-country-option');
+    if (!btn || btn.disabled) return;
+    var sel = document.getElementById('gateCountrySelect');
+    sel.value = btn.getAttribute('data-code');
+    sel.dispatchEvent(new Event('change', {bubbles:true}));
+  });
+  document.getElementById('gateCountryChange').addEventListener('click', showGateCountryList);
+
   document.getElementById('gateCountrySelect').addEventListener('change', function(){
     populateGateDisclaimer();
     document.getElementById('gateAgree').checked = false;
     document.getElementById('gateContinue').disabled = true;
     updateGateContinueHint();
+    // Covers both a real tap on the list above AND every programmatic set elsewhere (e.g. the quiz
+    // pre-fill just above, or resuming a saved session) -- one path keeps the confirmed-row view in
+    // sync with .value no matter how it changed, rather than duplicating this per call site.
+    if (COUNTRIES[this.value] && COUNTRIES[this.value].ready) showGateCountryConfirmed(this.value);
+    else showGateCountryList();
   });
   document.getElementById('gateAgree').addEventListener('change', function(){
     var sel = document.getElementById('gateCountrySelect');
@@ -13090,6 +13506,11 @@
     document.getElementById('gateAgree').checked = false;
     document.getElementById('gateContinue').disabled = true;
     updateGateContinueHint();
+    // Doesn't go through the gateCountrySelect 'change' listener above (no synthetic event
+    // dispatched here, on purpose -- see that handler's own comment), so the country-list/confirmed
+    // view needs the same sync explicitly.
+    if (COUNTRIES[currentCountry] && COUNTRIES[currentCountry].ready) showGateCountryConfirmed(currentCountry);
+    else showGateCountryList();
     document.getElementById('appWrap').style.display = 'none';
     document.getElementById('consentGate').style.display = 'flex';
     window.scrollTo(0,0);

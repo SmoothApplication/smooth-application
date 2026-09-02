@@ -47,6 +47,11 @@ async function launchBrowser(){
   // PLAYWRIGHT_CHROMIUM_PATH to reuse it instead of downloading. CI (and any normal machine that
   // ran `npx playwright install`) should leave this unset and use Playwright's managed browser.
   if (process.env.PLAYWRIGHT_CHROMIUM_PATH) opts.executablePath = process.env.PLAYWRIGHT_CHROMIUM_PATH;
+  // Fake camera device + auto-accepted permission prompt — lets the guided passport-camera-scan
+  // feature (see passport-camera-scan.test.js) actually exercise getUserMedia in headless CI
+  // without a real webcam. Inert everywhere else: no other test calls getUserMedia, so this changes
+  // nothing about the rest of the suite.
+  opts.args = ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'];
   return chromium.launch(opts);
 }
 
@@ -69,8 +74,13 @@ async function passConsentGate(page, options){
   await page.click('#quizSkipLink');
   await page.waitForSelector('#docsGateContinue');
   await page.click('#docsGateContinue');
-  await page.waitForSelector('#gateCountrySelect');
-  await page.selectOption('#gateCountrySelect', country);
+  // The country picker is a tappable list now, not a native <select> (see the "mockup 2b" comment
+  // on .gate-country-list in index.html) -- #gateCountrySelect still exists and still drives the
+  // real app logic, but it's visually hidden, so Playwright's selectOption() (which requires
+  // visibility) can't target it directly. Click the matching list option instead, same as a real
+  // applicant would.
+  await page.waitForSelector('.gate-country-option[data-code="' + country + '"]');
+  await page.click('.gate-country-option[data-code="' + country + '"]');
   await page.check('#gateAgree', { force: true });
   await page.click('#gateContinue');
   await page.waitForFunction(function(){

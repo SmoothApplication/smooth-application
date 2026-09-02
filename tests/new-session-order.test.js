@@ -13,7 +13,7 @@ exports.run = async function(ctx){
     await page.waitForSelector('.session-pill');
 
     var titles = await page.$$eval('.session-pill', function(pills){
-      return pills.map(function(p){ return (p.getAttribute('title') || '').split(' — ')[0]; });
+      return pills.map(function(p){ return (p.getAttribute('title') || '').split(' - ')[0]; });
     });
 
     // 13 top-level sessions for a typical fresh UK applicant: the 6 fixed topics, then one session

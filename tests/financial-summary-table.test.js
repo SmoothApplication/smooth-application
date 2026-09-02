@@ -67,10 +67,10 @@ exports.run = async function(ctx){
     assert.strictEqual(map1['Income generation (average per month)'], '₦440,000', 'Average monthly inflow should be 1,760,000/4, got: ' + JSON.stringify(map1));
     assert.strictEqual(map1['Average monthly outflow'], '₦3,750', 'Average monthly outflow should be 15,000/4, got: ' + JSON.stringify(map1));
     assert.strictEqual(map1['Monthly net savings pace'], '₦436,250', 'Monthly net savings pace should be avg inflow minus avg outflow, got: ' + JSON.stringify(map1));
-    assert.strictEqual(map1['Closing balance strength'], 'Detected — add a trip cost to compare', 'With no trip cost/dates entered yet, strength should say so rather than guess, got: ' + JSON.stringify(map1));
+    assert.strictEqual(map1['Closing balance strength'], 'Detected - add a trip cost to compare', 'With no trip cost/dates entered yet, strength should say so rather than guess, got: ' + JSON.stringify(map1));
     assert.strictEqual(map1['Recommended funds needed (2× buffer)'], 'Add trip dates/cost above', 'Should prompt for a trip cost rather than show a bogus figure, got: ' + JSON.stringify(map1));
-    assert.strictEqual(map1['Amount still needed to reach it'], '—', 'With nothing to compare against yet, this should be a dash, not a number, got: ' + JSON.stringify(map1));
-    assert.strictEqual(map1['Estimated time to reach it'], '—', 'Same reasoning for the time-to-target row, got: ' + JSON.stringify(map1));
+    assert.strictEqual(map1['Amount still needed to reach it'], '-', 'With nothing to compare against yet, this should be a dash, not a number, got: ' + JSON.stringify(map1));
+    assert.strictEqual(map1['Estimated time to reach it'], '-', 'Same reasoning for the time-to-target row, got: ' + JSON.stringify(map1));
 
     // --- Once a trip cost is entered: the closing balance (1,745,000) comfortably covers a modest
     // 2× buffer (2 × 200,000 = 400,000), so the summary should read "already there" ------------------
@@ -91,7 +91,7 @@ exports.run = async function(ctx){
     });
     var map2 = rowsToMap(rows2);
     assert.strictEqual(map2['Recommended funds needed (2× buffer)'], '₦400,000', 'Recommended funds should be 2× the 200,000 flight-only cost, got: ' + JSON.stringify(map2));
-    assert.strictEqual(map2['Closing balance strength'], 'Strong — covers the 2× buffer', 'A 1,745,000 closing balance comfortably covers a 400,000 buffer, got: ' + JSON.stringify(map2));
+    assert.strictEqual(map2['Closing balance strength'], 'Strong - covers the 2× buffer', 'A 1,745,000 closing balance comfortably covers a 400,000 buffer, got: ' + JSON.stringify(map2));
     assert.strictEqual(map2['Amount still needed to reach it'], 'Already met ✅', 'The buffer is already covered, so nothing further should be "needed", got: ' + JSON.stringify(map2));
     assert.strictEqual(map2['Estimated time to reach it'], 'Already there ✅', 'Matches the row above — already met, not a months estimate, got: ' + JSON.stringify(map2));
     // Every other row should stay exactly as computed before — entering a trip cost must not alter

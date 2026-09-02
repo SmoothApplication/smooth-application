@@ -40,7 +40,15 @@ exports.run = async function(ctx){
     var followUpText = await page.$eval('#te_euSingleEntryBox', function(el){ return el.textContent; });
     assert.ok(/single-entry visa/i.test(followUpText), 'Follow-up should ask about single-entry visa comfort, got: ' + followUpText);
     assert.ok(/10-15 days/.test(followUpText), 'Follow-up should mention the typical 10-15 day validity, got: ' + followUpText);
-    assert.ok(/doesn\'t affect your checklist|doesn\'t block/i.test(followUpText), 'Follow-up should make clear it is non-blocking, got: ' + followUpText);
+
+    // The "this doesn't affect your checklist/block anything" reassurance used to sit inline as a
+    // "Why?" toggle; it's now one of the toggles collectReasons() relocates into the Reasons tab
+    // (see reasons-tab.test.js), so it's checked there instead of on the question itself.
+    await page.click('#reasonsTabBtn');
+    await page.waitForSelector('#reasonsModalOverlay:not([hidden])');
+    var reasonsHtml = await page.$eval('#reasonsModalBody', function(el){ return el.innerHTML; });
+    assert.ok(/doesn\'t affect your checklist|doesn\'t block/i.test(reasonsHtml), 'Reasons tab should still explain this is non-blocking, got: ' + reasonsHtml.slice(0, 400));
+    await page.click('#reasonsModalClose');
 
     // Answering the single-entry follow-up must not be sticky/required for anything — switching
     // the parent question back to "No" should cleanly swap branches.

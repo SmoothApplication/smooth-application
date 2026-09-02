@@ -58,7 +58,7 @@ exports.run = async function(ctx){
 
     // And its underlying explanation should be untouched, not cleared out by the blur handler.
     var summary = await page.$eval('#matchbox_emp_0 .tx-line', function(el){ return el.textContent; });
-    assert.ok(/— Allowance$/.test(summary), 'The original auto-tagged explanation should survive an open-then-blur with no edits, got: ' + summary);
+    assert.ok(/- Allowance$/.test(summary), 'The original auto-tagged explanation should survive an open-then-blur with no edits, got: ' + summary);
   } finally {
     await page.context().close();
   }
