@@ -9,7 +9,7 @@
 // default since these are reassurance, not action items — unchanged from before this change).
 const assert = require('assert');
 const path = require('path');
-const { newPageAt, passConsentGate, goToSessionByPill } = require('./helpers');
+const { newPageAt, passConsentGate, goToSessionByPill, goToFinanceStep } = require('./helpers');
 
 var SAMPLE_STATEMENT = path.join(__dirname, 'fixtures', 'bank-statement-sample.pdf');
 
@@ -30,6 +30,14 @@ exports.run = async function(ctx){
     await page.click('#btnAnalyzeStatements');
     await page.waitForSelector('#unexplainedInflowsBox .explain-box', { timeout: 20000 });
     await page.waitForTimeout(500);
+
+    // A successful analysis deliberately auto-advances the active tab from "1. Upload statements" to
+    // "2. Cash flow & scores" (see the "Auto-advance from the Upload tab..." comment on
+    // setFinanceStep(2, false) in index.html) — intentional, so the applicant sees their result
+    // without an extra click. That means Step 1's own content (including the done-bar this test
+    // checks next) is genuinely off-screen until navigating back to it, same as a real applicant
+    // would have to.
+    await goToFinanceStep(page, 1);
 
     // After a real analysis: upload form hidden, done-bar shown instead.
     var afterBlockVisible = await page.$eval('#stmtUploadBlock', function(el){ return getComputedStyle(el).display !== 'none'; });

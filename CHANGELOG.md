@@ -29,9 +29,28 @@ today. Root cause not yet found. Added console/pageerror diagnostics to the test
 latent `waitForFunction(fn, {timeout})` argument-order bug in it (the options object was silently
 being passed as the page function's `arg` instead, so the intended timeout was never actually
 applied) so the next failure surfaces the real browser-side error instead of a bare timeout.
-Tracked as a follow-up, not blocking this fix pass. (Update: it passed on the very next run with no
-code change - confirmed a flake, not a real bug. The diagnostics and the argument-order fix stay in
-the test as a safety net in case it recurs.)
+Tracked as a follow-up, not blocking this fix pass. (Update: it passed once, then failed again on a
+later run with the same symptom - not just a flake after all. Hardened the actual capture handler in
+index.html: `video.videoWidth` can genuinely read 0 for a brief instant right after the camera
+stream (re)opens, even once the panel/video are visibly playing - previously the Capture button
+silently did nothing in that instant, for real users too, not just this test. It now retries briefly
+(up to ~750ms) before giving up and showing a "still starting" message. The diagnostics and
+argument-order timeout fix from the earlier note stay in place either way.)
+
+## Fixed two more genuine, pre-existing bugs surfaced by a full clean test run
+
+Unrelated to the em-dash/Reasons-tab work above - both predate today, just never caught until a full
+suite run actually got this far. `statement-upload-minimal-flow.test.js`: the "Ready" done-bar never
+showed its "· N month(s) detected" suffix. Root cause was a real one-line bug in index.html -
+`onMessage(results, {months: months.length})` passed the months object as `setStmtMsg`'s 2nd
+argument (`text`), but `meta` is the 3rd - the months count was silently landing in an unused slot.
+Fixed to `onMessage(results, undefined, {months: months.length})`.
+
+`statement-upload-form-hides-after-analysis.test.js`: tried to click "Upload different statement(s)"
+right after analysis, but a successful analysis deliberately auto-advances the active tab from "1.
+Upload statements" to "2. Cash flow & scores" (existing, intentional behavior, well-commented in
+index.html) - so that link is genuinely off-screen until navigating back. Fixed the test to do that
+navigation first, matching what a real applicant would have to do.
 
 One more, found on the same run: `consent-gate.test.js` and `session-next-highlights-missing-
 fields.test.js` both still waited for `#gateCountrySelect` to become *visible* - stale from before

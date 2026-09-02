@@ -5210,8 +5210,17 @@
       return count ? total / count : 128;
     }
 
-    captureBtn.addEventListener('click', function(){
-      if (!video.videoWidth){ return; } // stream not actually ready yet — nothing to capture
+    // videoWidth can still read 0 for a brief instant right after the stream is (re)opened, even once
+    // the panel/video element are themselves visible and playing — a real, if narrow, race with
+    // getUserMedia. Capturing used to silently do nothing in that instant (no feedback for a real
+    // person, and a source of an intermittent hang in the camera test): retry briefly instead of
+    // giving up on the first read, since the frame is normally ready within a beat.
+    function doCapture(retriesLeft){
+      if (!video.videoWidth){
+        if (retriesLeft > 0){ setTimeout(function(){ doCapture(retriesLeft - 1); }, 150); return; }
+        hint.textContent = 'Still starting the camera - give it a moment, then try Capture again.';
+        return;
+      }
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -5258,7 +5267,8 @@
         logClientError('doc_scan_camera', err);
         setScanMsg('passport', 'err', 'Something went wrong reading that capture - sorry about that. ' + reportProblemLinksHtml('document scan') + ' You can still type your details in manually below.');
       });
-    });
+    }
+    captureBtn.addEventListener('click', function(){ doCapture(5); }); // ~5 x 150ms = up to ~750ms of retry
   })();
   function dateToIsoStr(d){
     return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
@@ -12515,7 +12525,11 @@
         // transaction was successfully parsed and the results actually rendered, i.e. a genuinely
         // successful analysis, not just "didn't crash".
         trackEvent('statement_analysis:completed');
-        onMessage(results, {months: months.length});
+        // NOTE: setStmtMsg's signature is (clsOrArray, text, meta) — meta is the THIRD argument, so
+        // the `undefined` here for `text` is required; passing {months:...} as the 2nd argument (as
+        // this used to) silently landed it in the unused `text` slot instead of `meta`, which is why
+        // the done-bar's "N month(s) detected" count was never actually showing up.
+        onMessage(results, undefined, {months: months.length});
       }).catch(function(err){
         // Before this, a bug anywhere in the parsing/rendering above (e.g. an unusual statement
         // layout from a bank this tool hasn't seen before) failed completely silently: the
