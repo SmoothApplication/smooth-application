@@ -3,6 +3,16 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Quiz result: genuinely its own page now
+
+Follow-up on the field feedback below: "move this result to a separate page after the two page
+quiz." Turned out the result panel already lived in its own `<div>`, but the click handler that
+showed it never hid the 2-page question form (`#quizFormWrap`) — it just scrolled past it. The
+form (591px of questions) was still sitting there at `display:block`, so the result read as more
+content stacked below the quiz rather than a page of its own. Now the handler hides the form when
+the result shows, added a "Your result" heading to the panel, and `confidence-quiz.test.js` checks
+the form is actually hidden at that point.
+
 ## Field feedback round: shorter quiz, real 2-tab finance dashboard, travel guide moved to a modal
 
 Three fixes off direct feedback from people testing the app on the ground:

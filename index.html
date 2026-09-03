@@ -1294,6 +1294,7 @@
     </div>
 
     <div id="quizResultPanel" style="display:none;">
+      <h1 class="consent-gate-title">Your result</h1>
       <div id="quizResultTier" class="quiz-result-tier"></div>
       <ul id="quizGapList" class="quiz-gap-list"></ul>
       <div class="quiz-notify-card">
@@ -13491,8 +13492,13 @@
     document.getElementById('quizGapList').innerHTML = gaps.length
       ? gaps.map(function(m){ return '<li>' + escapeHtml(m) + '</li>'; }).join('')
       : '<li>Nothing major stands out here - the full checklist below will confirm the details.</li>';
+    // Field feedback: the result should read as its own page after the 2-page quiz, not more
+    // content stacked below the questions. Hiding quizFormWrap (rather than just scrolling to the
+    // result panel while it stayed visible) is what actually makes that true - previously the full
+    // question form was still sitting there at display:block, just scrolled past.
+    document.getElementById('quizFormWrap').style.display = 'none';
     document.getElementById('quizResultPanel').style.display = 'block';
-    document.getElementById('quizResultPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.getElementById('quizGate').scrollTop = 0;
   });
 
   // Fake-door demand test for the "I can pay a fee" idea from the same street-test feedback —

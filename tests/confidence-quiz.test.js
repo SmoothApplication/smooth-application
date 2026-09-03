@@ -84,6 +84,11 @@ exports.run = async function(ctx){
     await page.click('#quizSeeResult');
     await page.waitForSelector('#quizResultPanel', { state: 'visible' });
 
+    // Field feedback: the result should be its own page after the quiz, not the questions still
+    // sitting there above it — the form must actually be hidden, not just scrolled past.
+    var formHiddenAtResult = await page.$eval('#quizFormWrap', function(el){ return getComputedStyle(el).display === 'none'; });
+    assert.strictEqual(formHiddenAtResult, true, 'The quiz questions should be hidden once the result page shows');
+
     var tierText = await page.$eval('#quizResultTier', function(el){ return el.textContent; });
     assert.ok(tierText.length > 0, 'Result tier should render some text');
     var gapText = await page.$eval('#quizGapList', function(el){ return el.textContent; });
