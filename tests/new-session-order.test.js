@@ -16,12 +16,14 @@ exports.run = async function(ctx){
       return pills.map(function(p){ return (p.getAttribute('title') || '').split(' - ')[0]; });
     });
 
-    // 13 top-level sessions for a typical fresh UK applicant: the 6 fixed topics, then one session
+    // 14 top-level sessions for a typical fresh UK applicant: the 6 fixed topics, then one session
     // per applicable checklist category (5 of the 9 possible categories apply with no answers yet —
     // Identity & application / Financial evidence / Ties to Nigeria / Accommodation & UK host /
     // Travel details — the other 4 are conditional and only add a session once they actually apply),
     // then the always-visible "Funded opportunities" directory (see opportunities-directory.test.js),
-    // then review.
+    // then review, then a dedicated "Reasons" session last (field feedback: "let it be broken down
+    // from Quiz to session 14 why each step was taken" — see reasons-tab.test.js and the
+    // getVisibleSessionKeys() comment in index.html for why it's appended last).
     assert.deepStrictEqual(titles, [
       'Validate your International Passport',
       'Travel Experience',
@@ -35,8 +37,9 @@ exports.run = async function(ctx){
       'Accommodation & UK host',
       'Travel details',
       'Funded opportunities',
-      'Final review'
-    ], 'Should show exactly these 13 top-level sessions in this order, got: ' + titles.join(' | '));
+      'Final review',
+      'Reasons'
+    ], 'Should show exactly these 14 top-level sessions in this order, got: ' + titles.join(' | '));
 
     // Session 1 (passport) should be the one showing open/current on first load.
     var firstPillActive = await page.$eval('.session-pill[data-idx="0"]', function(el){ return el.classList.contains('active'); });

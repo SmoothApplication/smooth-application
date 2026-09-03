@@ -3,6 +3,50 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Reasons, everywhere: per-session sidebar card, and a real "session 14"
+
+Field feedback: the app reads "too busy and too worded" — every explanatory paragraph sitting
+inline (passport scan instructions, the privacy/consent line next to the contact checkbox, autosave
+notice, etc.) adds up. Direct ask: pull that wording out of the main flow, into the same "Reasons"
+mechanism already built (`collectReasons()`/`data-reason="1"`/`.tip-details`), and make it reachable
+in three places instead of one:
+
+1. **Passport session decluttered.** The scan instructions and the "it's OK to contact me" privacy
+   notice both moved out — marked `data-reason="1"` like the app's other curated framing paragraphs.
+   Also marked the application-tracker intro and the "Save your progress" autosave notice, which had
+   the same "purely explanatory, not needed at the exact moment of use" shape.
+2. **Reasons now grouped by real session key, not a rendered label.** `sessionLabelFor()` →
+   `sessionKeyFor()`; a new `reasonsGroupLabel(key)` turns any key into the same human-readable name
+   used everywhere else (`sessionLabel()`), so a group heading always matches the pill/label an
+   applicant already recognizes. Content from the pre-consent quiz screen (the landing FAQ) now
+   groups under "Quiz" specifically, not a generic "Getting started" catch-all.
+3. **Sidebar "Reasons" card.** New card at the bottom of the right-hand sidebar, right next to
+   "Still missing" / "Save your progress" — shows only the CURRENTLY OPEN session's own reasons,
+   updating every time the applicant moves between sessions (`renderSidebarReasons()`, called from
+   `applySessionVisibility()`). Hidden entirely on any session with nothing collected, rather than
+   showing an empty card.
+4. **A real "Reasons" session, last in the flow (session 14 for a typical fresh UK applicant).**
+   Appended to `getVisibleSessionKeys()` after `'review'`, same reasoning as `bizLedger`/
+   `opportunities` before it — appending last means it can't shift the index of any earlier session
+   existing tests navigate to by hardcoded pill number. Shows everything collected, broken down by
+   session from Quiz onward — every applicant now passes through this once as a normal step, not
+   only via the optional floating "📖 Reasons" button (kept as-is; all three surfaces read from the
+   same `REASONS` array via `renderReasonsInto()`, so they can't drift out of sync with each other).
+
+`reasons-tab.test.js` rewritten for key-based grouping, the "Quiz" heading, session 14's content,
+and the sidebar card following the applicant session to session. `new-session-order.test.js`
+updated for the 14th session.
+
+## Country-confirmed card: one line, Change flush right
+
+Field feedback: "🇬🇧 United Kingdom" (bold, own line) stacked above "UK Standard Visitor visa"
+(muted, own line) inside the country-confirmed card on the consent gate left the block looking
+sparse — two short, narrow lines with a lot of empty space around them, and "Change" reading as
+stranded rather than pinned to the right edge. Collapsed to one line (just the visa name, which
+already says which country) and let it flex to fill the row, so `justify-content: space-between`
+pushes "Change" to the true right edge without a second line competing for height. No test
+referenced the removed `.gate-country-confirmed-sub` element.
+
 ## Quiz result: genuinely its own page now
 
 Follow-up on the field feedback below: "move this result to a separate page after the two page

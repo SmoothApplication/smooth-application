@@ -256,8 +256,12 @@
     margin-top: 6px; display: flex; align-items: center; justify-content: space-between; gap: 10px;
     padding: 11px 14px; border-radius: 10px; border: 1px solid var(--good); background: var(--good-wash);
   }
-  .gate-country-confirmed-name { display: block; font-size: 13.5px; }
-  .gate-country-confirmed-sub { display: block; font-size: 12px; color: var(--text-secondary); }
+  /* Field feedback: the country's full name + a separate subtitle line ("🇬🇧 United Kingdom" /
+     "UK Standard Visitor visa") stacked two short, narrow lines with a lot of empty space around
+     them, and left "Change" looking stranded in the middle rather than flush right. One line (just
+     the visa name, which already says which country) fills the row properly and lets flex push
+     Change to the true right edge without a second line competing for height. */
+  .gate-country-confirmed-name { flex: 1; min-width: 0; font-size: 13.5px; font-weight: 700; }
   .gate-select-wrap { position: relative; margin-top: 6px; }
   .gate-select-wrap .gate-select-chevron {
     position: absolute; right: 12px; top: 50%; transform: translateY(-50%); pointer-events: none;
@@ -1370,10 +1374,7 @@
     <label class="field" id="gateCountryLabel">Which visa are you preparing for?</label>
     <div id="gateCountryList" class="gate-country-list" role="listbox" aria-labelledby="gateCountryLabel"></div>
     <div id="gateCountryConfirmed" class="gate-country-confirmed" style="display:none;">
-      <div>
-        <b class="gate-country-confirmed-name"></b>
-        <span class="gate-country-confirmed-sub"></span>
-      </div>
+      <b class="gate-country-confirmed-name"></b>
       <button type="button" class="gate-text-link" id="gateCountryChange">Change</button>
     </div>
     <div class="gate-select-wrap" style="display:none;" aria-hidden="true">
@@ -1432,7 +1433,7 @@
           <span class="chevron">▸</span>
         </summary>
         <div class="card-body">
-        <p class="item-tip" style="margin-top:0;">Scan your passport's bio page below - your name, passport number, and expiry date will be read straight off it and filled in automatically. Check each one against your physical passport and correct anything that's wrong before moving on. Don't have your passport on you right now? No problem - skip the scan and type your details into the fields below instead; nothing here requires the scan.</p>
+        <p class="item-tip" data-reason="1" style="margin-top:0;">Scan your passport's bio page below - your name, passport number, and expiry date will be read straight off it and filled in automatically. Check each one against your physical passport and correct anything that's wrong before moving on. Don't have your passport on you right now? No problem - skip the scan and type your details into the fields below instead; nothing here requires the scan.</p>
         <div class="upload-row no-print" style="margin:4px 0 14px;">
           <input type="file" id="file_passportValidate" accept="image/*,application/pdf">
           <button type="button" class="btn" id="btnPassportValidateAttach" disabled>📎 Scan passport</button>
@@ -1507,7 +1508,7 @@
           </div>
         </div>
         <div class="checkrow" style="margin-top:8px;"><input type="checkbox" id="f_contactConsent"><label for="f_contactConsent">It's OK to contact me about this application if I don't finish</label></div>
-        <div class="item-tip">Not required. Your email/phone stay saved only in this browser like everything else here - <b>unless</b> you tick the box above, in which case they're sent to the Smooth Application team (along with your name) so they can follow up. Nothing is sent anywhere unless that box is checked.</div>
+        <div class="item-tip" data-reason="1">Not required. Your email/phone stay saved only in this browser like everything else here - <b>unless</b> you tick the box above, in which case they're sent to the Smooth Application team (along with your name) so they can follow up. Nothing is sent anywhere unless that box is checked.</div>
         <div id="passportValidateStatus"></div>
         </div>
       </details>
@@ -2419,7 +2420,7 @@
            applying to has nothing to do with which visa checklist they currently have open. -->
       <div class="card" id="appTrackerCard" data-session-key="opportunities" style="border-left: 4px solid #1a8a5f;">
         <h2 style="margin-top:0;"><span class="card-icon-badge" style="background:#1a8a5f1f; color:#1a8a5f;">📋</span> My application tracker</h2>
-        <p class="item-tip" style="margin-top:-4px;">Applying to more than one program above? Keep track of where each one stands. This stays on this device only - same "nothing leaves your browser" rule as the rest of this tool.</p>
+        <p class="item-tip" data-reason="1" style="margin-top:-4px;">Applying to more than one program above? Keep track of where each one stands. This stays on this device only - same "nothing leaves your browser" rule as the rest of this tool.</p>
         <div id="trackerList"></div>
         <div class="no-print" style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
           <input type="text" id="trackerCustomName" placeholder="Track a program not listed above - type its name" style="flex:1; min-width:220px;">
@@ -2458,6 +2459,24 @@
         </div>
         <div class="checkrow"><input type="checkbox" id="decl_confirm"><label for="decl_confirm">I confirm the information I've entered in this checklist is accurate to the best of my knowledge.</label></div>
         <div id="declMsg" class="item-tip" style="margin-top:6px;"></div>
+        </div>
+      </details>
+
+      <!-- Field feedback: "under the session called Reasons, let it be broken down from Quiz to
+           session 14 why each step was taken" - the last stop in the flow, showing everything
+           collectReasons() swept out of every earlier session (plus the pre-consent quiz screen),
+           grouped back by session so it reads as a table of contents rather than a wall of text.
+           Populated by renderReasonsModal() -> renderReasonsInto('reasonsSessionBody') - the exact
+           same REASONS array and grouping as the floating "📖 Reasons" tab, just presented as a real
+           session instead of only an optional floating button. -->
+      <details class="card collapsible" data-session-key="reasons" style="border-left-color:#7a6a4b;">
+        <summary class="card-summary">
+          <h2><span class="card-icon-badge" style="background:#7a6a4b1f; color:#7a6a4b;">📖</span> Reasons</h2>
+          <span class="chevron">▸</span>
+        </summary>
+        <div class="card-body">
+        <p class="item-tip" style="margin-top:0;">Every short explanation pulled out of the checklist above, all in one place - why a field asks what it asks, and how your privacy is handled at each step, broken down by section.</p>
+        <div id="reasonsSessionBody"></div>
         </div>
       </details>
 
@@ -2519,7 +2538,7 @@
 
       <div class="card no-print">
         <h2>Save your progress</h2>
-        <p class="item-tip" style="margin-top:-6px;">Your answers are automatically saved in this browser as you go - close the tab and come back anytime, it'll still be here. Nothing leaves your device. Use export below to back it up properly, or move it to another browser/device.</p>
+        <p class="item-tip" data-reason="1" style="margin-top:-6px;">Your answers are automatically saved in this browser as you go - close the tab and come back anytime, it'll still be here. Nothing leaves your device. Use export below to back it up properly, or move it to another browser/device.</p>
         <p class="item-tip" id="autoSaveIndicator" style="margin:2px 0 8px; font-weight:600;"></p>
         <div class="sidebar-actions">
           <button class="btn primary" id="btnPrint">🖨️ Save full report as PDF</button>
@@ -2529,6 +2548,17 @@
           <input type="file" id="importFile" accept="application/json" style="display:none;">
           <button class="btn ghost" id="btnReset">Reset everything</button>
         </div>
+      </div>
+
+      <!-- Field feedback: "session one, all the reasons there should go to a reason tab at the right
+           side below" - a sidebar card, last in the column, that shows only the CURRENTLY OPEN
+           session's own reasons, right where an applicant is already looking, rather than needing to
+           open a separate floating tab. Populated (and hidden entirely when there's nothing to show)
+           by renderSidebarReasons() in the Reasons-tab script block, called every time the active
+           session changes. -->
+      <div class="card no-print" id="sidebarReasonsCard" style="display:none;">
+        <h2><span class="card-icon-badge" style="background:#7a6a4b1f; color:#7a6a4b;">📖</span> Reasons</h2>
+        <div id="sidebarReasonsBody"></div>
       </div>
     </aside>
   </div>
@@ -2863,58 +2893,96 @@
   /* ---------------- Reasons tab ----------------
      User request: pull the "Why?" toggles (details.tip-details, used throughout every session) and a
      curated set of purely explanatory/framing paragraphs (marked data-reason="1" by hand, one at a
-     time - see the CHANGELOG entry for exactly which and why) out of the main flow, into one place
-     reachable from anywhere via the floating tab.
+     time - see the CHANGELOG entry for exactly which and why) out of the main flow entirely.
      Deliberately NOT swept automatically: every OTHER .item-tip in this app - checklist items' own
      "what this document is" description (it.tip, rendered fresh on every render() call), validation
      rules (e.g. the closing-balance total must match), dynamic status/prompt text in the bank-
-     statement analyzer, and every privacy/consent/legal notice. Those either get regenerated by JS
-     after this runs (so a DOM sweep would just miss them, or worse, race it) or are exactly the kind
-     of information a person needs in the moment, not tucked away after the fact - moving them would
-     make the app harder to use correctly, not easier. Only the specifically-marked items above move.
+     statement analyzer, and content inside a conditionally-shown advisory box. Those either get
+     regenerated/toggled by JS after this runs (so a DOM sweep would just miss them, or worse, race
+     it) or are exactly the kind of information a person needs in the moment, not tucked away after
+     the fact - moving them would make the app harder to use correctly, not easier. Only the
+     specifically-marked items above move. (Update: privacy/consent notices used to be excluded from
+     this list on the same "needed in the moment" reasoning - field feedback said the passport
+     session's own consent line read as clutter right next to the checkbox, so that exclusion no
+     longer holds; a static privacy notice is fair game for marking now, same as any other
+     explanatory paragraph.)
      Runs once, early - collectReasons() removes marked elements from the DOM as it reads them, so
      this must run before anything else might rely on them still being present (nothing does; they're
-     inert content, not read by any other function). */
+     inert content, not read by any other function).
+     Each entry is grouped by the SESSION KEY (not a rendered label) so the same collected list can
+     drive three different views without re-deriving anything: the floating tab's modal (everything,
+     grouped), the new dedicated "Reasons" session at the end of the flow (same thing, as a normal
+     stop in the session order rather than an optional floating button), and a sidebar card that
+     shows only the CURRENT session's own reasons as you move through the app - see
+     renderSidebarReasons() below ("session one, all the reasons there should go to a reason tab at
+     the right side" - field feedback). Elements outside any [data-session-key] card get 'quiz' (the
+     pre-consent quiz/landing screen) or 'other' as their key; reasonsGroupLabel() turns any key into
+     the same human-readable heading used everywhere else (sessionLabel()), so a group title always
+     matches the session pill/label an applicant already recognizes. */
   var REASONS = [];
   function collectReasons(){
-    function sessionLabelFor(el){
+    function sessionKeyFor(el){
       var card = el.closest('[data-session-key]');
-      if (card){
-        var h2 = card.querySelector('.card-summary h2');
-        if (h2) return h2.textContent.trim();
-      }
-      return 'Getting started';
+      if (card) return card.getAttribute('data-session-key');
+      if (el.closest('#quizGate')) return 'quiz';
+      return 'other';
     }
     document.querySelectorAll('details.tip-details').forEach(function(d){
       var summary = d.querySelector('summary');
       var body = d.querySelector('.item-tip');
       if (!summary || !body) return;
-      REASONS.push({ session: sessionLabelFor(d), q: summary.textContent.trim(), a: body.innerHTML });
+      REASONS.push({ session: sessionKeyFor(d), q: summary.textContent.trim(), a: body.innerHTML });
       d.remove();
     });
     document.querySelectorAll('[data-reason="1"]').forEach(function(el){
-      REASONS.push({ session: sessionLabelFor(el), q: null, a: el.innerHTML });
+      REASONS.push({ session: sessionKeyFor(el), q: null, a: el.innerHTML });
       el.remove();
     });
   }
-  function renderReasonsModal(){
-    var body = document.getElementById('reasonsModalBody');
-    var countEl = document.getElementById('reasonsTabCount');
+  function reasonsGroupLabel(key){
+    if (key === 'quiz') return 'Quiz';
+    if (key === 'other') return 'Getting started';
+    return sessionLabel(key);
+  }
+  function reasonsItemsHtml(items){
+    return items.map(function(r){
+      var q = r.q ? '<p class="reasons-item-q">'+escapeHtml(r.q)+'</p>' : '';
+      return '<div class="reasons-item">'+q+'<p class="reasons-item-a">'+r.a+'</p></div>';
+    }).join('');
+  }
+  function renderReasonsInto(containerId){
+    var body = document.getElementById(containerId);
     if (!body) return;
-    if (countEl) countEl.textContent = REASONS.length;
     var groups = {};
     var order = [];
     REASONS.forEach(function(r){
       if (!groups[r.session]){ groups[r.session] = []; order.push(r.session); }
       groups[r.session].push(r);
     });
-    body.innerHTML = order.map(function(session){
-      var items = groups[session].map(function(r){
-        var q = r.q ? '<p class="reasons-item-q">'+escapeHtml(r.q)+'</p>' : '';
-        return '<div class="reasons-item">'+q+'<p class="reasons-item-a">'+r.a+'</p></div>';
-      }).join('');
-      return '<div class="reasons-group"><p class="reasons-group-title">'+escapeHtml(session)+'</p>'+items+'</div>';
+    body.innerHTML = order.map(function(key){
+      return '<div class="reasons-group"><p class="reasons-group-title">'+escapeHtml(reasonsGroupLabel(key))+'</p>'+reasonsItemsHtml(groups[key])+'</div>';
     }).join('') || '<p class="reasons-item-a">Nothing collapsed yet.</p>';
+  }
+  function renderReasonsModal(){
+    var countEl = document.getElementById('reasonsTabCount');
+    if (countEl) countEl.textContent = REASONS.length;
+    renderReasonsInto('reasonsModalBody');
+    renderReasonsInto('reasonsSessionBody');
+  }
+  // Sidebar card: only the CURRENTLY ACTIVE session's own reasons, right where the applicant is
+  // already looking. Called from applySessionVisibility() every time the current session changes.
+  // Hidden entirely (not left showing "Nothing collapsed yet.") on any session with nothing
+  // collected - most checklist-category sessions have no static reasons at all (their content is
+  // generated by render(), not present at collectReasons() time), so this only appears where it has
+  // something real to show.
+  function renderSidebarReasons(currentKey){
+    var card = document.getElementById('sidebarReasonsCard');
+    var body = document.getElementById('sidebarReasonsBody');
+    if (!card || !body) return;
+    var items = REASONS.filter(function(r){ return r.session === currentKey; });
+    if (!items.length){ card.style.display = 'none'; return; }
+    card.style.display = '';
+    body.innerHTML = reasonsItemsHtml(items);
   }
   (function initReasonsModal(){
     collectReasons();
@@ -4122,9 +4190,16 @@
     // navigate to by hardcoded pill number.
     keys.push('opportunities');
     keys.push('review');
+    // Field feedback: a dedicated last stop that shows every "why" collected along the way (see the
+    // Reasons tab block above), broken down session by session, so every applicant passes through it
+    // once as a normal step rather than relying on the optional floating "📖 Reasons" button. Appended
+    // last, same reasoning as bizLedger/opportunities above: it can't shift the index of any earlier
+    // session that existing tests navigate to by hardcoded pill number.
+    keys.push('reasons');
     return keys;
   }
   function sessionLabel(key){
+    if (key === 'reasons') return 'Reasons';
     if (key === 'review') return 'Final review';
     if (key === 'opportunities') return 'Funded opportunities';
     if (key === 'passport') return 'Validate your International Passport';
@@ -4307,7 +4382,7 @@
       var bizMissing = bizNoted < bizCredits.length ? [{id:null, label:(bizCredits.length-bizNoted)+' payment(s) below still need a note'}] : [];
       return {percent: Math.round(bizNoted/bizCredits.length*100), points: bizNoted, total: bizCredits.length, missing: bizMissing};
     }
-    return {percent:0, points:0, total:0, missing:[]}; // 'review' and 'opportunities' aren't fill-in sections - nothing to fill in a directory you just browse
+    return {percent:0, points:0, total:0, missing:[]}; // 'review', 'opportunities' and 'reasons' aren't fill-in sections - nothing to fill in a directory/reference page you just browse
   }
   // A session's pill shows "done" once every item that currently applies within it is checked — a
   // quick at-a-glance progress map across sessions, not just within whichever one is on screen.
@@ -4362,6 +4437,7 @@
     lastAppliedSessionKey = currentKey;
     renderSessionNav(keys, currentSessionIndex);
     renderSessionFooter(keys, currentSessionIndex);
+    renderSidebarReasons(currentKey);
   }
   // Previously, a session below READY_THRESHOLD_PERCENT complete disabled every LATER session's
   // pill entirely, based on earlier feedback that jumping ahead of an unfinished section could
@@ -13621,8 +13697,7 @@
     if (!c || !c.ready) return;
     document.getElementById('gateCountryList').style.display = 'none';
     var confirmed = document.getElementById('gateCountryConfirmed');
-    confirmed.querySelector('.gate-country-confirmed-name').textContent = c.flag + ' ' + c.name;
-    confirmed.querySelector('.gate-country-confirmed-sub').textContent = c.visaName;
+    confirmed.querySelector('.gate-country-confirmed-name').textContent = c.flag + ' ' + c.visaName;
     confirmed.style.display = 'flex';
   }
   function showGateCountryList(){
