@@ -37,6 +37,20 @@ in three places instead of one:
 and the sidebar card following the applicant session to session. `new-session-order.test.js`
 updated for the 14th session.
 
+## Entry screens fill the phone screen instead of floating with gaps top and bottom
+
+Field feedback, with real screenshots (Redmi Android, iPhone 14 Pro Max): the quiz/consent-gate
+card was vertically centered via `margin: auto`, leaving equal empty gradient gaps above and below
+it on a phone whenever its own content was shorter than the screen. Below 600px width the card now
+fills the screen edge to edge - no outer padding, no rounded corners, `min-height` keyed to the
+visible viewport (`100vh` fallback, upgraded to the address-bar-aware `100dvh` where supported) so
+short content (like the quiz result screen in the screenshots) still fills the full screen rather
+than leaving a gap, while longer content still grows past it and scrolls normally. Desktop is
+unaffected - keeps the wider, deliberately centered card with the gradient background behind it
+(see the "web version vs mobile version" conversation: one responsive design, not two builds).
+`no-horizontal-overflow.test.js` (which already exercises the consent gate at five viewport widths,
+including two under 600px) still passes unchanged - only vertical fill and corner radius changed.
+
 ## Fix: confirmed-country text wrapping one word per line
 
 The `min-width: 0` added on the confirmed-country card's text (to let it grow into the free space
