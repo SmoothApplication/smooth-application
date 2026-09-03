@@ -243,9 +243,10 @@
   .gate-country-option:hover:not(:disabled) { border-color: var(--accent); }
   .gate-country-option:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-wash); }
   .gate-country-option:disabled { cursor: not-allowed; opacity: 0.55; }
-  .gate-country-option-text { display: flex; flex-direction: column; gap: 2px; }
-  .gate-country-option-text b { font-size: 13.5px; }
-  .gate-country-option-sub { font-size: 12px; color: var(--text-secondary); }
+  /* Field feedback: drop the flag + full country name line above the visa name - the visa name
+     already says which country/visa this is, and one line reads cleaner than a bold line stacked
+     over a muted subtitle repeating the same information. */
+  .gate-country-option-text { flex: 1; font-size: 13.5px; }
   .gate-country-badge {
     flex-shrink: 0; font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em; padding: 3px 8px;
     border-radius: 6px; font-family: var(--mono, monospace);
@@ -261,7 +262,13 @@
      them, and left "Change" looking stranded in the middle rather than flush right. One line (just
      the visa name, which already says which country) fills the row properly and lets flex push
      Change to the true right edge without a second line competing for height. */
-  .gate-country-confirmed-name { flex: 1; min-width: 0; font-size: 13.5px; font-weight: 700; }
+  /* min-width:0 was tried here to let this item grow into the free space, but it also permits a
+     flex item to shrink itself arbitrarily small when space is tight — which is exactly what broke
+     on a live check: the text collapsed to one word per line instead of filling the row. Leaving
+     min-width at its default (auto) puts a floor under the box at its own content's width, so
+     flex:1 still lets it grow into free space when there's room, without that shrink-to-nothing
+     failure mode. */
+  .gate-country-confirmed-name { flex: 1; font-size: 13.5px; font-weight: 700; }
   .gate-select-wrap { position: relative; margin-top: 6px; }
   .gate-select-wrap .gate-select-chevron {
     position: absolute; right: 12px; top: 50%; transform: translateY(-50%); pointer-events: none;
@@ -13688,7 +13695,7 @@
       var c = COUNTRIES[code];
       var badge = c.ready ? '<span class="gate-country-badge ready">READY</span>' : '<span class="gate-country-badge soon">SOON</span>';
       return '<button type="button" class="gate-country-option" data-code="' + code + '" role="option"' + (c.ready ? '' : ' disabled') + '>' +
-        '<span class="gate-country-option-text"><b>' + c.flag + ' ' + escapeHtml(c.name) + '</b><span class="gate-country-option-sub">' + escapeHtml(c.visaName || 'Coming soon') + '</span></span>' +
+        '<b class="gate-country-option-text">' + escapeHtml(c.visaName || 'Coming soon') + '</b>' +
         badge + '</button>';
     }).join('');
   }

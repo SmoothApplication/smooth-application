@@ -37,6 +37,25 @@ in three places instead of one:
 and the sidebar card following the applicant session to session. `new-session-order.test.js`
 updated for the 14th session.
 
+## Fix: confirmed-country text wrapping one word per line
+
+The `min-width: 0` added on the confirmed-country card's text (to let it grow into the free space
+next to "Change") had a side effect: it also lets a flex item shrink itself arbitrarily small when
+space is tight, and on a live check the text collapsed to one word per line instead of filling the
+row. Removed `min-width: 0` from both the confirmed card and the picker-list rows (same pattern,
+same risk, applied before it could ship broken) — `min-width` back at its default (`auto`) puts a
+floor under each box at its own content's width, so `flex: 1` still lets it grow into free space
+when there's room, without the shrink-to-nothing failure mode.
+
+## Country picker list: same one-line treatment as the confirmed card
+
+Follow-up on the country-confirmed card fix below: the picker list itself (before a country is
+chosen) had the same flag-plus-full-name line stacked over the visa-name subtitle, for all 5 rows.
+Field feedback: drop the top line entirely, show only the visa name ("UK Standard Visitor visa",
+"Canada visitor visa (TRV)", etc.) as each row's one line of text. `buildGateCountryList()` and
+`.gate-country-option-text` simplified to match; no test referenced the removed
+`.gate-country-option-sub` element or the country-name text.
+
 ## Country-confirmed card: one line, Change flush right
 
 Field feedback: "🇬🇧 United Kingdom" (bold, own line) stacked above "UK Standard Visitor visa"
