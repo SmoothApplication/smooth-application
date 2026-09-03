@@ -3,6 +3,34 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Field feedback round: shorter quiz, real 2-tab finance dashboard, travel guide moved to a modal
+
+Three fixes off direct feedback from people testing the app on the ground:
+
+1. **Confidence quiz: 4 steps → 2, then results.** Same 10 questions, regrouped from 4 pages
+   (~2-3 questions each) into 2 pages of 5, so the "quick check" reads as quick again. Results
+   still land on their own screen right after. `confidence-quiz.test.js` rewritten for the new
+   paging.
+2. **Finance dashboard, actually 2 tabs this time.** An earlier pass today kept all 5 of the
+   session's original tabs visible and only added an "Advanced details" dropdown alongside them,
+   as a lower-risk compromise — a live screenshot showed that wasn't what was actually agreed from
+   the mockup. Rebuilt properly: the visible tab bar now shows exactly 2 primary tabs ("1. Upload
+   statements" and "2. What your statement shows"), with the old 4 report tabs demoted to a
+   secondary row that only appears once you're past Upload. Every step's content, IDs and
+   computation functions stayed untouched — only the navigation changed.
+   `goToFinanceStep()` in helpers.js now clicks the primary "results" tab first before a sub-tab,
+   so every existing test that jumps straight to a step kept working with one change in one place.
+3. **Travel history page decluttered.** Selecting a travel-history country with no prior travel
+   (Ghana, Kenya, Ethiopia, Morocco, South Africa) used to expand that country's full guide —
+   visa steps, requirements, a road/flight cost estimate — inline, right under the tabs, reported
+   as making the page feel cluttered. This was also the ORIGINAL request, further back: "after
+   clicking any of the countries, redirect it to the steps needed" — a separate destination, not
+   more content stacked on the same screen. Moved the guide into a modal
+   (`#teCountryGuideModalOverlay`), reusing the exact `.legal-modal-*` pattern the Reasons tab
+   already uses rather than inventing a new one. `travel-guide-country-tabs.test.js` and
+   `travel-history-cost-estimate.test.js` updated to read from the modal instead of the old inline
+   box.
+
 ## Fidelity check against "SA MOCK UP.pdf" (the agreed Turn-2 mockup set, 2a–2e), plus 2e
 
 Went back through screens 2a–2e against the app as it stands today, since three of the five had
@@ -24,14 +52,18 @@ been marked built in the task list already:
   condition this session, with no way for me to test the result live). Worth its own dedicated pass
   when there's room to verify it properly rather than folding it into this one.
 - **2e (desktop statement dashboard — 2 tabs instead of 6, an "Advanced details" dropdown for the
-  rest)**: this was the one screen never built (task #93). Rebuilding the tab bar itself risked
-  breaking every test hardcoded to `.fin-step-tab[data-fin-step="N"]` (`goToFinanceStep` in
-  helpers.js, and everything downstream of it) for a screen most people never revisit once Step 2's
-  summary answers their question — so all 5 original tabs stay exactly as they were, and a new
-  "Advanced details" dropdown was added alongside them with one-click shortcuts straight to Top 10
-  inflows, Most consistent senders, Income sources breakdown, Workplace income, and Download
-  spreadsheet — the same destinations the mockup's own dropdown named, reached without visiting
-  tabs 3/4/5 in order first. Added `fin-advanced-details-menu.test.js`.
+  rest)**: this was the one screen never built (task #93). First attempt kept all 5 original tabs
+  visible and only added the dropdown alongside them, to avoid touching
+  `.fin-step-tab[data-fin-step="N"]` (`goToFinanceStep` in helpers.js, and everything downstream of
+  it) — a live check showed that wasn't actually the agreed design, so it was rebuilt properly: the
+  tab bar now shows exactly 2 primary tabs ("1. Upload statements" and "2. What your statement
+  shows"), with the old 4 report tabs demoted to a secondary row (`#finSubstepsNav`) that only
+  appears once you're past Upload. Every step's content, IDs and computation functions are
+  untouched — only the navigation changed. `goToFinanceStep()` in helpers.js now clicks the primary
+  "What your statement shows" tab first before a sub-tab, so every existing test that jumps straight
+  to a step keeps working without per-test changes. The "Advanced details" dropdown (Top 10 inflows,
+  Most consistent senders, Income sources breakdown, Workplace income, Download spreadsheet) still
+  sits next to the 2 primary tabs, unchanged. `fin-advanced-details-menu.test.js` rewritten to match.
 
 ## Serif headline treatment app-wide, bolder buttons, and a real "next" on the Report step
 

@@ -500,6 +500,16 @@
     transition: background .15s ease, color .15s ease;
   }
   .fin-step-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  /* Secondary row (mockup "2e"): the 4 old tabs, now reached only via the "What your statement
+     shows" primary tab — visually smaller/quieter than the 2 primary tabs above them, and hidden
+     entirely while Upload is active (toggled in setFinanceStep()). */
+  .fin-step-tab-primary { font-size: 13px; padding: 8px 16px; }
+  .fin-substeps-nav {
+    display: none; flex-wrap: wrap; gap: 6px; margin: -8px 0 16px; padding-left: 2px;
+  }
+  .fin-substeps-nav.visible { display: flex; }
+  .fin-substep-tab { font-size: 11px; padding: 5px 12px; background: transparent; }
+  .fin-substep-tab.active { background: var(--accent-wash); border-color: var(--accent); color: var(--accent); }
   /* At 28px tall these sit under Apple's 44px / Google's 48px minimum comfortable tap-target
      guidance — fine with a mouse, easy to mis-tap with a thumb. Only widen the target on phone-sized
      screens so the desktop pill styling is untouched. */
@@ -509,7 +519,7 @@
   .fin-step { display: none; }
   .fin-step.active { display: block; }
   /* Print (Save full report as PDF) must include all three steps regardless of which tab is active. */
-  @media print { .fin-step { display: block !important; } .fin-steps-nav { display: none !important; } }
+  @media print { .fin-step { display: block !important; } .fin-steps-nav { display: none !important; } .fin-substeps-nav { display: none !important; } }
 
   /* "Advanced details" dropdown (mockup "2e") — one-click shortcuts into a specific deep-dive box on
      tabs 3/4/5 without visiting each tab in turn. Plain native <details>, same accessible-for-free
@@ -1079,6 +1089,22 @@
   </div>
 </div>
 
+<!-- Field feedback: the "plan a visit to build travel history" country guide (steps + cost estimate)
+     used to render inline on the Travel Experience session itself, right below the country tabs -
+     reported as making that page feel cluttered ("clumsy"). This was also the original ask, from
+     further back: "after clicking any of the countries, redirect it to the steps needed" - i.e. a
+     separate destination, not more content stacked on the same screen. Reuses the exact same
+     .legal-modal-* pattern/markup as the Reasons tab above rather than inventing a new one. -->
+<div class="legal-modal-overlay" id="teCountryGuideModalOverlay" hidden>
+  <div class="legal-modal-card" role="dialog" aria-modal="true" aria-labelledby="teCountryGuideModalTitle">
+    <div class="legal-modal-header">
+      <h2 id="teCountryGuideModalTitle">Plan a visit</h2>
+      <button type="button" class="legal-modal-close" id="teCountryGuideModalClose" aria-label="Close">✕</button>
+    </div>
+    <div class="legal-modal-body" id="teCountryGuideModalBody"></div>
+  </div>
+</div>
+
 <div id="quizGate" class="consent-gate">
   <div class="gate-blob gate-blob-1" aria-hidden="true"></div>
   <div class="gate-blob gate-blob-2" aria-hidden="true"></div>
@@ -1114,14 +1140,15 @@
 
     <div id="quizFormWrap" style="display:none;">
     <h1 class="consent-gate-title">Quick readiness check</h1>
+    <!-- Field feedback: a 4-step quiz felt long for what's meant to be a 2-3 minute on-ramp — same
+         10 questions, regrouped from 4 pages of ~2-3 into 2 pages of 5, so it reads as "quick"
+         rather than a full multi-step form. Results still land on their own screen straight after. -->
     <div class="quiz-progress">
       <div class="quiz-progress-bars">
         <span class="quiz-progress-bar" data-quiz-progress="1"></span>
         <span class="quiz-progress-bar" data-quiz-progress="2"></span>
-        <span class="quiz-progress-bar" data-quiz-progress="3"></span>
-        <span class="quiz-progress-bar" data-quiz-progress="4"></span>
       </div>
-      <span class="quiz-progress-label" id="quizProgressLabel">Step 1 of 4</span>
+      <span class="quiz-progress-label" id="quizProgressLabel">Step 1 of 2</span>
     </div>
 
     <div id="quizQuestions">
@@ -1170,7 +1197,7 @@
         </div>
       </div>
 
-      <div class="quiz-q" data-quiz-page="2">
+      <div class="quiz-q" data-quiz-page="1">
         <label class="field" for="q_quizSavings">Roughly how much do you already have saved toward this trip?</label>
         <div class="gate-select-wrap">
           <select id="q_quizSavings">
@@ -1184,7 +1211,7 @@
         </div>
       </div>
 
-      <div class="quiz-q" data-quiz-page="2">
+      <div class="quiz-q" data-quiz-page="1">
         <label class="field" for="q_quizTravel">Have you travelled outside Nigeria before?</label>
         <div class="gate-select-wrap">
           <select id="q_quizTravel">
@@ -1208,7 +1235,7 @@
         </div>
       </div>
 
-      <div class="quiz-q" data-quiz-page="3">
+      <div class="quiz-q" data-quiz-page="2">
         <label class="field" for="q_quizTies">Do you own property, or have strong family ties in Nigeria (spouse, children, dependants)?</label>
         <div class="gate-select-wrap">
           <select id="q_quizTies">
@@ -1221,7 +1248,7 @@
         </div>
       </div>
 
-      <div class="quiz-q" data-quiz-page="3">
+      <div class="quiz-q" data-quiz-page="2">
         <label class="field" for="q_quizHost">Will a host or sponsor abroad be funding or hosting part of this trip?</label>
         <div class="gate-select-wrap">
           <select id="q_quizHost">
@@ -1234,7 +1261,7 @@
         </div>
       </div>
 
-      <div class="quiz-q" data-quiz-page="4">
+      <div class="quiz-q" data-quiz-page="2">
         <label class="field" for="q_quizPassport">Do you already have a valid international passport?</label>
         <div class="gate-select-wrap">
           <select id="q_quizPassport">
@@ -1246,7 +1273,7 @@
         </div>
       </div>
 
-      <div class="quiz-q" data-quiz-page="4">
+      <div class="quiz-q" data-quiz-page="2">
         <label class="field" for="q_quizStatements">Do you have 3-6 months of bank statements ready to download?</label>
         <div class="gate-select-wrap">
           <select id="q_quizStatements">
@@ -1524,10 +1551,9 @@
 
         <div id="te_noHistoryBox" class="doc-reminder" style="display:none; margin-top:10px;">
           <p style="margin:0 0 8px; font-weight:600;">No travel history yet - that's fine, plenty of successful applicants start here.</p>
-          <p class="item-tip" data-reason="1" style="margin:0 0 10px;">Having visited an African country before is genuinely useful travel history for a UK/Schengen application. These five are commonly picked because they're straightforward for Nigerians to visit - pick one to see exactly what's involved.</p>
+          <p class="item-tip" data-reason="1" style="margin:0 0 10px;">Having visited an African country before is genuinely useful travel history for a UK/Schengen application. These five are commonly picked because they're straightforward for Nigerians to visit - tap one to see exactly what's involved.</p>
           <label class="field" style="margin-top:0;">Plan a visit to build travel history</label>
-          <div id="teCountryTabs" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px;"></div>
-          <div id="teCountryGuide"></div>
+          <div id="teCountryTabs" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:2px;"></div>
           <a class="btn ghost" id="btnTravelAssistance" style="margin-top:10px;" href="https://wa.me/2349081389969?text=Hi%21%20I%20don%27t%20have%20travel%20history%20yet%20and%20could%20use%20some%20guidance%20before%20applying%20for%20my%20UK/Canada%20visa." target="_blank" rel="noopener">Click here for more assistance</a>
         </div>
 
@@ -1914,21 +1940,19 @@
              miss one existed at all. Merged into a single "Report" tab at the end (see the comment
              on data-fin-step="5" below), so every report lives in one place, read after all the
              input tabs are filled in rather than split with input tabs in between. -->
+        <!-- Mockup "2e" (desktop dashboard): 2 tabs, not 6 — "Upload" and "What your statement
+             shows", with everything else behind an "Advanced details" dropdown. Rebuilt for real
+             this time (an earlier pass here kept all 5 old tabs visible and only added the dropdown
+             alongside them, which wasn't actually what was agreed). This keeps steps 2/3/4/5's
+             content, IDs and every computation function 100% untouched — only the NAV changes: tab
+             2 ("What your statement shows") is now the single visible entry point into results,
+             which reveals a secondary row of sub-tabs (the old tabs 2-5, restyled smaller/secondary)
+             the moment you're anywhere past Upload. goToFinanceStep() in helpers.js was updated to
+             click the primary tab first before a sub-tab, so every existing test that jumps straight
+             to a step still works unchanged. -->
         <div class="fin-steps-nav no-print" role="tablist">
-          <button type="button" class="fin-step-tab" data-fin-step="1" role="tab">1. Upload statements</button>
-          <button type="button" class="fin-step-tab" data-fin-step="2" role="tab">2. Cash flow &amp; scores</button>
-          <button type="button" class="fin-step-tab" data-fin-step="3" role="tab">3. Income sources breakdown</button>
-          <button type="button" class="fin-step-tab" data-fin-step="4" role="tab">4. Workplace income</button>
-          <button type="button" class="fin-step-tab" data-fin-step="5" role="tab">5. Report</button>
-          <!-- Mockup "2e" (desktop dashboard): the same 6 tabs collapsed down to 2, with everything
-               else behind an "Advanced details" dropdown. A full rebuild of the tab bar risked
-               breaking the many existing tests hardcoded to .fin-step-tab[data-fin-step="N"]
-               (goToFinanceStep in helpers.js) plus every downstream test that depends on it, for a
-               screen most people never revisit once Step 2's summary answers their question — so
-               this keeps all 5 tabs exactly as they were (nothing here changes for mobile, or for
-               anyone who prefers the explicit tabs) and ADDS the one-click shortcut the mockup's
-               dropdown was really solving for: jumping straight to one specific deep-dive box
-               without clicking through tabs 3/4/5 in order first. -->
+          <button type="button" class="fin-step-tab fin-step-tab-primary" data-fin-step="1" role="tab">1. Upload statements</button>
+          <button type="button" class="fin-step-tab fin-step-tab-primary" id="finResultsTabBtn" role="tab">2. What your statement shows</button>
           <details class="fin-advanced-menu no-print" style="margin-left:auto;">
             <summary>Advanced details</summary>
             <div class="fin-advanced-menu-body" role="menu">
@@ -1939,6 +1963,12 @@
               <button type="button" class="fin-advanced-item" data-fin-jump="3" data-fin-jump-box="btnDownloadBreakdown">Download spreadsheet</button>
             </div>
           </details>
+        </div>
+        <div class="fin-substeps-nav no-print" id="finSubstepsNav" role="tablist">
+          <button type="button" class="fin-step-tab fin-substep-tab" data-fin-step="2" role="tab">Cash flow &amp; scores</button>
+          <button type="button" class="fin-step-tab fin-substep-tab" data-fin-step="3" role="tab">Income sources breakdown</button>
+          <button type="button" class="fin-step-tab fin-substep-tab" data-fin-step="4" role="tab">Workplace income</button>
+          <button type="button" class="fin-step-tab fin-substep-tab" data-fin-step="5" role="tab">Report</button>
         </div>
 
         <div class="fin-step" data-fin-step="1">
@@ -3877,10 +3907,17 @@
     }).join('');
   }
   function renderTeCountryGuide(){
-    var box = document.getElementById('teCountryGuide');
+    // Renders into the modal (see #teCountryGuideModalBody, opened by the click handler below) —
+    // NOT inline on the Travel Experience page itself. Field feedback: this content (steps + cost
+    // estimate) used to render directly under the country tabs and made that page feel cluttered;
+    // the original request was also for it to "redirect... to the steps needed" rather than stack
+    // more content on the same screen. Reuses the same .legal-modal-* overlay the Reasons tab uses.
+    var box = document.getElementById('teCountryGuideModalBody');
     if (!box) return;
     var g = TE_NO_HISTORY_GUIDES[teSelectedGuideCountry];
     if (!g){ box.innerHTML = ''; return; }
+    var titleEl = document.getElementById('teCountryGuideModalTitle');
+    if (titleEl) titleEl.textContent = teSelectedGuideCountry;
     // Field-work request: a rough cost estimate for getting there and back on a short (3–5 day) trip,
     // road vs flight — see costEstimate on each TE_NO_HISTORY_GUIDES entry above. Kept as its own box,
     // visually separate from the visa steps, since it's a different kind of information (volatile
@@ -3898,7 +3935,7 @@
         + '</div>';
     }
     box.innerHTML = '<div class="scan-msg info" style="margin-top:4px;">'
-      + '<div style="font-weight:700; margin-bottom:2px;">'+escapeHtml(teSelectedGuideCountry)+' - <span style="font-weight:600;">'+escapeHtml(g.visaType)+'</span></div>'
+      + '<div style="font-weight:700; margin-bottom:2px;">'+escapeHtml(g.visaType)+'</div>'
       + '<div style="margin-bottom:8px;">'+escapeHtml(g.summary)+'</div>'
       + '<ol style="margin:0; padding-left:20px;">' + g.steps.map(function(s){ return '<li style="margin-bottom:5px;">'+escapeHtml(s)+'</li>'; }).join('') + '</ol>'
       + '<div class="item-tip" style="margin-top:8px;">Requirements, fees, and processing times change - always confirm on the official government site before paying anything or booking travel. This is a starting point, current as of August 2026, not a guarantee.</div>'
@@ -3912,7 +3949,24 @@
     trackEvent('travel_guide_country:' + teSelectedGuideCountry);
     renderTeCountryTabs();
     renderTeCountryGuide();
+    openTeCountryGuideModal();
   });
+  (function initTeCountryGuideModal(){
+    var overlay = document.getElementById('teCountryGuideModalOverlay');
+    var closeBtn = document.getElementById('teCountryGuideModalClose');
+    if (!overlay) return;
+    window.openTeCountryGuideModal = function(){
+      overlay.hidden = false;
+      document.body.style.overflow = 'hidden';
+    };
+    function close(){
+      overlay.hidden = true;
+      document.body.style.overflow = '';
+    }
+    if (closeBtn) closeBtn.addEventListener('click', close);
+    overlay.addEventListener('click', function(e){ if (e.target === overlay) close(); });
+    document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && !overlay.hidden) close(); });
+  })();
 
   function getAnswers(){
     return {
@@ -5702,6 +5756,14 @@
     document.querySelectorAll('.fin-step-tab').forEach(function(el){
       el.classList.toggle('active', el.getAttribute('data-fin-step') === String(n));
     });
+    // Mockup "2e": the 4 old tabs (2/3/4/5) only show once you're actually past Upload — reached
+    // through the single "What your statement shows" primary tab, which itself carries no
+    // data-fin-step (so it never conflicts with the real step-2 sub-tab) and just needs its own
+    // active/visible state driven off n here.
+    var resultsBtn = document.getElementById('finResultsTabBtn');
+    if (resultsBtn) resultsBtn.classList.toggle('active', n !== 1);
+    var substepsNav = document.getElementById('finSubstepsNav');
+    if (substepsNav) substepsNav.classList.toggle('visible', n !== 1);
     if (scrollToTop !== false){
       var card = document.querySelector('[data-session-key="financialReadiness"]');
       if (card) card.scrollIntoView({behavior:'smooth', block:'start'});
@@ -5710,6 +5772,11 @@
   document.querySelectorAll('.fin-step-tab').forEach(function(el){
     el.addEventListener('click', function(){ setFinanceStep(parseInt(el.getAttribute('data-fin-step'), 10)); });
   });
+  // The primary "What your statement shows" tab has no data-fin-step of its own (see the markup
+  // comment above .fin-steps-nav) — clicking it just enters results mode at step 2, same as it
+  // always has; the sub-tabs it reveals are where 3/4/5 still live.
+  var finResultsTabBtn = document.getElementById('finResultsTabBtn');
+  if (finResultsTabBtn) finResultsTabBtn.addEventListener('click', function(){ setFinanceStep(2); });
   // "Advanced details" dropdown (mockup "2e") — jumps straight to one specific deep-dive box on
   // tabs 3/4/5, then closes itself so it doesn't sit open over the content it just revealed.
   document.querySelectorAll('.fin-advanced-item').forEach(function(el){
@@ -13359,11 +13426,12 @@
   // never even started a session, and the quiz used to BE the very first screen: all 10 questions
   // stacked at once with "Skip the quiz" buried as a text link below them, no stated payoff above
   // the fold. #quizIntro now states what this gets an applicant and that it's free, with Start and
-  // Skip both visible with zero scrolling; #quizFormWrap then breaks the same 10 questions into 4
-  // short steps with a progress bar. quizScore() above reads every answer straight off its <select>
-  // by id regardless of which step is currently showing, so paging is purely a display concern —
-  // nothing about scoring or the gap-message logic needed to change.
-  var QUIZ_PAGE_COUNT = 4;
+  // Skip both visible with zero scrolling; #quizFormWrap then breaks the same 10 questions into 2
+  // short steps with a progress bar (originally 4 — field feedback said that read as too long for
+  // what's meant to be a quick on-ramp). quizScore() above reads every answer straight off its
+  // <select> by id regardless of which step is currently showing, so paging is purely a display
+  // concern — nothing about scoring or the gap-message logic needed to change.
+  var QUIZ_PAGE_COUNT = 2;
   var quizCurrentPage = 1;
   function showQuizPage(n){
     quizCurrentPage = n;

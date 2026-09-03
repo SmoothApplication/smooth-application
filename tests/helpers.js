@@ -117,12 +117,21 @@ async function goToSessionByLabel(page, label){
 }
 
 // Clicks one of the "Income & bank statement analysis" session's own internal step tabs (1 Upload,
-// 2 Cash flow & scores, 3 Income sources breakdown, 4 Workplace income, 5 Report — see
-// .fin-steps-nav in index.html). Needed any time a
+// 2 Cash flow & scores, 3 Income sources breakdown, 4 Workplace income, 5 Report). Needed any time a
 // test interacts with an element that lives in a step other than whichever one is currently active,
 // e.g. filling the cash-flow table directly (step 2) without first uploading a statement, or
 // re-uploading a second statement after the first analysis auto-advanced away from step 1.
+//
+// Mockup "2e": steps 2-5 are no longer top-level tabs — they're a secondary row (#finSubstepsNav)
+// only shown once you're past Upload, reached via the single "What your statement shows" primary
+// tab (#finResultsTabBtn, no data-fin-step of its own — see .fin-steps-nav in index.html). So any
+// step past 1 needs that primary tab clicked first to reveal the sub-tab this function is really
+// after; step 1's own tab is always visible, no detour needed.
 async function goToFinanceStep(page, n){
+  if (n > 1){
+    await page.click('#finResultsTabBtn');
+    await page.waitForTimeout(30);
+  }
   await page.click('.fin-step-tab[data-fin-step="' + n + '"]');
   await page.waitForTimeout(50);
 }
