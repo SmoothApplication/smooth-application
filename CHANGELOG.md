@@ -3,6 +3,37 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## A real desktop pass for the entry screens
+
+GoatCounter data showed the majority of visits are actually desktop (Windows), not mobile, even
+though every recent design pass had gone into tightening phone spacing specifically — the entry
+screens (the quiz intro, the two-documents page, the country/consent gate, the South Africa
+onboarding screen) all share one card, and on a real monitor that card was just the same 640px
+mobile-tuned width floating in a lot of empty gradient. Decision: still one responsive site, not a
+separate desktop build — same file, same flow, same data either way — but a genuine `@media
+(min-width: 860px)` pass on top: the shared card widens to 760px with more generous padding, the
+title and app name step up in size, and the country list/disclaimer get a little more breathing
+room. Nothing below 600px (phone) or in the 600-860px range (tablet) changes at all.
+
+## A dedicated onboarding screen for South Africa applicants
+
+Field feedback: "Create South Africa based on the link we have under travel history Session 2...
+create a proper form for it... A full South Africa onboarding page." South Africa is the most
+document-heavy of the four visas this app covers (embassy visit, biometrics, a longer document
+list), so picking it now leads to its own screen — `#zaOnboardingGate` — shown between the consent
+gate and the checklist, before the applicant sees the countdown clock and the categories. It walks
+through the visa type, all 6 steps (VFS Global appointment, the document list, biometrics, fee, wait
+time), and a flight cost estimate, with its own "Continue to your checklist" and "← Back" buttons.
+Every other country's flow is untouched — it still goes straight from the consent gate into the
+checklist as before. Content is rendered from `TE_NO_HISTORY_GUIDES['South Africa']` (see
+`renderZaOnboarding()`) — the exact same guide already written for South Africa under Travel
+Experience's "no history" country guides — rather than duplicated.
+
+## Smooth Application, bigger again
+
+The name on the landing screen is now the single biggest, most dominant text on that page — bigger
+than the headline below it (34px, up from 25px).
+
 ## Reasons, everywhere: per-session sidebar card, and a real "session 14"
 
 Field feedback: the app reads "too busy and too worded" — every explanatory paragraph sitting
@@ -36,6 +67,68 @@ in three places instead of one:
 `reasons-tab.test.js` rewritten for key-based grouping, the "Quiz" heading, session 14's content,
 and the sidebar card following the applicant session to session. `new-session-order.test.js`
 updated for the 14th session.
+
+## "Smooth Application" bigger again, "Your result" in caps
+
+Follow-up: `.gate-brand-mark` bumped a second time (21px→25px - shared by every gate screen, so
+this reads consistently everywhere, including the "Your result" screen shown in feedback). The
+result screen's own "Your result" heading changed to literal caps, "YOUR RESULT".
+
+## Quiz page 1: cleaned-up country dropdown, simplified income question, wording
+
+Direct field feedback on the quiz's first page:
+
+1. **Country dropdown**: dropped the flag emoji from every option (on this user's setup it was
+   rendering as raw two-letter fallback text - "GB", "CA", etc - in front of the country name,
+   not an actual flag) and reordered the 7 options alphabetically by name (Australia → United
+   States). Values (`UK`/`CA`/`US`/`EU`/`ZA`/`AU`/`CN`) untouched, so nothing downstream changes.
+2. **"Is your income steady month to month?" → "Is your income steady?"**, and its dropdown
+   simplified from 3 options (steady / varies a lot / no steady income) to a plain Yes/No. "No"
+   keeps the old `'none'` value, so `quizScore()`'s existing points + gap-message logic (both
+   already keyed off `'steady'` vs `'none'`) needed no changes; `'variable'` is no longer
+   selectable, left as a harmless no-op branch rather than removed outright.
+3. **"Roughly how much do you already have saved toward this trip?" → "How much do you have saved
+   for this trip?"**
+4. Checked the work-status and travel-history dropdowns against the requested order (employed →
+   self-employed → both → student, and Yes → No) - both already matched, so no change was needed
+   there.
+
+No test referenced the flag emoji, the exact old income options, or the old savings wording, so
+none needed updating for this batch.
+
+## Landing screen: bigger name, FREE badge moved to the corner, no more skip, new headline
+
+Four direct changes to the very first screen:
+
+1. **"Smooth Application" bigger.** `.gate-brand-mark` 15px/700 → 21px/800 - shared by all three
+   gate screens (quiz, docs, consent), so this reads consistently everywhere the compact brand row
+   appears, not just here.
+2. **"Free" badge moved to the card's top-right corner**, and dropped "· no sign-in" - a small
+   sign-in is now on the roadmap (people asked to be able to leave and come back from another
+   device), so that claim would stop being true. Positioned absolutely against
+   `.consent-gate-card` (already the nearest positioned ancestor), not the raw viewport.
+3. **Removed the real "Skip straight to the checklist" button.** The 2-page quick check is what
+   actually gives an applicant a preview of what's ahead before they commit to the full checklist -
+   a visible skip link undercut that on every visit. The underlying bypass survives only as
+   `window.__testSkipQuiz()`, a test-only escape hatch not wired to any visible control (same
+   pattern as `window.__testGoToSession()` already used elsewhere) - it exists purely so the test
+   suite doesn't have to answer all 10 quiz questions before every single test that needs to get
+   past this screen. `helpers.js`'s `passConsentGate()` and every test that previously clicked
+   `#quizSkipLink` directly (`confidence-quiz.test.js`, `consent-gate.test.js`, `docs-gate.test.js`,
+   `session-next-highlights-missing-fields.test.js`, `reasons-tab.test.js`) now call the escape
+   hatch instead; `confidence-quiz.test.js` also asserts the real button is actually gone.
+4. **Headline changed** from "Your visa checklist, built for you" to "We make your visa
+   application smooth."
+
+## Changing session scrolls straight to its card, not back to the header
+
+Field feedback, with real phone screenshots: switching sessions (pill click, or Next/Back) scrolled
+to the top of `<main>`, which put the "Smooth Application" header, country badge, and session-pills
+bar back at the top of the screen every time - on a phone that's most of the visible area, pushing
+the actual card an applicant came to fill in below the fold. `goToSession()` now scrolls to the
+now-current session's own card directly instead. Nothing about the header/pills bar was removed or
+hidden - it's still there, still reachable by scrolling up - only the landing spot after a session
+change moved from "top of the whole page" to "top of the card itself".
 
 ## Entry screens fill the phone screen instead of floating with gaps top and bottom
 

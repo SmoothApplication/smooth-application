@@ -17,7 +17,7 @@ exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
     // Visible before the consent gate is even passed — "every page", not just inside the checklist.
-    await page.waitForSelector('#quizSkipLink');
+    await page.waitForSelector('#quizIntro');
     var tabVisibleOnGate = await page.$eval('#reasonsTabBtn', function(el){ return getComputedStyle(el).display !== 'none'; });
     assert.strictEqual(tabVisibleOnGate, true, 'Reasons tab should be visible even on the pre-consent quiz screen');
 

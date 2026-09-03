@@ -26,9 +26,11 @@ exports.run = async function(ctx){
   });
   try {
     await page.goto('http://127.0.0.1:' + PORT + '/index.html');
-    // The confidence quiz and the "two documents" page are now shown first — skip through both.
-    await page.waitForSelector('#quizSkipLink');
-    await page.click('#quizSkipLink');
+    // The confidence quiz and the "two documents" page are now shown first — skip through both. The
+    // quiz's real "Skip" button was removed (field feedback) — window.__testSkipQuiz() is the
+    // test-only escape hatch left in its place.
+    await page.waitForSelector('#quizIntro');
+    await page.evaluate(function(){ window.__testSkipQuiz(); });
     await page.waitForSelector('#docsGateContinue');
     await page.click('#docsGateContinue');
     // The country picker is a tappable list now, not a native <select> — see the "mockup 2b" comment

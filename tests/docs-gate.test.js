@@ -14,10 +14,12 @@ const { newPageAt } = require('./helpers');
 exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
-    // Reach the docs page via the quiz's skip link (the shortest path — confidence-quiz.test.js
-    // covers reaching it via "Continue" after finishing the quiz itself).
-    await page.waitForSelector('#quizSkipLink');
-    await page.click('#quizSkipLink');
+    // Reach the docs page via the quiz's skip path (the shortest path — confidence-quiz.test.js
+    // covers reaching it via "Continue" after finishing the quiz itself). The real "Skip" button was
+    // removed from the quiz screen (field feedback) — window.__testSkipQuiz() is the test-only
+    // escape hatch left in its place.
+    await page.waitForSelector('#quizIntro');
+    await page.evaluate(function(){ window.__testSkipQuiz(); });
     await page.waitForSelector('#docsGate', { state: 'visible' });
 
     var quizHidden = await page.$eval('#quizGate', function(el){ return el.style.display === 'none'; });

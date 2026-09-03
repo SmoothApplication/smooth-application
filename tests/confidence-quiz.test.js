@@ -159,12 +159,20 @@ exports.run = async function(ctx){
     await page.context().close();
   }
 
-  // Part 2: the skip link (used by every other test via helpers.passConsentGate) bypasses only the
-  // quiz's own questions — it still lands on the docs page next, with no quiz answers applied.
+  // Part 2: field feedback removed the real "Skip straight to the checklist" button from this
+  // screen entirely — completing the quiz is now the only path through it for a real applicant (the
+  // quiz gives a genuine preview of what's ahead, which a visible skip link undercut). What used to
+  // be that button's behavior lives on only as window.__testSkipQuiz(), a test-only escape hatch
+  // (used by helpers.passConsentGate and most other tests) so the suite isn't forced to answer all
+  // 10 questions before every test that just needs to get past this screen. This checks the escape
+  // hatch itself still does what it's meant to: skip only the quiz's own questions, still landing on
+  // the docs page next, with no quiz answers applied.
   var page2 = await newPageAt(ctx.browser, '/index.html');
   try {
-    await page2.waitForSelector('#quizSkipLink');
-    await page2.click('#quizSkipLink');
+    await page2.waitForSelector('#quizIntro');
+    var skipLinkGone = await page2.$('#quizSkipLink');
+    assert.strictEqual(skipLinkGone, null, 'The real "Skip straight to the checklist" button should no longer exist on the quiz screen');
+    await page2.evaluate(function(){ window.__testSkipQuiz(); });
     await page2.waitForSelector('#docsGate', { state: 'visible' });
     var quizHiddenAfterSkip = await page2.$eval('#quizGate', function(el){ return el.style.display === 'none'; });
     assert.strictEqual(quizHiddenAfterSkip, true, 'Quiz should be hidden after skipping');

@@ -197,6 +197,24 @@
     }
     .consent-gate-title { font-size: 26px; }
   }
+  /* Desktop pass — real usage data (GoatCounter) showed the majority of visits are actually desktop
+     (Windows), not mobile, even though every recent design pass had gone into tightening phone
+     spacing. This was the one entry-screen size nobody had deliberately designed for: on a real
+     monitor the 640px card just floats in a lot of empty gradient. Widens the same single card (no
+     separate desktop build — same file, same flow, same data) and gives it a bit more breathing
+     room, without touching anything at or below 600px (still the phone-first, edge-to-edge layout
+     above) or the 600-860px tablet range in between (unchanged from before). */
+  @media (min-width: 860px) {
+    .consent-gate-card { max-width: 760px; padding: 42px 50px 36px; }
+    .consent-gate-title { font-size: 36px; }
+    .consent-gate-subtitle { font-size: 14.5px; }
+    .gate-icon-badge { width: 56px; height: 56px; font-size: 27px; border-radius: 16px; }
+    .gate-brand-mark { font-size: 38px; }
+    .gate-trust-row { gap: 10px 20px; }
+    .gate-trust-badge { font-size: 12.5px; }
+    .gate-country-option { padding: 13px 18px; }
+    .consent-gate-disclaimer { padding: 15px 18px; font-size: 13px; }
+  }
   .consent-gate-card::before {
     content: ''; position: absolute; top: 0; left: 0; right: 0; height: 5px;
     /* Sea-to-shore gradient — ocean blue into teal into warm sand — instead of an arbitrary rainbow. */
@@ -228,7 +246,10 @@
      it instead, one row, not two. */
   .gate-brand-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
   .gate-brand-row .gate-icon-badge { margin-bottom: 0; }
-  .gate-brand-mark { font-size: 15px; font-weight: 700; color: var(--text-primary); letter-spacing: 0.01em; }
+  /* Field feedback: the app's own name read too small/quiet next to its icon - bumped up across
+     three passes (15px→21px→25px→34px, 700→800) to be the single biggest, most dominant text on
+     the entry screen - now bigger than the 32px headline below it. */
+  .gate-brand-mark { font-size: 34px; font-weight: 800; color: var(--text-primary); letter-spacing: -0.01em; line-height: 1.1; }
   /* Lighter, borderless pills — plain colored text on a faint tint reads as calm reassurance rather
      than another bordered box competing for attention next to the select and disclaimer below it. */
   .gate-trust-row { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-bottom: 20px; }
@@ -338,6 +359,27 @@
   .docs-gate-item-title { font-weight: 700; font-size: 14px; color: var(--text-primary); margin-bottom: 3px; }
   .docs-gate-item-desc { font-size: 12.5px; color: var(--text-secondary); line-height: 1.5; }
 
+  /* South Africa onboarding screen — see the #zaOnboardingGate HTML comment for why this exists.
+     Numbered steps mirror docs-gate-item's card look; the cost box reuses consent-gate-disclaimer's
+     styling so the whole screen feels like one family with the gates on either side of it. */
+  .za-step {
+    display: flex; gap: 12px; align-items: flex-start; background: var(--surface-1);
+    border: 1px solid var(--border); border-radius: 10px; padding: 11px 13px; margin-top: 10px;
+  }
+  .za-step:first-of-type { margin-top: 14px; }
+  .za-step-num {
+    flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; background: var(--accent);
+    color: #fff; font-size: 12px; font-weight: 800; line-height: 22px; text-align: center;
+  }
+  .za-step-text { font-size: 12.5px; color: var(--text-secondary); line-height: 1.55; }
+  .za-onboarding-cost {
+    display: flex; gap: 10px; align-items: flex-start; margin-top: 14px;
+    background: var(--accent-wash); border: 1px solid var(--border); border-left: 4px solid var(--accent);
+    border-radius: 10px; padding: 12px 14px; font-size: 12.5px; color: var(--text-secondary); line-height: 1.55;
+  }
+  .za-onboarding-cost b { color: var(--text-primary); }
+  .za-onboarding-cost .icon { margin-top: 1px; }
+
   /* Confidence quiz — new front door ahead of the consent gate, per street-tested feedback: "too
      many forms... can we get a one page quiz test that gives us a result within 2-3 mins. Which
      creates a booster and confidence." Reuses .consent-gate's card/blob chrome for continuity with
@@ -376,10 +418,17 @@
      screen, ten "Select..." dropdowns stacked with no stated payoff and "Skip the quiz" buried as a
      text link below all ten. Now the first thing anyone sees states what this gets them and that
      it's free, with Start and Skip equally visible with no scrolling required, on any screen size. */
+  /* Field feedback: moved from its own line above the headline to the card's top-right corner,
+     next to the brand row - "Free" also dropped "· no sign-in" since a small sign-in is now on the
+     roadmap (people asked to be able to leave and resume from another device) and that claim would
+     stop being true. .consent-gate-card is the nearest positioned ancestor (position:relative,
+     overflow:hidden - see above), so this anchors to the CARD's corner, not the raw viewport. */
   .quiz-free-badge {
-    display: inline-block; font-size: 11.5px; font-weight: 700; color: #0e8f82;
-    background: #0e8f821f; border-radius: 20px; padding: 4px 10px; margin-bottom: 10px;
+    position: absolute; top: 22px; right: 22px; display: inline-block; font-size: 11px;
+    font-weight: 800; letter-spacing: 0.04em; color: #0e8f82;
+    background: #0e8f821f; border-radius: 20px; padding: 4px 10px;
   }
+  @media (max-width: 400px) { .quiz-free-badge { top: 18px; right: 16px; } }
   .quiz-intro-faq { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); }
   .quiz-intro-faq .tip-details { margin-top: 10px; }
   .quiz-intro-faq .tip-details:first-child { margin-top: 0; }
@@ -1138,16 +1187,22 @@
     </div>
 
     <div id="quizIntro">
-      <span class="quiz-free-badge">Free · no sign-in</span>
-      <h1 class="consent-gate-title">Your visa checklist, built for you</h1>
+      <span class="quiz-free-badge">FREE</span>
+      <h1 class="consent-gate-title">We make your visa application smooth.</h1>
       <!-- User feedback: even the trimmed one-sentence subtitle still made this first screen feel
            too busy -- removed entirely. The "not immigration advice" disclaimer still shows in full
-           on the consent gate a step later, before anyone can actually use the checklist, and "Free
-           - no sign-in" plus the title above already carry the essential value prop on their own. -->
+           on the consent gate a step later, before anyone can actually use the checklist, and "Free"
+           plus the title above already carry the essential value prop on their own. -->
       <div class="quiz-actions">
         <button type="button" class="btn primary" id="quizStartBtn" style="width:100%;">Start the quick check</button>
       </div>
-      <button type="button" class="btn ghost" id="quizSkipLink" style="width:100%; margin-top:10px;">Skip straight to the checklist →</button>
+      <!-- Field feedback: removed the "Skip straight to the checklist" shortcut - the 2-page quick
+           check is the thing that gives an applicant a real preview of what's ahead before they
+           commit to the full checklist, and a visible skip link undercut that on every visit. The
+           underlying bypass still exists as window.__testSkipQuiz() (see the script below) purely so
+           the test suite doesn't have to complete all 10 quiz questions before every single test that
+           needs to get past this screen - it's not reachable from any visible UI, same pattern as
+           window.__testGoToSession() elsewhere in this file. -->
       <!-- Design pass (mockup "2a"): three collapsed questions instead of leaving the reassurance
            text (privacy, "not an approval predictor", country coverage) as always-visible paragraphs
            the way earlier versions of this screen did. Reuses the existing .tip-details "Why?" pattern
@@ -1179,13 +1234,13 @@
         <div class="gate-select-wrap">
           <select id="q_quizCountry">
             <option value="" selected>Select…</option>
-            <option value="UK">🇬🇧 United Kingdom - Standard Visitor visa</option>
-            <option value="CA">🇨🇦 Canada - Visitor visa (TRV)</option>
-            <option value="US" disabled>🇺🇸 United States - coming soon</option>
-            <option value="EU">🇪🇺 Schengen - Short-stay visa (Type C)</option>
-            <option value="ZA">🇿🇦 South Africa - Visitor visa</option>
-            <option value="AU" disabled>🇦🇺 Australia - coming soon</option>
-            <option value="CN" disabled>🇨🇳 China - coming soon</option>
+            <option value="AU" disabled>Australia - coming soon</option>
+            <option value="CA">Canada - Visitor visa (TRV)</option>
+            <option value="CN" disabled>China - coming soon</option>
+            <option value="EU">Schengen - Short-stay visa (Type C)</option>
+            <option value="ZA">South Africa - Visitor visa</option>
+            <option value="UK">United Kingdom - Standard Visitor visa</option>
+            <option value="US" disabled>United States - coming soon</option>
           </select>
           <span class="gate-select-chevron" aria-hidden="true">▾</span>
         </div>
@@ -1207,20 +1262,23 @@
       </div>
 
       <div class="quiz-q" data-quiz-page="1">
-        <label class="field" for="q_quizIncome">Is your income steady month to month?</label>
+        <label class="field" for="q_quizIncome">Is your income steady?</label>
         <div class="gate-select-wrap">
+          <!-- Field feedback: simplified from 3 options (steady / varies a lot / none) to a plain
+             Yes/No - "No" keeps the 'none' value so quizScore()'s existing scoring/gap-message logic
+             (both already keyed off 'steady' vs 'none') needs no changes; 'variable' is no longer
+             reachable from this dropdown. -->
           <select id="q_quizIncome">
             <option value="" selected>Select…</option>
-            <option value="steady">Yes, mostly steady</option>
-            <option value="variable">It varies a lot</option>
-            <option value="none">No steady income right now</option>
+            <option value="steady">Yes</option>
+            <option value="none">No</option>
           </select>
           <span class="gate-select-chevron" aria-hidden="true">▾</span>
         </div>
       </div>
 
       <div class="quiz-q" data-quiz-page="1">
-        <label class="field" for="q_quizSavings">Roughly how much do you already have saved toward this trip?</label>
+        <label class="field" for="q_quizSavings">How much do you have saved for this trip?</label>
         <div class="gate-select-wrap">
           <select id="q_quizSavings">
             <option value="" selected>Select…</option>
@@ -1316,7 +1374,7 @@
     </div>
 
     <div id="quizResultPanel" style="display:none;">
-      <h1 class="consent-gate-title">Your result</h1>
+      <h1 class="consent-gate-title">YOUR RESULT</h1>
       <div id="quizResultTier" class="quiz-result-tier"></div>
       <ul id="quizGapList" class="quiz-gap-list"></ul>
       <div class="quiz-notify-card">
@@ -1418,6 +1476,30 @@
     <button class="btn primary" id="gateContinue" disabled style="margin-top:14px; width:100%;">Continue</button>
     <p class="gate-continue-hint" id="gateContinueHint"></p>
     <button type="button" class="gate-text-link" id="consentGateBack">← Back</button>
+    <p class="gate-credit">Built by <b>SafeNetwork</b>. <a href="mailto:lalasionline@gmail.com">Email</a> · <a href="https://wa.me/2349081389969" target="_blank" rel="noopener">WhatsApp</a></p>
+  </div>
+</div>
+
+<!-- South Africa onboarding — field feedback: "Create South Africa based on the link we have under
+     travel history Session 2... create a proper form for it... A full South Africa onboarding
+     page." A dedicated screen shown only for South Africa applicants, between the consent gate and
+     the checklist itself — South Africa is the most document-heavy of the visas this app covers, so
+     it gets its own walkthrough of the visa type, the steps, and a rough travel-cost estimate before
+     the applicant lands on the checklist. Content is rendered from TE_NO_HISTORY_GUIDES['South
+     Africa'] (see renderZaOnboarding()) rather than duplicated — that's the exact same guide already
+     written for South Africa under Travel Experience's "no history" country guides. -->
+<div id="zaOnboardingGate" class="consent-gate" style="display:none;">
+  <div class="gate-blob gate-blob-1" aria-hidden="true"></div>
+  <div class="gate-blob gate-blob-2" aria-hidden="true"></div>
+  <div class="gate-blob gate-blob-3" aria-hidden="true"></div>
+  <div class="consent-gate-card">
+    <div class="gate-icon-badge" aria-hidden="true">🇿🇦</div>
+    <h1 class="consent-gate-title">Applying for South Africa</h1>
+    <p class="consent-gate-subtitle" id="zaOnboardingSummary"></p>
+    <div id="zaOnboardingSteps"></div>
+    <div class="za-onboarding-cost" id="zaOnboardingCost"></div>
+    <button class="btn primary" id="zaOnboardingContinue" style="margin-top:16px; width:100%;">Continue to your checklist →</button>
+    <button type="button" class="gate-text-link" id="zaOnboardingBack">← Back</button>
     <p class="gate-credit">Built by <b>SafeNetwork</b>. <a href="mailto:lalasionline@gmail.com">Email</a> · <a href="https://wa.me/2349081389969" target="_blank" rel="noopener">WhatsApp</a></p>
   </div>
 </div>
@@ -3984,6 +4066,27 @@
       }
     }
   };
+  // South Africa onboarding screen — a dedicated pre-checklist screen for South Africa applicants
+  // specifically (see #zaOnboardingGate HTML comment). Renders the exact same guide content above
+  // rather than duplicating it. Static content, so this runs once at init rather than on every
+  // render() pass.
+  function renderZaOnboarding(){
+    var g = TE_NO_HISTORY_GUIDES['South Africa'];
+    if (!g) return;
+    var summaryEl = document.getElementById('zaOnboardingSummary');
+    if (summaryEl) summaryEl.textContent = g.visaType + ' — ' + g.summary;
+    var stepsEl = document.getElementById('zaOnboardingSteps');
+    if (stepsEl) {
+      stepsEl.innerHTML = g.steps.map(function(step, i){
+        return '<div class="za-step"><span class="za-step-num">' + (i + 1) + '</span><span class="za-step-text">' + escapeHtml(step) + '</span></div>';
+      }).join('');
+    }
+    var costEl = document.getElementById('zaOnboardingCost');
+    if (costEl && g.costEstimate && g.costEstimate.flight) {
+      var noteHtml = g.costEstimate.note ? '<span style="display:block; margin-top:4px;">' + escapeHtml(g.costEstimate.note) + '</span>' : '';
+      costEl.innerHTML = '<span class="icon">✈️</span><div><b>Getting there:</b> ' + escapeHtml(g.costEstimate.flight) + noteHtml + '</div>';
+    }
+  }
   var teSelectedGuideCountry = '';
   function renderTeCountryTabs(){
     var wrap = document.getElementById('teCountryTabs');
@@ -4482,8 +4585,16 @@
     currentSessionIndex = idx;
     applySessionVisibility();
     if (keys[idx] === 'review') trackEvent('reached_review');
-    var mainEl = document.querySelector('.layout main');
-    if (mainEl && mainEl.scrollIntoView) mainEl.scrollIntoView({behavior:'smooth', block:'start'});
+    // Field feedback, with real phone screenshots: scrolling to the top of <main> lands on the
+    // "Smooth Application" header + country badge + session-pills bar every time a session changes -
+    // on a phone that's most of the screen, pushing the actual card (the thing the applicant is
+    // there to fill in) below the fold, so every session change meant scrolling past the same
+    // header again. Scroll to the now-current session's own card instead - the header/pills stay
+    // exactly where they were (nothing removed, still reachable by scrolling up), but changing
+    // session lands the applicant directly on its content, matching the "just show the card" mockup.
+    var targetCard = document.querySelector('[data-session-key="'+keys[idx]+'"]');
+    var scrollEl = targetCard || document.querySelector('.layout main');
+    if (scrollEl && scrollEl.scrollIntoView) scrollEl.scrollIntoView({behavior:'smooth', block:'start'});
   }
   // Test-only escape hatch: the 70%-readiness gate above intentionally blocks real applicants from
   // jumping past an unfinished section, but the test suite needs to jump straight to whichever
@@ -13471,6 +13582,9 @@
     var points = 0;
     if (work === 'employed' || work === 'selfEmployed' || work === 'both') points += 2;
     else if (work === 'student' || work === 'child') points += 1;
+    // 'variable' is no longer selectable (q_quizIncome simplified to Yes/No - see its HTML comment)
+    // but left here as a harmless no-op branch rather than ripped out, in case anything upstream
+    // (e.g. a restored older saved-progress payload) still carries the old value.
     if (income === 'steady') points += 3; else if (income === 'variable') points += 1;
     if (savings === 'over5m') points += 3; else if (savings === 'to5m') points += 2; else if (savings === 'to2m') points += 1;
     if (travel === 'yes') points += 2;
@@ -13618,15 +13732,18 @@
     emailLink.addEventListener('click', function(){ trackEvent('quiz_notify_me_clicked:email'); });
   })();
 
-  // Both the skip link and the quiz's own "Continue" lead to the same next stop: the dedicated
-  // "two documents" page (docsGate), not straight to the consent gate. Skipping only skips the
-  // quiz's QUESTIONS — the document head-start is worth seeing either way.
-  document.getElementById('quizSkipLink').addEventListener('click', function(){
+  // Field feedback removed the real "Skip straight to the checklist" button (see the HTML comment
+  // on #quizIntro above) - the quiz is now the only way through this screen for a real applicant.
+  // The underlying jump straight to docsGate is kept as a test-only escape hatch so the suite isn't
+  // forced to answer all 10 quiz questions before every test that just needs to get past this
+  // screen - same reasoning/pattern as window.__testGoToSession() elsewhere in this file. Not wired
+  // to any button or visible control.
+  window.__testSkipQuiz = function(){
     trackEvent('quiz_skipped');
     document.getElementById('quizGate').style.display = 'none';
     document.getElementById('docsGate').style.display = 'flex';
     window.scrollTo(0,0);
-  });
+  };
 
   document.getElementById('quizContinueBtn').addEventListener('click', function(){
     trackEvent('quiz_continue:' + (lastQuizResult ? lastQuizResult.tier : 'unknown'));
@@ -13755,8 +13872,15 @@
     switchCountry(code);
     trackEvent('session_started:' + code);
     document.getElementById('consentGate').style.display = 'none';
-    document.getElementById('appWrap').style.display = 'block';
-    window.scrollTo(0,0);
+    // South Africa gets its own onboarding screen first — see #zaOnboardingGate — rather than
+    // dropping straight into the checklist like every other country.
+    if (code === 'ZA') {
+      document.getElementById('zaOnboardingGate').style.display = 'flex';
+      window.scrollTo(0,0);
+    } else {
+      document.getElementById('appWrap').style.display = 'block';
+      window.scrollTo(0,0);
+    }
   });
   // Runs after the gateContinue handler just above (same click, same element — listeners fire in
   // registration order), so switchCountry()/render() have already populated the checklist DOM this
@@ -13765,6 +13889,25 @@
   document.getElementById('gateContinue').addEventListener('click', function(){
     var code = document.getElementById('gateCountrySelect').value;
     if (quizAnswered && COUNTRIES[code] && COUNTRIES[code].ready) applyQuizPrefillToChecklist();
+  });
+  document.getElementById('zaOnboardingContinue').addEventListener('click', function(){
+    document.getElementById('zaOnboardingGate').style.display = 'none';
+    document.getElementById('appWrap').style.display = 'block';
+    window.scrollTo(0,0);
+    trackEvent('za_onboarding_continued');
+  });
+  document.getElementById('zaOnboardingBack').addEventListener('click', function(){
+    document.getElementById('zaOnboardingGate').style.display = 'none';
+    document.getElementById('consentGate').style.display = 'flex';
+    // The country/agree selection wasn't touched by going back — sync the list/confirmed view to
+    // match (same sync the gateCountrySelect 'change' listener and btnChangeCountry both do), so
+    // South Africa still shows as the confirmed choice instead of the tappable list resolving
+    // hidden underneath it. gateAgree and gateContinue are left exactly as they were, so Continue
+    // works immediately without re-picking or re-agreeing.
+    var sel = document.getElementById('gateCountrySelect');
+    if (COUNTRIES[sel.value] && COUNTRIES[sel.value].ready) showGateCountryConfirmed(sel.value);
+    else showGateCountryList();
+    window.scrollTo(0,0);
   });
   document.getElementById('btnChangeCountry').addEventListener('click', function(){
     document.getElementById('gateCountrySelect').value = currentCountry;
@@ -13783,6 +13926,7 @@
   });
   populateGateDisclaimer();
   updateGateContinueHint();
+  renderZaOnboarding();
 
   render();
   loadTrackerEntries(); // independent of country/answers - its own storage key, loaded once

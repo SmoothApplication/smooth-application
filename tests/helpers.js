@@ -68,10 +68,15 @@ async function newPageAt(browser, urlPath, opts){
 // gate — the confidence quiz (confidence-quiz.test.js) and the "two documents" page
 // (docs-gate.test.js) — so this skips both first; tests that need either of those directly drive
 // them instead of using this helper.
+// Field feedback removed the real "Skip straight to the checklist" button from the quiz screen —
+// completing the quiz is now the only path through it for a real applicant. window.__testSkipQuiz()
+// is the test-only escape hatch left in its place (see the comment on it in index.html) so this
+// helper — and everything that calls it — doesn't have to answer all 10 quiz questions just to get
+// past this screen.
 async function passConsentGate(page, options){
   var country = (options && options.country) || 'UK';
-  await page.waitForSelector('#quizSkipLink');
-  await page.click('#quizSkipLink');
+  await page.waitForSelector('#quizIntro');
+  await page.evaluate(function(){ window.__testSkipQuiz(); });
   await page.waitForSelector('#docsGateContinue');
   await page.click('#docsGateContinue');
   // The country picker is a tappable list now, not a native <select> (see the "mockup 2b" comment
@@ -83,6 +88,12 @@ async function passConsentGate(page, options){
   await page.click('.gate-country-option[data-code="' + country + '"]');
   await page.check('#gateAgree', { force: true });
   await page.click('#gateContinue');
+  // South Africa gets its own onboarding screen first (see #zaOnboardingGate in index.html) before
+  // the checklist — continue through it too so this helper still lands every country on appWrap.
+  if (country === 'ZA') {
+    await page.waitForSelector('#zaOnboardingContinue', { state: 'visible' });
+    await page.click('#zaOnboardingContinue');
+  }
   await page.waitForFunction(function(){
     var el = document.getElementById('appWrap');
     return el && el.style.display !== 'none';
