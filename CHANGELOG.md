@@ -3,6 +3,13 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Shorter work-status options
+
+The "Work status" dropdown on the Quick readiness check screen had long, full-sentence options
+("I'm currently employed", "I'm applying for a child, or travelling with one"). Shortened to plain
+labels (Employed, Self-employed, Employed & Self-employed, Student, Applying for a Child) - same
+five choices, same underlying values, just less to read on a dropdown.
+
 ## Fewer things to look at on every session page
 
 Field feedback: "reduce the items on this page." Two changes, both visual only — nothing about how
