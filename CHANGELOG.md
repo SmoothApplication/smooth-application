@@ -3,6 +3,27 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fewer things to look at on every session page
+
+Field feedback: "reduce the items on this page." Two changes, both visual only — nothing about how
+sessions work, what's tracked, or which fields are required changed underneath either one. The
+1-to-14 session pills lost their numbers and shrank to plain dots — the current one still stands out
+(wider, filled solid), and "Session 2 of 14: Travel Experience" right above already says the number
+in words, so nothing was actually lost by not reading it twice. And the "Document readiness score"
+and "Financial readiness" sidebar cards, which were two separate bordered boxes stacked one on the
+other for what's really one idea, are now one card with two compact rows.
+
+## Typing the passport expiry in by hand now actually shows up
+
+Field report: a passport where neither the machine-readable strip nor the printed text on the page
+would OCR into a usable expiry date - a genuine read failure, not something this app can safely
+guess at. The scan card already offered a "type it in below" link for exactly this case, but typing
+the date into that field did nothing to the card above it - it kept reading "Expires: not detected"
+forever, as if the applicant's own input had been ignored. Fixed: the card now falls back to
+whatever's in that manual field when OCR comes back empty, clearly labeled "(entered manually)" so
+it's never confused with an actual OCR read, and refreshes itself the moment that field changes -
+no re-scan needed, still entirely on-device.
+
 ## A real desktop pass for the entry screens
 
 GoatCounter data showed the majority of visits are actually desktop (Windows), not mobile, even

@@ -529,23 +529,40 @@
   }
   .session-progress-text { font-size: 13px; font-weight: 600; color: var(--text-secondary); margin: 0 0 10px; }
   .session-progress-text b { color: var(--text-primary); }
-  .session-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  /* Field feedback: 14 numbered circles in a row reads as a lot to take in at once ("reduce the
+     items on this page"). The number itself was never the only way to tell where you are anyway —
+     "Session 2 of 14: Travel Experience" right above already says that in words — so the pills were
+     dropped to plain dots: no digits to read, just a quiet trail of where you've been and how much
+     is left. The current one is still unmistakable (wider, filled solid) without needing a label.
+     data-idx/title/click behavior are all unchanged — this is a visual change only. */
+  .session-pills { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; margin-bottom: 12px; }
+  /* The clickable box stays a comfortable tap target (22px+) even though the visible dot inside it
+     is small — sized via ::after rather than shrinking the button itself, so tap accuracy on mobile
+     doesn't suffer just because the page reads lighter. */
   .session-pill {
-    width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--border); background: var(--surface-1);
-    color: var(--text-secondary); font-size: 12px; font-weight: 700; cursor: pointer; padding: 0;
-    display: flex; align-items: center; justify-content: center; transition: background .15s ease, color .15s ease;
+    width: 22px; height: 22px; border-radius: 999px; border: none; background: none;
+    color: transparent; font-size: 0; cursor: pointer; padding: 0; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; position: relative;
   }
-  .session-pill.active { background: var(--accent); border-color: var(--accent); color: #fff; }
-  .session-pill.partial { background: var(--warning-wash, #fff3cd); border-color: var(--warning); color: var(--warning); }
-  .session-pill.done { background: var(--good-wash); border-color: var(--good); color: var(--good); }
-  .session-pill.active.done, .session-pill.active.partial { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .session-pill::after {
+    content: ''; width: 8px; height: 8px; border-radius: 999px; background: var(--border);
+    transition: background .15s ease, width .15s ease, opacity .15s ease;
+  }
+  .session-pill:hover::after { background: var(--accent); opacity: 0.7; }
+  .session-pill.partial::after { background: var(--warning); opacity: 0.7; }
+  .session-pill.done::after { background: var(--good); }
+  .session-pill.active::after { width: 20px; background: var(--accent); }
+  .session-pill.active.done::after, .session-pill.active.partial::after { background: var(--accent); opacity: 1; }
   .session-nav-btns { display: flex; gap: 10px; }
   .session-nav-btns .btn { flex: 1; }
-  /* Bigger, not smaller, on mobile — this used to shrink to 25px (below even the 28px desktop size)
-     right where finger-tap accuracy matters most and a mouse cursor isn't available. .session-pills
-     already wraps to a second row if 9 of them don't fit a narrow screen, so there's no overflow risk
-     in sizing up. */
-  @media (max-width: 560px) { .session-pills { gap: 6px; } .session-pill { width: 32px; height: 32px; font-size: 12px; } }
+  /* Slightly bigger tap targets and dots on mobile, not smaller — finger-tap accuracy matters most
+     right where there's no mouse cursor to help. .session-pills already wraps to a second row if
+     they don't fit a narrow screen, so there's no overflow risk in sizing up a little. */
+  @media (max-width: 560px) {
+    .session-pill { width: 26px; height: 26px; }
+    .session-pill::after { width: 10px; height: 10px; }
+    .session-pill.active::after { width: 24px; }
+  }
   @media print { .session-nav { display: none !important; } }
   /* Print must show every session's card regardless of which one is currently on screen. */
   @media print { [data-session-key], #checklistRoot > [data-cat] { display: block !important; } }
@@ -1051,6 +1068,15 @@
   .stat-tile { text-align: center; padding: 20px 16px; }
   .stat-tile .label { font-size: 12px; color: var(--text-secondary); font-weight: 600; margin-bottom: 6px; }
   .stat-tile .value { font-size: 40px; font-weight: 600; line-height: 1; }
+  /* The merged "Readiness scores" card (Document + Financial in one card, not two — see the HTML
+     comment above it) — a plain small heading over two compact rows instead of stat-tile's big
+     centered hero digit twice over, since two of those side by side read as more than the numbers
+     themselves warranted. */
+  .card > .label { font-size: 12px; color: var(--text-secondary); font-weight: 600; margin-bottom: 10px; }
+  .readiness-row-head { display: flex; align-items: baseline; justify-content: space-between; }
+  .readiness-row-title { font-size: 13.5px; font-weight: 600; color: var(--text-primary); }
+  .readiness-row .value { font-size: 22px; font-weight: 700; line-height: 1; }
+  .readiness-row .meter { margin: 8px 0 2px; }
   .status-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; margin-top: 8px; padding: 4px 10px; border-radius: 999px; }
   .status-pill.critical { background: var(--critical-wash); color: var(--critical); }
   .status-pill.serious  { background: var(--serious-wash); color: var(--serious); }
@@ -2610,19 +2636,30 @@
     </main>
 
     <aside class="sidebar">
-      <div class="card stat-tile">
-        <div class="label">Document readiness score</div>
-        <div class="value" id="scoreValue">0%</div>
-        <div class="meter"><div class="fill" id="scoreFill" style="width:0%"></div></div>
-        <div id="statusPill" class="status-pill neutral">Getting started</div>
-      </div>
-
-      <div class="card stat-tile">
-        <div class="label">Financial readiness</div>
-        <div class="value" id="finScoreValue">0%</div>
-        <div class="meter"><div class="fill" id="finScoreFill" style="width:0%"></div></div>
-        <div id="finStatusPill" class="status-pill neutral">Enter your figures</div>
-        <div class="item-tip" id="finScoreCapNote" style="margin-top:6px; display:none;"></div>
+      <!-- Field feedback: "reduce the items on this page" — these were two separate stacked cards,
+           each with its own border/padding/heading for what's really one idea (two readiness
+           scores). Combined into one card with two compact rows; every id a script reads/writes
+           (scoreValue, scoreFill, statusPill, finScoreValue, finScoreFill, finStatusPill,
+           finScoreCapNote) is unchanged, just re-homed under one shared heading and divider. -->
+      <div class="card">
+        <div class="label">Readiness scores</div>
+        <div class="readiness-row">
+          <div class="readiness-row-head">
+            <span class="readiness-row-title">Documents</span>
+            <span class="value" id="scoreValue">0%</span>
+          </div>
+          <div class="meter"><div class="fill" id="scoreFill" style="width:0%"></div></div>
+          <div id="statusPill" class="status-pill neutral">Getting started</div>
+        </div>
+        <div class="readiness-row" style="margin-top:14px; padding-top:14px; border-top:1px solid var(--border);">
+          <div class="readiness-row-head">
+            <span class="readiness-row-title">Finances</span>
+            <span class="value" id="finScoreValue">0%</span>
+          </div>
+          <div class="meter"><div class="fill" id="finScoreFill" style="width:0%"></div></div>
+          <div id="finStatusPill" class="status-pill neutral">Enter your figures</div>
+          <div class="item-tip" id="finScoreCapNote" style="margin-top:6px; display:none;"></div>
+        </div>
       </div>
 
       <details class="card collapsible" style="border-left-color:var(--warning);">
@@ -4622,8 +4659,13 @@
       var doneCls = sessionIsDone(k) ? ' done' : (p.total > 0 && p.points > 0 ? ' partial' : '');
       var cls = 'session-pill' + (i === idx ? ' active' : '') + doneCls;
       var pctTitle = p.total > 0 ? (' - ' + p.percent + '% filled') : '';
-      var label = String(i + 1);
-      return '<button type="button" class="'+cls+'" data-idx="'+i+'" title="'+escapeHtml(sessionLabel(k))+pctTitle+'">'+label+'</button>';
+      // No visible number any more (see the CSS comment above .session-pills) — the title still
+      // names the session for a hover (kept in its original "Label - X% filled" shape — several
+      // tests split on that), and "Session 2 of 14: Travel Experience" right above already says the
+      // number in words. aria-label adds the position back in for a screen reader, where a title
+      // attribute alone isn't reliably announced.
+      var titleText = sessionLabel(k) + pctTitle;
+      return '<button type="button" class="'+cls+'" data-idx="'+i+'" title="'+escapeHtml(titleText)+'" aria-label="'+escapeHtml((i + 1) + ' of ' + keys.length + ': ' + titleText)+'"></button>';
     }).join('');
     // Next is only ever DISABLED outright for being the last session. Below the readiness
     // threshold it deliberately stays clickable — attemptAdvanceSession() is what actually
@@ -5414,6 +5456,25 @@
     setTimeout(function(){ target.classList.remove('jump-highlight'); }, 1600);
     target.focus();
   });
+
+  // Real gap the "type it in below" link above didn't close: typing the expiry in manually updated
+  // Session 1's own field, but the scan card up in "Validate your International Passport" kept
+  // showing "Expires: not detected" regardless - nothing ever told it a value had shown up. That
+  // reads as the app still being stuck/broken even though the applicant did everything right.
+  // Rebuilds the same card from the exact OCR text already extracted at scan time (see
+  // state[id].scanText above) rather than a fresh scan, so this works instantly and fully
+  // on-device. Scoped to the "passport" item specifically - the id every country's checklist uses
+  // for this item (see CHECKLIST_UK/CA/EU/ZA above) - and a no-op if that item was never scanned in
+  // the first place (state.passport.scanText only exists once a scan has actually run).
+  var expiryFieldForRescan = document.getElementById('f_passportExpiry');
+  if (expiryFieldForRescan){
+    expiryFieldForRescan.addEventListener('change', function(){
+      var passportState = state['passport'];
+      if (passportState && passportState.scanText){
+        renderPassportCard('passport', passportState.scanText, getAnswers(), passportState.scanFileName);
+      }
+    });
+  }
 
   // Attach a file straight to a checklist item's state from anywhere in the page (e.g. the inline
   // employment-letter prompt), then re-render so the checklist card below reflects it and run the same
@@ -8181,6 +8242,17 @@
       var future = dates.filter(function(d){ return d.getTime() > Date.now(); });
       return future.sort(function(a,b){ return b-a; })[0] || null;
     })();
+    // Last-resort fallback: neither the MRZ nor the plain printed text on the page yielded a usable
+    // expiry date (a real OCR read failure, not something this app can correct on-device), but the
+    // applicant may well have already typed it into Session 1's own field via the "type it in below"
+    // link this same card offers. Read it back rather than leaving the row stuck on "not detected"
+    // forever after they did exactly what the card asked them to do — the f_passportExpiry 'change'
+    // listener below re-runs this whole function so the row updates the moment they finish typing.
+    var expiryFromAnswers = false;
+    if (!expiryDate && answers.passportExpiry){
+      var manualExpiry = new Date(answers.passportExpiry + 'T00:00:00');
+      if (!isNaN(manualExpiry.getTime())){ expiryDate = manualExpiry; expiryFromAnswers = true; }
+    }
 
     var travelDate = answers.travelDate ? new Date(answers.travelDate) : new Date();
     var sixMonthsAfter = new Date(travelDate); sixMonthsAfter.setMonth(sixMonthsAfter.getMonth()+6);
@@ -8233,7 +8305,8 @@
     // handler (expiry-jump-link, near revealAndScrollTo below) switches to the right session and
     // opens/scrolls to it, same pattern as the "see X below" #item_ links.
     var expiryNotDetectedHint = '<i>not detected</i> - <a href="#" class="expiry-jump-link">type it in below</a>';
-    rows += row('Expires', expiryDate ? expiryDate.toLocaleDateString() : null, expiryDate ? expiryOk : null, expiryNotDetectedHint);
+    var expiryRowValue = expiryDate ? (expiryDate.toLocaleDateString() + (expiryFromAnswers ? ' (entered manually)' : '')) : null;
+    rows += row('Expires', expiryRowValue, expiryDate ? expiryOk : null, expiryNotDetectedHint);
     if (fields && fields.fullName){
       rows += row('Name (from MRZ)', fields.fullName, nameStatus === 'ok' ? true : (nameStatus === 'fail' ? false : null));
     } else if (answers.name){
@@ -8903,6 +8976,12 @@
     if (it.checkKind === 'passport'){
       renderPassportCard(id, text, answers, fileName);
       state[id].scan = 'card';
+      // Kept so the card can be rebuilt again later without a fresh scan — see the f_passportExpiry
+      // 'change' listener below, which needs this exact same OCR text to refresh the "Expires" row
+      // after the applicant types the date in manually. Nothing here leaves the device either way -
+      // this is the same text already extracted on-device, just held onto a little longer.
+      state[id].scanText = text;
+      state[id].scanFileName = fileName;
     } else {
       var res = analyze(it.checkKind, text, answers);
       state[id].scan = res;
