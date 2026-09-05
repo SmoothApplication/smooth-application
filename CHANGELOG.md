@@ -3,6 +3,28 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## A thin savings cushion can no longer show as "Strong"
+
+Real report: someone who'd saved only ₦500,000-₦2,000,000 for their trip got "Strong starting
+position" on the quick readiness quiz, because savings was just 1 of 8 additive scoring factors -
+a good answer everywhere else (steady job, travel history, no past refusal, strong ties, passport
+in hand, statements ready) was enough points on its own to clear the threshold, fully offsetting a
+genuinely thin cushion. That's not how a real visa decision works - insufficient funds alone can
+sink an otherwise-strong case. The quiz can no longer show "Strong" at all when savings is under
+₦2,000,000, regardless of every other answer, and the ₦500,000-₦2,000,000 bracket now gets its own
+gap message pointing to the real Financial readiness calculator further in the checklist (that
+bracket previously showed no savings-related warning at all).
+
+## Year-end usage totals, without keeping anyone's statement
+
+Business need: a total page count and a total "statements processed" count for year-end reporting
+- without ever holding onto anyone's actual bank statement. Added one new anonymous event,
+`stmt_page_processed`, fired once per page read during a personal or business statement analysis
+(PDF, photographed image, or spreadsheet alike). GoatCounter's own running hit-count on that single
+event name is the year's page total - no per-file record, filename, or content ever included. The
+existing `statement_analysis:completed` / `business_statement_analysis:completed` counts already
+answer "how many processed," so no new tracking was needed there at all.
+
 ## Shorter work-status options
 
 The "Work status" dropdown on the Quick readiness check screen had long, full-sentence options

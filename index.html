@@ -2805,6 +2805,11 @@
   //   stmt_file_selected                  — a bank statement file is chosen, before "Analyze" is even
   //                                          clicked — separates "never picked a file" from "picked a
   //                                          file but never attempted analysis" in the funnel above
+  //   stmt_page_processed                 — fired once per page read during a statement analysis
+  //                                          (personal or business, PDF/image/spreadsheet alike) —
+  //                                          the running hit-count on this one event IS the total
+  //                                          page count; never tied to a filename or the page's
+  //                                          contents, and no per-file or per-person record is kept
   //   error:<context>:<kind>              — an anonymous client-side error signal. <context> is one of:
   //                                          global, promise, doc_scan, doc_scan_image, doc_scan_pdf,
   //                                          doc_scan_multi, statement_analysis, statement_analysis_setup,
@@ -2835,6 +2840,13 @@
         window.goatcounter.count({ path: name, title: name, event: true });
       }
     } catch (e) { /* never let analytics break the app */ }
+  }
+  // Fires the same anonymous event N times in a row (once per unit counted, e.g. once per PDF
+  // page read) so the event's own running hit-count on the dashboard IS the running total — no
+  // separate counter, database, or per-file/per-person record needed anywhere. Safe/no-op under
+  // the same conditions as trackEvent() itself.
+  function trackEventTimes(name, n){
+    for (var i = 0; i < n; i++) trackEvent(name);
   }
   // Only ever shown when analytics is actually turned on — if ANALYTICS_SITE_CODE is blank
   // (the default), this note doesn't appear at all, so nothing is claimed that isn't true.
@@ -9461,16 +9473,22 @@
     return /\.(xlsx|xls)$/i.test(file.name || '');
   }
 
+  // __pageCount below feeds only the anonymous stmt_page_processed tally (see trackEvent's doc
+  // comment) — a plain page COUNT, never the file's name or any of its actual content.
   function getLinesFromFile(file){
     if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '')){
       return file.arrayBuffer().then(function(buf){
         return window.pdfjsLib.getDocument({data: buf}).promise;
-      }).then(function(pdf){ return getLinesFromPdf(pdf); });
+      }).then(function(pdf){
+        return getLinesFromPdf(pdf).then(function(lines){ lines.__pageCount = pdf.numPages; return lines; });
+      });
     } else if (isSpreadsheetFile(file)){
       if (!libsLoaded.xlsx) return Promise.resolve([]);
       return file.arrayBuffer().then(function(buf){
         var wb = window.XLSX.read(new Uint8Array(buf), {type:'array'});
-        return linesFromWorkbook(wb);
+        var lines = linesFromWorkbook(wb);
+        lines.__pageCount = 1; // one spreadsheet file counts as one page-equivalent unit
+        return lines;
       });
     } else if (file.type.indexOf('image/') === 0){
       if (!libsLoaded.tesseract) return Promise.resolve([]);
@@ -9479,7 +9497,11 @@
       // photo does, so route through a canvas instead of handing Tesseract the raw file directly.
       return loadFileToCanvas(file).then(function(canvas){
         return window.Tesseract.recognize(preprocessCanvasForOcr(canvas), 'eng', TESSERACT_OPTS);
-      }).then(function(res){ return linesFromPlainText(res.data.text); });
+      }).then(function(res){
+        var lines = linesFromPlainText(res.data.text);
+        lines.__pageCount = 1; // one photographed page
+        return lines;
+      });
     }
     return Promise.reject(new Error('Unsupported file type: ' + file.name));
   }
@@ -10694,11 +10716,13 @@
       var allLines = [];
       var truncatedFiles = [];
       var passwordProtectedFiles = [];
+      var totalPagesRead = 0;
       var chain = Promise.resolve();
       files.forEach(function(file){
         chain = chain.then(function(){
           return getLinesFromFile(file).then(function(lines){
             if (lines.__truncated) truncatedFiles.push({name: file.name, info: lines.__truncated});
+            totalPagesRead += (lines.__pageCount || 0);
             allLines = allLines.concat(lines);
           }).catch(function(err){
             if (err && err.name === 'PasswordException') passwordProtectedFiles.push(file.name);
@@ -10750,6 +10774,7 @@
           appendCrossCheckMessage(results);
         }
         trackEvent('business_statement_analysis:completed');
+        trackEventTimes('stmt_page_processed', totalPagesRead);
         onMessage(results);
       }).catch(function(err){
         // Same silent-failure gap the personal-statement analyzer had, now closed the same way here.
@@ -12585,11 +12610,13 @@
       var perFileOpening = [];
       var truncatedFiles = [];
       var passwordProtectedFiles = [];
+      var totalPagesRead = 0;
       var chain = Promise.resolve();
       files.forEach(function(file){
         chain = chain.then(function(){
           return getLinesFromFile(file).then(function(lines){
             if (lines.__truncated) truncatedFiles.push({name: file.name, info: lines.__truncated});
+            totalPagesRead += (lines.__pageCount || 0);
             allLines = allLines.concat(lines);
             var fileTxns = parseStatementLinesWithFallback(lines);
             if (fileTxns.length){
@@ -12962,6 +12989,7 @@
         // transaction was successfully parsed and the results actually rendered, i.e. a genuinely
         // successful analysis, not just "didn't crash".
         trackEvent('statement_analysis:completed');
+        trackEventTimes('stmt_page_processed', totalPagesRead);
         // NOTE: setStmtMsg's signature is (clsOrArray, text, meta) — meta is the THIRD argument, so
         // the `undefined` here for `text` is required; passing {months:...} as the 2nd argument (as
         // this used to) silently landed it in the unused `text` slot instead of `meta`, which is why
@@ -13675,6 +13703,16 @@
     // not shown to the applicant as a literal score (a bare number invites over-reading it as a
     // prediction, which is exactly what this quiz is not).
     var tier = points >= 13 ? 'strong' : (points >= 7 ? 'some' : 'many');
+    // Real report: someone with only ₦500,000-₦2,000,000 saved landed on "Strong starting
+    // position" because the other 7 answers (steady job, travel history, no refusal, strong
+    // ties, passport in hand, statements ready) were enough points on their own to clear the
+    // threshold above — savings is only 1 of 8 additive factors, so a thin cushion was getting
+    // fully offset by unrelated strengths. That's not how a real visa decision works: an officer
+    // can refuse on insufficient funds alone regardless of how good everything else looks, so a
+    // genuine financial gap should never show up as "Strong" here. Capped separately from the
+    // point total rather than just raising savings' point weight, since raising the weight alone
+    // would still let a big enough score elsewhere buy back into "Strong".
+    if (tier === 'strong' && (savings === 'under500k' || savings === 'to2m' || savings === '')) tier = 'some';
     return {
       points: points, tier: tier,
       answers: {
@@ -13691,6 +13729,7 @@
     { test: function(a){ return a.passport === 'no'; }, msg: "You'll need a valid international passport before you can apply - this alone can take weeks, so start now." },
     { test: function(a){ return a.statements === 'notyet'; }, msg: 'Start downloading your last 3-6 months of bank statements now - gathering these takes longer than people expect.' },
     { test: function(a){ return a.savings === 'under500k' || a.savings === ''; }, msg: "Your savings cushion looks thin for this trip's likely cost - worth building up before you apply." },
+    { test: function(a){ return a.savings === 'to2m'; }, msg: 'Whether ₦500,000-₦2,000,000 is enough depends heavily on your trip length and destination city - the Financial readiness calculator further in the checklist will tell you exactly, so don\'t skip it.' },
     { test: function(a){ return a.refusal === 'yes'; }, msg: "A past visa refusal is worth addressing directly in your application, with a clear explanation of what's changed since." },
     { test: function(a){ return a.ties === 'few'; }, msg: 'Strengthening your documented ties to Nigeria (property, family, employment) will help your case.' },
     { test: function(a){ return a.income === 'none'; }, msg: 'Without steady income, lean on a strong, well-explained savings history instead.' },
