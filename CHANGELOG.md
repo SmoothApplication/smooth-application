@@ -27,10 +27,15 @@ answer "how many processed," so no new tracking was needed there at all.
 
 ## Shorter work-status options
 
-The "Work status" dropdown on the Quick readiness check screen had long, full-sentence options
-("I'm currently employed", "I'm applying for a child, or travelling with one"). Shortened to plain
-labels (Employed, Self-employed, Employed & Self-employed, Student, Applying for a Child) - same
-five choices, same underlying values, just less to read on a dropdown.
+The "Work status" dropdown had long, full-sentence options ("I'm currently employed", "I'm
+applying for a child, or travelling with one"). Shortened to plain labels (Employed, Self-employed,
+Employed & Self-employed, Student, Applying for a Child) - same choices, same underlying values,
+just less to read on a dropdown. This app has two separate "Work status" selects that look
+identical but are different fields entirely - the one inside the full checklist's "Your trip
+details" session (`f_workStatus`), and the one on the earlier Quick readiness check quiz
+(`q_quizWork`, "Step 1 of 2"). The first pass only caught `f_workStatus`; a follow-up report showed
+`q_quizWork` was still showing the old long-form text, since it's a fully separate dropdown, not a
+shared component - now fixed on both.
 
 ## Fewer things to look at on every session page
 
