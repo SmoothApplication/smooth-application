@@ -3,6 +3,20 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Four small quiz/checklist fixes from a fresh read-through
+
+- The country-confirmed box (shown once someone locks in UK/Canada/Schengen/South Africa) was
+  wrapping the country name across four lines - a CSS rule meant for a different, full-width link
+  elsewhere was leaking into this one's flex row and squeezing the country name down to a sliver.
+  Scoped that rule so it only affects its original intended use.
+- Two of the confidence quiz's yes/no questions (refusal history, savings) already listed "Yes"
+  before "No"; the third (visa refusal) now matches that order too, for consistency.
+- The ties question now reads "own property(s)" instead of "own property", since some applicants
+  own more than one.
+- The spouse-funding question was asking two things at once ("willing to fund or sponsor") and its
+  "No" answer editorialized ("I'll fund it myself") - simplified to a plain "Is your spouse willing
+  to fund this trip?" / "No".
+
 ## A concrete, priced "Document Review" offer, in two places
 
 The vague "we're building a paid guided-prep option, notify me" card on the quiz result screen

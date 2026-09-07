@@ -301,6 +301,15 @@
      flex:1 still lets it grow into free space when there's room, without that shrink-to-nothing
      failure mode. */
   .gate-country-confirmed-name { flex: 1; font-size: 13.5px; font-weight: 700; }
+  /* Real-data finding: #gateCountryChange reuses .gate-text-link (built for a standalone, full-row
+     "Skip the quiz"-style link elsewhere - see the comment on that class above) for its underline/
+     no-border look, but that class's own display:block + width:100% also came along for the ride
+     here, where the button instead needs to sit INLINE next to the country name in a flex row. The
+     result: "Change" claimed ~85% of the row's width, squeezing "UK Standard Visitor visa" down to a
+     ~57px-wide column and wrapping it across four lines instead of the one straight line it should be.
+     Scoped to this specific placement only - .gate-text-link's other, genuinely full-width uses are
+     untouched. */
+  .gate-country-confirmed .gate-text-link { display: inline; width: auto; flex-shrink: 0; margin-top: 0; }
   .gate-select-wrap { position: relative; margin-top: 6px; }
   .gate-select-wrap .gate-select-chevron {
     position: absolute; right: 12px; top: 50%; transform: translateY(-50%); pointer-events: none;
@@ -1334,15 +1343,15 @@
         <div class="gate-select-wrap">
           <select id="q_quizRefusal">
             <option value="" selected>Select…</option>
-            <option value="no">No</option>
             <option value="yes">Yes</option>
+            <option value="no">No</option>
           </select>
           <span class="gate-select-chevron" aria-hidden="true">▾</span>
         </div>
       </div>
 
       <div class="quiz-q" data-quiz-page="2">
-        <label class="field" for="q_quizTies">Do you own property, or have strong family ties in Nigeria (spouse, children, dependants)?</label>
+        <label class="field" for="q_quizTies">Do you own property(s), or have strong family ties in Nigeria (spouse, children, dependants)?</label>
         <div class="gate-select-wrap">
           <select id="q_quizTies">
             <option value="" selected>Select…</option>
@@ -1745,11 +1754,11 @@
                application, not left implicit - the whole reason this flow exists. -->
           <div class="row" style="margin-top:10px;">
             <div>
-              <label class="field" for="rs_spouseWilling">Is your spouse willing to fund or sponsor this trip?</label>
+              <label class="field" for="rs_spouseWilling">Is your spouse willing to fund this trip?</label>
               <select id="rs_spouseWilling">
                 <option value="">Select…</option>
                 <option value="yes">Yes</option>
-                <option value="no">No / I'll fund it myself</option>
+                <option value="no">No</option>
               </select>
             </div>
             <div>
