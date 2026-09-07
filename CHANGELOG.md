@@ -3,6 +3,32 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## A concrete, priced "Document Review" offer, in two places
+
+The vague "we're building a paid guided-prep option, notify me" card on the quiz result screen
+never named a price, so it couldn't tell us much about real willingness to pay. Replaced with a
+concrete offer - a paid Document Review (a real person checks what's already prepared for
+completeness and quality, from $25/≈₦40,000) - routed to WhatsApp/email exactly as before, still
+no real payment processing yet (see `docs/monetization-strategy.md`'s "test cheaply first"
+principle). The same card now also appears on the finance session's Report step, right after the
+readiness summary - the moment someone has just seen exactly what still needs work, tracked under
+its own `doc_review_interest_clicked` event so the two placements' interest can be measured
+separately.
+
+## A reversed payment can no longer look like new, unexplained income
+
+Real-data finding, off a real Fidelity Bank statement: a failed POS/transfer attempt can be
+reversed without the narration ever using the word "reversal" (or "RVSL"/"RSVL") - the credit that
+undoes it just repeats the same merchant description as the debit, for the exact same amount, a
+day or two later. The statement analysis only recognised a reversal by that keyword, so a credit
+like this resurfaced as a brand-new "unexplained inflow" from a merchant-shaped non-name (not a
+real sender at all) - exactly the kind of false flag that could send an applicant hunting for an
+explanation for money that never actually arrived. It now also recognises a reversal when a
+credit's amount exactly matches an earlier debit within a few days AND the two narrations share
+enough distinctive words to plausibly describe the same transaction - deliberately conservative,
+so it only catches this specific real pattern, not any two unrelated payments that happen to share
+an amount. A normal recurring sender is unaffected either way.
+
 ## A thin savings cushion can no longer show as "Strong"
 
 Real report: someone who'd saved only ₦500,000-₦2,000,000 for their trip got "Strong starting

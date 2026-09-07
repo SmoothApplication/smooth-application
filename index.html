@@ -1404,9 +1404,9 @@
       <div id="quizResultTier" class="quiz-result-tier"></div>
       <ul id="quizGapList" class="quiz-gap-list"></ul>
       <div class="quiz-notify-card">
-        <b>Want a fully guided walkthrough that turns this into a ready application?</b> We're building a paid guided-prep option - tell us you're interested and we'll let you know when it's ready.
+        <b>Want a second pair of eyes on this before you submit?</b> We're testing a paid Document Review - a real person checks what you've prepared for completeness and quality, from $25 (about ₦40,000). Message us to be one of the first.
         <div style="margin-top:8px;">
-          <a class="btn ghost" id="quizNotifyWhatsApp" href="#" target="_blank" rel="noopener" style="display:inline-block;">💬 Notify me on WhatsApp</a>
+          <a class="btn ghost" id="quizNotifyWhatsApp" href="#" target="_blank" rel="noopener" style="display:inline-block;">💬 Ask about a Document Review</a>
           <span style="font-size:12px; color:var(--text-muted);"> or <a id="quizNotifyEmail" href="#">email us</a> instead</span>
         </div>
       </div>
@@ -2267,6 +2267,20 @@
         <p class="fin-note" style="margin-top:0;">A category-by-category summary of financial readiness, pulled together from everything filled in on Steps 1-4 - not a single score, since different parts of your evidence can be in very different states at once.</p>
         <div id="readinessReportBox"></div>
 
+        <!-- Same fake-door demand test pattern as quizNotifyWhatsApp on the quiz result screen (see
+             docs/monetization-strategy.md) - a concrete named offer + price, routed to WhatsApp/email
+             for now rather than real payment processing, so a genuine "would people pay for this"
+             signal exists before any checkout gets built. Placed right after the readiness summary,
+             the "payoff" moment where the applicant has just seen exactly what still needs work - the
+             point a second pair of eyes is most useful to offer, not before. -->
+        <div class="quiz-notify-card" style="margin-top:14px;">
+          <b>Want a second pair of eyes on this before you submit?</b> We're testing a paid Document Review - a real person checks what you've prepared for completeness and quality, from $25 (about ₦40,000). No form-filling or submission on your behalf, just a check.
+          <div style="margin-top:8px;">
+            <a class="btn ghost" id="finReportReviewWhatsApp" href="#" target="_blank" rel="noopener" style="display:inline-block;">💬 Ask about a Document Review</a>
+            <span style="font-size:12px; color:var(--text-muted);"> or <a id="finReportReviewEmail" href="#">email us</a> instead</span>
+          </div>
+        </div>
+
         <!-- This used to be the ONLY control on the Report step besides "← Back" — a category-by-
              category summary immediately followed by a button pointing backward reads as a dead end
              ("false finish line": GoatCounter funnel data showed most engaged visitors never move past
@@ -2782,6 +2796,13 @@
   //                                          session that blocked it, same key set as session_view above
   //   session_gate_help_clicked:<channel> — the WhatsApp or email link on a gated section report was
   //                                          clicked; <channel> is "whatsapp" or "email"
+  //   doc_review_interest_clicked:<channel> — fake-door demand test (see docs/monetization-strategy.md):
+  //                                          the WhatsApp/email link on the paid "Document Review"
+  //                                          offer card (finance session Report step) was clicked;
+  //                                          <channel> is "whatsapp" or "email". The same offer on the
+  //                                          quiz result screen is tracked as quiz_notify_me_clicked
+  //                                          instead (an existing, separate event, kept as-is so its
+  //                                          history isn't split across two names)
   //   refusal_jump_clicked:<key>          — a "→ Go to <section>" button inside a scanned refusal
   //                                          letter's results was clicked; <key> is the session key it
   //                                          jumped to (same key set as session_view above)
@@ -9895,12 +9916,13 @@
   // statement formats are never affected by it.
   function parseStatementLinesWithFallback(lines){
     var txns = parseStatementLines(mergeWrappedNarrationLines(mergeSplitDateLines(lines)));
-    if (txns.length >= 2) return txns;
+    if (txns.length >= 2){ markAmountMatchedReversals(txns); return txns; }
     // Column-major fallback deliberately uses the RAW (unmerged) lines — it reads dates/balances off
     // whole date-list/balance-list lines by shape, not narration, so wrap-merging has nothing to offer
     // it and could only risk interfering with that separate detection pass.
     var fallback = tryColumnMajorStatementParse(lines);
-    if (fallback.length > txns.length){ fallback.__usedColumnMajorFallback = true; return fallback; }
+    if (fallback.length > txns.length){ fallback.__usedColumnMajorFallback = true; markAmountMatchedReversals(fallback); return fallback; }
+    markAmountMatchedReversals(txns);
     return txns;
   }
 
@@ -9924,7 +9946,7 @@
   function identifyStableIncome(txns){
     var groups = {};
     txns.forEach(function(t){
-      if (!t.credit || isReversalNarration(t.narration)) return;
+      if (!t.credit || isReversalNarration(t)) return;
       var rounded = Math.round(t.credit / 5000) * 5000;
       var monthKey = t.date.getFullYear()+'-'+t.date.getMonth();
       if (!groups[rounded]) groups[rounded] = {};
@@ -10183,8 +10205,56 @@
   // unexplained income. Missing "RSVL" specifically meant every transaction whose original attempt
   // failed and bounced back — a fairly common real occurrence — was being counted as genuine new income
   // on top of whatever eventually did go through, double-counting money that never actually arrived.
-  function isReversalNarration(narration){
-    return /\brvsl\b|\brsvl\b|\breversal\b/i.test(narration || '');
+  // Accepts either a plain narration string OR a full transaction object. The object form also
+  // checks __amountMatchedReversal (see markAmountMatchedReversals below) — a real reversal that
+  // carries none of the RVSL/RSVL/"reversal" keywords at all, only detectable by matching it back to
+  // the debit it undoes. Kept as one function (rather than a second, separately-named check) so every
+  // existing call site picks up the new detection just by passing the transaction object instead of
+  // its narration string — no call site needs its own logic duplicated.
+  function isReversalNarration(narrationOrTxn){
+    var isTxn = narrationOrTxn && typeof narrationOrTxn === 'object';
+    var narration = isTxn ? narrationOrTxn.narration : narrationOrTxn;
+    if (/\brvsl\b|\brsvl\b|\breversal\b/i.test(narration || '')) return true;
+    return !!(isTxn && narrationOrTxn.__amountMatchedReversal);
+  }
+  // Real-data finding (a real Fidelity Bank statement): a failed POS/transfer attempt can be reversed
+  // WITHOUT any "RVSL"/"reversal" keyword in either line's narration — the credit simply repeats the
+  // same merchant/reference description as the debit it's undoing (e.g. "ONB TRF TO POS Transf **7126
+  // Green atarodo & red" debited, then an identical-looking credit for the exact same amount two rows
+  // later). Missing this meant a reversed payment could resurface as a brand-new "unexplained inflow"
+  // from a merchant-shaped non-name ("Green Atarodo Red", not a real sender at all) — exactly the kind
+  // of false flag that could send an applicant hunting for an explanation for money that never actually
+  // arrived. Deliberately conservative: only flags a credit when its amount exactly matches an earlier
+  // debit within a few days AND the two narrations share enough distinctive words (stopwords/channel
+  // codes excluded, via the same BANK_NARRATION_STOPWORDS list used elsewhere) to plausibly describe
+  // the same underlying transaction — not just two unrelated payments that happen to share an amount.
+  function narrationWordsForReversalMatch(narration){
+    return (narration || '').toUpperCase().replace(/[^A-Z0-9\s]/g, ' ').split(/\s+/).filter(function(w){
+      return w.length >= 3 && BANK_NARRATION_STOPWORDS.indexOf(w) === -1;
+    });
+  }
+  function markAmountMatchedReversals(txns){
+    var usedDebitIdx = {};
+    txns.forEach(function(t, ci){
+      if (!t.credit || isReversalNarration(t)) return;
+      var creditWords = narrationWordsForReversalMatch(t.narration);
+      for (var di = ci - 1; di >= 0; di--){
+        var d = txns[di];
+        var daysApart = (t.date - d.date) / 86400000;
+        if (daysApart > 3) break; // scanning backward in time - only gets older from here, stop looking
+        if (!d.debit || usedDebitIdx[di]) continue;
+        if (Math.abs(d.debit - t.credit) > 0.5) continue;
+        var debitWords = narrationWordsForReversalMatch(d.narration);
+        var neededOverlap = Math.min(2, Math.min(creditWords.length, debitWords.length));
+        if (neededOverlap === 0) continue;
+        var overlap = creditWords.filter(function(w){ return debitWords.indexOf(w) !== -1; }).length;
+        if (overlap >= neededOverlap){
+          t.__amountMatchedReversal = true;
+          usedDebitIdx[di] = true;
+          break;
+        }
+      }
+    });
   }
 
   // Checks whether a typed employer/business name plausibly shows up anywhere in a bank statement's raw
@@ -10248,7 +10318,7 @@
     // "GTB") before counting a transaction as a match.
     var minWordsNeeded = Math.min(2, words.length);
     var matches = txns.filter(function(t){
-      if (!t.credit || isReversalNarration(t.narration)) return false;
+      if (!t.credit || isReversalNarration(t)) return false;
       var upperN = (t.narration || '').toUpperCase();
       var hitCount = words.filter(function(w){ return upperN.indexOf(w) !== -1; }).length;
       return hitCount >= minWordsNeeded;
@@ -10531,7 +10601,7 @@
   function identifyIncomeSourceName(txns, targetAmount, applicantName){
     var buckets = {};
     txns.forEach(function(t){
-      if (!t.credit || isReversalNarration(t.narration)) return;
+      if (!t.credit || isReversalNarration(t)) return;
       if (Math.round(t.credit / 5000) * 5000 !== targetAmount) return;
       var monthKey = t.date.getFullYear() + '-' + t.date.getMonth();
       extractNameCandidates(t.narration).forEach(function(name){
@@ -10557,7 +10627,7 @@
   function identifyTopIncomeSource(txns, applicantName){
     var buckets = {}; // name -> {count, totalAmount, months:{}, companyHits}
     txns.forEach(function(t){
-      if (!t.credit || isReversalNarration(t.narration)) return;
+      if (!t.credit || isReversalNarration(t)) return;
       // Same fix as identifyIncomeSourceName/getTopConsistentSenders above — the applicant's own name
       // is on the "TO" side of nearly every narration, so left unfiltered it wins "most frequent
       // source" against itself almost every time.
@@ -10676,7 +10746,7 @@
     return !/[a-zA-Z]{2,}/.test(stripped);
   }
   function findUnexplainedLargeInflows(txns){
-    var credits = txns.filter(function(t){ return t.credit > 0 && !isReversalNarration(t.narration); });
+    var credits = txns.filter(function(t){ return t.credit > 0 && !isReversalNarration(t); });
     if (!credits.length) return [];
     var avg = credits.reduce(function(a,t){ return a+t.credit; },0) / credits.length;
     var threshold = Math.max(avg * 1.5, 300000);
@@ -10763,7 +10833,7 @@
           if (bizIncomeEl) bizIncomeEl.innerHTML = '<div class="scan-msg warn">No recurring personal drawing detected from the business account yet.</div>';
         }
         lastBusinessDrawings = match.transactions;
-        lastBusinessCredits = txns.filter(function(t){ return t.credit > 0 && !isReversalNarration(t.narration); });
+        lastBusinessCredits = txns.filter(function(t){ return t.credit > 0 && !isReversalNarration(t); });
         if (lastBusinessCredits.length){
           results.push({cls:'info', text:'Found '+lastBusinessCredits.length+' incoming payment(s) into the business - add a quick note on who paid and what it was for under "Business Income Record" below to build a clean, dated record for your visa application.'});
         }
@@ -11851,7 +11921,7 @@
     if (!list || !list.length){ box.innerHTML = ''; return; }
     var rows = list.map(function(t, idx){
       var tag;
-      if (isReversalNarration(t.narration)){
+      if (isReversalNarration(t)){
         tag = ' <span class="src-tag reversal">Reversal</span>';
       } else {
         var candidates = extractNameCandidates(t.narration);
@@ -11874,7 +11944,7 @@
   function getTopConsistentSenders(txns, n, applicantName){
     var namedGroups = {};
     txns.forEach(function(t){
-      if (!t.credit || isReversalNarration(t.narration)) return;
+      if (!t.credit || isReversalNarration(t)) return;
       // Same fix as buildIncomeSourceBreakdown/identifyIncomeSourceName below — the applicant's own
       // name appears on the "TO" side of nearly every narration (they're the recipient of every
       // inflow), so without this it reliably wins "most consistent sender" against itself, and also
@@ -11989,7 +12059,7 @@
 
     txns.forEach(function(t){
       if (!t.credit) return;
-      if (isReversalNarration(t.narration)){
+      if (isReversalNarration(t)){
         reversalTxns.push(t);
         return;
       }
@@ -12048,7 +12118,7 @@
     // bucket. Empty nameWords here (see extractNarrationReason) is deliberate: at this point there's no
     // single "sender name" in scope to exclude, and a hint-matched candidate like "February Salary" is
     // already prioritized over a plain company-name candidate regardless.
-    groups.missingSalaryMonths = detectMissingSalaryMonths(txns.filter(function(t){ return t.credit && !isReversalNarration(t.narration); }), []);
+    groups.missingSalaryMonths = detectMissingSalaryMonths(txns.filter(function(t){ return t.credit && !isReversalNarration(t); }), []);
     return groups;
   }
 
@@ -13841,13 +13911,27 @@
   // option for anyone who prefers it. No preventDefault anywhere: this only ever records the click,
   // the link's own href does the actual navigating.
   (function(){
-    var msg = "Hi, I just took the Smooth Application readiness quiz and I'd like to be notified when the full guided, paid walkthrough is ready.";
+    var msg = "Hi, I just took the Smooth Application readiness quiz and I'm interested in the paid Document Review (from $25).";
     var waLink = document.getElementById('quizNotifyWhatsApp');
     var emailLink = document.getElementById('quizNotifyEmail');
     waLink.href = 'https://wa.me/2349081389969?text=' + encodeURIComponent(msg);
-    emailLink.href = 'mailto:lalasionline@gmail.com?subject=' + encodeURIComponent('Notify me: guided visa-prep launch') + '&body=' + encodeURIComponent(msg);
+    emailLink.href = 'mailto:lalasionline@gmail.com?subject=' + encodeURIComponent('Interested: Document Review') + '&body=' + encodeURIComponent(msg);
     waLink.addEventListener('click', function(){ trackEvent('quiz_notify_me_clicked:whatsapp'); });
     emailLink.addEventListener('click', function(){ trackEvent('quiz_notify_me_clicked:email'); });
+  })();
+
+  // Second placement of the same fake-door demand test, on the finance session's Report step (see
+  // the HTML comment above #finReportReviewWhatsApp) - same offer, same WhatsApp/email routing,
+  // tracked under its own event names since it's a genuinely different touchpoint (post-readiness-
+  // report, not post-quiz) worth measuring separately.
+  (function(){
+    var msg = "Hi, I just finished my readiness report on Smooth Application and I'm interested in the paid Document Review (from $25).";
+    var waLink = document.getElementById('finReportReviewWhatsApp');
+    var emailLink = document.getElementById('finReportReviewEmail');
+    waLink.href = 'https://wa.me/2349081389969?text=' + encodeURIComponent(msg);
+    emailLink.href = 'mailto:lalasionline@gmail.com?subject=' + encodeURIComponent('Interested: Document Review') + '&body=' + encodeURIComponent(msg);
+    waLink.addEventListener('click', function(){ trackEvent('doc_review_interest_clicked:whatsapp'); });
+    emailLink.addEventListener('click', function(){ trackEvent('doc_review_interest_clicked:email'); });
   })();
 
   // Field feedback removed the real "Skip straight to the checklist" button (see the HTML comment
