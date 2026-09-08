@@ -66,7 +66,7 @@ exports.run = async function(ctx){
     // earlier answers rather than resetting them.
     var nextHiddenOnLastStep = await page.$eval('#quizNextBtn', function(el){ return getComputedStyle(el).display === 'none'; });
     assert.strictEqual(nextHiddenOnLastStep, true, 'Next button should be hidden on the last step');
-    await page.selectOption('#q_quizTies', 'some');
+    await page.selectOption('#q_quizTies', 'few');
     await page.click('#quizBackBtn');
     await page.waitForFunction(function(){ return document.getElementById('quizProgressLabel').textContent === 'Step 1 of 2'; });
     var savingsPreserved = await page.$eval('#q_quizSavings', function(el){ return el.value; });
@@ -74,7 +74,7 @@ exports.run = async function(ctx){
     await page.click('#quizNextBtn');
     await page.waitForFunction(function(){ return document.getElementById('quizProgressLabel').textContent === 'Step 2 of 2'; });
     var tiesPreserved = await page.$eval('#q_quizTies', function(el){ return el.value; });
-    assert.strictEqual(tiesPreserved, 'some', 'Answers on the step just left should also be preserved, not reset');
+    assert.strictEqual(tiesPreserved, 'few', 'Answers on the step just left should also be preserved, not reset');
 
     await page.selectOption('#q_quizRefusal', 'no');
     await page.selectOption('#q_quizHost', 'none');

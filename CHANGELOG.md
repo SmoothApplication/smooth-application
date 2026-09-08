@@ -3,6 +3,17 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Step 2 of the confidence quiz simplified to match Step 1's plain Yes/No style
+
+The ties-to-Nigeria question went from three options (strong / some / not really) down to a plain
+Yes/No, matching how "Is your income steady?" already works on Step 1. The sponsor/host question
+kept its three answers but reworded them from a confusing "yes, hosting only" / "yes, and they're
+funding part of it" split into plainer language: Self-funded, Hosting by family or friend, or
+Partly funded by company. Passport and bank-statement readiness were already effectively Yes/No,
+so those were left as-is. Internally, both dropdowns kept their existing option values, so none of
+the scoring, gap-message, or checklist-prefill logic downstream needed to change - only the labels
+shown to the applicant did.
+
 ## Four small quiz/checklist fixes from a fresh read-through
 
 - The country-confirmed box (shown once someone locks in UK/Canada/Schengen/South Africa) was
