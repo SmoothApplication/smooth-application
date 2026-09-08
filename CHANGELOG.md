@@ -3,6 +3,15 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## "Have you travelled outside Nigeria before?" no longer auto-answers itself from the quiz
+
+Field feedback: this question landing pre-answered "Yes" (or "No") on the real Travel Experience
+session - carried straight over from the quiz answer of the same question - read as the tool
+deciding for the applicant rather than confirming what they'd said minutes earlier. It now stays on
+its own blank "Select…" placeholder until the applicant answers it fresh here, same as every other
+unanswered question on this session. The other quiz-to-checklist carryovers (work status, past
+refusal, host/sponsor) are unchanged.
+
 ## Reasons tab now only shows inside the main checklist, and the quiz result can be emailed in full
 
 Two field-feedback fixes. First: the floating "📖 Reasons" button used to show on every screen,

@@ -172,8 +172,12 @@ exports.run = async function(ctx){
 
     var workStatus = await page.$eval('#f_workStatus', function(el){ return el.value; });
     assert.strictEqual(workStatus, 'employed', 'Work status from the quiz should carry into the full checklist');
+    // Field feedback: unlike the other quiz answers checked around this, "Have you travelled outside
+    // Nigeria before?" deliberately does NOT carry over - landing pre-answered on the real session
+    // read as the tool deciding for the applicant. It should still be sitting on its own blank
+    // "Select…" placeholder here, even though the quiz answered the same question moments ago.
     var travelledBefore = await page.$eval('#te_firstTime', function(el){ return el.value; });
-    assert.strictEqual(travelledBefore, 'no', 'Travel history from the quiz should carry into the full checklist');
+    assert.strictEqual(travelledBefore, '', 'Travel history should NOT carry over from the quiz - the applicant should answer it fresh on the real session');
     var hasRefusal = await page.$eval('#f_hasRefusal', function(el){ return el.checked; });
     assert.strictEqual(hasRefusal, false, 'No-past-refusal answer from the quiz should carry into the full checklist');
     var hasHost = await page.$eval('#f_hasHost', function(el){ return el.checked; });

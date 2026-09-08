@@ -14120,8 +14120,12 @@
       workEl.value = qa.work;
       workEl.dispatchEvent(new Event('change', {bubbles:true}));
     }
-    var travelEl = document.getElementById('te_firstTime');
-    if (qa.travel) travelEl.value = qa.travel;
+    // Field feedback: this one used to carry qa.travel straight over from the quiz, same as the
+    // fields above/below - but "Have you travelled outside Nigeria before?" landing pre-answered
+    // "Yes" (or "No") on the real Travel Experience session read as the tool deciding for the
+    // applicant, not confirming what they said minutes earlier. Left un-prefilled on purpose: the
+    // select still starts on its own "Select…" placeholder (see its HTML) and the applicant answers
+    // it fresh here, even if the quiz already asked the same question.
     var refusalEl = document.getElementById('f_hasRefusal');
     if (qa.refusal) refusalEl.checked = (qa.refusal === 'yes');
     var hostEl = document.getElementById('f_hasHost');
