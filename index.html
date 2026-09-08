@@ -194,6 +194,14 @@
     .consent-gate { padding: 0; }
     .consent-gate-card {
       margin: 0; min-height: 100vh; min-height: 100dvh; border-radius: 0; padding: 20px 16px 16px;
+      /* Field feedback (real phone screenshot): the min-height:100dvh fix above stopped the equal
+         gaps above AND below a short card, but a short screen (the quiz intro, mainly) still left a
+         single large gap of dead --surface-2 grey beneath its own content, since the card's children
+         were top-aligned within that full-height box. Centering the actual content column inside the
+         still-full-height card splits any leftover space evenly instead of dumping it all at the
+         bottom - taller states (the paged quiz, a long result) already exceed the viewport, so this
+         is a no-op for those and only affects short ones. */
+      display: flex; flex-direction: column; justify-content: center;
     }
     .consent-gate-title { font-size: 26px; }
   }
@@ -209,7 +217,7 @@
     .consent-gate-title { font-size: 36px; }
     .consent-gate-subtitle { font-size: 14.5px; }
     .gate-icon-badge { width: 56px; height: 56px; font-size: 27px; border-radius: 16px; }
-    .gate-brand-mark { font-size: 38px; }
+    .gate-brand-mark { font-size: 44px; }
     .gate-trust-row { gap: 10px 20px; }
     .gate-trust-badge { font-size: 12.5px; }
     .gate-country-option { padding: 13px 18px; }
@@ -244,12 +252,18 @@
      topic icon, so the early screens keep the leaner look they were just decluttered into. User
      feedback (annotated screenshot): originally its own line above the icon — moved to sit beside
      it instead, one row, not two. */
-  .gate-brand-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  /* flex-wrap added: the brand row now carries three items (icon, name, FREE badge) instead of two -
+     on a narrow phone with the name at its new bigger 38px size, this lets FREE drop to its own line
+     rather than clipping or forcing horizontal overflow. */
+  .gate-brand-row { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; margin-bottom: 12px; }
   .gate-brand-row .gate-icon-badge { margin-bottom: 0; }
   /* Field feedback: the app's own name read too small/quiet next to its icon - bumped up across
      three passes (15px→21px→25px→34px, 700→800) to be the single biggest, most dominant text on
      the entry screen - now bigger than the 32px headline below it. */
-  .gate-brand-mark { font-size: 34px; font-weight: 800; color: var(--text-primary); letter-spacing: -0.01em; line-height: 1.1; }
+  /* Field feedback: still read as too small/quiet next to the headline even at the previous 34px/700
+     step - bumped once more (34px→38px, 800→900) to the heaviest weight most system fonts ship, so
+     the app's own name is unambiguously the biggest, boldest thing on the screen. */
+  .gate-brand-mark { font-size: 38px; font-weight: 900; color: var(--text-primary); letter-spacing: -0.01em; line-height: 1.1; }
   /* Lighter, borderless pills — plain colored text on a faint tint reads as calm reassurance rather
      than another bordered box competing for attention next to the select and disclaimer below it. */
   .gate-trust-row { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-bottom: 20px; }
@@ -438,6 +452,14 @@
     background: #0e8f821f; border-radius: 20px; padding: 4px 10px;
   }
   @media (max-width: 400px) { .quiz-free-badge { top: 18px; right: 16px; } }
+  /* Field feedback: FREE moved from the top-right corner of the whole card to sit right beside the
+     app's own name instead - same pill look, just inline in the brand row rather than absolutely
+     positioned, so it reads as "this app is free" rather than floating unrelated in a corner. */
+  .quiz-free-badge.inline {
+    position: static; top: auto; right: auto; margin-left: 4px; vertical-align: 4px;
+  }
+  .tip-details .item-tip p { margin: 0 0 10px; }
+  .tip-details .item-tip p:last-child { margin-bottom: 0; }
   .quiz-intro-faq { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); }
   .quiz-intro-faq .tip-details { margin-top: 10px; }
   .quiz-intro-faq .tip-details:first-child { margin-top: 0; }
@@ -1219,34 +1241,46 @@
     <div class="gate-brand-row">
       <div class="gate-icon-badge" aria-hidden="true">⚡</div>
       <span class="gate-brand-mark">Smooth Application</span>
+      <!-- Field feedback: the quick check really is free, so FREE is back - moved beside the app name
+           instead of floating in the card's top-right corner as before. -->
+      <span class="quiz-free-badge inline">FREE</span>
     </div>
 
     <div id="quizIntro">
-      <span class="quiz-free-badge">FREE</span>
-      <h1 class="consent-gate-title">We make your visa application smooth.</h1>
-      <!-- User feedback: even the trimmed one-sentence subtitle still made this first screen feel
-           too busy -- removed entirely. The "not immigration advice" disclaimer still shows in full
-           on the consent gate a step later, before anyone can actually use the checklist, and "Free"
-           plus the title above already carry the essential value prop on their own. -->
+      <!-- Field feedback: the headline ("We make your visa application smooth.") is gone - the line
+           below already states the value prop (a free checklist) and exactly who it's for (which
+           countries), in fewer words, without a separate sentence above it. -->
+      <!-- Design pass: dropped the NEW tag here (meant nothing to a first-time visitor - "new"
+           relative to what?) and the italic on the country list (bold+italic on a whole clause read
+           as over-emphasis, competing with the button right below it). Plain bold, no badge. -->
+      <p class="consent-gate-subtitle">A free document checklist for <b>UK, Canada, Schengen &amp; South Africa visitor visas</b>.</p>
       <div class="quiz-actions">
         <button type="button" class="btn primary" id="quizStartBtn" style="width:100%;">Start the quick check</button>
       </div>
-      <!-- Field feedback: removed the "Skip straight to the checklist" shortcut - the 2-page quick
+      <!-- User feedback: removed the "Skip straight to the checklist" shortcut - the 2-page quick
            check is the thing that gives an applicant a real preview of what's ahead before they
            commit to the full checklist, and a visible skip link undercut that on every visit. The
            underlying bypass still exists as window.__testSkipQuiz() (see the script below) purely so
            the test suite doesn't have to complete all 10 quiz questions before every single test that
            needs to get past this screen - it's not reachable from any visible UI, same pattern as
            window.__testGoToSession() elsewhere in this file. -->
-      <!-- Design pass (mockup "2a"): three collapsed questions instead of leaving the reassurance
-           text (privacy, "not an approval predictor", country coverage) as always-visible paragraphs
-           the way earlier versions of this screen did. Reuses the existing .tip-details "Why?" pattern
-           for visual consistency with the rest of the app rather than inventing a new disclosure
-           widget. Collapsed by default so the screen stays as short as the badge/title/buttons alone. -->
+      <!-- Field feedback: the three separate collapsed questions (trust, accuracy, countries) read as
+           clutter on their own - merged into one "What you need to know" toggle holding all three
+           answers, still collapsed by default so the screen stays as short as the name/subtitle/button
+           alone. Reuses the existing .tip-details "Why?" pattern for visual consistency with the rest
+           of the app rather than inventing a new disclosure widget. -->
+      <!-- data-keep-inline: every other details.tip-details in the app gets swept into the floating
+           Reasons tab and removed from the page by collectReasons() below (see task history - a
+           deliberate, app-wide declutter). Field feedback wanted this one specifically to stay put and
+           clickable right here instead of only living inside a separate tab - collectReasons() still
+           collects its content for the Reasons tab too (so nothing is missing there), it just skips
+           the .remove() step for anything carrying this attribute. -->
       <div class="quiz-intro-faq">
-        <details class="tip-details"><summary>Why trust a free tool with this?</summary><div class="item-tip">Your documents and files are scanned entirely in your browser and never uploaded anywhere. No account, no ads, no catch - built by SafeNetwork from official gov.uk, IRCC, EU, and South African DHA guidance.</div></details>
-        <details class="tip-details"><summary>Does this predict approval?</summary><div class="item-tip">No. This is guidance, not immigration advice - it checks how ready your documents and evidence look, not your chances of approval. Only the consulate or embassy decides that.</div></details>
-        <details class="tip-details"><summary>Which countries?</summary><div class="item-tip">UK Standard Visitor, Canada visitor (TRV), Schengen short-stay (Type C), and South Africa visitor visas are all live. United States, Australia, and China are coming soon.</div></details>
+        <details class="tip-details" data-keep-inline="1"><summary>What you need to know</summary><div class="item-tip">
+          <p><b>Your privacy:</b> Your documents and files are scanned entirely in your browser and never uploaded anywhere. No account, no ads, no catch - built from official gov.uk, IRCC, EU, and South African DHA guidance.</p>
+          <p><b>Not an approval predictor:</b> This is guidance, not immigration advice - it checks how ready your documents and evidence look, not your chances of approval. Only the consulate or embassy decides that.</p>
+          <p><b>Countries covered:</b> UK Standard Visitor, Canada visitor (TRV), Schengen short-stay (Type C), and South Africa visitor visas are all live. United States, Australia, and China are coming soon.</p>
+        </div></details>
       </div>
     </div>
 
@@ -1427,7 +1461,10 @@
       <button class="btn primary" id="quizContinueBtn" style="width:100%;">Continue →</button>
     </div>
 
-    <p class="gate-credit">Built by <b>SafeNetwork</b>. <a href="mailto:lalasionline@gmail.com">Email</a> · <a href="https://wa.me/2349081389969" target="_blank" rel="noopener">WhatsApp</a></p>
+    <!-- Field feedback: "Built by SafeNetwork" removed from this entry screen (also cut the empty
+         space it was contributing to on short mobile screens - see the flex-centering fix on
+         .consent-gate-card above). Still shown on docsGate/consentGate further into the flow, and in
+         the founder's own words on the Reasons tab - untouched here since only this screen came up. -->
   </div>
 </div>
 
@@ -3116,7 +3153,10 @@
       var body = d.querySelector('.item-tip');
       if (!summary || !body) return;
       REASONS.push({ session: sessionKeyFor(d), q: summary.textContent.trim(), a: body.innerHTML });
-      d.remove();
+      // Opt-out: the landing screen's "What you need to know" toggle stays inline and clickable
+      // (field feedback) instead of being swept out like every other tip-details - still collected
+      // into REASONS just above, so the Reasons tab isn't missing it either.
+      if (!d.hasAttribute('data-keep-inline')) d.remove();
     });
     document.querySelectorAll('[data-reason="1"]').forEach(function(el){
       REASONS.push({ session: sessionKeyFor(el), q: null, a: el.innerHTML });

@@ -3,6 +3,44 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Landing screen: trimmed the badge clutter the redesign below had picked up
+
+Design review of the batch just below: FREE plus two NEW tags plus a bold-italic clause was four
+separate attention signals stacked in one short card - working against the exact decluttering this
+whole redesign was for. Both NEW tags are gone (meaningless to a first-time visitor - "new" relative
+to what baseline?), and the country-coverage line is plain bold now, not bold-italic. Same content
+otherwise: name, one FREE badge, one line on scope, the button, one collapsed "What you need to
+know" arrow.
+
+## Landing screen redesign: shorter card, one merged FAQ, FREE moved and back
+
+Several rounds of direct field feedback on this screen, landed together: the headline ("We make
+your visa application smooth.") is gone, replaced by one line stating exactly what this is and who
+it's for (a free checklist for UK, Canada, Schengen & South Africa visitor visas). The three
+separate collapsed questions (privacy, "does this predict approval", which countries) are now one
+"What you need to know" toggle holding all three answers - and unlike every other collapsed
+explanation in this app, this one is deliberately kept inline instead of being swept into the
+floating Reasons tab (still collected there too, so nothing is missing from that browsable list -
+see the new `data-keep-inline` opt-out in `collectReasons()`). FREE is back - it genuinely is free
+- but moved from a corner badge to sit right beside the app's own name, which is also noticeably
+bigger and bolder now (38px/900 weight, was 34px/800 before this round even started). The brand row
+wraps instead of clipping on a narrow phone now that it carries three elements instead of two.
+
+## Landing screen: fixed mobile dead space, dropped the FREE badge, bigger name
+
+Real phone screenshot: the entry card's own fix for "white space above and below on a short screen"
+(making the card fill the full viewport height on mobile) had just moved that same dead space to
+the bottom, since the card's actual content stayed top-aligned inside it. Now vertically centered
+within the full-height card instead, so any leftover space is distributed rather than dumped below
+- taller states (the paged quiz, a long result) already exceed the viewport, so this only affects
+short ones like the intro screen. Also removed the "Built by SafeNetwork" credit line from this
+screen (still shown further into the flow) and the FREE badge - ahead of the monetization/sign-up
+work, so the messaging won't need walking back later; "Free, always" still appears elsewhere (the
+consent gate's trust badges, one FAQ answer) and is worth a deliberate pass once that shape is
+settled, rather than changing it piecemeal here. The app's own name ("Smooth Application") is also
+bigger and bolder now (38px/900, was 34px/800) - still the single most-requested tweak across three
+rounds of feedback on this element.
+
 ## Step 2 of the confidence quiz simplified to match Step 1's plain Yes/No style
 
 The ties-to-Nigeria question went from three options (strong / some / not really) down to a plain
