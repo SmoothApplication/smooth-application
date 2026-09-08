@@ -38,6 +38,15 @@ co-branded version of this tool (their branding, your engine) could save them re
 - **Rough pricing shape to test:** a flat monthly fee per agency (not per client), since agencies
   will want predictable costs.
 
+**Update:** a lightweight version of the "route refused/complex cases somewhere useful" idea below,
+plus a second placement of the Document Review offer for already-applied users, shipped as the new
+"Where are you in the process?" gate after country selection — same no-backend WhatsApp/email
+pattern as everything else here, no OCR or agent workflow yet. The regulatory caution in this
+section applies directly to it: it's currently just a routing question that hands off to a human
+(the founder) via WhatsApp/email, not automated advice, and it needs to stay that way — or get a
+lawyer's sign-off — before anything resembling automated reading of refusal letters or generated
+advice gets added on top of it.
+
 ## 3. Referral relationship with regulated advisers
 
 The tool already tells complex/refused-case users to see an OISC-registered (UK) or

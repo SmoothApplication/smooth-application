@@ -324,6 +324,23 @@
      Scoped to this specific placement only - .gate-text-link's other, genuinely full-width uses are
      untouched. */
   .gate-country-confirmed .gate-text-link { display: inline; width: auto; flex-shrink: 0; margin-top: 0; }
+  /* Situation gate (see #situationGate): same tappable-card treatment as .gate-country-option above,
+     but a 2-line icon+title+description layout instead of a title+badge row, since these three
+     options need a short explanation each rather than a single label. */
+  .situation-options { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+  .situation-option {
+    display: flex; align-items: flex-start; gap: 10px; width: 100%; text-align: left;
+    padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--surface-1); color: var(--text-primary); cursor: pointer; font: inherit;
+    transition: border-color .15s ease, box-shadow .15s ease;
+  }
+  .situation-option:hover { border-color: var(--accent); }
+  .situation-option:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-wash); }
+  .situation-option.selected { border-color: var(--accent); background: var(--accent-wash); }
+  .situation-option-icon { font-size: 19px; flex-shrink: 0; line-height: 1.3; }
+  .situation-option-title { font-size: 13.5px; font-weight: 700; display: block; }
+  .situation-option-desc { font-size: 11.5px; color: var(--text-muted); font-weight: 400; display: block; margin-top: 2px; }
+  .situation-followup { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
   .gate-select-wrap { position: relative; margin-top: 6px; }
   .gate-select-wrap .gate-select-chevron {
     position: absolute; right: 12px; top: 50%; transform: translateY(-50%); pointer-events: none;
@@ -458,6 +475,19 @@
   .quiz-free-badge.inline {
     position: static; top: auto; right: auto; margin-left: 4px; vertical-align: 4px;
   }
+  /* Promotional framing for the Document Review offer (quiz result + finance report screens).
+     The actual price stays $25/₦40,000 exactly as before - this only adds a "50% off our launch
+     price" anchor next to it. Deliberately worded as a LAUNCH/introductory price we're discounting
+     FROM a stated future rate, not "was $50" - there's no real prior price history for this
+     never-yet-charged offer, and a fabricated "was" price is a misleading-pricing risk (FCCPC in
+     Nigeria and equivalents elsewhere police fake reference pricing). This framing is honest as
+     long as $50 is genuinely the intended post-launch rate. */
+  .promo-badge {
+    display: inline-block; font-size: 10.5px; font-weight: 800; letter-spacing: 0.04em;
+    color: var(--warning-text); background: var(--warning-wash); border-radius: 20px;
+    padding: 3px 9px; margin-right: 7px; vertical-align: 1px; white-space: nowrap;
+  }
+  .promo-strike { text-decoration: line-through; color: var(--text-muted); }
   .tip-details .item-tip p { margin: 0 0 10px; }
   .tip-details .item-tip p:last-child { margin-bottom: 0; }
   .quiz-intro-faq { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); }
@@ -1209,8 +1239,9 @@
      the two intro gates, or the South Africa onboarding screen - there's nothing collapsed into it on
      any of those yet, and floating chrome fighting for attention on a screen that's already just a
      few lines with one CTA is its own kind of clutter. Starts hidden (inline style, so it always wins
-     over the .reasons-tab class rule below); setReasonsTabVisible() toggles it at the same 3 places
-     #appWrap itself is shown/hidden - see that function's own comment further down. -->
+     over the .reasons-tab class rule below); setReasonsTabVisible() toggles it at the same 2 places
+     #appWrap itself is shown/hidden (situationContinue, btnChangeCountry) - see that function's own
+     comment further down. -->
 <button type="button" class="reasons-tab no-print" id="reasonsTabBtn" aria-haspopup="dialog" style="display:none;">📖 Reasons <span class="count" id="reasonsTabCount"></span></button>
 
 <div class="legal-modal-overlay" id="reasonsModalOverlay" hidden>
@@ -1459,15 +1490,26 @@
       <div id="quizResultTier" class="quiz-result-tier"></div>
       <ul id="quizGapList" class="quiz-gap-list"></ul>
       <!-- The list above caps at 3 "biggest gaps" so the on-screen result stays quick to read. This
-           link emails the applicant the FULL list - every reason the quiz found, not just the
+           button emails the applicant the FULL list - every reason the quiz found, not just the
            headline 3 - using the same no-backend mailto: pattern as "Email myself this summary"
            further into the checklist (see buildEmailSummaryMailto()): built entirely on-device, sent
-           nowhere but the applicant's own draft. A real <a href>, precomputed in the quizSeeResult
-           handler below rather than a JS location.href redirect on click - see the quiz notify-me
-           comment further down for why that matters on phones with no mail app configured. -->
-      <a class="btn ghost" id="quizEmailReasonsBtn" href="#" style="display:block; width:100%; text-align:center; margin:2px 0 14px;">✉️ Email myself the full reasons</a>
+           nowhere but the applicant's own draft. A real <a href>, kept in sync with the email field
+           below via updateQuizReasonsEmailHref() (input listener + the quizSeeResult handler) rather
+           than a JS location.href redirect on click - see the quiz notify-me comment further down for
+           why that matters on phones with no mail app configured. Field feedback: this used to open a
+           draft addressed to nobody, expecting the applicant to type their own address into their mail
+           app - now they type it once here instead, and the draft opens already addressed to it. The
+           email itself is never collected or sent anywhere by this tool - it only fills in the "To"
+           field of a draft the applicant still has to send themselves. -->
+      <label class="field" for="quizReasonsEmail" style="font-size:12.5px; margin-bottom:4px;">Add your email to get the full report</label>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin:0 0 14px;">
+        <input type="email" id="quizReasonsEmail" placeholder="e.g. adaeze.okafor@gmail.com" autocomplete="email" style="flex:1; min-width:180px;">
+        <a class="btn ghost" id="quizEmailReasonsBtn" href="#" style="white-space:nowrap;">✉️ Get full report</a>
+      </div>
       <div class="quiz-notify-card">
-        <b>Want a second pair of eyes on this before you submit?</b> We're testing a paid Document Review - a real person checks what you've prepared for completeness and quality, from $25 (about ₦40,000). Message us to be one of the first.
+        <b>Want a second pair of eyes on this before you submit?</b> We're testing a paid Document Review - a real person checks what you've prepared for completeness and quality.
+        <div style="margin-top:6px;"><span class="promo-badge">50% OFF LAUNCH PRICE</span><span class="promo-strike">$50 (₦80,000)</span> → <b>$25 (₦40,000)</b></div>
+        Message us to be one of the first.
         <div style="margin-top:8px;">
           <a class="btn ghost" id="quizNotifyWhatsApp" href="#" target="_blank" rel="noopener" style="display:inline-block;">💬 Ask about a Document Review</a>
           <span style="font-size:12px; color:var(--text-muted);"> or <a id="quizNotifyEmail" href="#">email us</a> instead</span>
@@ -1592,6 +1634,106 @@
     <div class="za-onboarding-cost" id="zaOnboardingCost"></div>
     <button class="btn primary" id="zaOnboardingContinue" style="margin-top:16px; width:100%;">Continue to your checklist →</button>
     <button type="button" class="gate-text-link" id="zaOnboardingBack">← Back</button>
+    <p class="gate-credit">Built by <b>SafeNetwork</b>. <a href="mailto:lalasionline@gmail.com">Email</a> · <a href="https://wa.me/2349081389969" target="_blank" rel="noopener">WhatsApp</a></p>
+  </div>
+</div>
+
+<!-- New: a quick "where are you in the process" fork, shown once the country is picked (and, for
+     South Africa, after its onboarding screen) and before the checklist itself. Field/founder
+     idea: applicants who already have a refusal, or who've already paid the fee and filled the
+     form, need a different conversation than a fresh applicant - the checklist as it stands is
+     built for the fresh-application case. This is deliberately the LIGHTWEIGHT version of that
+     idea: no refusal-letter OCR, no automated "matching", no agent inbox/backend - none of that
+     infrastructure exists yet, and more importantly, giving automated advice on a refusal or a
+     completed application edges into OISC/RCIC-regulated territory that needs a lawyer's answer
+     before it needs a bigger build (see docs/monetization-strategy.md's referral-fee caution,
+     which applies here even harder). What this actually does: ask the question, and for the two
+     non-fresh answers, collect a few quick details and route to the SAME no-backend WhatsApp/email
+     pattern used everywhere else in this app (Document Review, resume reminders, feedback) - a
+     real person (the team) reads it and replies personally, nothing automated, nothing stored
+     anywhere but the applicant's own draft/chat until THEY choose to send it. This doubles as the
+     cheap way to test the idea itself: do people in these situations show up in meaningful numbers
+     at all, before any OCR/agent investment. Every path - including both follow-ups - still has a
+     "Continue to my checklist" escape hatch, since needing help with a refusal or a review doesn't
+     mean someone doesn't also want the checklist. -->
+<div id="situationGate" class="consent-gate" style="display:none;">
+  <div class="gate-blob gate-blob-1" aria-hidden="true"></div>
+  <div class="gate-blob gate-blob-2" aria-hidden="true"></div>
+  <div class="gate-blob gate-blob-3" aria-hidden="true"></div>
+  <div class="consent-gate-card">
+    <div class="gate-brand-row">
+      <div class="gate-icon-badge" aria-hidden="true">🧭</div>
+      <span class="gate-brand-mark">Smooth Application</span>
+    </div>
+    <h1 class="consent-gate-title">Where are you in the process?</h1>
+    <p class="consent-gate-subtitle">Just so we can point you the right way - answering doesn't change what's ahead unless you want it to.</p>
+
+    <div class="situation-options" id="situationOptions" role="radiogroup" aria-label="Where are you in the process?">
+      <button type="button" class="situation-option" id="situationOptFresh" data-situation="fresh" role="radio" aria-checked="false">
+        <span class="situation-option-icon" aria-hidden="true">🆕</span>
+        <span><span class="situation-option-title">This is a fresh application</span><span class="situation-option-desc">Haven't applied for this visa before, or it's been a while</span></span>
+      </button>
+      <button type="button" class="situation-option" id="situationOptRefused" data-situation="refused" role="radio" aria-checked="false">
+        <span class="situation-option-icon" aria-hidden="true">📄</span>
+        <span><span class="situation-option-title">I've been refused before</span><span class="situation-option-desc">For this visa, or any other, in the last few years</span></span>
+      </button>
+      <button type="button" class="situation-option" id="situationOptPaid" data-situation="paid" role="radio" aria-checked="false">
+        <span class="situation-option-icon" aria-hidden="true">✅</span>
+        <span><span class="situation-option-title">I've already paid the fee and filled the form</span><span class="situation-option-desc">Applied already - want a second pair of eyes before your appointment</span></span>
+      </button>
+    </div>
+
+    <!-- Refused follow-up: quick context only, no letter upload/OCR yet (see the block comment
+         above #situationGate for why) - just enough for whoever reads the WhatsApp/email to reply
+         with something genuinely useful instead of "tell me more". -->
+    <div id="situationRefusedFollowup" class="situation-followup" style="display:none;">
+      <div class="row">
+        <div>
+          <label class="field" for="situationRefusedCountry">Which country refused you?</label>
+          <select id="situationRefusedCountry">
+            <option value="">Select…</option>
+            <option value="UK">United Kingdom</option>
+            <option value="Canada">Canada</option>
+            <option value="US">United States</option>
+            <option value="Schengen">Schengen / Europe</option>
+            <option value="South Africa">South Africa</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div>
+          <label class="field" for="situationRefusedCount">How many times?</label>
+          <select id="situationRefusedCount">
+            <option value="">Select…</option>
+            <option value="1">Once</option>
+            <option value="2">Twice</option>
+            <option value="3+">3 or more times</option>
+          </select>
+        </div>
+      </div>
+      <label class="field" for="situationRefusedReason">What reason were you given, if any? (optional)</label>
+      <textarea id="situationRefusedReason" rows="2" placeholder="e.g. Not satisfied you were a genuine visitor / insufficient funds shown"></textarea>
+      <label class="field" for="situationRefusedBalance">Roughly what's your current account balance? (optional)</label>
+      <input type="text" id="situationRefusedBalance" placeholder="e.g. ₦450,000">
+      <div class="item-tip" style="margin:6px 0 10px;">Nothing above is sent anywhere unless you tap one of the buttons below - it's only used to fill in the message they open. You can attach your actual refusal letter yourself once your WhatsApp or email is open, if you'd like a closer look at it.</div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
+        <a class="btn primary" id="situationRefusedWhatsApp" href="#" target="_blank" rel="noopener">💬 Message us about my refusal</a>
+        <a class="btn ghost" id="situationRefusedEmail" href="#">✉️ Email instead</a>
+      </div>
+    </div>
+
+    <!-- Paid-and-waiting follow-up: points straight at the existing Document Review offer (same
+         WhatsApp number/inbox, same fake-door test - see docs/monetization-strategy.md) rather than
+         building a second, separate review mechanism. -->
+    <div id="situationPaidFollowup" class="situation-followup" style="display:none;">
+      <p class="item-tip" style="margin-top:0;">We're testing a paid Document Review - a real person checks your form, passport and statements for completeness and quality before your appointment, from $25 (about ₦40,000). Message us and attach what you'd like reviewed.</p>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
+        <a class="btn primary" id="situationPaidWhatsApp" href="#" target="_blank" rel="noopener">💬 Message us for a review</a>
+        <a class="btn ghost" id="situationPaidEmail" href="#">✉️ Email instead</a>
+      </div>
+    </div>
+
+    <button class="btn primary" id="situationContinue" style="width:100%; margin-top:14px; display:none;">Continue to my checklist →</button>
+    <button type="button" class="gate-text-link" id="situationBack">← Back</button>
     <p class="gate-credit">Built by <b>SafeNetwork</b>. <a href="mailto:lalasionline@gmail.com">Email</a> · <a href="https://wa.me/2349081389969" target="_blank" rel="noopener">WhatsApp</a></p>
   </div>
 </div>
@@ -2340,7 +2482,8 @@
              the "payoff" moment where the applicant has just seen exactly what still needs work - the
              point a second pair of eyes is most useful to offer, not before. -->
         <div class="quiz-notify-card" style="margin-top:14px;">
-          <b>Want a second pair of eyes on this before you submit?</b> We're testing a paid Document Review - a real person checks what you've prepared for completeness and quality, from $25 (about ₦40,000). No form-filling or submission on your behalf, just a check.
+          <b>Want a second pair of eyes on this before you submit?</b> We're testing a paid Document Review - a real person checks what you've prepared for completeness and quality. No form-filling or submission on your behalf, just a check.
+          <div style="margin-top:6px;"><span class="promo-badge">50% OFF LAUNCH PRICE</span><span class="promo-strike">$50 (₦80,000)</span> → <b>$25 (₦40,000)</b></div>
           <div style="margin-top:8px;">
             <a class="btn ghost" id="finReportReviewWhatsApp" href="#" target="_blank" rel="noopener" style="display:inline-block;">💬 Ask about a Document Review</a>
             <span style="font-size:12px; color:var(--text-muted);"> or <a id="finReportReviewEmail" href="#">email us</a> instead</span>
@@ -3243,11 +3386,11 @@
     overlay.addEventListener('click', function(e){ if (e.target === overlay) close(); });
     document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && !overlay.hidden) close(); });
   })();
-  // Shows/hides the floating "📖 Reasons" tab. Called from the exact 3 places #appWrap's own
-  // style.display is flipped further down this file (the gateContinue and zaOnboardingContinue
-  // handlers show it, btnChangeCountry hides it) rather than derived from #appWrap on every render -
-  // those 3 call sites are the ONLY places that visibility ever changes in the whole app, so keeping
-  // this an explicit call at each one is simpler than adding an observer for the same 3 moments.
+  // Shows/hides the floating "📖 Reasons" tab. Called from the exact 2 places #appWrap's own
+  // style.display is flipped further down this file (the situationContinue handler shows it,
+  // btnChangeCountry hides it) rather than derived from #appWrap on every render - those 2 call
+  // sites are the ONLY places that visibility ever changes in the whole app, so keeping this an
+  // explicit call at each one is simpler than adding an observer for the same 2 moments.
   function setReasonsTabVisible(visible){
     var btn = document.getElementById('reasonsTabBtn');
     if (btn) btn.style.display = visible ? 'flex' : 'none';
@@ -4744,6 +4887,15 @@
     var scrollEl = targetCard || document.querySelector('.layout main');
     if (scrollEl && scrollEl.scrollIntoView) scrollEl.scrollIntoView({behavior:'smooth', block:'start'});
   }
+  // "View/Complete in Session 1" link on the Identity & application category's passport item (see
+  // renderItem()'s special-cased passportStatus block) - jumps to the dedicated guided-scan session
+  // rather than hardcoding index 0, so this keeps working even if session order ever changes.
+  function goToPassportSession(){
+    var keys = getVisibleSessionKeys();
+    var idx = keys.indexOf('passport');
+    if (idx === -1) return;
+    goToSession(idx);
+  }
   // Test-only escape hatch: the 70%-readiness gate above intentionally blocks real applicants from
   // jumping past an unfinished section, but the test suite needs to jump straight to whichever
   // session it's testing regardless of how filled-in the earlier ones are (same reasoning as
@@ -5129,6 +5281,13 @@
         expandChecklistItem(it);
       }
     });
+    var gotoPassportLink = document.getElementById('gotoPassportSession_'+it.id);
+    if (gotoPassportLink){
+      gotoPassportLink.addEventListener('click', function(e){
+        e.preventDefault();
+        goToPassportSession();
+      });
+    }
     var fileInput = document.getElementById('file_'+it.id);
     var scanBtn = document.getElementById('scan_'+it.id);
     if (fileInput && scanBtn){
@@ -5217,6 +5376,26 @@
         + '</span>'
         + '<span class="explain-edit-link">✏️ Edit</span>'
         + '</div></div>';
+    }
+    // Field feedback: the passport is scanned/verified as its own guided first step (Session 1 -
+    // see data-session-key="passport" above), so re-showing its full explanation + a second,
+    // separate "attach a file" control here (in the Identity & application category, where the
+    // CHECKLIST data model also lists it) read as asking the applicant to redo something already
+    // done. This item now gets a short status line pointing back at Session 1 instead of the
+    // generic tip/upload treatment every other file-accepting item gets below. goToPassportSession()
+    // (wired in wireChecklistItem) jumps straight there.
+    if (it.id === 'passport'){
+      var pNames = s.fileNames && s.fileNames.length ? s.fileNames : (s.fileName ? [s.fileName] : []);
+      var passportStatus = pNames.length
+        ? '<div class="scan-msg ok">Verified in Session 1 — ' + pNames.map(escapeHtml).join(', ') + ' <a href="#" id="gotoPassportSession_'+it.id+'">View in Session 1 →</a></div>'
+        : '<div class="scan-msg info">Not done yet? <a href="#" id="gotoPassportSession_'+it.id+'">Complete this in Session 1 →</a></div>';
+      return '<div class="item'+(s.checked?' checked':'')+'" id="item_'+it.id+'">'
+        + '<div class="item-top">'
+        + '<input type="checkbox" id="chk_'+it.id+'" '+(s.checked?'checked':'')+'>'
+        + '<div class="item-body">'
+        + '<div class="item-label">'+it.label+' '+tagHtml+'</div>'
+        + passportStatus
+        + '</div></div></div>';
     }
     var tip = it.tip ? '<div class="item-tip">'+it.tip+'</div>' : '';
     var upload = '';
@@ -13904,7 +14083,14 @@
   // address ever collected or stored by this tool. Takes the quizScore() result directly rather than
   // reading lastQuizResult itself, since quizSeeResult below computes both from the very same answers
   // in the same click - no reason to have this quietly go stale relative to what's on screen.
-  function buildQuizFullReasonsMailto(result){
+  // Very light shape check, not real validation - a mailto "To" that isn't a plausible address just
+  // opens the mail app with a blank/broken recipient, which is annoying but harmless, so this only
+  // exists to avoid handing the mail app obvious garbage (e.g. a half-typed address) while someone
+  // is still mid-typing. Never blocks the button itself.
+  function looksLikeEmail(s){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s); }
+
+  function buildQuizFullReasonsMailto(result, toEmail){
+    var to = looksLikeEmail((toEmail || '').trim()) ? (toEmail || '').trim() : '';
     var copy = QUIZ_TIER_COPY[result.tier];
     var allGaps = quizAllGapMessages(result.answers);
     var subject = 'Smooth Application - your readiness quiz result';
@@ -13923,7 +14109,7 @@
     lines.push('Continue with the full checklist: ' + window.location.origin + window.location.pathname);
     lines.push('');
     lines.push('This was written entirely on your device - nothing is sent or stored anywhere except in this email, which only goes where you send it.');
-    return 'mailto:?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(lines.join('\n'));
+    return 'mailto:' + to + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(lines.join('\n'));
   }
 
   var QUIZ_TIER_COPY = {
@@ -14001,8 +14187,7 @@
     document.getElementById('quizGapList').innerHTML = gaps.length
       ? gaps.map(function(m){ return '<li>' + escapeHtml(m) + '</li>'; }).join('')
       : '<li>Nothing major stands out here - the full checklist below will confirm the details.</li>';
-    var emailReasonsLink = document.getElementById('quizEmailReasonsBtn');
-    if (emailReasonsLink) emailReasonsLink.href = buildQuizFullReasonsMailto(result);
+    updateQuizReasonsEmailHref();
     // Field feedback: the result should read as its own page after the 2-page quiz, not more
     // content stacked below the questions. Hiding quizFormWrap (rather than just scrolling to the
     // result panel while it stayed visible) is what actually makes that true - previously the full
@@ -14026,7 +14211,7 @@
   // option for anyone who prefers it. No preventDefault anywhere: this only ever records the click,
   // the link's own href does the actual navigating.
   (function(){
-    var msg = "Hi, I just took the Smooth Application readiness quiz and I'm interested in the paid Document Review (from $25).";
+    var msg = "Hi, I just took the Smooth Application readiness quiz and I'm interested in the paid Document Review (50% off launch price - $25 instead of $50).";
     var waLink = document.getElementById('quizNotifyWhatsApp');
     var emailLink = document.getElementById('quizNotifyEmail');
     waLink.href = 'https://wa.me/2349081389969?text=' + encodeURIComponent(msg);
@@ -14035,11 +14220,25 @@
     emailLink.addEventListener('click', function(){ trackEvent('quiz_notify_me_clicked:email'); });
   })();
 
-  // Click tracking for "Email myself the full reasons" - wired once, here; its href itself is set
-  // fresh every time a result is computed (see quizSeeResult above), not here.
+  // "Get full report" href stays in sync with whatever's currently in the email field, recomputed
+  // both here (called as the applicant types) and from quizSeeResult (called once a result exists) -
+  // a no-op harmlessly if quizScore() can't run yet (lastQuizResult still null), which just leaves
+  // the link at its default until a result actually exists.
+  function updateQuizReasonsEmailHref(){
+    if (!lastQuizResult) return;
+    var link = document.getElementById('quizEmailReasonsBtn');
+    var emailEl = document.getElementById('quizReasonsEmail');
+    if (link) link.href = buildQuizFullReasonsMailto(lastQuizResult, emailEl ? emailEl.value : '');
+  }
+
+  // Click tracking for "Get full report" - wired once, here; its href itself is kept live by
+  // updateQuizReasonsEmailHref() above, called both from quizSeeResult and on every keystroke in the
+  // email field below.
   (function(){
     var link = document.getElementById('quizEmailReasonsBtn');
     if (link) link.addEventListener('click', function(){ trackEvent('quiz_email_reasons_clicked'); });
+    var emailEl = document.getElementById('quizReasonsEmail');
+    if (emailEl) emailEl.addEventListener('input', updateQuizReasonsEmailHref);
   })();
 
   // Second placement of the same fake-door demand test, on the finance session's Report step (see
@@ -14047,7 +14246,7 @@
   // tracked under its own event names since it's a genuinely different touchpoint (post-readiness-
   // report, not post-quiz) worth measuring separately.
   (function(){
-    var msg = "Hi, I just finished my readiness report on Smooth Application and I'm interested in the paid Document Review (from $25).";
+    var msg = "Hi, I just finished my readiness report on Smooth Application and I'm interested in the paid Document Review (50% off launch price - $25 instead of $50).";
     var waLink = document.getElementById('finReportReviewWhatsApp');
     var emailLink = document.getElementById('finReportReviewEmail');
     waLink.href = 'https://wa.me/2349081389969?text=' + encodeURIComponent(msg);
@@ -14201,14 +14400,12 @@
     trackEvent('session_started:' + code);
     document.getElementById('consentGate').style.display = 'none';
     // South Africa gets its own onboarding screen first — see #zaOnboardingGate — rather than
-    // dropping straight into the checklist like every other country.
+    // dropping straight into the situation gate like every other country.
     if (code === 'ZA') {
       document.getElementById('zaOnboardingGate').style.display = 'flex';
       window.scrollTo(0,0);
     } else {
-      document.getElementById('appWrap').style.display = 'block';
-      setReasonsTabVisible(true);
-      window.scrollTo(0,0);
+      showSituationGate();
     }
   });
   // Runs after the gateContinue handler just above (same click, same element — listeners fire in
@@ -14221,10 +14418,8 @@
   });
   document.getElementById('zaOnboardingContinue').addEventListener('click', function(){
     document.getElementById('zaOnboardingGate').style.display = 'none';
-    document.getElementById('appWrap').style.display = 'block';
-    setReasonsTabVisible(true);
-    window.scrollTo(0,0);
     trackEvent('za_onboarding_continued');
+    showSituationGate();
   });
   document.getElementById('zaOnboardingBack').addEventListener('click', function(){
     document.getElementById('zaOnboardingGate').style.display = 'none';
@@ -14252,7 +14447,87 @@
     else showGateCountryList();
     document.getElementById('appWrap').style.display = 'none';
     setReasonsTabVisible(false);
+    document.getElementById('situationGate').style.display = 'none';
     document.getElementById('consentGate').style.display = 'flex';
+    window.scrollTo(0,0);
+  });
+
+  // "Where are you in the process?" gate — see the big block comment above #situationGate in the
+  // HTML for why this exists and why it's deliberately this lightweight (no OCR, no agent backend).
+  function resetSituationGate(){
+    document.querySelectorAll('.situation-option').forEach(function(btn){
+      btn.classList.remove('selected');
+      btn.setAttribute('aria-checked', 'false');
+    });
+    document.getElementById('situationRefusedFollowup').style.display = 'none';
+    document.getElementById('situationPaidFollowup').style.display = 'none';
+    document.getElementById('situationContinue').style.display = 'none';
+  }
+  function showSituationGate(){
+    resetSituationGate();
+    document.getElementById('situationGate').style.display = 'flex';
+    window.scrollTo(0,0);
+  }
+  function selectSituation(kind){
+    document.querySelectorAll('.situation-option').forEach(function(btn){
+      var match = btn.getAttribute('data-situation') === kind;
+      btn.classList.toggle('selected', match);
+      btn.setAttribute('aria-checked', String(match));
+    });
+    document.getElementById('situationRefusedFollowup').style.display = kind === 'refused' ? 'block' : 'none';
+    document.getElementById('situationPaidFollowup').style.display = kind === 'paid' ? 'block' : 'none';
+    var continueBtn = document.getElementById('situationContinue');
+    continueBtn.style.display = 'block';
+    continueBtn.textContent = kind === 'fresh' ? 'Continue to my checklist →' : 'Continue to my checklist anyway →';
+    trackEvent('situation_selected:' + kind);
+    if (kind === 'refused') updateSituationRefusedHref();
+    if (kind === 'paid') updateSituationPaidHref();
+  }
+  document.getElementById('situationOptions').addEventListener('click', function(e){
+    var btn = e.target.closest('.situation-option');
+    if (btn) selectSituation(btn.getAttribute('data-situation'));
+  });
+  function destName(){ return (COUNTRIES[currentCountry] ? COUNTRIES[currentCountry].name : 'visa') + ' application'; }
+  function updateSituationRefusedHref(){
+    var country = document.getElementById('situationRefusedCountry').value;
+    var count = document.getElementById('situationRefusedCount').value;
+    var reason = document.getElementById('situationRefusedReason').value.trim();
+    var balance = document.getElementById('situationRefusedBalance').value.trim();
+    var lines = ["Hi, I've been refused a visa before and I'm now preparing a " + destName() + "."];
+    if (country) lines.push('Refused by: ' + country);
+    if (count) lines.push('Number of times refused: ' + count);
+    if (reason) lines.push('Reason given: ' + reason);
+    if (balance) lines.push('Current balance: ' + balance);
+    lines.push('Can you help me understand what I should do differently this time?');
+    var msg = lines.join('\n');
+    document.getElementById('situationRefusedWhatsApp').href = 'https://wa.me/2349081389969?text=' + encodeURIComponent(msg);
+    document.getElementById('situationRefusedEmail').href = 'mailto:lalasionline@gmail.com?subject=' + encodeURIComponent('Help with a previous visa refusal') + '&body=' + encodeURIComponent(msg);
+  }
+  ['situationRefusedCountry','situationRefusedCount','situationRefusedReason','situationRefusedBalance'].forEach(function(id){
+    var el = document.getElementById(id);
+    el.addEventListener('input', updateSituationRefusedHref);
+    el.addEventListener('change', updateSituationRefusedHref);
+  });
+  function updateSituationPaidHref(){
+    var msg = "Hi, I've already paid the fee and filled my " + destName() + " form. I'm interested in the paid Document Review (50% off launch price - $25 instead of $50) before my appointment.";
+    document.getElementById('situationPaidWhatsApp').href = 'https://wa.me/2349081389969?text=' + encodeURIComponent(msg);
+    document.getElementById('situationPaidEmail').href = 'mailto:lalasionline@gmail.com?subject=' + encodeURIComponent('Document Review - already applied') + '&body=' + encodeURIComponent(msg);
+  }
+  document.getElementById('situationRefusedWhatsApp').addEventListener('click', function(){ trackEvent('situation_refused_contact:whatsapp'); });
+  document.getElementById('situationRefusedEmail').addEventListener('click', function(){ trackEvent('situation_refused_contact:email'); });
+  document.getElementById('situationPaidWhatsApp').addEventListener('click', function(){ trackEvent('situation_paid_contact:whatsapp'); });
+  document.getElementById('situationPaidEmail').addEventListener('click', function(){ trackEvent('situation_paid_contact:email'); });
+  document.getElementById('situationContinue').addEventListener('click', function(){
+    trackEvent('situation_continue_clicked');
+    document.getElementById('situationGate').style.display = 'none';
+    document.getElementById('appWrap').style.display = 'block';
+    setReasonsTabVisible(true);
+    window.scrollTo(0,0);
+  });
+  document.getElementById('situationBack').addEventListener('click', function(){
+    document.getElementById('situationGate').style.display = 'none';
+    if (currentCountry === 'ZA') document.getElementById('zaOnboardingGate').style.display = 'flex';
+    else document.getElementById('consentGate').style.display = 'flex';
     window.scrollTo(0,0);
   });
   populateGateDisclaimer();

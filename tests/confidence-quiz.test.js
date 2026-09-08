@@ -99,28 +99,47 @@ exports.run = async function(ctx){
     assert.ok(trackedAfterResult.some(function(e){ return e.indexOf('quiz_completed:') === 0; }),
       'Completing the quiz should record a quiz_completed:<tier> event, got: ' + JSON.stringify(trackedAfterResult));
 
-    // "Email myself the full reasons" — the on-screen list caps at the 3 "biggest gaps"
-    // (quizGapMessages), but this answer set actually matches a 4th check too (ties === 'few', which
-    // never gets reached in the capped loop since 3 earlier checks already matched first). The email
-    // should carry ALL of them (quizAllGapMessages, uncapped), proving it's genuinely "full" and not
-    // just a copy of what's already on screen. Real <a href>, precomputed when the result was shown,
-    // same reasoning as the WhatsApp/email notify links checked below.
+    // "Get full report" — the on-screen list caps at the 3 "biggest gaps" (quizGapMessages), but
+    // this answer set actually matches a 4th check too (ties === 'few', which never gets reached in
+    // the capped loop since 3 earlier checks already matched first). The email should carry ALL of
+    // them (quizAllGapMessages, uncapped), proving it's genuinely "full" and not just a copy of
+    // what's already on screen. Real <a href>, kept live as the applicant types their email in
+    // (updateQuizReasonsEmailHref), same reasoning as the WhatsApp/email notify links checked below.
     var tiesPhraseOnScreen = /Strengthening your documented ties/.test(gapText);
     assert.strictEqual(tiesPhraseOnScreen, false, 'The on-screen capped gap list should NOT include the 4th matching reason (ties), got: ' + gapText);
+    // Before typing an email: falls back to an unaddressed draft, same as before this field existed.
     var emailReasonsHref = await page.$eval('#quizEmailReasonsBtn', function(el){ return el.getAttribute('href'); });
-    assert.ok(/^mailto:\?subject=/.test(emailReasonsHref), 'Email-full-reasons link should be a real mailto, got: ' + emailReasonsHref);
+    assert.ok(/^mailto:\?subject=/.test(emailReasonsHref), 'Full-report link should default to an unaddressed mailto before an email is typed, got: ' + emailReasonsHref);
     var emailReasonsBody = decodeURIComponent(emailReasonsHref.split('&body=')[1] || '');
-    assert.ok(/passport/i.test(emailReasonsBody), 'Full-reasons email should include the missing-passport reason, got: ' + emailReasonsBody.slice(0, 400));
-    assert.ok(/bank statement/i.test(emailReasonsBody), 'Full-reasons email should include the not-ready-statements reason, got: ' + emailReasonsBody.slice(0, 400));
-    assert.ok(/Strengthening your documented ties/.test(emailReasonsBody), 'Full-reasons email should include the ties reason the on-screen list left out, got: ' + emailReasonsBody);
-    assert.ok(/Continue with the full checklist/.test(emailReasonsBody), 'Full-reasons email should link back to the checklist, got: ' + emailReasonsBody.slice(-300));
+    assert.ok(/passport/i.test(emailReasonsBody), 'Full-report email should include the missing-passport reason, got: ' + emailReasonsBody.slice(0, 400));
+    assert.ok(/bank statement/i.test(emailReasonsBody), 'Full-report email should include the not-ready-statements reason, got: ' + emailReasonsBody.slice(0, 400));
+    assert.ok(/Strengthening your documented ties/.test(emailReasonsBody), 'Full-report email should include the ties reason the on-screen list left out, got: ' + emailReasonsBody);
+    assert.ok(/Continue with the full checklist/.test(emailReasonsBody), 'Full-report email should link back to the checklist, got: ' + emailReasonsBody.slice(-300));
+
+    // Typing an email into the field should pre-fill it as the draft's "To" address, live, without
+    // needing a click first.
+    await page.fill('#quizReasonsEmail', 'adaeze.okafor@gmail.com');
+    await page.waitForFunction(function(){
+      var href = document.getElementById('quizEmailReasonsBtn').getAttribute('href');
+      return /^mailto:adaeze\.okafor@gmail\.com\?subject=/.test(href);
+    }, { timeout: 3000 });
+    // A half-typed, not-yet-a-real-address value should fall back to unaddressed rather than handing
+    // the mail app something malformed.
+    await page.fill('#quizReasonsEmail', 'adaeze.okafor@');
+    await page.waitForFunction(function(){
+      return /^mailto:\?subject=/.test(document.getElementById('quizEmailReasonsBtn').getAttribute('href'));
+    }, { timeout: 3000 });
+    await page.fill('#quizReasonsEmail', 'adaeze.okafor@gmail.com');
+    await page.waitForFunction(function(){
+      return /^mailto:adaeze\.okafor@gmail\.com\?subject=/.test(document.getElementById('quizEmailReasonsBtn').getAttribute('href'));
+    }, { timeout: 3000 });
 
     await page.evaluate(function(){
       document.getElementById('quizEmailReasonsBtn').dispatchEvent(new MouseEvent('click', {bubbles:true, cancelable:true}));
     });
     var trackedAfterEmailReasons = await page.evaluate(function(){ return window.__trackedEvents.slice(); });
     assert.ok(trackedAfterEmailReasons.indexOf('quiz_email_reasons_clicked') !== -1,
-      'Clicking "Email myself the full reasons" should record quiz_email_reasons_clicked, got: ' + JSON.stringify(trackedAfterEmailReasons));
+      'Clicking "Get full report" should record quiz_email_reasons_clicked, got: ' + JSON.stringify(trackedAfterEmailReasons));
 
     // "Notify me" opens WhatsApp (primary) or email (secondary) rather than actually charging
     // anything — real <a> links, not a JS redirect, since a mailto-only JS redirect was reported to
@@ -165,6 +184,11 @@ exports.run = async function(ctx){
 
     await page.check('#gateAgree', { force: true });
     await page.click('#gateContinue');
+    // One more screen now sits between country selection and the checklist — "Where are you in the
+    // process?" (see #situationGate in index.html) — before appWrap shows.
+    await page.waitForSelector('#situationOptFresh', { state: 'visible' });
+    await page.click('#situationOptFresh');
+    await page.click('#situationContinue');
     await page.waitForFunction(function(){
       var el = document.getElementById('appWrap');
       return el && el.style.display !== 'none';

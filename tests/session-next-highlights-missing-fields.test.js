@@ -42,6 +42,11 @@ exports.run = async function(ctx){
     await page.click('.gate-country-option[data-code="UK"]');
     await page.check('#gateAgree', { force: true });
     await page.click('#gateContinue');
+    // One more screen now sits between country selection and the checklist — "Where are you in the
+    // process?" (see #situationGate in index.html) — before appWrap shows.
+    await page.waitForSelector('#situationOptFresh', { state: 'visible' });
+    await page.click('#situationOptFresh');
+    await page.click('#situationContinue');
     await page.waitForFunction(function(){
       var el = document.getElementById('appWrap');
       return el && el.style.display !== 'none';

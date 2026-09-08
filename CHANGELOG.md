@@ -3,6 +3,58 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## New: "Where are you in the process?" gate after country selection
+
+Founder idea: applicants who've already been refused, or already paid the fee and filled the form,
+need a different conversation than a fresh applicant. This ships the deliberately lightweight
+version of that idea — no refusal-letter OCR, no automated "matching", no agent inbox, since none
+of that infrastructure exists yet and, more importantly, giving automated advice on a refusal or a
+completed application risks edging into OISC/RCIC-regulated territory that needs a lawyer's answer
+before it needs a bigger build. What actually shipped: a new screen after country selection (after
+the South Africa onboarding screen too, for ZA) asking "This is a fresh application" / "I've been
+refused before" / "I've already paid the fee and filled the form". Fresh applicants see nothing
+extra and go straight into the checklist. The other two reveal a short set of quick questions
+(refused: which country, how many times, reason given, rough current balance — all optional except
+the option itself) and route to the same no-backend WhatsApp/email pattern used everywhere else in
+this app (paid routes to the existing Document Review offer specifically, rather than a second
+review mechanism) — built entirely on-device, sent nowhere until the applicant taps send themselves.
+Every path has a "Continue to my checklist" escape hatch. This also doubles as the cheap way to
+test the idea itself: whether people in these situations show up in meaningful numbers at all,
+before any OCR/agent investment (new tracked events: `situation_selected:<fresh|refused|paid>`,
+`situation_refused_contact:<whatsapp|email>`, `situation_paid_contact:<whatsapp|email>`,
+`situation_continue_clicked`).
+
+## Quiz result: "Email myself the full reasons" now "Add your email to get the full report"
+
+Previously this opened a draft addressed to nobody, expecting the applicant to type their own
+address into their mail app themselves. There's now an email field right on the page — typing an
+address there pre-fills the same draft's "To" field live, so the button is one tap closer to
+actually sending. Still entirely on-device and still no backend: the typed email is never
+collected or sent anywhere by this tool, it only fills in a mailto draft the applicant still sends
+themselves. An address that isn't at least shaped like a real one falls back to the old
+unaddressed behavior rather than handing the mail app something broken.
+
+## Passport no longer re-explained on the Identity & application page
+
+Field feedback: since the passport is already scanned and verified as its own guided first step
+(Session 1), the "Valid passport" item under Identity & application — a later session, since
+that's the checklist category it belongs to — was showing its full explanation and its own
+"Attached: …" note a second time, reading as a second, separate document to deal with. It now
+shows a single short line instead: "Verified in Session 1 — <filename>" once done, or "Not done
+yet? Complete this in Session 1" before, either way with a link that jumps straight there. No
+upload control of its own on this page anymore — Session 1 is now the one place that actually
+handles the passport file.
+
+## Document Review offer now shown as "50% off launch price"
+
+The actual price is unchanged — still $25 (₦40,000). Both offer cards (quiz result screen, finance
+report screen) now show it as a discount off a stated $50 (₦80,000) launch price, with a small
+"50% OFF LAUNCH PRICE" badge and a struck-through reference price. Deliberately worded as a
+launch/introductory price being discounted FROM a stated future rate, not "was $50" — this offer
+has never actually been charged at $50, so a fabricated past price would be a misleading-pricing
+risk. Keep $50 as the genuine intended post-launch rate if this framing is kept once real payments
+start.
+
 ## "Have you travelled outside Nigeria before?" no longer auto-answers itself from the quiz
 
 Field feedback: this question landing pre-answered "Yes" (or "No") on the real Travel Experience

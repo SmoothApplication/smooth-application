@@ -33,13 +33,19 @@ exports.run = async function(ctx){
     assert.strictEqual(enabledAfterAgree, true, 'Continue should enable once a valid country is picked and the disclaimer is agreed to');
 
     await page.click('#gateContinue');
+
+    var gateHidden = await page.$eval('#consentGate', function(el){ return el.style.display === 'none'; });
+    assert.strictEqual(gateHidden, true, 'Consent gate should be hidden after continuing');
+
+    // One more screen now sits between country selection and the checklist — "Where are you in the
+    // process?" (see #situationGate in index.html) — before appWrap shows.
+    await page.waitForSelector('#situationOptFresh', { state: 'visible' });
+    await page.click('#situationOptFresh');
+    await page.click('#situationContinue');
     await page.waitForFunction(function(){
       var el = document.getElementById('appWrap');
       return el && el.style.display !== 'none';
     }, { timeout: 5000 });
-
-    var gateHidden = await page.$eval('#consentGate', function(el){ return el.style.display === 'none'; });
-    assert.strictEqual(gateHidden, true, 'Consent gate should be hidden after continuing');
 
     var appVisible = await page.$eval('#appWrap', function(el){ return el.style.display !== 'none'; });
     assert.strictEqual(appVisible, true, 'App content should be visible after continuing');

@@ -59,6 +59,11 @@ exports.run = async function(ctx){
       return el && getComputedStyle(el).display !== 'none';
     }, { timeout: 5000 });
     await page.click('#zaOnboardingContinue');
+    // One more screen now sits between onboarding and the checklist — "Where are you in the
+    // process?" (see #situationGate in index.html) — same for South Africa as every other country.
+    await page.waitForSelector('#situationOptFresh', { state: 'visible' });
+    await page.click('#situationOptFresh');
+    await page.click('#situationContinue');
     await page.waitForFunction(function(){
       var el = document.getElementById('appWrap');
       return el && el.style.display !== 'none';

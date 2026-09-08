@@ -94,6 +94,14 @@ async function passConsentGate(page, options){
     await page.waitForSelector('#zaOnboardingContinue', { state: 'visible' });
     await page.click('#zaOnboardingContinue');
   }
+  // One more screen now sits between country selection and the checklist — "Where are you in the
+  // process?" (see #situationGate in index.html). Defaults this helper to the "fresh application"
+  // answer, same as most real applicants, so every existing test that just needs to land on
+  // appWrap still does — tests that specifically exercise the refused/paid-already paths drive
+  // #situationGate directly instead of using this helper.
+  await page.waitForSelector('#situationOptFresh', { state: 'visible' });
+  await page.click('#situationOptFresh');
+  await page.click('#situationContinue');
   await page.waitForFunction(function(){
     var el = document.getElementById('appWrap');
     return el && el.style.display !== 'none';
