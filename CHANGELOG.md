@@ -3,6 +3,17 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Reasons tab now only shows inside the main checklist, and the quiz result can be emailed in full
+
+Two field-feedback fixes. First: the floating "📖 Reasons" button used to show on every screen,
+including the landing page and quiz - now it only appears from session 1 (Passport) through session
+14 (the dedicated Reasons session), staying out of the way on the landing/quiz/consent-gate/South
+Africa onboarding screens where there's nothing collapsed into it yet anyway. Second: the quiz result
+page's gap list caps at the 3 "biggest gaps" to stay quick to read, so there's now an "Email myself
+the full reasons" link (same no-backend mailto: pattern as "Email myself this summary" elsewhere -
+built entirely on-device, nothing sent or stored anywhere) that sends every reason the quiz found,
+not just the top 3.
+
 ## Landing screen: trimmed the badge clutter the redesign below had picked up
 
 Design review of the batch just below: FREE plus two NEW tags plus a bold-italic clause was four

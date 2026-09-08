@@ -99,6 +99,29 @@ exports.run = async function(ctx){
     assert.ok(trackedAfterResult.some(function(e){ return e.indexOf('quiz_completed:') === 0; }),
       'Completing the quiz should record a quiz_completed:<tier> event, got: ' + JSON.stringify(trackedAfterResult));
 
+    // "Email myself the full reasons" — the on-screen list caps at the 3 "biggest gaps"
+    // (quizGapMessages), but this answer set actually matches a 4th check too (ties === 'few', which
+    // never gets reached in the capped loop since 3 earlier checks already matched first). The email
+    // should carry ALL of them (quizAllGapMessages, uncapped), proving it's genuinely "full" and not
+    // just a copy of what's already on screen. Real <a href>, precomputed when the result was shown,
+    // same reasoning as the WhatsApp/email notify links checked below.
+    var tiesPhraseOnScreen = /Strengthening your documented ties/.test(gapText);
+    assert.strictEqual(tiesPhraseOnScreen, false, 'The on-screen capped gap list should NOT include the 4th matching reason (ties), got: ' + gapText);
+    var emailReasonsHref = await page.$eval('#quizEmailReasonsBtn', function(el){ return el.getAttribute('href'); });
+    assert.ok(/^mailto:\?subject=/.test(emailReasonsHref), 'Email-full-reasons link should be a real mailto, got: ' + emailReasonsHref);
+    var emailReasonsBody = decodeURIComponent(emailReasonsHref.split('&body=')[1] || '');
+    assert.ok(/passport/i.test(emailReasonsBody), 'Full-reasons email should include the missing-passport reason, got: ' + emailReasonsBody.slice(0, 400));
+    assert.ok(/bank statement/i.test(emailReasonsBody), 'Full-reasons email should include the not-ready-statements reason, got: ' + emailReasonsBody.slice(0, 400));
+    assert.ok(/Strengthening your documented ties/.test(emailReasonsBody), 'Full-reasons email should include the ties reason the on-screen list left out, got: ' + emailReasonsBody);
+    assert.ok(/Continue with the full checklist/.test(emailReasonsBody), 'Full-reasons email should link back to the checklist, got: ' + emailReasonsBody.slice(-300));
+
+    await page.evaluate(function(){
+      document.getElementById('quizEmailReasonsBtn').dispatchEvent(new MouseEvent('click', {bubbles:true, cancelable:true}));
+    });
+    var trackedAfterEmailReasons = await page.evaluate(function(){ return window.__trackedEvents.slice(); });
+    assert.ok(trackedAfterEmailReasons.indexOf('quiz_email_reasons_clicked') !== -1,
+      'Clicking "Email myself the full reasons" should record quiz_email_reasons_clicked, got: ' + JSON.stringify(trackedAfterEmailReasons));
+
     // "Notify me" opens WhatsApp (primary) or email (secondary) rather than actually charging
     // anything — real <a> links, not a JS redirect, since a mailto-only JS redirect was reported to
     // silently do nothing on a phone with no mail app configured. Check the hrefs are correctly

@@ -1204,7 +1204,14 @@
 </head>
 <body>
 
-<button type="button" class="reasons-tab no-print" id="reasonsTabBtn" aria-haspopup="dialog">📖 Reasons <span class="count" id="reasonsTabCount"></span></button>
+<!-- Field feedback: this floating tab should only show up inside the main checklist (sessions 1-14 -
+     Passport through the dedicated Reasons session at the end), not on the landing screen, the quiz,
+     the two intro gates, or the South Africa onboarding screen - there's nothing collapsed into it on
+     any of those yet, and floating chrome fighting for attention on a screen that's already just a
+     few lines with one CTA is its own kind of clutter. Starts hidden (inline style, so it always wins
+     over the .reasons-tab class rule below); setReasonsTabVisible() toggles it at the same 3 places
+     #appWrap itself is shown/hidden - see that function's own comment further down. -->
+<button type="button" class="reasons-tab no-print" id="reasonsTabBtn" aria-haspopup="dialog" style="display:none;">📖 Reasons <span class="count" id="reasonsTabCount"></span></button>
 
 <div class="legal-modal-overlay" id="reasonsModalOverlay" hidden>
   <div class="legal-modal-card" role="dialog" aria-modal="true" aria-labelledby="reasonsModalTitle">
@@ -1451,6 +1458,14 @@
       <h1 class="consent-gate-title">YOUR RESULT</h1>
       <div id="quizResultTier" class="quiz-result-tier"></div>
       <ul id="quizGapList" class="quiz-gap-list"></ul>
+      <!-- The list above caps at 3 "biggest gaps" so the on-screen result stays quick to read. This
+           link emails the applicant the FULL list - every reason the quiz found, not just the
+           headline 3 - using the same no-backend mailto: pattern as "Email myself this summary"
+           further into the checklist (see buildEmailSummaryMailto()): built entirely on-device, sent
+           nowhere but the applicant's own draft. A real <a href>, precomputed in the quizSeeResult
+           handler below rather than a JS location.href redirect on click - see the quiz notify-me
+           comment further down for why that matters on phones with no mail app configured. -->
+      <a class="btn ghost" id="quizEmailReasonsBtn" href="#" style="display:block; width:100%; text-align:center; margin:2px 0 14px;">✉️ Email myself the full reasons</a>
       <div class="quiz-notify-card">
         <b>Want a second pair of eyes on this before you submit?</b> We're testing a paid Document Review - a real person checks what you've prepared for completeness and quality, from $25 (about ₦40,000). Message us to be one of the first.
         <div style="margin-top:8px;">
@@ -3228,6 +3243,15 @@
     overlay.addEventListener('click', function(e){ if (e.target === overlay) close(); });
     document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && !overlay.hidden) close(); });
   })();
+  // Shows/hides the floating "📖 Reasons" tab. Called from the exact 3 places #appWrap's own
+  // style.display is flipped further down this file (the gateContinue and zaOnboardingContinue
+  // handlers show it, btnChangeCountry hides it) rather than derived from #appWrap on every render -
+  // those 3 call sites are the ONLY places that visibility ever changes in the whole app, so keeping
+  // this an explicit call at each one is simpler than adding an observer for the same 3 moments.
+  function setReasonsTabVisible(visible){
+    var btn = document.getElementById('reasonsTabBtn');
+    if (btn) btn.style.display = visible ? 'flex' : 'none';
+  }
 
   /* ---------------- Theme toggle ---------------- */
   var themeBtn = document.getElementById('themeToggle');
@@ -13866,6 +13890,41 @@
     }
     return out;
   }
+  // Same checks as quizGapMessages() above, uncapped - every reason that applies, not just the
+  // "biggest 3" shown on screen. Feeds the "Email myself the full reasons" mailto below.
+  function quizAllGapMessages(answers){
+    var out = [];
+    for (var i = 0; i < QUIZ_GAP_CHECKS.length; i++){
+      if (QUIZ_GAP_CHECKS[i].test(answers)) out.push(QUIZ_GAP_CHECKS[i].msg);
+    }
+    return out;
+  }
+  // "Email myself the full reasons" — same no-backend mailto: pattern as buildEmailSummaryMailto()
+  // further into the checklist: built entirely on-device from the quiz answers already in memory, no
+  // address ever collected or stored by this tool. Takes the quizScore() result directly rather than
+  // reading lastQuizResult itself, since quizSeeResult below computes both from the very same answers
+  // in the same click - no reason to have this quietly go stale relative to what's on screen.
+  function buildQuizFullReasonsMailto(result){
+    var copy = QUIZ_TIER_COPY[result.tier];
+    var allGaps = quizAllGapMessages(result.answers);
+    var subject = 'Smooth Application - your readiness quiz result';
+    var lines = [];
+    lines.push('Your Smooth Application readiness quiz result - ' + new Date().toLocaleDateString());
+    lines.push('');
+    lines.push('Result: ' + copy.icon + ' ' + copy.label);
+    lines.push('');
+    if (allGaps.length){
+      lines.push('Everything the quiz found (' + allGaps.length + '):');
+      allGaps.forEach(function(m){ lines.push('- ' + m); });
+    } else {
+      lines.push('Nothing major stood out - the full checklist below will confirm the details.');
+    }
+    lines.push('');
+    lines.push('Continue with the full checklist: ' + window.location.origin + window.location.pathname);
+    lines.push('');
+    lines.push('This was written entirely on your device - nothing is sent or stored anywhere except in this email, which only goes where you send it.');
+    return 'mailto:?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(lines.join('\n'));
+  }
 
   var QUIZ_TIER_COPY = {
     strong: { icon: '🟢', label: 'Strong starting position' },
@@ -13942,6 +14001,8 @@
     document.getElementById('quizGapList').innerHTML = gaps.length
       ? gaps.map(function(m){ return '<li>' + escapeHtml(m) + '</li>'; }).join('')
       : '<li>Nothing major stands out here - the full checklist below will confirm the details.</li>';
+    var emailReasonsLink = document.getElementById('quizEmailReasonsBtn');
+    if (emailReasonsLink) emailReasonsLink.href = buildQuizFullReasonsMailto(result);
     // Field feedback: the result should read as its own page after the 2-page quiz, not more
     // content stacked below the questions. Hiding quizFormWrap (rather than just scrolling to the
     // result panel while it stayed visible) is what actually makes that true - previously the full
@@ -13972,6 +14033,13 @@
     emailLink.href = 'mailto:lalasionline@gmail.com?subject=' + encodeURIComponent('Interested: Document Review') + '&body=' + encodeURIComponent(msg);
     waLink.addEventListener('click', function(){ trackEvent('quiz_notify_me_clicked:whatsapp'); });
     emailLink.addEventListener('click', function(){ trackEvent('quiz_notify_me_clicked:email'); });
+  })();
+
+  // Click tracking for "Email myself the full reasons" - wired once, here; its href itself is set
+  // fresh every time a result is computed (see quizSeeResult above), not here.
+  (function(){
+    var link = document.getElementById('quizEmailReasonsBtn');
+    if (link) link.addEventListener('click', function(){ trackEvent('quiz_email_reasons_clicked'); });
   })();
 
   // Second placement of the same fake-door demand test, on the finance session's Report step (see
@@ -14135,6 +14203,7 @@
       window.scrollTo(0,0);
     } else {
       document.getElementById('appWrap').style.display = 'block';
+      setReasonsTabVisible(true);
       window.scrollTo(0,0);
     }
   });
@@ -14149,6 +14218,7 @@
   document.getElementById('zaOnboardingContinue').addEventListener('click', function(){
     document.getElementById('zaOnboardingGate').style.display = 'none';
     document.getElementById('appWrap').style.display = 'block';
+    setReasonsTabVisible(true);
     window.scrollTo(0,0);
     trackEvent('za_onboarding_continued');
   });
@@ -14177,6 +14247,7 @@
     if (COUNTRIES[currentCountry] && COUNTRIES[currentCountry].ready) showGateCountryConfirmed(currentCountry);
     else showGateCountryList();
     document.getElementById('appWrap').style.display = 'none';
+    setReasonsTabVisible(false);
     document.getElementById('consentGate').style.display = 'flex';
     window.scrollTo(0,0);
   });
