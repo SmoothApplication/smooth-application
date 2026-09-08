@@ -5389,12 +5389,17 @@
       var passportStatus = pNames.length
         ? '<div class="scan-msg ok">Verified in Session 1 — ' + pNames.map(escapeHtml).join(', ') + ' <a href="#" id="gotoPassportSession_'+it.id+'">View in Session 1 →</a></div>'
         : '<div class="scan-msg info">Not done yet? <a href="#" id="gotoPassportSession_'+it.id+'">Complete this in Session 1 →</a></div>';
+      // renderPassportCard()/setScanMsg() still target #scanmsg_passport as their write box (then
+      // mirror into Session 1's own #passportValidateResult via mirrorPassportInline) regardless of
+      // which UI triggered the scan — keep this element present so a re-scan from Session 1 still has
+      // somewhere to land, just hidden here since this card already shows its own status line above.
       return '<div class="item'+(s.checked?' checked':'')+'" id="item_'+it.id+'">'
         + '<div class="item-top">'
         + '<input type="checkbox" id="chk_'+it.id+'" '+(s.checked?'checked':'')+'>'
         + '<div class="item-body">'
         + '<div class="item-label">'+it.label+' '+tagHtml+'</div>'
         + passportStatus
+        + '<div id="scanmsg_'+it.id+'" style="display:none;"></div>'
         + '</div></div></div>';
     }
     var tip = it.tip ? '<div class="item-tip">'+it.tip+'</div>' : '';
