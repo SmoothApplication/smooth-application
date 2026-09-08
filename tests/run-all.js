@@ -13,8 +13,19 @@ async function main(){
     .filter(function(f){ return f.endsWith('.test.js'); })
     .sort();
 
+  // Optional filter: `npm test -- dob-digit expiry-` (or `node tests/run-all.js dob-digit expiry-`)
+  // runs only files whose name contains one of the given substrings, instead of the whole suite.
+  // Useful for quickly re-checking a handful of failures without waiting through everything again.
+  var filters = process.argv.slice(2).filter(Boolean);
+  if (filters.length){
+    files = files.filter(function(f){
+      return filters.some(function(sub){ return f.indexOf(sub) !== -1; });
+    });
+    console.log('Filtering to ' + files.length + ' file(s) matching: ' + filters.join(', ') + '\n');
+  }
+
   if (!files.length){
-    console.error('No *.test.js files found in ' + testsDir);
+    console.error(filters.length ? 'No *.test.js files matched: ' + filters.join(', ') : 'No *.test.js files found in ' + testsDir);
     process.exit(1);
   }
 

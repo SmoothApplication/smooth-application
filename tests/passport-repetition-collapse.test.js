@@ -1,22 +1,26 @@
 'use strict';
-// The passport scan on Session 1 ("Validate your International Passport") and the "Valid passport"
-// checklist item under Identity & application share the same underlying attachment state (via
-// attachFileToItem). Before this fix, the checklist item always showed a raw, always-empty
-// "Choose File" input next to the "Attached: ..." note even once a passport was on file, which
-// read as asking the applicant to upload the same document twice ("repetition kills user
-// attention"). Once a file is attached, the raw upload row should collapse behind a
-// "Replace file" toggle instead.
-// (The scan widget used to live inline on Your trip details — it moved into its own Session 1
-// once that session was added, so this test attaches via Session 1 instead.)
+// The passport is scanned/verified as its own guided first step (Session 1 - "Validate your
+// International Passport", data-session-key="passport"). It also appears as a "Valid passport"
+// checklist item under the Identity & application category (a later session), since that's the
+// category the CHECKLIST data model puts it in alongside photo/application form/fee. Originally
+// that category item showed its own full explanation + a second, separate "attach a file" upload
+// row - even once the passport was already on file from Session 1, which read as asking the
+// applicant to redo something already done ("repetition kills user attention" - field feedback).
+// A first fix hid the raw upload row behind a "Replace file" toggle once a file was attached, but
+// the item still repeated the full tip text and its own "Attached: ..." note as if it were a
+// second, independent document. Direct feedback ("since passport has been verified in Session 1,
+// the information ... should be moved to this page") led to this stronger version instead: the
+// category item now shows only a short status line - "Verified in Session 1 - <filename>" once
+// done, or "Not done yet? Complete this in Session 1" before - with a link that jumps straight to
+// Session 1 (goToPassportSession()) rather than repeating any upload UI of its own. See
+// renderItem()'s passport special-case in index.html.
 const assert = require('assert');
 const path = require('path');
 const { newPageAt, passConsentGate, goToSessionByPill } = require('./helpers');
 
-// A synthetic placeholder image, not a real passport scan — this test only exercises the
-// attach/collapse/replace UI behavior (see attachFileToItem, which sets state + calls render()
+// A synthetic placeholder image, not a real passport scan - this test only exercises the
+// attach/status-line/jump-link behavior (see attachFileToItem, which sets state + calls render()
 // synchronously before OCR even starts), so it doesn't need a real, OCR-readable passport photo.
-// It previously pointed at a real applicant's uploaded photo under a sandbox-only path, which
-// doesn't exist in CI and made this test fail there.
 var SAMPLE_PASSPORT = path.join(__dirname, 'fixtures', 'sample-passport.jpg');
 
 exports.run = async function(ctx){
@@ -24,49 +28,47 @@ exports.run = async function(ctx){
   try {
     await passConsentGate(page);
 
-    // Identity & application is a checklist category grouped into the merged 'idFinancialDocs'
-    // session — index 2 (0: aboutYou, 1: financialReadiness, 2: idFinancialDocs). The passport scan
-    // widget itself lives on 'aboutYou' — index 0 — since it's the passport sub-card there.
+    // Identity & application is session index 6 (0: passport, 1: travelExperience,
+    // 2: responsibilities, 3: trip, 4: finance2, 5: finance, 6: cat:Identity & application).
     await goToSessionByPill(page, 6);
 
-    // Before attaching anything, the checklist item's own upload row should show normally (no
-    // file attached yet, so nothing to collapse) and there should be no "Replace file" toggle.
-    var uploadRowVisibleBefore = await page.$eval('#uploadRow_passport', function(el){ return el.style.display !== 'none'; });
-    assert.strictEqual(uploadRowVisibleBefore, true, 'Upload row should be visible before any passport is attached');
-    var replaceBtnBefore = await page.$('#btnReplace_passport');
-    assert.strictEqual(replaceBtnBefore, null, 'Replace-file toggle should not exist before a passport is attached');
+    // Before attaching anything: no raw upload UI for this item on this page at all (that's owned
+    // by Session 1 alone now), just a status line pointing there.
+    var uploadRowExistsBefore = await page.$('#uploadRow_passport');
+    assert.strictEqual(uploadRowExistsBefore, null, 'This page should never render its own upload row for the passport item');
+    var attachedNoteExistsBefore = await page.$('#item_passport .attached-note');
+    assert.strictEqual(attachedNoteExistsBefore, null, 'This page should not render a separate "Attached" note for the passport item');
+    var statusBefore = await page.$eval('#item_passport .scan-msg', function(el){ return el.textContent; });
+    assert.ok(/Not done yet/.test(statusBefore), 'Should prompt to complete it in Session 1 before anything is attached, got: ' + statusBefore);
+    var jumpLinkBefore = await page.$('#item_passport a[id^="gotoPassportSession_"]');
+    assert.ok(jumpLinkBefore, 'Should offer a link to jump to Session 1');
 
     // Attach a passport via Session 1's own scan (the same path a real applicant uses, and the
-    // one that shares state with the checklist item).
+    // one whose state this item's status line reads from).
     await goToSessionByPill(page, 0);
     await page.setInputFiles('#file_passportValidate', SAMPLE_PASSPORT);
     await page.click('#btnPassportValidateAttach');
 
     // attachFileToItem() sets state + calls render() synchronously (scanning happens after), so
-    // the checklist item should already reflect the attachment without waiting on OCR.
+    // the checklist item's status line should already reflect the attachment without waiting on OCR.
+    await goToSessionByPill(page, 6);
     await page.waitForFunction(function(){
-      var row = document.getElementById('uploadRow_passport');
-      return row && row.style.display === 'none';
+      var el = document.querySelector('#item_passport .scan-msg');
+      return el && /Verified in Session 1/.test(el.textContent);
     }, { timeout: 5000 });
 
-    await goToSessionByPill(page, 6);
+    var statusAfter = await page.$eval('#item_passport .scan-msg', function(el){ return el.textContent; });
+    assert.ok(/Verified in Session 1/.test(statusAfter), 'Should confirm it was verified in Session 1, got: "' + statusAfter + '"');
+    assert.ok(/sample-passport\.jpg/.test(statusAfter), 'Should name the attached file, got: "' + statusAfter + '"');
+    var uploadRowExistsAfter = await page.$('#uploadRow_passport');
+    assert.strictEqual(uploadRowExistsAfter, null, 'Should still never render its own upload row for the passport item, even once attached');
 
-    var uploadRowVisibleAfter = await page.$eval('#uploadRow_passport', function(el){ return el.style.display; });
-    assert.strictEqual(uploadRowVisibleAfter, 'none', 'Upload row should be hidden once a passport is attached, got display: "' + uploadRowVisibleAfter + '"');
-
-    var attachedNoteText = await page.$eval('#item_passport .attached-note', function(el){ return el.textContent; });
-    assert.ok(/Attached/i.test(attachedNoteText), 'Should still show the "Attached: ..." note, got: "' + attachedNoteText + '"');
-
-    var replaceBtnVisible = await page.$eval('#btnReplace_passport', function(el){ return el.offsetParent !== null; });
-    assert.strictEqual(replaceBtnVisible, true, 'Replace-file toggle should be visible once a passport is attached');
-
-    // Clicking "Replace file" should reveal the raw upload row again and hide the toggle.
-    await page.click('#btnReplace_passport');
-    var uploadRowAfterToggle = await page.$eval('#uploadRow_passport', function(el){ return el.style.display; });
-    assert.strictEqual(uploadRowAfterToggle, 'flex', 'Upload row should reappear after clicking "Replace file", got display: "' + uploadRowAfterToggle + '"');
-
-    var replaceBtnHiddenAfterClick = await page.$eval('#btnReplace_passport', function(el){ return el.offsetParent === null; });
-    assert.strictEqual(replaceBtnHiddenAfterClick, true, 'Replace-file toggle should hide itself after being clicked');
+    // Clicking the link should jump straight back to Session 1, not just scroll within this page.
+    await page.click('#item_passport a[id^="gotoPassportSession_"]');
+    await page.waitForFunction(function(){
+      var el = document.querySelector('[data-session-key="passport"]');
+      return el && el.style.display !== 'none';
+    }, { timeout: 3000 });
   } finally {
     await page.context().close();
   }
