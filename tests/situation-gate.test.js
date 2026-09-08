@@ -33,6 +33,13 @@ exports.run = async function(ctx){
   try {
     await reachSituationGate(page, 'UK');
 
+    // Stub analytics so situation_* events can be observed (same pattern as the other event-tracking
+    // tests in this suite — trackEvent() only ever fires window.goatcounter.count() when it's set).
+    await page.evaluate(function(){
+      window.__trackedEvents = [];
+      window.goatcounter = { count: function(o){ window.__trackedEvents.push(o.path); } };
+    });
+
     // Nothing selected yet: no follow-up, no continue button, appWrap still hidden.
     var refusedVisible0 = await page.$eval('#situationRefusedFollowup', function(el){ return getComputedStyle(el).display !== 'none'; });
     var paidVisible0 = await page.$eval('#situationPaidFollowup', function(el){ return getComputedStyle(el).display !== 'none'; });
