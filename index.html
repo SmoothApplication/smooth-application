@@ -5216,7 +5216,13 @@
     document.querySelectorAll('#checklistRoot [data-cat]').forEach(function(el){
       var match = ('cat:' + el.getAttribute('data-cat')) === currentKey;
       el.style.display = match ? '' : 'none';
-      if (match && isSessionTransition) el.open = true;
+      // Set categoryOpenState directly here rather than relying on the <details> element's own
+      // 'toggle' event to record it - that event fires asynchronously (confirmed: it does NOT fire
+      // synchronously with this assignment), so a re-render triggered by other state changes in the
+      // same tick/shortly after could rebuild this category's HTML from categoryOpenState before the
+      // toggle event ever lands, silently re-closing a category a test (or a real applicant navigating
+      // straight to it) had just been sent to. Recording it here is synchronous and race-free.
+      if (match && isSessionTransition){ el.open = true; categoryOpenState[el.getAttribute('data-cat')] = true; }
     });
     lastAppliedSessionKey = currentKey;
     renderSessionNav(keys, currentSessionIndex);
