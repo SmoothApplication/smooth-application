@@ -3,6 +3,45 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## New: 4 more destinations — Ghana, Kenya, Morocco (travel-readiness) and Ethiopia (tourist e-Visa)
+
+User request: "ADD Ghana, Kenya, Ethiopia, or Morocco to this list" (the country picker), later
+clarified as wanting full working checklists for all four, redirect-worthy destinations for
+applicants without sufficient funds or who've been refused UK/Canada/Schengen/South Africa before.
+
+Researching each country's actual entry requirements for Nigerian citizens first (rather than
+assuming all four needed a "visa application" checklist like the existing UK/Canada/Schengen/South
+Africa ones) turned up that three of the four don't require a visa at all: Ghana is visa-free under
+the ECOWAS Protocol on Free Movement, Kenya exempted Nigeria from its eTA requirement in July 2025
+(Legal Notice No. 93), and Morocco is visa-free for ordinary Nigerian passport holders for stays up
+to 30 days (a separate, narrow e-Visa at evis.ma exists only for Nigerians who already hold a valid
+multiple-entry Schengen/UK/US/Canada visa or residence permit). Building fabricated "visa
+application" steps for these three would have actively misled applicants, so each gets a genuine
+**travel-readiness checklist** instead — passport validity, yellow fever certificate (Nigeria is a
+yellow-fever-endemic country), onward/return ticket, and optional accommodation/funds evidence —
+with weights and copy that say plainly where something isn't a formal requirement, just sensible to
+have ready. Ethiopia genuinely does require an eVisa (evisa.gov.et, ~$82 for the 30-day tourist
+e-Visa — the 90-day option has been discontinued), so it gets a real application checklist matching
+the structural pattern of the existing four countries; several of its requirements are reported
+inconsistently across sources (bank statement, accommodation, return ticket), so those are marked
+"recommended" rather than "required" instead of overstating certainty this tool doesn't have.
+
+Several places in the app assumed every destination involves "applying for a visa" - the financial-
+readiness success banner's CTA ("Start your application at…"), the weeks-until-travel timing
+message (which referenced a paid "priority service" that doesn't exist for a visa-free entry), the
+spouse travel-history question, and the WhatsApp/email templates on the "refused before" / "already
+paid" situation-routing cards. These now read correctly for Ghana/Kenya/Morocco instead of talking
+about a visa application that isn't real for those three.
+
+While researching, found that an earlier, unrelated feature (the Travel Experience "no history yet"
+per-country guide tabs, `TE_NO_HISTORY_GUIDES`) had gone stale: it still described Kenya as needing
+a paid eTA and Morocco as needing an embassy-visa appointment for most applicants. Both are now
+corrected to match the current, verified policy so the app doesn't contradict itself between the
+guide tabs and the new checklists.
+
+Added a smoke test (`tests/new-countries-checklist.test.js`) covering all four countries end-to-end
+plus a UK regression check, following the same pattern as the existing South Africa checklist test.
+
 ## New: "What to do next" — a synthesized readiness report + hard gate before document collection
 
 A new session, placed right after the two finance sessions and before the document-checklist

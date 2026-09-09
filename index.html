@@ -1604,6 +1604,10 @@
         <option value="US" disabled>🇺🇸 United States - coming soon</option>
         <option value="EU">🇪🇺 Schengen - Short-stay visa (Type C)</option>
         <option value="ZA">🇿🇦 South Africa - Visitor visa</option>
+        <option value="GH">🇬🇭 Ghana - Travel readiness (visa-free)</option>
+        <option value="KE">🇰🇪 Kenya - Travel readiness (visa/eTA-exempt)</option>
+        <option value="ET">🇪🇹 Ethiopia - Tourist e-Visa</option>
+        <option value="MA">🇲🇦 Morocco - Travel readiness (visa-free)</option>
         <option value="AU" disabled>🇦🇺 Australia - coming soon</option>
         <option value="CN" disabled>🇨🇳 China - coming soon</option>
       </select>
@@ -4060,6 +4064,220 @@
 
   var CAT_ORDER_ZA = ['Identity & application','Financial evidence','Ties to Nigeria','Accommodation & South African host','Travel details','Purpose-specific','If a child is travelling','Visa history','Translations'];
 
+  // ---------------- Ghana / Kenya / Morocco (travel-readiness, not visa-application) + Ethiopia (real
+  // eVisa application) ---------------- User request: "ADD Ghana, Kenya, Ethiopia, or Morocco to this
+  // list" (country picker). Research before building found Ghana (ECOWAS Protocol on Free Movement),
+  // Kenya (added to Kenya's eTA/visa-exempt list 14 July 2025) and Morocco (visa-free up to 30 days for
+  // ordinary Nigerian passport holders) are NOT visa-application destinations for Nigerian citizens - so
+  // these three get a travel-readiness checklist (passport validity, yellow fever certificate, onward
+  // ticket, accommodation) rather than fabricated visa-application steps that don't exist. Ethiopia
+  // genuinely requires an eVisa via evisa.gov.et, so it gets a real application checklist matching the
+  // UK/CA/EU/ZA structural pattern - but several of its requirements are reported inconsistently across
+  // sources (bank statement, accommodation, return ticket), so those are marked 'recommended' rather
+  // than 'required' rather than overstating certainty this tool doesn't have.
+  var CHECKLIST_GH = [
+    // Identity & travel documents
+    {id:'passport', cat:'Identity & travel documents', label:'Valid passport (covers your whole trip)', weight:'required',
+      tip:'Ghana is visa-free for Nigerian passport holders under the ECOWAS Protocol on Free Movement, so there is no visa application here - but your passport should still be valid for the length of your stay, and airlines/border officials commonly expect at least 6 months of remaining validity even where it isn\'t a strict legal rule. Scanning it below runs a checksum on the machine-readable strip as a quick sanity-check - it is not an authenticity check.',
+      accepts:'file', checkKind:'passport'},
+    {id:'yellowFeverCert', cat:'Identity & travel documents', label:'Yellow fever vaccination certificate', weight:'required',
+      tip:'Ghana requires this from travellers arriving from a yellow-fever-endemic country, which includes Nigeria. Carry your International Certificate of Vaccination or Prophylaxis (the yellow card) - you can be turned back at the border without it, even though no visa is needed.', accepts:'file'},
+    {id:'oldPassports', cat:'Identity & travel documents', label:'Previous passport(s) showing earlier travel history (optional)', weight:'recommended',
+      tip:'Not required for ECOWAS free movement, but a record of travelling and returning home before can still be useful evidence to have on hand.', accepts:'file', multiple:true, checkKind:'oldVisa'},
+
+    // Financial evidence
+    {id:'proofOfFunds', cat:'Financial evidence', label:'Evidence of funds for your trip (bank statement, up to 3 files)', weight:'recommended',
+      tip:'ECOWAS free movement doesn\'t formally require proof of funds, but Ghana Immigration Service officers can still ask for it at the border - having a recent bank statement ready avoids an awkward conversation. Scanning here does the same income/outflow analysis as the full checklists.',
+      accepts:'file', multiple:true, checkKind:'bankStatement'},
+
+    // Accommodation & Ghanaian host
+    {id:'invitationLetter', cat:'Accommodation & Ghanaian host', label:'Invitation letter from your Ghanaian host', weight:'recommended', appliesIf:function(a){return a.hasHost;},
+      tip:'Not a formal requirement, but a short letter with the host\'s name, address, and your relationship makes your entry purpose easy for a border officer to understand at a glance.', accepts:'file', checkKind:'invitationLetter'},
+    {id:'hostAddress', cat:'Accommodation & Ghanaian host', label:"Host's proof of address (recent utility bill)", weight:'recommended', appliesIf:function(a){return a.hasHost;},
+      tip:'Confirms where you\'ll actually be staying.', accepts:'file'},
+    {id:'hotelBooking', cat:'Accommodation & Ghanaian host', label:'Hotel / accommodation booking confirmation', weight:'recommended', appliesIf:function(a){return !a.hasHost;},
+      tip:'A reservation hold is usually enough - doesn\'t need to be prepaid. Not a formal ECOWAS requirement, but useful to have ready if asked.',
+      accepts:'file', checkKind:'accommodation'},
+
+    // Travel details
+    {id:'flightItinerary', cat:'Travel details', label:'Flight / travel itinerary showing return or onward travel', weight:'required',
+      tip:'Airlines and border officials commonly expect to see a return or onward ticket before letting you board or enter, even where a visa isn\'t required.', accepts:'file', checkKind:'flightItinerary'},
+    {id:'accomVerified', cat:'Travel details', label:'Accommodation verified (address is real and booking is genuine)', weight:'recommended',
+      tip:'No document to upload here - just double-check the booking reference is live and the address exists, then tick this once you\'ve confirmed it yourself.'},
+    {id:'insurance', cat:'Travel details', label:'Travel / medical insurance', weight:'recommended',
+      tip:'Not required for ECOWAS entry, but sensible to have for any trip.', accepts:'file'},
+
+    // Children
+    {id:'birthCert', cat:'If a child is travelling', label:'Full/unabridged birth certificate showing both parents', weight:'recommended', appliesIf:function(a){return a.hasChild;}, accepts:'file',
+      tip:'Standard practice for a child travelling internationally - confirm the current position with the airline and Ghana Immigration Service before you travel, since child-travel document rules vary and can change.'},
+    {id:'consentLetter', cat:'If a child is travelling', label:"Consent letter from the non-travelling parent(s)/guardian", weight:'recommended', appliesIf:function(a){return a.hasChild;},
+      tip:'Needed if the child is travelling with only one parent, or with neither - a signed letter from the other parent/guardian, ideally notarised, plus a copy of their passport data page. Nigerian immigration itself can ask for this on exit, separately from Ghana\'s own entry rules.', accepts:'file'},
+    {id:'parentsPassports', cat:'If a child is travelling', label:"Copies of both parents' passport data pages", weight:'recommended', appliesIf:function(a){return a.hasChild;}, accepts:'file', multiple:true}
+  ];
+  var CAT_ORDER_GH = ['Identity & travel documents','Financial evidence','Accommodation & Ghanaian host','Travel details','If a child is travelling'];
+
+  var CHECKLIST_KE = [
+    // Identity & travel documents
+    {id:'passport', cat:'Identity & travel documents', label:'Valid passport (covers your whole trip)', weight:'required',
+      tip:'Kenya added Nigeria to its eTA/visa-exempt list in July 2025, so no eTA or visa is needed for a short visit - but your passport should still be valid for at least 6 months beyond your travel date, which airlines and border officials commonly check. Scanning it below runs a checksum on the machine-readable strip as a quick sanity-check - it is not an authenticity check.',
+      accepts:'file', checkKind:'passport'},
+    {id:'yellowFeverCert', cat:'Identity & travel documents', label:'Yellow fever vaccination certificate', weight:'required',
+      tip:'Kenya requires this from travellers arriving from a yellow-fever-endemic country, which includes Nigeria. Carry your International Certificate of Vaccination or Prophylaxis (the yellow card) - you can be refused entry without it, even without needing a visa.', accepts:'file'},
+    {id:'oldPassports', cat:'Identity & travel documents', label:'Previous passport(s) showing earlier travel history (optional)', weight:'recommended',
+      tip:'Not required for exempt entry, but a record of travelling and returning home before can still be useful to have on hand.', accepts:'file', multiple:true, checkKind:'oldVisa'},
+
+    // Financial evidence
+    {id:'proofOfFunds', cat:'Financial evidence', label:'Evidence of funds for your trip (bank statement, up to 3 files)', weight:'recommended',
+      tip:'Not formally required for exempt entry, but Kenyan immigration officers can still ask for proof of funds at the border - having a recent bank statement ready avoids an awkward conversation. Scanning here does the same income/outflow analysis as the full checklists.',
+      accepts:'file', multiple:true, checkKind:'bankStatement'},
+
+    // Accommodation & Kenyan host
+    {id:'invitationLetter', cat:'Accommodation & Kenyan host', label:'Invitation letter from your Kenyan host', weight:'recommended', appliesIf:function(a){return a.hasHost;},
+      tip:'Not a formal requirement, but a short letter with the host\'s name, address, and your relationship makes your entry purpose easy for a border officer to understand at a glance.', accepts:'file', checkKind:'invitationLetter'},
+    {id:'hostAddress', cat:'Accommodation & Kenyan host', label:"Host's proof of address (recent utility bill)", weight:'recommended', appliesIf:function(a){return a.hasHost;},
+      tip:'Confirms where you\'ll actually be staying.', accepts:'file'},
+    {id:'hotelBooking', cat:'Accommodation & Kenyan host', label:'Hotel / accommodation booking confirmation', weight:'recommended', appliesIf:function(a){return !a.hasHost;},
+      tip:'A reservation hold is usually enough - doesn\'t need to be prepaid. Not a formal requirement for exempt entry, but useful to have ready if asked.',
+      accepts:'file', checkKind:'accommodation'},
+
+    // Travel details
+    {id:'flightItinerary', cat:'Travel details', label:'Flight / travel itinerary showing return or onward travel', weight:'required',
+      tip:'Airlines and border officials commonly expect to see a return or onward ticket before letting you board or enter, even where no visa/eTA is required.', accepts:'file', checkKind:'flightItinerary'},
+    {id:'accomVerified', cat:'Travel details', label:'Accommodation verified (address is real and booking is genuine)', weight:'recommended',
+      tip:'No document to upload here - just double-check the booking reference is live and the address exists, then tick this once you\'ve confirmed it yourself.'},
+    {id:'insurance', cat:'Travel details', label:'Travel / medical insurance', weight:'recommended',
+      tip:'Not required for exempt entry, but sensible to have for any trip.', accepts:'file'},
+
+    // Children
+    {id:'birthCert', cat:'If a child is travelling', label:'Full/unabridged birth certificate showing both parents', weight:'recommended', appliesIf:function(a){return a.hasChild;}, accepts:'file',
+      tip:'Standard practice for a child travelling internationally - confirm the current position with the airline and Kenyan immigration before you travel, since child-travel document rules vary and can change.'},
+    {id:'consentLetter', cat:'If a child is travelling', label:"Consent letter from the non-travelling parent(s)/guardian", weight:'recommended', appliesIf:function(a){return a.hasChild;},
+      tip:'Needed if the child is travelling with only one parent, or with neither - a signed letter from the other parent/guardian, ideally notarised, plus a copy of their passport data page. Nigerian immigration itself can ask for this on exit, separately from Kenya\'s own entry rules.', accepts:'file'},
+    {id:'parentsPassports', cat:'If a child is travelling', label:"Copies of both parents' passport data pages", weight:'recommended', appliesIf:function(a){return a.hasChild;}, accepts:'file', multiple:true}
+  ];
+  var CAT_ORDER_KE = ['Identity & travel documents','Financial evidence','Accommodation & Kenyan host','Travel details','If a child is travelling'];
+
+  var CHECKLIST_MA = [
+    // Identity & travel documents
+    {id:'passport', cat:'Identity & travel documents', label:'Valid passport (covers your whole trip, with a blank page)', weight:'required',
+      tip:'Morocco is visa-free for ordinary Nigerian passport holders for stays of up to 30 days - no application needed for this general case. Your passport should be valid for at least 6 months beyond your travel date and carry at least 1 blank page for the entry stamp. (Separately, Morocco also offers a narrow e-Visa at evis.ma, but only for Nigerians who already hold a valid multiple-entry Schengen/UK/US/Canada visa or residence permit - not the general case this checklist covers.) Scanning it below runs a checksum on the machine-readable strip as a quick sanity-check - it is not an authenticity check.',
+      accepts:'file', checkKind:'passport'},
+    {id:'yellowFeverCert', cat:'Identity & travel documents', label:'Yellow fever vaccination certificate (recommended)', weight:'recommended',
+      tip:'Nigeria is a yellow-fever-endemic country, and Morocco has been reported to ask for this from travellers arriving from at-risk countries - carry your International Certificate of Vaccination or Prophylaxis (the yellow card) to be safe, and confirm the current position before you travel since this isn\'t as consistently documented as it is for Ghana/Kenya/South Africa.', accepts:'file'},
+    {id:'oldPassports', cat:'Identity & travel documents', label:'Previous passport(s) showing earlier travel history (optional)', weight:'recommended',
+      tip:'Not required for visa-free entry, but a record of travelling and returning home before can still be useful to have on hand.', accepts:'file', multiple:true, checkKind:'oldVisa'},
+
+    // Financial evidence
+    {id:'proofOfFunds', cat:'Financial evidence', label:'Evidence of funds for your trip (bank statement, up to 3 files)', weight:'recommended',
+      tip:'Not formally required for visa-free entry, but Moroccan border officials can still ask for proof of funds - having a recent bank statement ready avoids an awkward conversation. Scanning here does the same income/outflow analysis as the full checklists.',
+      accepts:'file', multiple:true, checkKind:'bankStatement'},
+
+    // Accommodation & Moroccan host
+    {id:'invitationLetter', cat:'Accommodation & Moroccan host', label:'Invitation letter from your Moroccan host', weight:'recommended', appliesIf:function(a){return a.hasHost;},
+      tip:'Not a formal requirement, but a short letter with the host\'s name, address, and your relationship makes your entry purpose easy for a border officer to understand at a glance.', accepts:'file', checkKind:'invitationLetter'},
+    {id:'hostAddress', cat:'Accommodation & Moroccan host', label:"Host's proof of address (recent utility bill)", weight:'recommended', appliesIf:function(a){return a.hasHost;},
+      tip:'Confirms where you\'ll actually be staying.', accepts:'file'},
+    {id:'hotelBooking', cat:'Accommodation & Moroccan host', label:'Hotel / accommodation booking confirmation', weight:'recommended', appliesIf:function(a){return !a.hasHost;},
+      tip:'A reservation hold is usually enough - doesn\'t need to be prepaid. Not a formal requirement for visa-free entry, but useful to have ready if asked.',
+      accepts:'file', checkKind:'accommodation'},
+
+    // Travel details
+    {id:'flightItinerary', cat:'Travel details', label:'Flight / travel itinerary showing return or onward travel', weight:'required',
+      tip:'Airlines and border officials commonly expect to see a return or onward ticket before letting you board or enter, even where no visa is required.', accepts:'file', checkKind:'flightItinerary'},
+    {id:'accomVerified', cat:'Travel details', label:'Accommodation verified (address is real and booking is genuine)', weight:'recommended',
+      tip:'No document to upload here - just double-check the booking reference is live and the address exists, then tick this once you\'ve confirmed it yourself.'},
+    {id:'insurance', cat:'Travel details', label:'Travel / medical insurance', weight:'recommended',
+      tip:'Not required for visa-free entry, but sensible to have for any trip.', accepts:'file'},
+
+    // Children
+    {id:'birthCert', cat:'If a child is travelling', label:'Full/unabridged birth certificate showing both parents', weight:'recommended', appliesIf:function(a){return a.hasChild;}, accepts:'file',
+      tip:'Standard practice for a child travelling internationally - confirm the current position with the airline and Moroccan authorities before you travel, since child-travel document rules vary and can change.'},
+    {id:'consentLetter', cat:'If a child is travelling', label:"Consent letter from the non-travelling parent(s)/guardian", weight:'recommended', appliesIf:function(a){return a.hasChild;},
+      tip:'Needed if the child is travelling with only one parent, or with neither - a signed letter from the other parent/guardian, ideally notarised, plus a copy of their passport data page. Nigerian immigration itself can ask for this on exit, separately from Morocco\'s own entry rules.', accepts:'file'},
+    {id:'parentsPassports', cat:'If a child is travelling', label:"Copies of both parents' passport data pages", weight:'recommended', appliesIf:function(a){return a.hasChild;}, accepts:'file', multiple:true}
+  ];
+  var CAT_ORDER_MA = ['Identity & travel documents','Financial evidence','Accommodation & Moroccan host','Travel details','If a child is travelling'];
+
+  var CHECKLIST_ET = [
+    // Identity & application
+    {id:'passport', cat:'Identity & application', label:'Valid passport (covers your whole trip)', weight:'required',
+      tip:'Must be valid for at least 6 months beyond your intended entry to Ethiopia, with a clear colour scan of the bio page for the eVisa application. Scanning it below runs a checksum on the machine-readable strip as a quick sanity-check - it is not an authenticity check; only the eVisa portal / immigration can confirm a passport is genuine.',
+      accepts:'file', checkKind:'passport'},
+    {id:'photo', cat:'Identity & application', label:'Recent colour passport photo (white background, ≤6 months old)', weight:'required',
+      tip:'Uploaded directly to the eVisa application at evisa.gov.et - check the portal\'s current exact spec before you apply, since photo requirements are strictly enforced.'},
+    {id:'evisaApplication', cat:'Identity & application', label:'eVisa application submitted at evisa.gov.et', weight:'required', appliesIf:function(a){return a.readyToSubmit;},
+      tip:'Ethiopia\'s only official eVisa portal - be wary of look-alike third-party sites that charge extra fees. As of 2026 Ethiopia issues a 30-day tourist e-Visa only (the 90-day option was discontinued); processing is typically around 3 business days, with a faster paid option on some reports.'},
+    {id:'feePaid', cat:'Identity & application', label:'eVisa fee payment confirmation', weight:'required', appliesIf:function(a){return a.readyToSubmit;},
+      tip:'Widely reported at around $82 for the 30-day tourist e-Visa as of 2026 (an older, lower figure of around $62 has also been reported) - fees can change, so confirm the exact current amount directly on evisa.gov.et before paying.'},
+    {id:'oldPassports', cat:'Identity & application', label:'Previous passport(s) showing earlier travel history (optional)', weight:'recommended',
+      tip:'Not always required by the portal, but evidence you\'ve travelled abroad and returned home before can strengthen your application.', accepts:'file', multiple:true, checkKind:'oldVisa'},
+    {id:'oldVisas', cat:'Identity & application', label:'Previous visa(s) / entry stamps from earlier travel (optional)', weight:'recommended',
+      tip:'A track record of visiting other countries and returning home on time is a positive signal - attach photos of past visa pages and entry/exit stamps if you have them.', accepts:'file', multiple:true, checkKind:'oldVisa'},
+
+    // Financial evidence
+    {id:'bankStatements', cat:'Financial evidence', label:'Bank statements - last 3 to 6 months (up to 3 files)', weight:'recommended',
+      tip:'Reports on exactly what evisa.gov.et requires are mixed - some sources say a bank statement isn\'t strictly mandatory for the tourist e-Visa, others recommend one ideally stamped/signed by your bank on every page showing a healthy balance. Given the mixed signal, it\'s treated as strongly recommended here rather than required - having it ready costs you nothing and can only help. Scanning here does the same income/outflow analysis as the full checklists.',
+      accepts:'file', multiple:true, checkKind:'bankStatement'},
+    {id:'forexProof', cat:'Financial evidence', label:'Proof of foreign currency savings/income (optional)', weight:'recommended',
+      tip:'If you added foreign currency savings in the calculator above, a supporting document makes that figure easier to trust.', accepts:'file', multiple:true},
+
+    // Ties to Nigeria
+    {id:'leaveLetter', cat:'Ties to Nigeria', label:"Employer's leave-approval letter", weight:'recommended', appliesIf:function(a){return a.employed;},
+      tip:'Not a strict eVisa portal requirement, but should state the exact days approved, matching your travel dates - useful to have ready in case of questions on arrival.', accepts:'file'},
+    {id:'employmentLetter', cat:'Ties to Nigeria', label:'Employment letter on company letterhead (role, salary, start date)', weight:'recommended', appliesIf:function(a){return a.employed;},
+      tip:'Not always required by the eVisa portal itself, but useful supporting evidence - your name here should match your name on your bank statement exactly.',
+      accepts:'file', checkKind:'employmentLetter'},
+    {id:'enrolmentLetter', cat:'Ties to Nigeria', label:'School/university admission or enrolment letter', weight:'recommended', appliesIf:function(a){return a.student;},
+      tip:'Confirms your current studies and that the institution expects you back.', accepts:'file'},
+
+    // Accommodation & Ethiopian host
+    {id:'invitationLetter', cat:'Accommodation & Ethiopian host', label:'Invitation letter from your Ethiopian host', weight:'recommended', appliesIf:function(a){return a.hasHost;},
+      tip:"Should include the host's full name, address, ID/status, your relationship, and exact dates of your stay.",
+      accepts:'file', checkKind:'invitationLetter'},
+    {id:'hostAddress', cat:'Accommodation & Ethiopian host', label:"Host's proof of address (recent utility bill)", weight:'recommended', appliesIf:function(a){return a.hasHost;},
+      tip:'Confirms where you\'ll actually be staying.', accepts:'file'},
+    {id:'hotelBooking', cat:'Accommodation & Ethiopian host', label:'Hotel / accommodation booking confirmation', weight:'recommended', appliesIf:function(a){return !a.hasHost;},
+      tip:"A reservation hold is usually enough - doesn't need to be prepaid. Not strictly mandatory for the tourist e-Visa per the portal, but advisable to have ready.",
+      accepts:'file', checkKind:'accommodation'},
+
+    // Travel details
+    {id:'arrivalAirportNote', cat:'Travel details', label:'Confirmed your arrival flight lands at Addis Ababa Bole International Airport', weight:'required',
+      tip:'The eVisa is currently only valid for arrival via Addis Ababa Bole International Airport - no document to upload here, just double-check your flight itinerary matches this before you book, then tick this once confirmed.'},
+    {id:'flightItinerary', cat:'Travel details', label:'Flight itinerary / reservation (round-trip)', weight:'recommended',
+      tip:"Advisable to have, though not always strictly mandatory for the tourist e-Visa per the portal. A reservation hold showing your planned dates is usually enough.",
+      accepts:'file', checkKind:'flightItinerary'},
+    {id:'returnEvidence', cat:'Travel details', label:'Evidence of return or onward travel', weight:'recommended',
+      tip:'Shows you plan to leave Ethiopia at the end of your visit.', accepts:'file'},
+    {id:'insurance', cat:'Travel details', label:'Travel / medical insurance', weight:'recommended',
+      tip:'Not a stated eVisa portal requirement, but sensible to have for any trip.', accepts:'file'},
+
+    // Purpose-specific
+    {id:'bizLetterPair', cat:'Purpose-specific', label:'Letters from your Nigerian employer and the Ethiopian company you\'re visiting', weight:'recommended', appliesIf:function(a){return a.purpose==='business';},
+      tip:'Should detail the business relationship and the purpose of your meetings.'},
+    {id:'confInvite', cat:'Purpose-specific', label:'Letter of invitation from the conference/event organiser', weight:'recommended', appliesIf:function(a){return a.purpose==='conference';},
+      tip:'Plus your registration confirmation if you have one - Addis Ababa is a common hub for conferences and AU-related events.'},
+    {id:'medLetter', cat:'Purpose-specific', label:'Letter from the Ethiopian medical practitioner/clinic', weight:'recommended', appliesIf:function(a){return a.purpose==='medical';},
+      tip:'Diagnosis, proposed treatment, estimated cost and expected duration.', accepts:'file', checkKind:'medicalLetter'},
+    {id:'familyProof', cat:'Purpose-specific', label:'Proof of relationship to the family you\'re visiting', weight:'recommended', appliesIf:function(a){return a.purpose==='family';},
+      tip:'Birth/marriage certificates or similar linking you to your Ethiopia-based family.'},
+
+    // Children
+    {id:'birthCert', cat:'If a child is travelling', label:'Full/unabridged birth certificate showing both parents', weight:'recommended', appliesIf:function(a){return a.hasChild;}, accepts:'file',
+      tip:'Standard practice for a child travelling internationally - confirm the current position with the airline and evisa.gov.et before you travel, since child-travel document rules vary and can change.'},
+    {id:'consentLetter', cat:'If a child is travelling', label:"Consent letter from the non-travelling parent(s)/guardian", weight:'recommended', appliesIf:function(a){return a.hasChild;},
+      tip:'Needed if the child is travelling with only one parent, or with neither - a signed letter from the other parent/guardian, ideally notarised, plus a copy of their passport data page.', accepts:'file'},
+    {id:'parentsPassports', cat:'If a child is travelling', label:"Copies of both parents' passport data pages", weight:'recommended', appliesIf:function(a){return a.hasChild;}, accepts:'file', multiple:true},
+
+    // Visa history
+    {id:'refusalDocs', cat:'Visa history', label:'Previous visa refusal documentation (Ethiopia or elsewhere)', weight:'recommended', appliesIf:function(a){return a.hasRefusal;},
+      tip:'The eVisa application form asks whether you\'ve been refused a visa before - having the refusal letter(s) and a short explanation of what\'s changed since ready can help if you\'re asked to clarify. Upload it below and this tool will scan it locally for common refusal-reason wording.', accepts:'file', multiple:true, checkKind:'refusalLetter'},
+
+    // Translations
+    {id:'translations', cat:'Translations', label:'Certified English translations of any other-language documents', weight:'recommended', appliesIf:function(a){return a.translation;},
+      tip:"The eVisa portal operates in English - if any of your supporting documents are in another language, a certified translation plus a copy of the original makes them usable.", accepts:'file', multiple:true}
+  ];
+  var CAT_ORDER_ET = ['Identity & application','Financial evidence','Ties to Nigeria','Accommodation & Ethiopian host','Travel details','Purpose-specific','If a child is travelling','Visa history','Translations'];
+
   // ---------------- Country registry ----------------
   // Each entry's checklist/catOrder drives render(); the rest of the fields feed the consent-gate disclaimer,
   // the banner/footer, and the handful of dynamic advisory strings elsewhere (findUnexplainedLargeInflows-style
@@ -4140,6 +4358,60 @@
       footerLinks:[{url:'https://visa.vfsglobal.com/one-pager/southafrica/nigeria/english/', text:'VFS Global - South Africa visa (Nigeria)'},{url:'https://www.dha.gov.za', text:'Department of Home Affairs (DHA)'}],
       hostCountryLabel:'South Africa', hostTypeLabel:'South African host', translationLangLabel:'English', visaShortLabel:'South Africa',
       checklist: CHECKLIST_ZA, catOrder: CAT_ORDER_ZA, ready:true
+    },
+    GH: {
+      code:'GH', flag:'🇬🇭', name:'Ghana', visaName:'Ghana travel readiness (visa-free)', authority:'Ghana Immigration Service',
+      subtitle:'A personal travel-readiness checklist for Nigerian citizens visiting Ghana. Nigeria and Ghana are both ECOWAS members, so Nigerian passport holders can enter Ghana visa-free under the ECOWAS Protocol on Free Movement - there is no visa application here. This checklist covers what actually helps you travel smoothly instead: your yellow fever certificate, passport validity, and an onward ticket.',
+      disclaimerShortHtml:'<b>Not immigration advice.</b> A personal travel-prep tool - Ghana is visa-free for Nigerian passport holders under ECOWAS, so this is not a visa application.<ul class="disclaimer-points"><li>Based on the ECOWAS Protocol on Free Movement and general Ghana Immigration Service entry guidance</li><li>Immigration officers can still ask for proof of funds or accommodation at the border - not guaranteed, but worth having ready</li><li>Files are scanned entirely in your browser - nothing is uploaded</li></ul>',
+      disclaimerHtml:'<b>Not immigration advice.</b> Nigeria and Ghana are both ECOWAS member states, so under the ECOWAS Protocol on Free Movement, Nigerian passport holders can enter Ghana without a visa - typically for stays of up to 90 days. This tool reflects general Ghana Immigration Service entry guidance as of September 2026 and is meant to help you travel smoothly, not decide or guarantee your entry, and it cannot detect fraudulent documents. A yellow fever vaccination certificate is required, since Nigeria is a yellow-fever-endemic country - carry it alongside your passport. Immigration officers retain discretion to ask for proof of funds, accommodation, or an onward ticket at the border even though none of this is a formal visa requirement, so it\'s worth having ready. Requirements and policy can change, so always confirm the current position at the Ghana Immigration Service and with your airline before you travel. Any files you scan here are processed <b>entirely in your browser</b> - nothing is uploaded anywhere.',
+      officialUrl:'https://gis.gov.gh/', officialLinkText:'gis.gov.gh - Ghana Immigration Service',
+      statementsMonthsText:'a few months',
+      footerIntro:'Built from the ECOWAS Protocol on Free Movement and general Ghana Immigration Service entry guidance.',
+      footerLinks:[{url:'https://gis.gov.gh/', text:'gis.gov.gh - Ghana Immigration Service'}],
+      hostCountryLabel:'Ghana', hostTypeLabel:'Ghanaian host', translationLangLabel:'English', visaShortLabel:'Ghana',
+      noVisaRequired:true,
+      checklist: CHECKLIST_GH, catOrder: CAT_ORDER_GH, ready:true
+    },
+    KE: {
+      code:'KE', flag:'🇰🇪', name:'Kenya', visaName:'Kenya travel readiness (visa/eTA-exempt)', authority:'Kenya Directorate of Immigration Services',
+      subtitle:'A personal travel-readiness checklist for Nigerian citizens visiting Kenya. Kenya added Nigeria to its eTA/visa-exempt list in July 2025, so no eTA or visa application is needed for a short visit. This checklist covers what actually helps you travel smoothly instead: your yellow fever certificate, passport validity, and an onward ticket.',
+      disclaimerShortHtml:'<b>Not immigration advice.</b> A personal travel-prep tool - Nigeria has been visa/eTA-exempt for Kenya since July 2025, so this is not a visa application.<ul class="disclaimer-points"><li>Based on Kenya\'s published visa-exemption policy and general immigration entry guidance</li><li>Immigration officers can still ask for proof of funds or accommodation at the border - not guaranteed, but worth having ready</li><li>Files are scanned entirely in your browser - nothing is uploaded</li></ul>',
+      disclaimerHtml:'<b>Not immigration advice.</b> Kenya added Nigeria to its eTA/visa-exempt list on 14 July 2025, so Nigerian passport holders can currently enter Kenya without a visa or eTA - entry permission is commonly reported around 60 days. This tool reflects general Kenyan immigration entry guidance as of September 2026 and is meant to help you travel smoothly, not decide or guarantee your entry, and it cannot detect fraudulent documents. A yellow fever vaccination certificate is required, since Nigeria is a yellow-fever-endemic country - carry it alongside your passport. Immigration officers retain discretion to ask for proof of funds, accommodation, or an onward ticket at the border even though none of this is a formal requirement, so it\'s worth having ready. Requirements and policy can change, so always confirm the current position with Kenyan immigration and your airline before you travel. Any files you scan here are processed <b>entirely in your browser</b> - nothing is uploaded anywhere.',
+      officialUrl:'https://www.ecitizen.go.ke/', officialLinkText:'ecitizen.go.ke - Kenya immigration services',
+      statementsMonthsText:'a few months',
+      footerIntro:'Built from Kenya\'s published eTA/visa-exemption policy and general immigration entry guidance.',
+      footerLinks:[{url:'https://www.ecitizen.go.ke/', text:'ecitizen.go.ke - Kenya immigration services'}],
+      hostCountryLabel:'Kenya', hostTypeLabel:'Kenyan host', translationLangLabel:'English', visaShortLabel:'Kenya',
+      noVisaRequired:true,
+      checklist: CHECKLIST_KE, catOrder: CAT_ORDER_KE, ready:true
+    },
+    MA: {
+      code:'MA', flag:'🇲🇦', name:'Morocco', visaName:'Morocco travel readiness (visa-free)', authority:'Moroccan immigration/border authorities',
+      subtitle:'A personal travel-readiness checklist for Nigerian citizens visiting Morocco. Ordinary Nigerian passport holders can enter Morocco visa-free for stays of up to 30 days - there is no visa application for this general case. This checklist covers what actually helps you travel smoothly instead: your passport (with a blank page), an onward ticket, and accommodation.',
+      disclaimerShortHtml:'<b>Not immigration advice.</b> A personal travel-prep tool - Morocco is visa-free for Nigerian passport holders for stays up to 30 days, so this is not a visa application for the general case.<ul class="disclaimer-points"><li>Based on Morocco\'s published visa-exemption policy for Nigerian passport holders</li><li>A separate, narrow e-Visa (evis.ma) exists only for Nigerians who already hold a valid Schengen/UK/US/Canada visa or residence permit - not covered by this checklist</li><li>Files are scanned entirely in your browser - nothing is uploaded</li></ul>',
+      disclaimerHtml:'<b>Not immigration advice.</b> Ordinary Nigerian passport holders can enter Morocco without a visa for stays of up to 30 days - no application is needed for this general case. This tool reflects general Moroccan entry guidance as of September 2026 and is meant to help you travel smoothly, not decide or guarantee your entry, and it cannot detect fraudulent documents. Your passport should be valid for at least 6 months beyond your travel date with at least 1 blank page. Separately, Morocco also runs a narrow e-Visa system (evis.ma) available only to Nigerians who already hold a valid multiple-entry Schengen/UK/US/Canada/Australia/Ireland/Norway/Japan/New Zealand/UAE visa or residence permit with enough remaining validity - this checklist does not cover that narrow case; if it applies to you, apply directly at evis.ma. Immigration officers retain discretion to ask for proof of funds, accommodation, or an onward ticket at the border, so it\'s worth having these ready. Requirements and policy can change, so always confirm the current position with Moroccan authorities and your airline before you travel. Any files you scan here are processed <b>entirely in your browser</b> - nothing is uploaded anywhere.',
+      officialUrl:'https://www.evis.ma/', officialLinkText:'evis.ma - Morocco e-Visa portal (narrow eligibility only)',
+      statementsMonthsText:'a few months',
+      footerIntro:'Built from Morocco\'s published visa-exemption policy for Nigerian passport holders.',
+      footerLinks:[{url:'https://www.evis.ma/', text:'evis.ma - Morocco e-Visa portal (narrow eligibility only)'}],
+      hostCountryLabel:'Morocco', hostTypeLabel:'Moroccan host', translationLangLabel:'English or French', visaShortLabel:'Morocco',
+      noVisaRequired:true,
+      checklist: CHECKLIST_MA, catOrder: CAT_ORDER_MA, ready:true
+    },
+    ET: {
+      code:'ET', flag:'🇪🇹', name:'Ethiopia', visaName:'Ethiopia tourist e-Visa', authority:'Ethiopian immigration (evisa.gov.et)',
+      subtitle:'A personal readiness checklist for Nigerian applicants preparing an Ethiopia tourist e-Visa application via evisa.gov.et. Fill in your trip details, tick off what you have, and optionally scan a file locally for a quick automated sanity-check.',
+      disclaimerShortHtml:'<b>Not immigration advice.</b> A personal prep tool - it doesn\'t decide, submit, or guarantee your application.<ul class="disclaimer-points"><li>Built from evisa.gov.et\'s published e-Visa guidance - only apply through the official portal</li><li>Some requirements (bank statement, accommodation, return ticket) are reported inconsistently across sources - treated here as recommended rather than mandatory</li><li>Files are scanned entirely in your browser - nothing is uploaded</li></ul>',
+      disclaimerHtml:'<b>Not immigration advice.</b> This tool reflects published guidance for Ethiopia\'s tourist e-Visa, applied for exclusively through the official portal at evisa.gov.et, as of September 2026 - it is meant to help you prepare, not decide, submit, or guarantee your application, and it cannot detect fraudulent documents. As of 2026 only the 30-day tourist e-Visa is issued (the 90-day option has been discontinued); the fee is commonly reported around $82, though figures vary a little by source, so confirm the current amount directly on evisa.gov.et before paying. Be wary of look-alike third-party sites that charge extra for the same service. Sources are inconsistent on whether a bank statement, accommodation proof, and a return ticket are strictly mandatory for the tourist e-Visa or simply advisable - this checklist treats them as recommended rather than required given that inconsistency, but having them ready can only help. Arrival is currently only supported via Addis Ababa Bole International Airport. Requirements, fees, and processing times can change, so always confirm current requirements directly at evisa.gov.et. Any files you scan here are processed <b>entirely in your browser</b> - nothing is uploaded anywhere.',
+      officialUrl:'https://www.evisa.gov.et/', officialLinkText:'evisa.gov.et - Ethiopia e-Visa portal',
+      vacText:'the official evisa.gov.et online portal (no physical visa application centre needed)',
+      priorityServiceName:'expedited e-Visa processing (where evisa.gov.et offers one)',
+      processingTimeText:'commonly around 3 business days for standard processing (evisa.gov.et has reported a faster paid option on some accounts - confirm current options and timing directly on the portal)',
+      statementsMonthsText:'3 to 6 months',
+      footerIntro:'Built from published guidance for Ethiopia\'s tourist e-Visa via evisa.gov.et.',
+      footerLinks:[{url:'https://www.evisa.gov.et/', text:'evisa.gov.et - Ethiopia e-Visa portal'}],
+      hostCountryLabel:'Ethiopia', hostTypeLabel:'Ethiopian host', translationLangLabel:'English', visaShortLabel:'Ethiopia',
+      checklist: CHECKLIST_ET, catOrder: CAT_ORDER_ET, ready:true
     },
     AU: {code:'AU', flag:'🇦🇺', name:'Australia', visaName:'Australia visitor visa', ready:false},
     CN: {code:'CN', flag:'🇨🇳', name:'China', visaName:'China visitor visa', ready:false}
@@ -4373,16 +4645,14 @@
       }
     },
     'Kenya': {
-      visaType: 'eTA required (~$30, online)',
-      summary: 'Kenya replaced its old visa-free arrangement with an Electronic Travel Authorization (eTA) - still no embassy visit, but you do need to apply online first.',
+      visaType: 'Visa/eTA-exempt (since July 2025)',
+      summary: 'Kenya exempted Nigeria from its eTA requirement via Legal Notice No. 93 (effective 14 July 2025) - no eTA or visa needed for a short visit, and no online application to make.',
       steps: [
         'Make sure your passport has at least 6 months\' validity and a blank page.',
-        'Go to the official portal - etakenya.go.ke - and create an account. (Watch out for look-alike third-party sites that charge extra.)',
-        'Fill in your passport and travel details, and upload a passport photo, your flight booking, and proof of accommodation.',
-        'Pay the eTA fee (around $30, non-refundable) by card.',
-        'Wait for approval - usually 48–72 hours - and download it once it lands in your email.',
-        'Print or save the approval and present it with your passport on arrival. It covers a single visit of up to 90 days.',
-        'Apply at least a week before you travel, in case of delays. Source: Kenya\'s official eTA guidance.'
+        'Get (or renew) your Yellow Fever vaccination card - Kenya requires this from travellers arriving from Nigeria, and you can be refused entry without it.',
+        'Book a return or onward flight - immigration can ask to see it on arrival even though no visa is needed.',
+        'Have proof of accommodation and funds ready in case a border official asks - not a formal requirement, but sensible to carry.',
+        'No eTA, no visa, no fee, no online application - present your passport and documents on arrival. Entry is commonly granted for up to 60 days. Source: Kenya\'s Legal Notice No. 93 (May 2025) and current Kenyan immigration guidance.'
       ],
       costEstimate: {
         road: null, // No realistic overland route from Nigeria - thousands of km through several
@@ -4410,15 +4680,15 @@
       }
     },
     'Morocco': {
-      visaType: 'Embassy visa (most applicants)',
-      summary: 'Morocco does have an e-visa, but it\'s ONLY for people who already hold a valid multi-entry Schengen/US/UK/Canada visa or certain residence permits - most first-time applicants won\'t qualify, so this is the standard embassy route.',
+      visaType: 'Visa-free (up to 30 days) for most applicants',
+      summary: 'Ordinary Nigerian passport holders can enter Morocco visa-free for stays of up to 30 days - no application needed. A separate, narrow e-visa (evis.ma) exists only for Nigerians who already hold a valid multiple-entry Schengen/US/UK/Canada visa or residence permit - that\'s not the general case most first-time travellers are in.',
       steps: [
-        'Check the e-visa shortcut first: if you already hold a valid MULTIPLE-entry Schengen, US, UK, Canada, Australia, New Zealand, Japan, or Ireland visa (with at least 90 days left on it), you may qualify for Morocco\'s e-visa instead of the steps below - worth checking before you start.',
-        'If not, the Moroccan Embassy in Abuja handles Nigerian applications - check their website for the current appointment process; walk-ins are limited.',
-        'Gather your documents: passport valid 6+ months, recent passport photos, the completed application form, a round-trip flight booking, proof of accommodation, bank statements showing sufficient funds, and travel health insurance.',
-        'Attend your appointment with originals and copies of everything.',
-        'Processing time and fees vary - confirm both directly with the embassy when you book, since this changes more often than the other steps here.',
-        'Source: Moroccan Embassy (Abuja) visa guidance and current Morocco e-visa eligibility rules.'
+        'Make sure your passport is valid for at least 6 months beyond your travel date, with at least 1 blank page for the entry stamp.',
+        'Book a return or onward flight - airlines and border officials commonly expect to see one.',
+        'Have proof of accommodation and funds ready in case a border official asks - not a formal requirement, but sensible to carry.',
+        'No visa application, no fee, no embassy visit needed for stays of up to 30 days.',
+        'Already hold a valid multiple-entry Schengen/US/UK/Canada visa or residence permit with enough remaining validity? You may alternatively qualify for Morocco\'s e-visa at evis.ma - check eligibility there if it applies to you.',
+        'Source: Morocco\'s published visa-exemption policy for Nigerian passport holders and evis.ma\'s eligibility guidance.'
       ]
     },
     'South Africa': {
@@ -4626,6 +4896,11 @@
     'Ties to Nigeria':               { icon: '🇳🇬', color: '#3e9b79' },
     'Accommodation & UK host':       { icon: '🏠', color: '#c17a3d' },
     'Accommodation & Canadian host': { icon: '🏠', color: '#c17a3d' },
+    'Accommodation & Ghanaian host': { icon: '🏠', color: '#c17a3d' },
+    'Accommodation & Kenyan host':   { icon: '🏠', color: '#c17a3d' },
+    'Accommodation & Moroccan host': { icon: '🏠', color: '#c17a3d' },
+    'Accommodation & Ethiopian host':{ icon: '🏠', color: '#c17a3d' },
+    'Identity & travel documents':   { icon: '🪪', color: '#1b6fa8' },
     'Travel details':                { icon: '✈️', color: '#4a5d8a' },
     'Purpose-specific':              { icon: '🎯', color: '#d97757' },
     'If a child is travelling':      { icon: '👶', color: '#d97757' },
@@ -6569,8 +6844,12 @@
     var travelLabel = c.hostCountryLabel || c.name;
 
     if (a.spouseUkHistory === 'yes'){
-      html = '<div class="scan-msg info">Since '+escapeHtml(spouseRef)+' already holds a '+escapeHtml(visaShort)+' visa, or has travelled to '+escapeHtml(travelLabel)+' before, one option worth considering: framing this as '
-        + escapeHtml(spouseRef) + ' taking you along on their next visit. Their own travel history and proven return to Nigeria can strengthen your ties in a reviewer\'s eyes - make sure this is stated clearly in your application, and that your marriage certificate is included as evidence of the relationship. This is a narrative choice, not a document requirement change here, so nothing else on this checklist is affected by it.</div>';
+      var spouseHistoryBit = c.noVisaRequired
+        ? ('has already travelled to '+escapeHtml(travelLabel)+' before')
+        : ('already holds a '+escapeHtml(visaShort)+' visa, or has travelled to '+escapeHtml(travelLabel)+' before');
+      var applicationBit = c.noVisaRequired ? 'on this checklist' : 'in your application';
+      html = '<div class="scan-msg info">Since '+escapeHtml(spouseRef)+' '+spouseHistoryBit+', one option worth considering: framing this as '
+        + escapeHtml(spouseRef) + ' taking you along on their next visit. Their own travel history and proven return to Nigeria can strengthen your ties in a reviewer\'s eyes - make sure this is stated clearly '+applicationBit+', and that your marriage certificate is included as evidence of the relationship. This is a narrative choice, not a document requirement change here, so nothing else on this checklist is affected by it.</div>';
     } else if (a.spouseWilling === 'yes' && a.spouseEmployed === 'yes'){
       showConfirm = true;
       html = '<div class="scan-msg ok">Since '+escapeHtml(spouseRef)+' is employed and willing, they can act as your financial sponsor instead of you self-funding. Guidance is consistent on one point: money in an account that isn\'t declared as a sponsor\'s is usually disregarded by a caseworker rather than counted in your favour - so this needs to be stated plainly, not left implicit. If you go this route you\'ll need '
@@ -7275,12 +7554,13 @@
         // distinct "hero" banner (see .fin-success-banner) instead of the compact .scan-msg strip
         // used for every routine status line, so the headline figure and the call to action can't
         // get skimmed past as just another line of small print.
+        var finCtaLabel = COUNTRIES[currentCountry].noVisaRequired ? 'Check entry requirements at ' : 'Start your application at ';
         msgs.push({cls:'ok', hero:true, text:
           '<div class="fin-success-icon">🎉</div>'
           + '<div>'
           + '<div class="fin-success-title">You\'re financially ready</div>'
           + '<div class="fin-success-stat">'+fmtN(totalFunds)+'<span class="fin-success-stat-label">Total funds available - comfortably covers your estimated trip cost with the recommended 2× buffer</span></div>'
-          + '<a class="btn primary fin-success-cta" href="'+COUNTRIES[currentCountry].officialUrl+'" target="_blank" rel="noopener">Start your application at '+escapeHtml(COUNTRIES[currentCountry].officialLinkText)+' →</a>'
+          + '<a class="btn primary fin-success-cta" href="'+COUNTRIES[currentCountry].officialUrl+'" target="_blank" rel="noopener">'+finCtaLabel+escapeHtml(COUNTRIES[currentCountry].officialLinkText)+' →</a>'
           + '<p class="fin-success-note">☝️ Just make sure everything else on this checklist is ticked off first.</p>'
           + '</div>'
         });
@@ -7311,22 +7591,31 @@
 
       if (appDateStr && travelDateStr){
         var weeks = (new Date(travelDateStr) - new Date(appDateStr)) / (7*86400000);
+        var noVisaTiming = !!COUNTRIES[currentCountry].noVisaRequired;
         if (isNaN(weeks)){
           // ignore
         } else if (weeks < 0){
-          msgs.push({cls:'err', text:'Your application date is after your travel date - check these two dates.'});
+          msgs.push({cls:'err', text: noVisaTiming ? 'Your planned prep date is after your travel date - check these two dates.' : 'Your application date is after your travel date - check these two dates.'});
           bump('err');
         } else if (weeks < 3){
-          msgs.push({cls:'err', text:'Only about '+Math.max(0,Math.floor(weeks))+' week(s) between your planned application date and travel date. That\'s tight - prepare to pay extra for a '+COUNTRIES[currentCountry].priorityServiceName+', since applying this close to your travel date can itself come across as poor planning and read to a visa officer as not being serious about the process. It costs extra on top of the standard fee and still doesn\'t guarantee a faster outcome (check current priority fees at the official source) - applying at least 4 weeks ahead avoids this altogether.'});
+          msgs.push({cls:'err', text: noVisaTiming
+            ? 'Only about '+Math.max(0,Math.floor(weeks))+' week(s) until your travel date. That\'s tight for a visa-free trip too - make sure your yellow fever certificate, onward ticket, and any accommodation booking are sorted well before you fly, since last-minute gaps at the border (not visa processing) are the real risk here.'
+            : 'Only about '+Math.max(0,Math.floor(weeks))+' week(s) between your planned application date and travel date. That\'s tight - prepare to pay extra for a '+COUNTRIES[currentCountry].priorityServiceName+', since applying this close to your travel date can itself come across as poor planning and read to a visa officer as not being serious about the process. It costs extra on top of the standard fee and still doesn\'t guarantee a faster outcome (check current priority fees at the official source) - applying at least 4 weeks ahead avoids this altogether.'});
           bump('err');
         } else if (weeks < 4){
-          msgs.push({cls:'warn', text:'Only about '+Math.max(0,Math.floor(weeks))+' week(s) between your planned application date and travel date. Apply at least 4 weeks before you travel so there\'s enough time for standard processing.'});
+          msgs.push({cls:'warn', text: noVisaTiming
+            ? 'Only about '+Math.max(0,Math.floor(weeks))+' week(s) until your travel date. Give yourself enough time to gather your yellow fever certificate and other documents above before you fly.'
+            : 'Only about '+Math.max(0,Math.floor(weeks))+' week(s) between your planned application date and travel date. Apply at least 4 weeks before you travel so there\'s enough time for standard processing.'});
           bump('warn');
         } else {
-          msgs.push({cls:'ok', text:'You\'re planning to apply about '+Math.floor(weeks)+' weeks before travel - a comfortable buffer for processing.'});
+          msgs.push({cls:'ok', text: noVisaTiming
+            ? 'You have about '+Math.floor(weeks)+' weeks before travel - a comfortable buffer to get your documents together.'
+            : 'You\'re planning to apply about '+Math.floor(weeks)+' weeks before travel - a comfortable buffer for processing.'});
         }
       } else {
-        msgs.push({cls:'info', text:'Enter your planned application date (above) as well as your travel date to check you\'re applying with enough lead time.'});
+        msgs.push({cls:'info', text: (COUNTRIES[currentCountry].noVisaRequired
+          ? 'Enter your planned prep date (above) as well as your travel date to check you have enough lead time.'
+          : 'Enter your planned application date (above) as well as your travel date to check you\'re applying with enough lead time.')});
       }
 
       finSummary.innerHTML = breakdown + msgs.map(function(m){
@@ -14158,7 +14447,9 @@
     // Spouse/sponsor question on "What to do next" - used to hardcode "a UK visa"/"the UK" regardless
     // of which country was actually selected, misleading for Canada/Schengen/South Africa applicants.
     var spouseVisaLabelEl = document.getElementById('rs_spouseVisaLabel');
-    if (spouseVisaLabelEl) spouseVisaLabelEl.textContent = 'a ' + (c.visaShortLabel || c.name) + ' visa';
+    if (spouseVisaLabelEl) spouseVisaLabelEl.textContent = c.noVisaRequired
+      ? ('a valid passport for entry to ' + (c.hostCountryLabel || c.name))
+      : ('a ' + (c.visaShortLabel || c.name) + ' visa');
     var spouseTravelLabelEl = document.getElementById('rs_spouseTravelLabel');
     if (spouseTravelLabelEl) spouseTravelLabelEl.textContent = c.hostCountryLabel;
     ['hostTypeLabel1','hostTypeLabel3'].forEach(function(id){
@@ -14622,7 +14913,7 @@
   // Tappable-list front end for #gateCountrySelect (see the HTML comment above .gate-country-list).
   // COUNTRY_GATE_ORDER matches the hidden <select>'s own option order exactly, so the two never
   // silently drift apart.
-  var COUNTRY_GATE_ORDER = ['UK', 'CA', 'US', 'EU', 'ZA', 'AU', 'CN'];
+  var COUNTRY_GATE_ORDER = ['UK', 'CA', 'US', 'EU', 'ZA', 'GH', 'KE', 'ET', 'MA', 'AU', 'CN'];
   function buildGateCountryList(){
     var list = document.getElementById('gateCountryList');
     list.innerHTML = COUNTRY_GATE_ORDER.map(function(code){
@@ -14766,7 +15057,11 @@
     var btn = e.target.closest('.situation-option');
     if (btn) selectSituation(btn.getAttribute('data-situation'));
   });
-  function destName(){ return (COUNTRIES[currentCountry] ? COUNTRIES[currentCountry].name : 'visa') + ' application'; }
+  function destName(){
+    var c = COUNTRIES[currentCountry];
+    if (!c) return 'visa application';
+    return c.noVisaRequired ? (c.name + ' trip') : (c.name + ' application');
+  }
   function updateSituationRefusedHref(){
     var country = document.getElementById('situationRefusedCountry').value;
     var count = document.getElementById('situationRefusedCount').value;
