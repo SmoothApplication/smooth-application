@@ -3078,6 +3078,22 @@
   function trackEventTimes(name, n){
     for (var i = 0; i < n; i++) trackEvent(name);
   }
+  // Marketing/ad-campaign attribution: a link shared off-site (a Nairaland post, a WhatsApp
+  // broadcast, a paid ad — e.g. "...?src=nairaland-ad-aug2026") can carry ?src=<label> so that
+  // specific channel's traffic shows up as its own countable event on the dashboard, separate from
+  // the plain pageview count GoatCounter already logs by URL path. Sanitized to plain word
+  // characters only before use — this only ever reaches the analytics dashboard as an event NAME
+  // (same trackEvent() used everywhere else), never rendered as HTML or stored as free text.
+  (function trackLandingSource(){
+    try {
+      var params = new URLSearchParams(location.search);
+      var src = (params.get('src') || '').trim();
+      if (!src) return;
+      var clean = src.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 60);
+      if (!clean) return;
+      trackEvent('landing_src:' + clean);
+    } catch (e) { /* analytics must never break the app */ }
+  })();
   // Only ever shown when analytics is actually turned on — if ANALYTICS_SITE_CODE is blank
   // (the default), this note doesn't appear at all, so nothing is claimed that isn't true.
   (function initAnalyticsFooterNote(){
@@ -4849,6 +4865,9 @@
     lastAppliedSessionKey = currentKey;
     renderSessionNav(keys, currentSessionIndex);
     renderSessionFooter(keys, currentSessionIndex);
+    // Re-reads REASONS fresh each call — cheap, and necessary now that updateTravelExperienceGrade()
+    // updates REASONS live as the applicant types (see updateTravelExperienceReasons() above), not
+    // just once at page load like every other entry in this array.
     renderSidebarReasons(currentKey);
   }
   // Previously, a session below READY_THRESHOLD_PERCENT complete disabled every LATER session's
@@ -6376,31 +6395,48 @@
   // review; on review, the product owner asked for it to be softened to informational-only framing
   // ("commonly seen as a positive factor" rather than "you qualify"/"very good prospect"). Done —
   // see docs/terms-of-service-draft.md for the resolved note.]
+  // Keeps REASONS' 'travelExperience' entries in sync with the informational country-visit
+  // commentary below — same array collectReasons() populates from static markup at page load, just
+  // updated dynamically here since this particular content depends entirely on the countries the
+  // applicant actually types in (collectReasons() runs once, early, so it can never see content that
+  // doesn't exist yet). Field feedback: this framing commentary was reading as clutter sitting right
+  // in the middle of filling in travel history, same reasoning as every other purely explanatory
+  // paragraph already routed to the Reasons tab — the overstay warning and the "you're done" note
+  // stay inline below since those are genuinely actionable/timely, not just background framing.
+  // Re-renders every view that reads REASONS (sidebar, modal, dedicated Reasons session) so a change
+  // here shows up immediately, same as everywhere else this array is touched.
+  function updateTravelExperienceReasons(lines){
+    REASONS = REASONS.filter(function(r){ return !(r.session === 'travelExperience' && r.dynamic); });
+    lines.forEach(function(l){
+      REASONS.push({ session: 'travelExperience', q: null, a: l, dynamic: true });
+    });
+    if (typeof renderReasonsModal === 'function') renderReasonsModal();
+  }
   function updateTravelExperienceGrade(a){
     var box = document.getElementById('travelExperienceGrade');
     if (!box) return;
-    if (a.firstTimeAnswer !== 'yes'){ box.innerHTML = ''; return; }
+    if (a.firstTimeAnswer !== 'yes'){ box.innerHTML = ''; updateTravelExperienceReasons([]); return; }
     var countries = travelHistoryRows.map(function(r){ return r.country; }).filter(Boolean);
-    if (!countries.length){ box.innerHTML = ''; return; }
+    if (!countries.length){ box.innerHTML = ''; updateTravelExperienceReasons([]); return; }
     var africanCount = countries.filter(function(c){ return TE_AFRICAN_COUNTRIES.indexOf(c) !== -1; }).length;
     var euCount = countries.filter(function(c){ return TE_EU_COUNTRIES.indexOf(c) !== -1; }).length;
     var visitedHighValue = countries.some(function(c){ return TE_NAMED_HIGH_VALUE_COUNTRIES.indexOf(c) !== -1 || TE_ASIAN_COUNTRIES.indexOf(c) !== -1; });
     var visitedHighSuccess = countries.some(function(c){ return TE_HIGH_SUCCESS_COUNTRIES.indexOf(c) !== -1; });
     var overstayedAny = overstayRows.some(function(r){ return r.country && parseNum(r.days) > 0; });
 
-    var lines = [];
-    if (africanCount >= 3) lines.push('You\'ve visited 3 or more African countries - a solid, well-rounded travel history.');
-    else if (africanCount === 2) lines.push('You\'ve visited 2 African countries - a good, growing travel history.');
-    else if (africanCount === 1) lines.push('You\'ve visited 1 African country - a start to building your travel history.');
-    if (euCount >= 2) lines.push('You\'ve visited 2 or more EU countries - this is commonly seen as a positive factor for another Schengen or similar visa.');
-    else if (euCount === 1) lines.push('You\'ve visited 1 EU country - this is commonly seen as a positive factor too.');
-    if (visitedHighValue) lines.push('You\'ve visited a major/high-GDP destination (US, Canada, UK, China, Ireland, Singapore, or another Asian country) - that travel history is generally considered a positive factor, provided your finances show you can afford this visit.');
-    if (visitedHighSuccess && !overstayedAny) lines.push('You\'ve visited South Africa, Morocco, and/or Kenya without overstaying - this is generally viewed as a positive sign for a UK visa application.');
-    if (overstayedAny) lines.push('⚠️ An overstay on your record is a real concern reviewers weigh heavily - being upfront about it, with a clear explanation, matters more than trying to leave it out.');
+    var infoLines = [];
+    if (africanCount >= 3) infoLines.push('You\'ve visited 3 or more African countries - a solid, well-rounded travel history.');
+    else if (africanCount === 2) infoLines.push('You\'ve visited 2 African countries - a good, growing travel history.');
+    else if (africanCount === 1) infoLines.push('You\'ve visited 1 African country - a start to building your travel history.');
+    if (euCount >= 2) infoLines.push('You\'ve visited 2 or more EU countries - this is commonly seen as a positive factor for another Schengen or similar visa.');
+    else if (euCount === 1) infoLines.push('You\'ve visited 1 EU country - this is commonly seen as a positive factor too.');
+    if (visitedHighValue) infoLines.push('You\'ve visited a major/high-GDP destination (US, Canada, UK, China, Ireland, Singapore, or another Asian country) - that travel history is generally considered a positive factor, provided your finances show you can afford this visit.');
+    if (visitedHighSuccess && !overstayedAny) infoLines.push('You\'ve visited South Africa, Morocco, and/or Kenya without overstaying - this is generally viewed as a positive sign for a UK visa application.');
+    updateTravelExperienceReasons(infoLines);
 
-    var summaryHtml = lines.length ? lines.map(function(l){ return '<div class="scan-msg '+(l.indexOf('⚠️')===0?'warn':'info')+'">'+l+'</div>'; }).join('') : '';
+    var warnHtml = overstayedAny ? '<div class="scan-msg warn">⚠️ An overstay on your record is a real concern reviewers weigh heavily - being upfront about it, with a clear explanation, matters more than trying to leave it out.</div>' : '';
     var successHtml = '<div class="scan-msg ok" style="margin-top:6px;">✅ You\'ve completed this section. Continue to <b>Session 3: Your responsibilities</b>.</div>';
-    box.innerHTML = summaryHtml + successHtml;
+    box.innerHTML = warnHtml + successHtml;
   }
 
   // Field-work insight: "who actually applies, and whose money pays for it" is a real, open decision

@@ -50,17 +50,25 @@ exports.run = async function(ctx){
     await pickTravelCountry(page, 'travelHistoryBody', 0, 'Ghana');
     await page.fill('#travelHistoryBody input[data-idx="0"][data-field="days"]', '10');
 
-    // Country grading + the closing "section complete" message should appear once at least one
-    // country is filled. (Copy softened to informational-only framing — see
-    // docs/terms-of-service-draft.md's resolved lawyer note — so this checks for the current
-    // "Continue to Session 3" wording rather than the old "qualified for the next level" phrasing.)
+    // The closing "section complete" message should appear once at least one country is filled.
+    // (Copy softened to informational-only framing — see docs/terms-of-service-draft.md's resolved
+    // lawyer note — so this checks for the current "Continue to Session 3" wording rather than the
+    // old "qualified for the next level" phrasing.)
     await page.waitForFunction(function(){
       var el = document.getElementById('travelExperienceGrade');
       return el && /Continue to/.test(el.textContent);
     }, { timeout: 3000 });
     var gradeText = await page.$eval('#travelExperienceGrade', function(el){ return el.textContent; });
     assert.ok(/completed this section/.test(gradeText), 'Should show the "completed this section" copy, got: ' + gradeText);
-    assert.ok(/African country/.test(gradeText), 'Should mention the 1-African-country grading tier, got: ' + gradeText);
+    // Field feedback: the country-visit grading commentary ("You've visited 1 African country…" and
+    // friends) reads as clutter sitting in the middle of the travel-history form, so it no longer
+    // shows inline here — it moves to the Reasons sidebar card instead (see
+    // updateTravelExperienceReasons() in index.html), same as every other purely explanatory
+    // paragraph in this app.
+    assert.ok(!/African country/.test(gradeText), 'Grading commentary should no longer show inline in the completion box, got: ' + gradeText);
+    await page.waitForSelector('#sidebarReasonsCard', { state: 'visible' });
+    var sidebarReasonsText = await page.$eval('#sidebarReasonsBody', function(el){ return el.textContent; });
+    assert.ok(/African country/.test(sidebarReasonsText), 'Sidebar Reasons card should show the country-visit commentary instead, got: ' + sidebarReasonsText);
 
     // Overstay Y/N -> its own table only shows once "Yes" is ticked.
     var overstayVisibleBefore = await page.$eval('#te_overstayBox', function(el){ return el.style.display !== 'none'; });

@@ -3,6 +3,22 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Travel Experience: country-visit commentary moved to Reasons
+
+The blue "You've visited 1 African country…" / "…an EU country…" / "…a major/high-GDP
+destination…" notes no longer sit inline in the middle of the travel-history form — that framing
+commentary now lives in the Reasons sidebar card instead, same as every other purely explanatory
+paragraph in this app. The overstay warning and the "you've completed this section" note stay
+inline, since those are genuinely actionable/timely rather than background framing.
+
+## New: ad/marketing source attribution via `?src=`
+
+A link shared off-site (a Nairaland post, a WhatsApp broadcast, a paid ad) can now carry
+`?src=<label>` — e.g. `?src=nairaland-ad-aug2026` — so that specific channel's traffic shows up as
+its own `landing_src:<label>` event on the analytics dashboard, separate from the plain per-path
+pageview count already logged. The label is sanitized to plain word characters before it's used and
+only ever reaches analytics as an event name, same privacy treatment as every other tracked event.
+
 ## New: "Where are you in the process?" gate after country selection
 
 Founder idea: applicants who've already been refused, or already paid the fee and filled the form,
