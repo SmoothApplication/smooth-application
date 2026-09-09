@@ -3418,24 +3418,37 @@
       return '<div class="reasons-item">'+q+'<p class="reasons-item-a">'+r.a+'</p></div>';
     }).join('');
   }
-  function renderReasonsInto(containerId){
+  // `items` defaults to the full REASONS list (every page) — pass a filtered subset (see
+  // renderReasonsModal below) to show just one page's worth instead. Still grouped by session even
+  // when that subset is really just one page, so the heading/layout stays identical either way.
+  function renderReasonsInto(containerId, items){
     var body = document.getElementById(containerId);
     if (!body) return;
+    items = items || REASONS;
     var groups = {};
     var order = [];
-    REASONS.forEach(function(r){
+    items.forEach(function(r){
       if (!groups[r.session]){ groups[r.session] = []; order.push(r.session); }
       groups[r.session].push(r);
     });
     body.innerHTML = order.map(function(key){
       return '<div class="reasons-group"><p class="reasons-group-title">'+escapeHtml(reasonsGroupLabel(key))+'</p>'+reasonsItemsHtml(groups[key])+'</div>';
-    }).join('') || '<p class="reasons-item-a">Nothing collapsed yet.</p>';
+    }).join('') || '<p class="reasons-item-a">Nothing collapsed here yet.</p>';
   }
-  function renderReasonsModal(){
+  // currentKey (see applySessionVisibility, which calls this on every session change) scopes the
+  // floating tab's own modal (#reasonsModalBody) to just whichever page it was opened from — "let
+  // Reasons be for each page," direct user request. The dedicated end-of-flow "Reasons" session
+  // (#reasonsSessionBody) is deliberately exempt and always gets the complete, every-page list — "a
+  // general summary for all pages at the end of the session." Opened from the 'reasons' session
+  // itself (or before any real session is active yet, e.g. at initial page load), the floating
+  // modal also falls back to the full list — a page-scoped view of the one page that's already
+  // showing everything would just be an empty, confusing duplicate of the main content there.
+  function renderReasonsModal(currentKey){
     var countEl = document.getElementById('reasonsTabCount');
-    if (countEl) countEl.textContent = REASONS.length;
-    renderReasonsInto('reasonsModalBody');
-    renderReasonsInto('reasonsSessionBody');
+    var modalItems = (!currentKey || currentKey === 'reasons') ? REASONS : REASONS.filter(function(r){ return r.session === currentKey; });
+    if (countEl) countEl.textContent = modalItems.length;
+    renderReasonsInto('reasonsModalBody', modalItems);
+    renderReasonsInto('reasonsSessionBody', REASONS);
   }
   // Sidebar card: only the CURRENTLY ACTIVE session's own reasons, right where the applicant is
   // already looking. Called from applySessionVisibility() every time the current session changes.
@@ -5231,6 +5244,13 @@
     // updates REASONS live as the applicant types (see updateTravelExperienceReasons() above), not
     // just once at page load like every other entry in this array.
     renderSidebarReasons(currentKey);
+    // User request: "let Reasons be for each page and a general summary for all pages at the end of
+    // the session." The sidebar card above was already page-scoped; the floating "📖 Reasons" tab's
+    // own modal wasn't — it always showed the full, everywhere list regardless of which page it was
+    // opened from. Now scoped the same way (see renderReasonsModal's currentKey param) — the
+    // dedicated "Reasons" session at the end of the flow is untouched, and still gets the complete,
+    // every-page summary.
+    if (typeof renderReasonsModal === 'function') renderReasonsModal(currentKey);
   }
   // Previously, a session below READY_THRESHOLD_PERCENT complete disabled every LATER session's
   // pill entirely, based on earlier feedback that jumping ahead of an unfinished section could
@@ -5307,6 +5327,23 @@
   // info/busy/err) directly, without needing a real file + working OCR/CDN access just to check the
   // message box itself renders correctly for a given state.
   window.__testSetScanMsg = function(id, cls, text){ setScanMsg(id, cls, text); };
+  // Same reasoning again — lets a test check exactly what extractNameCandidates() pulls out of a raw
+  // narration string directly, without needing a full PDF-statement fixture + upload + analyze cycle
+  // just to catch a narration-junk-word regression (e.g. a bank field label like "SENDER"/"REMARK" or
+  // a channel code like "MPTJ" leaking into the extracted name).
+  window.__testExtractNameCandidates = function(narration){ return extractNameCandidates(narration); };
+  // Same reasoning again — exercises the full "Top 10 most consistent senders" grouping pipeline
+  // (extraction -> mergeNameVariants -> applySenderDuplicateDecisions) against a handful of synthetic
+  // {date, amount, narration} entries, without needing a PDF-statement fixture + upload + analyze
+  // cycle just to check a name-grouping/duplicate-prompt regression. Mirrors getTopConsistentSenders'
+  // own txns shape ({date, credit, narration}) exactly, just built from plain JSON the test can hand
+  // in directly.
+  window.__testGetTopConsistentSenders = function(entries, applicantName){
+    var txns = (entries || []).map(function(e){
+      return { date: new Date(e.date), credit: e.amount, narration: e.narration };
+    });
+    return getTopConsistentSenders(txns, 10, applicantName);
+  };
   function renderSessionNav(keys, idx){
     var nav = document.getElementById('sessionNav');
     if (!nav) return;
@@ -6799,7 +6836,11 @@
     lines.forEach(function(l){
       REASONS.push({ session: 'travelExperience', q: null, a: l, dynamic: true });
     });
-    if (typeof renderReasonsModal === 'function') renderReasonsModal();
+    // Always called while the applicant is actively on the Travel Experience session itself (the
+    // only session this dynamic content ever belongs to) — passed explicitly rather than reading
+    // currentKey (out of scope here) so the floating tab's modal stays correctly page-scoped to
+    // 'travelExperience' while this updates live, instead of falling back to the full list.
+    if (typeof renderReasonsModal === 'function') renderReasonsModal('travelExperience');
   }
   function updateTravelExperienceGrade(a){
     var box = document.getElementById('travelExperienceGrade');
@@ -10837,7 +10878,16 @@
     // informal birthday-gift narration, already canonicalized to "Birthday" as a REASON via
     // NARRATION_REASON_SYNONYMS above), not part of the sender's actual name — without stopwording
     // them here too, they were surviving into the extracted NAME candidate instead.
-    'HBD','TOKEN'];
+    'HBD','TOKEN',
+    // User-reported screenshot, off a real statement with structured field-label narrations (e.g.
+    // "MPTJ/CG/PAYREF:.../SENDER:ADISA BILIKIS ABIOLA/REMARK:OK") — "SENDER" and "REMARK" are literal
+    // field labels the bank prints ahead of the actual name/note, not part of anyone's name, and
+    // "MPTJ"/"PAYREF"/"CG"/"WVV"/"ZMO"/"ONB" are channel/processor/transaction-type codes (same class
+    // as NIP/TRF/ROLEZ above) — "OK" is this bank's placeholder for "no remark given". Without these,
+    // extractNameCandidates was gluing all of it onto the front of the real name ("Mptj Cg Sender
+    // Crisp N", "Payref Zmo Sender Yaro Remark Ok"), scattering what was likely the SAME recurring
+    // sender across several differently-garbled rows in the consistent-senders table instead of one.
+    'MPTJ','PAYREF','SENDER','REMARK','CG','WVV','ZMO','ONB','OK'];
 
   // User feedback, off a real statement: most applicants have no idea what "NIP", "ROLEZ" or "CIP"
   // actually mean in their own narration line. Best-effort glossary of the channel/processor/bank
@@ -10880,7 +10930,15 @@
     'MONIEPOINT': 'Moniepoint MFB.',
     'PROVIDUS': 'Providus Bank.',
     'STANBIC': 'Stanbic IBTC.',
-    'ONEBANK': 'A bank-branded digital transfer product name (varies by bank), not a separate institution.'
+    'ONEBANK': 'A bank-branded digital transfer product name (varies by bank), not a separate institution.',
+    'MPTJ': 'Mobile-payment transaction channel code (varies by bank), not the sender\'s name.',
+    'PAYREF': 'Payment reference - a field label, followed by that transaction\'s reference code.',
+    'SENDER': 'A field label - the sender\'s name follows it in the narration.',
+    'REMARK': 'A field label - an optional note from the sender follows it (often just "OK" when none was given).',
+    'CG': 'Bank-internal channel/processor code.',
+    'WVV': 'Bank-internal channel/processor code.',
+    'ZMO': 'Bank-internal channel/processor code.',
+    'ONB': 'Online banking channel.'
   };
   // User feedback: rather than only reacting to each new piece of narration junk one word at a time
   // (the HBD/TOKEN/Support pattern above), also check candidate names against a bundled list of common
@@ -11376,6 +11434,19 @@
     return isCompany ? 'company' : 'personal';
   }
 
+  // Explicit request: "it must be strictly names that should be extracted, names alone." Every real
+  // personal name in Latin script — Nigerian (Yoruba/Igbo/Hausa), British, American, or otherwise —
+  // carries at least one vowel sound; a bank's own internal channel/processor/reference codes are
+  // very often a short run of consonants only (e.g. "MPTJ", "WVV", "PMT", "XFR"), and unlike names,
+  // new ones keep turning up that no fixed BANK_NARRATION_STOPWORDS entry can pre-empt. This is a
+  // general backstop for exactly that: a word never seen before, that still doesn't look name-shaped.
+  // "Y" counts as a vowel here since it commonly carries the vowel sound in real names (Yaro, Yemi,
+  // Kyle, Lynn). Deliberately only applied to 3+ letter words that would otherwise START/extend a
+  // run — the existing 1-2 letter connector handling (below) is untouched, so short real fragments
+  // like initials or "N"/"&" inside an established name keep working exactly as before.
+  function looksNameShaped(w){
+    return /[AEIOUY]/.test(w);
+  }
   function extractNameCandidates(narration){
     var raw = (narration || '').toUpperCase().replace(/[^A-Z\s]/g, ' ').split(/\s+/);
     var runs = [], current = [];
@@ -11384,8 +11455,15 @@
       if (BANK_NARRATION_STOPWORDS.indexOf(w) !== -1 || LIMITED_SUFFIX_RE.test(w)){
         if (current.length >= 2) runs.push(trimTrailingNonNameWords(current).join(' '));
         current = [];
-      } else if (w.length >= 3){
+      } else if (w.length >= 3 && looksNameShaped(w)){
         current.push(w);
+      } else if (w.length >= 3){
+        // 3+ letters but not a single recognised vowel sound among them — almost certainly a
+        // reference/channel code rather than a real name (see looksNameShaped above). Treated the
+        // same as hitting a stopword: whatever run was building gets flushed, so this can't glue
+        // itself onto an otherwise-real name either.
+        if (current.length >= 2) runs.push(trimTrailingNonNameWords(current).join(' '));
+        current = [];
       } else if (current.length > 0){
         // A short word (1-2 letters, e.g. a connector like "N" or "&" inside a longer registered name) that isn't a known stopword — keep it
         // as a connector INSIDE an already-started name run, but don't let it start a run on its own
@@ -12086,6 +12164,16 @@
   // isLikelyApplicantsOwnName requiring every word, just relaxed to "most" since here we WANT to
   // catch partial/reordered matches, only pushed past coincidence by requiring 2+ shared words.
   var SENDER_DUP_MIN_SHARED_WORDS = 2;
+  // User request: "names that appear once... if you see a Funmi Afeni and a Funmi Agboola, group it
+  // and ask if they are the same person." A name seen only ONCE (a single payment) is exactly the
+  // case where a full name is most likely to have been extracted incompletely or differently from a
+  // recurring sender's other rows - so when at least one side of a pair is a singleton, a SINGLE
+  // shared significant word (just a first name, say) is relaxed to be enough to ask about, rather
+  // than requiring 2+ like the general case above. Still never auto-merged - it's still only a
+  // question - so the cost of the occasional false-positive prompt (two genuinely different people
+  // who happen to share a first name) is just one extra "no, different people" click, not a wrong
+  // merge.
+  var SENDER_DUP_MIN_SHARED_WORDS_SINGLETON = 1;
   // Walks every pair of names in a post-mergeNameVariants namedGroups object, splitting into groups
   // still needing a merged view (any pair already answered "merge") from pairs still awaiting an
   // answer. Pairwise (O(n^2)) is fine here — namedGroups is always a small, already-deduplicated set
@@ -12097,7 +12185,9 @@
       for (var j = i + 1; j < names.length; j++){
         var a = names[i], b = names[j];
         var shared = sharedSignificantWords(a, b);
-        if (shared.length < SENDER_DUP_MIN_SHARED_WORDS) continue;
+        var isSingletonPair = (namedGroups[a] || []).length === 1 || (namedGroups[b] || []).length === 1;
+        var minShared = isSingletonPair ? SENDER_DUP_MIN_SHARED_WORDS_SINGLETON : SENDER_DUP_MIN_SHARED_WORDS;
+        if (shared.length < minShared) continue;
         var key = senderPairKey(a, b);
         var decision = senderMergeDecisions[key];
         if (decision === 'merge'){
@@ -12841,6 +12931,22 @@
   // another (case-insensitive) into the longer, more complete version — guarded by a minimum length so we
   // don't accidentally merge two genuinely different short/generic names into one.
   var NAME_MERGE_MIN_LEN = 6;
+  // User request: "if you see a Funmi Agboola or Agboola Funmi pick it as the same name" — two
+  // candidate names built from EXACTLY the same set of words, just printed in a different order (a
+  // narration can name a sender "surname first" on one row and "first name first" on another), are
+  // the same real person with total certainty - no genuine two-different-people reading survives that
+  // - so these merge automatically here, unlike the fuzzier "shares SOME words" case below
+  // (applySenderDuplicateDecisions), which still asks first since two different family members really
+  // can share just a surname. Requires 2+ words on each side (a lone shared single word obviously
+  // isn't "the same words reordered") - deliberately not gated by NAME_MERGE_MIN_LEN, since an exact
+  // word-for-word match is already a far stronger signal than the length-gated substring check below.
+  function sameWordSet(a, b){
+    var wa = (a || '').toLowerCase().split(/\s+/).filter(Boolean).sort();
+    var wb = (b || '').toLowerCase().split(/\s+/).filter(Boolean).sort();
+    if (wa.length < 2 || wa.length !== wb.length) return false;
+    for (var i = 0; i < wa.length; i++){ if (wa[i] !== wb[i]) return false; }
+    return true;
+  }
   function mergeNameVariants(namedGroups){
     var names = Object.keys(namedGroups).sort(function(a,b){ return b.length - a.length; });
     var merged = {}; // canonical (longest-seen) name -> combined txns[]
@@ -12850,6 +12956,7 @@
       for (var i = 0; i < order.length; i++){
         var existing = order[i];
         var a = existing.toLowerCase(), b = name.toLowerCase();
+        if (sameWordSet(existing, name)){ target = existing; break; }
         if (Math.min(a.length, b.length) < NAME_MERGE_MIN_LEN) continue;
         if (a.indexOf(b) !== -1 || b.indexOf(a) !== -1){ target = existing; break; }
       }
