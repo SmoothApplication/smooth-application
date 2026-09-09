@@ -17,7 +17,7 @@ exports.run = async function(ctx){
     await page1.selectOption('#f_workStatus', 'employed');
     await page1.fill('#f_employerName', 'Some Employer Ltd');
     await page1.waitForTimeout(150);
-    await goToSessionByPill(page1, 8); // 6 cat:Identity & application, 7 cat:Financial evidence, 8 cat:Ties to Nigeria
+    await goToSessionByPill(page1, 9); // 7 cat:Identity & application, 8 cat:Financial evidence, 9 cat:Ties to Nigeria (shifted +1 by the nextSteps session, same as Scenario 2 below)
     await page1.waitForSelector('#item_staffId', { timeout: 5000 });
 
     var staffIdTag = await page1.$eval('#item_staffId .tag', function(el){ return el.textContent.trim(); });
@@ -44,7 +44,7 @@ exports.run = async function(ctx){
   var page2 = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page2);
-    await goToSessionByPill(page2, 8); // cat:Ties to Nigeria — always has applicable items (the 4 "Assets & investments" ones), so its index doesn't shift
+    await goToSessionByPill(page2, 9); // cat:Ties to Nigeria — always has applicable items (the 4 "Assets & investments" ones); shifted +1 by the new nextSteps session
     await page2.waitForSelector('#checklistRoot', { timeout: 5000 });
     var staffIdMissing = await page2.$('#item_staffId');
     assert.strictEqual(staffIdMissing, null, 'Staff ID card should not appear before employed is declared');
