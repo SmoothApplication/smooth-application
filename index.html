@@ -1507,11 +1507,21 @@
         <a class="btn ghost" id="quizEmailReasonsBtn" href="#" style="white-space:nowrap;">✉️ Get full report</a>
       </div>
       <div class="quiz-notify-card">
-        <b>Want a second pair of eyes on this before you submit?</b> We're testing a paid Document Review - a real person checks what you've prepared for completeness and quality.
+        <b>📋 Document Review</b>
         <div style="margin-top:6px;"><span class="promo-badge">50% OFF LAUNCH PRICE</span><span class="promo-strike">$50 (₦80,000)</span> → <b>$25 (₦40,000)</b></div>
-        Message us to be one of the first.
-        <div style="margin-top:8px;">
-          <a class="btn ghost" id="quizNotifyWhatsApp" href="#" target="_blank" rel="noopener" style="display:inline-block;">💬 Ask about a Document Review</a>
+        <!-- data-keep-inline: this is a direct part of the paid offer right above it, not neutral
+             background framing - collectReasons() sweeps every OTHER .tip-details into the Reasons
+             tab, but this one needs to stay put, same opt-out already used for the landing screen's
+             "What you need to know" toggle. -->
+        <details class="tip-details" data-keep-inline="1" style="margin-top:8px;"><summary>What do you get for $25?</summary><div class="item-tip">
+          <ul style="margin:0; padding-left:18px;">
+            <li>We catch silent errors in your documents - the kind that quietly lead to refusal.</li>
+            <li>We check your finances actually match your story - most refusals come from a mismatch between the two.</li>
+            <li>A clear PDF + Excel guide on exactly how to fill in your form to strengthen your chances. (We're not visa officers - this isn't a guarantee of approval.)</li>
+          </ul>
+        </div></details>
+        <div style="margin-top:10px;">
+          <a class="btn primary" id="quizNotifyWhatsApp" href="#" target="_blank" rel="noopener" style="display:inline-block;">💬 Get my Document Review - $25</a>
           <span style="font-size:12px; color:var(--text-muted);"> or <a id="quizNotifyEmail" href="#">email us</a> instead</span>
         </div>
       </div>
@@ -1936,50 +1946,12 @@
         <div id="rs_spouseRow" style="display:none; padding-left:24px; margin:-2px 0 8px;">
           <label class="field" for="rs_spouseName">Spouse's full name</label>
           <input type="text" id="rs_spouseName" placeholder="e.g. Chidinma Okafor">
-
-          <!-- Field-work insight: for a married applicant, WHO actually applies (and whose money pays
-               for it) is often a real, open decision - not something this checklist should silently
-               assume is always "you, self-funded". A spouse who's employed and willing can act as
-               financial sponsor instead; a spouse who already holds a UK visa changes the framing
-               entirely (a joint trip with a spouse who has a proven travel history reads very
-               differently to a reviewer than a first-time solo applicant). These three questions feed
-               renderSponsorRecommendation() below, which gives ONE clear recommendation rather than
-               leaving the applicant to piece it together - but the applicant still has to actively
-               confirm it (rs_spouseSponsoring), same "advisory, not automatic" pattern as the student-
-               sponsor checkbox above: nothing about the required-documents list changes on its own.
-               UK Home Office guidance is consistent on this point (checked against current guidance,
-               Sept 2026): third-party funds in an account that isn't declared as a sponsor's are
-               usually disregarded outright by a caseworker, so this needs to be stated plainly on the
-               application, not left implicit - the whole reason this flow exists. -->
-          <div class="row" style="margin-top:10px;">
-            <div>
-              <label class="field" for="rs_spouseWilling">Is your spouse willing to fund this trip?</label>
-              <select id="rs_spouseWilling">
-                <option value="">Select…</option>
-                <option value="yes">Yes</option>
-                <option value="no">No</option>
-              </select>
-            </div>
-            <div>
-              <label class="field" for="rs_spouseEmployed">Is your spouse gainfully employed or running a business?</label>
-              <select id="rs_spouseEmployed">
-                <option value="">Select…</option>
-                <option value="yes">Yes</option>
-                <option value="no">No / not currently</option>
-              </select>
-            </div>
-          </div>
-          <label class="field" for="rs_spouseUkHistory">Does your spouse currently hold a UK visa, or have they travelled to the UK before?</label>
-          <select id="rs_spouseUkHistory">
-            <option value="">Select…</option>
-            <option value="yes">Yes</option>
-            <option value="no">No</option>
-          </select>
-          <div id="rs_sponsorRecommendationBox" style="margin-top:8px;"></div>
-          <div class="checkrow" id="rs_spouseSponsoringRow" style="display:none; margin-top:6px;">
-            <input type="checkbox" id="rs_spouseSponsoring">
-            <label for="rs_spouseSponsoring">Yes - my spouse will sponsor this trip as my financial sponsor</label>
-          </div>
+          <!-- Field feedback: the spouse/sponsor DECISION questions (willing to fund? employed?
+               travel history?) and the recommendation they feed moved to the new "What to do next"
+               session (see data-session-key="nextSteps" below) - that's advice about who applies and
+               who pays, grouped with the rest of the "here's what to do" report rather than mixed
+               into this basic-facts form. Just the spouse's name (needed elsewhere, e.g. sponsor
+               letters) stays here. -->
         </div>
 
         <div class="row">
@@ -2482,10 +2454,19 @@
              the "payoff" moment where the applicant has just seen exactly what still needs work - the
              point a second pair of eyes is most useful to offer, not before. -->
         <div class="quiz-notify-card" style="margin-top:14px;">
-          <b>Want a second pair of eyes on this before you submit?</b> We're testing a paid Document Review - a real person checks what you've prepared for completeness and quality. No form-filling or submission on your behalf, just a check.
+          <b>📋 Document Review</b>
           <div style="margin-top:6px;"><span class="promo-badge">50% OFF LAUNCH PRICE</span><span class="promo-strike">$50 (₦80,000)</span> → <b>$25 (₦40,000)</b></div>
-          <div style="margin-top:8px;">
-            <a class="btn ghost" id="finReportReviewWhatsApp" href="#" target="_blank" rel="noopener" style="display:inline-block;">💬 Ask about a Document Review</a>
+          <!-- data-keep-inline: see the matching note on the quiz-result version of this card above -
+               this is part of the paid offer itself, not neutral framing collectReasons() should sweep. -->
+          <details class="tip-details" data-keep-inline="1" style="margin-top:8px;"><summary>What do you get for $25?</summary><div class="item-tip">
+            <ul style="margin:0; padding-left:18px;">
+              <li>We catch silent errors in your documents - the kind that quietly lead to refusal.</li>
+              <li>We check your finances actually match your story - most refusals come from a mismatch between the two.</li>
+              <li>A clear PDF + Excel guide on exactly how to fill in your form to strengthen your chances. (We're not visa officers - this isn't a guarantee of approval.)</li>
+            </ul>
+          </div></details>
+          <div style="margin-top:10px;">
+            <a class="btn primary" id="finReportReviewWhatsApp" href="#" target="_blank" rel="noopener" style="display:inline-block;">💬 Get my Document Review - $25</a>
             <span style="font-size:12px; color:var(--text-muted);"> or <a id="finReportReviewEmail" href="#">email us</a> instead</span>
           </div>
         </div>
@@ -2733,6 +2714,91 @@
           <details class="tip-details"><summary>Why?</summary><div class="item-tip">Being upfront about a past refusal - with a clear explanation of what's changed since - reads far better to a reviewer than a refusal they discover independently. Attach the refusal letter(s) under "Previous visa refusal documentation" below.</div></details>
         </div>
       </div>
+
+      <!-- New: "What to do next" - founder field feedback, relayed directly: after Passport, Travel
+           Experience, Your responsibilities, and both finance sessions are done, the applicant
+           should get ONE concrete, synthesized report before starting the mechanical work of
+           document collection below - passport validity, travel-history strength (with a concrete
+           suggestion of an easier destination to build history first when there's none yet), and
+           finance readiness, each with a plain verdict and what to do about it. The spouse/sponsor
+           decision (moved from "Your responsibilities" - see rs_spouseWilling/rs_spouseEmployed/
+           rs_spouseUkHistory below) lives here too, since that's advice, not a document to collect.
+           See renderNextStepsReport() below for the synthesis logic.
+           Deliberately a HARD gate, not the "explore freely" pill navigation the rest of the app uses
+           (see the computeLockAfterIndex history comment above) - direct product decision, made aware
+           of that tradeoff: a synthesized "here's what to do" report is exactly the kind of thing that
+           should be seen before document collection starts, not skippable past. Implemented by
+           teaching sessionProgress() a 'nextSteps' case keyed off the rs_spouseWilling... no, off the
+           #nextStepsAck confirm checkbox below (0% unchecked / 100% checked) - that single flag then
+           drives BOTH the existing hard-block-below-70% machinery in attemptAdvanceSession() (Next
+           button - free, no new code needed there) AND an explicit extra check in goToSession() itself
+           (pill clicks bypass attemptAdvanceSession entirely by design everywhere else, so this session
+           specifically needs its own check to actually hold). -->
+      <details class="card collapsible" data-session-key="nextSteps" style="border-left-color:#6a3fa0;">
+        <summary class="card-summary">
+          <h2><span class="card-icon-badge" style="background:#6a3fa01f; color:#6a3fa0;">🧭</span> What to do next</h2>
+          <span class="chevron">▸</span>
+        </summary>
+        <div class="card-body">
+        <p class="item-tip" style="margin-top:0;">Your passport, travel history, and finances, together - one concrete report on where you stand and what to fix first, before you start collecting documents below.</p>
+        <div id="nextStepsReportBox"></div>
+
+        <div id="rs_spouseSponsorSection" style="display:none; margin-top:16px; padding-top:14px; border-top:1px solid var(--border);">
+          <h3 style="margin:0 0 8px; font-size:14px;">Spouse/sponsor</h3>
+          <!-- Field-work insight: for a married applicant, WHO actually applies (and whose money pays
+               for it) is often a real, open decision - not something this checklist should silently
+               assume is always "you, self-funded". A spouse who's employed and willing can act as
+               financial sponsor instead; a spouse who already holds a visa for this same destination
+               changes the framing entirely (a joint trip with a spouse who has a proven travel history
+               reads very differently to a reviewer than a first-time solo applicant). These three
+               questions feed renderSponsorRecommendation() below, which gives ONE clear recommendation
+               rather than leaving the applicant to piece it together - but the applicant still has to
+               actively confirm it (rs_spouseSponsoring), same "advisory, not automatic" pattern as the
+               student-sponsor checkbox on "Your trip details": nothing about the required-documents
+               list changes on its own. Guidance is consistent across UKVI/IRCC/Schengen consulates/DHA
+               on this point (checked against current guidance, Sept 2026): third-party funds in an
+               account that isn't declared as a sponsor's are usually disregarded outright by a
+               caseworker, so this needs to be stated plainly on the application, not left implicit -
+               the whole reason this flow exists. Labels below fill in from the CURRENT destination
+               country (applyCountryText()) rather than hardcoding one - this used to always say "UK"
+               regardless of which country was selected. -->
+          <div class="row" style="margin-top:10px;">
+            <div>
+              <label class="field" for="rs_spouseWilling">Is your spouse willing to fund this trip?</label>
+              <select id="rs_spouseWilling">
+                <option value="">Select…</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select>
+            </div>
+            <div>
+              <label class="field" for="rs_spouseEmployed">Is your spouse gainfully employed or running a business?</label>
+              <select id="rs_spouseEmployed">
+                <option value="">Select…</option>
+                <option value="yes">Yes</option>
+                <option value="no">No / not currently</option>
+              </select>
+            </div>
+          </div>
+          <label class="field" for="rs_spouseUkHistory">Does your spouse currently hold <span id="rs_spouseVisaLabel">a UK visa</span>, or have they travelled to <span id="rs_spouseTravelLabel">the UK</span> before?</label>
+          <select id="rs_spouseUkHistory">
+            <option value="">Select…</option>
+            <option value="yes">Yes</option>
+            <option value="no">No</option>
+          </select>
+          <div id="rs_sponsorRecommendationBox" style="margin-top:8px;"></div>
+          <div class="checkrow" id="rs_spouseSponsoringRow" style="display:none; margin-top:6px;">
+            <input type="checkbox" id="rs_spouseSponsoring">
+            <label for="rs_spouseSponsoring">Yes - my spouse will sponsor this trip as my financial sponsor</label>
+          </div>
+        </div>
+
+        <div class="checkrow" style="margin-top:16px; padding-top:14px; border-top:1px solid var(--border);">
+          <input type="checkbox" id="nextStepsAck">
+          <label for="nextStepsAck">I've reviewed my next steps above</label>
+        </div>
+        </div>
+      </details>
 
       <div id="checklistRoot"></div>
 
@@ -4014,7 +4080,7 @@
       statementsMonthsText:'six months',
       footerIntro:'Built from published UK government visitor-visa guidance.',
       footerLinks:[{url:'https://www.gov.uk/standard-visitor', text:'gov.uk/standard-visitor'},{url:'https://www.gov.uk/government/publications/visitor-visa-guide-to-supporting-documents', text:'gov.uk supporting documents guide'}],
-      hostCountryLabel:'the UK', hostTypeLabel:'UK host', translationLangLabel:'English',
+      hostCountryLabel:'the UK', hostTypeLabel:'UK host', translationLangLabel:'English', visaShortLabel:'UK',
       checklist: CHECKLIST_UK, catOrder: CAT_ORDER_UK, ready:true
     },
     CA: {
@@ -4033,7 +4099,7 @@
       statementsMonthsText:'3 to 6 months',
       footerIntro:'Built from IRCC\'s official Document Checklist (IMM 5484) and published canada.ca visitor-visa guidance.',
       footerLinks:[{url:'https://www.canada.ca/en/immigration-refugees-citizenship/services/visit-canada/visitor-visa.html', text:'canada.ca - visitor visa'},{url:'https://www.canada.ca/en/immigration-refugees-citizenship/services/application/application-forms-guides/imm5484.html', text:'IRCC document checklist (IMM 5484)'}],
-      hostCountryLabel:'Canada', hostTypeLabel:'Canadian host', translationLangLabel:'English or French',
+      hostCountryLabel:'Canada', hostTypeLabel:'Canadian host', translationLangLabel:'English or French', visaShortLabel:'Canada',
       checklist: CHECKLIST_CA, catOrder: CAT_ORDER_CA, ready:true
     },
     US: {code:'US', flag:'🇺🇸', name:'United States', visaName:'US visitor visa (B1/B2)', ready:false},
@@ -4053,7 +4119,7 @@
       statementsMonthsText:'six months',
       footerIntro:'Built from the EU Visa Code and published consulate/VFS Global guidance for Nigerian applicants.',
       footerLinks:[{url:'https://home-affairs.ec.europa.eu/policies/schengen/visa-policy/applying-schengen-visa_en', text:'europa.eu - applying for a Schengen visa'},{url:'https://home-affairs.ec.europa.eu/news/schengen-visa-fee-increased-11-june-2024-2024-06-13_en', text:'EU Commission - Schengen visa fee notice'}],
-      hostCountryLabel:'the Schengen area', hostTypeLabel:'Schengen host', translationLangLabel:'English or your consulate\'s language',
+      hostCountryLabel:'the Schengen area', hostTypeLabel:'Schengen host', translationLangLabel:'English or your consulate\'s language', visaShortLabel:'Schengen',
       checklist: CHECKLIST_EU, catOrder: CAT_ORDER_EU, ready:true
     },
     ZA: {
@@ -4072,7 +4138,7 @@
       statementsMonthsText:'three months',
       footerIntro:'Built from South Africa\'s Immigration Regulations, DHA guidance, Form BI-84, and VFS Global\'s Nigeria-specific checklist.',
       footerLinks:[{url:'https://visa.vfsglobal.com/one-pager/southafrica/nigeria/english/', text:'VFS Global - South Africa visa (Nigeria)'},{url:'https://www.dha.gov.za', text:'Department of Home Affairs (DHA)'}],
-      hostCountryLabel:'South Africa', hostTypeLabel:'South African host', translationLangLabel:'English',
+      hostCountryLabel:'South Africa', hostTypeLabel:'South African host', translationLangLabel:'English', visaShortLabel:'South Africa',
       checklist: CHECKLIST_ZA, catOrder: CAT_ORDER_ZA, ready:true
     },
     AU: {code:'AU', flag:'🇦🇺', name:'Australia', visaName:'Australia visitor visa', ready:false},
@@ -4535,7 +4601,9 @@
       fatherDeceased: document.getElementById('rs_fatherDeceased').checked,
       motherDeceased: document.getElementById('rs_motherDeceased').checked,
       remittanceAmount: document.getElementById('rs_remittance').value,
-      remittanceVerifyConsent: document.getElementById('rs_verifyConsent').checked
+      remittanceVerifyConsent: document.getElementById('rs_verifyConsent').checked,
+      // "What to do next" session
+      nextStepsAck: document.getElementById('nextStepsAck').checked
     };
   }
 
@@ -4595,7 +4663,7 @@
     // and trip details are each their own session again, same for the two finance sessions, and each
     // applicable document-checklist category gets its own session again too.
     var a = getAnswers();
-    var keys = ['passport', 'travelExperience', 'responsibilities', 'trip', 'finance2', 'finance'];
+    var keys = ['passport', 'travelExperience', 'responsibilities', 'trip', 'finance2', 'finance', 'nextSteps'];
     var byCat = {};
     CHECKLIST.forEach(function(it){
       if (!itemApplies(it, a)) return;
@@ -4636,6 +4704,7 @@
     if (key === 'trip') return 'Your trip details';
     if (key === 'finance') return 'Financial readiness calculator';
     if (key === 'finance2') return 'Income & bank statement analysis';
+    if (key === 'nextSteps') return 'What to do next';
     if (key === 'bizLedger') return 'Business Income Record';
     if (key.indexOf('cat:') === 0) return key.slice(4);
     return key;
@@ -4803,6 +4872,18 @@
       }).length;
       return {percent: Math.round(rsFilled/rsFields.length*100), points: rsFilled, total: rsFields.length, missing: rsMissing};
     }
+    if (key === 'nextSteps'){
+      // No fields to fill in here — just the synthesized report plus (for a married applicant) the
+      // relocated spouse/sponsor Q&A, which already has its own answered/not-answered state elsewhere.
+      // "Progress" for this session is purely the explicit "I've reviewed my next steps" confirm
+      // below, kept binary (0% or 100%, never a confusing in-between percentage) so it plugs straight
+      // into the SAME hard-block machinery every other session's Next button already uses — see the
+      // HTML comment on data-session-key="nextSteps" for why this needs an EXTRA check inside
+      // goToSession() too, since pill clicks bypass that machinery by design everywhere else.
+      var ackEl = document.getElementById('nextStepsAck');
+      var acked = !!(ackEl && ackEl.checked);
+      return {percent: acked?100:0, points: acked?1:0, total:1, missing: acked?[]:[{id:'nextStepsAck', label:"I've reviewed my next steps above"}]};
+    }
     if (key === 'bizLedger'){
       var bizCredits = lastBusinessCredits || [];
       if (!bizCredits.length) return {percent:0, points:0, total:0, missing:[]}; // nothing scanned yet
@@ -4892,6 +4973,19 @@
     var keys = getVisibleSessionKeys();
     if (idx < 0) idx = 0;
     if (idx > keys.length - 1) idx = keys.length - 1;
+    // Hard gate: pills (and any other direct goToSession() caller — session-report-card links, the
+    // Reasons-tab jump links, etc.) bypass attemptAdvanceSession()'s Next-button gate by design
+    // everywhere else in this app (see the computeLockAfterIndex history comment above) - "What to
+    // do next" is the one deliberate exception (direct product decision, made aware of that
+    // tradeoff), so this needs its own check here. Redirects to 'nextSteps' instead of just refusing
+    // to move, so it's obvious what to do rather than reading as a broken pill. Only blocks moving
+    // FORWARD past it — going back to an earlier session always works, same as everywhere else.
+    var nextStepsIdx = keys.indexOf('nextSteps');
+    var blockedByNextSteps = nextStepsIdx !== -1 && idx > nextStepsIdx && sessionProgress('nextSteps').percent < 100;
+    if (blockedByNextSteps){
+      trackEvent('session_gate_blocked:nextSteps');
+      idx = nextStepsIdx;
+    }
     currentSessionIndex = idx;
     applySessionVisibility();
     if (keys[idx] === 'review') trackEvent('reached_review');
@@ -4905,6 +4999,8 @@
     var targetCard = document.querySelector('[data-session-key="'+keys[idx]+'"]');
     var scrollEl = targetCard || document.querySelector('.layout main');
     if (scrollEl && scrollEl.scrollIntoView) scrollEl.scrollIntoView({behavior:'smooth', block:'start'});
+    // Land the highlight+scroll right on the confirm checkbox itself, not just the top of the card.
+    if (blockedByNextSteps) highlightMissingFields(sessionProgress('nextSteps').missing);
   }
   // "View/Complete in Session 1" link on the Identity & application category's passport item (see
   // renderItem()'s special-cased passportStatus block) - jumps to the dedicated guided-scan session
@@ -5072,7 +5168,12 @@
         + '</ul>';
     }
     var tailHtml;
-    if (p.percent < READY_THRESHOLD_PERCENT){
+    // "What to do next" is a self-serve acknowledgment checkbox, not a section with fields to fill
+    // in - the generic "below X%, here's WhatsApp/email help" copy below doesn't fit ("stuck" here
+    // just means "haven't ticked the box yet"), so it gets its own plain prompt instead.
+    if (key === 'nextSteps' && p.percent < 100){
+      tailHtml = '<p>Read through your report above, then tick "I\'ve reviewed my next steps above" to continue - there\'s nothing else to fill in on this section.</p>';
+    } else if (p.percent < READY_THRESHOLD_PERCENT){
       var waMsg = 'Hi! I\'m working on my visa application on Smooth Application and could use some help with "' + sessionLabel(key) + '" - I\'m at ' + p.percent + '% on this section.';
       var waHref = 'https://wa.me/2349081389969?text=' + encodeURIComponent(waMsg);
       var mailHref = 'mailto:lalasionline@gmail.com?subject=' + encodeURIComponent('Help with ' + sessionLabel(key) + ' - Smooth Application');
@@ -5192,7 +5293,12 @@
 
     // Session 3: Your responsibilities
     document.getElementById('rs_spouseRow').style.display = a.married ? 'block' : 'none';
+    // Spouse/sponsor Q&A itself now lives on the "What to do next" session (see the HTML comment
+    // there) - only its visibility toggle stays keyed off the same a.married answer.
+    var spouseSponsorSectionEl = document.getElementById('rs_spouseSponsorSection');
+    if (spouseSponsorSectionEl) spouseSponsorSectionEl.style.display = a.married ? 'block' : 'none';
     renderSponsorRecommendation(a);
+    renderNextStepsReport(a);
     document.getElementById('rs_parentsRow').style.display = a.agedParents ? 'block' : 'none';
     // A parent marked "passed away / not applicable" gets their name field disabled and cleared —
     // keeps a stale name from lingering in the payload once someone ticks the box, and matches
@@ -5665,7 +5771,9 @@
    // Session 3: Your responsibilities
    // rs_state has its own dedicated change listener (repopulates the LGA dropdown, then renders) —
    // left out of this generic list to avoid double-rendering on every state change.
-   'rs_married','rs_spouseName','rs_spouseWilling','rs_spouseEmployed','rs_spouseUkHistory','rs_spouseSponsoring','rs_numKids','rs_lga','rs_etiOsaArea','rs_premiumPocket','rs_bedrooms','rs_addressNumber','rs_addressName','rs_annualRent','rs_monthlyUpkeep','rs_schoolFeePerTerm','rs_agedParents','rs_fatherName','rs_motherName','rs_fatherDeceased','rs_motherDeceased','rs_remittance','rs_verifyConsent']
+   'rs_married','rs_spouseName','rs_spouseWilling','rs_spouseEmployed','rs_spouseUkHistory','rs_spouseSponsoring','rs_numKids','rs_lga','rs_etiOsaArea','rs_premiumPocket','rs_bedrooms','rs_addressNumber','rs_addressName','rs_annualRent','rs_monthlyUpkeep','rs_schoolFeePerTerm','rs_agedParents','rs_fatherName','rs_motherName','rs_fatherDeceased','rs_motherDeceased','rs_remittance','rs_verifyConsent',
+   // "What to do next" session
+   'nextStepsAck']
     .forEach(function(id){
       var el = document.getElementById(id);
       el.addEventListener('change', render);
@@ -6456,14 +6564,17 @@
     var spouseRef = spouse || 'your spouse';
     var showConfirm = false;
     var html = '';
+    var c = COUNTRIES[currentCountry] || COUNTRIES.UK;
+    var visaShort = c.visaShortLabel || c.name;
+    var travelLabel = c.hostCountryLabel || c.name;
 
     if (a.spouseUkHistory === 'yes'){
-      html = '<div class="scan-msg info">Since '+escapeHtml(spouseRef)+' already holds a UK visa, or has travelled there before, one option worth considering: framing this as '
-        + escapeHtml(spouseRef) + ' taking you along on their next UK visit. Their own travel history and proven return to Nigeria can strengthen your ties in a reviewer\'s eyes - make sure this is stated clearly in your application, and that your marriage certificate is included as evidence of the relationship. This is a narrative choice, not a document requirement change here, so nothing else on this checklist is affected by it.</div>';
+      html = '<div class="scan-msg info">Since '+escapeHtml(spouseRef)+' already holds a '+escapeHtml(visaShort)+' visa, or has travelled to '+escapeHtml(travelLabel)+' before, one option worth considering: framing this as '
+        + escapeHtml(spouseRef) + ' taking you along on their next visit. Their own travel history and proven return to Nigeria can strengthen your ties in a reviewer\'s eyes - make sure this is stated clearly in your application, and that your marriage certificate is included as evidence of the relationship. This is a narrative choice, not a document requirement change here, so nothing else on this checklist is affected by it.</div>';
     } else if (a.spouseWilling === 'yes' && a.spouseEmployed === 'yes'){
       showConfirm = true;
-      html = '<div class="scan-msg ok">Since '+escapeHtml(spouseRef)+' is employed and willing, they can act as your financial sponsor instead of you self-funding. Current UK guidance is consistent on one point: money in an account that isn\'t declared as a sponsor\'s is usually disregarded by a caseworker rather than counted in your favour - so this needs to be stated plainly, not left implicit. If you go this route you\'ll need '
-        + escapeHtml(spouseRef) + '\'s own bank statements for the last 6 months, plus a signed letter from them explaining your relationship and confirming they\'re funding this trip. Tick the box below if this is the route you want - it adds that document to your checklist below.</div>';
+      html = '<div class="scan-msg ok">Since '+escapeHtml(spouseRef)+' is employed and willing, they can act as your financial sponsor instead of you self-funding. Guidance is consistent on one point: money in an account that isn\'t declared as a sponsor\'s is usually disregarded by a caseworker rather than counted in your favour - so this needs to be stated plainly, not left implicit. If you go this route you\'ll need '
+        + escapeHtml(spouseRef) + '\'s own bank statements for the last '+escapeHtml(c.statementsMonthsText||'6 months')+', plus a signed letter from them explaining your relationship and confirming they\'re funding this trip. Tick the box below if this is the route you want - it adds that document to your checklist below.</div>';
     } else if (a.spouseWilling === 'yes' && a.spouseEmployed === 'no'){
       html = '<div class="scan-msg warn">Sponsor evidence needs to show genuine, provable income of its own - if '
         + escapeHtml(spouseRef) + ' doesn\'t currently have a steady income, their statement alone may not strengthen your case the way it\'s meant to. Worth considering whether combining both your finances (clearly declared as such) makes more sense, or building up your own evidence instead.</div>';
@@ -6481,6 +6592,125 @@
       var cb = document.getElementById('rs_spouseSponsoring');
       if (cb && cb.checked) cb.checked = false;
     }
+  }
+
+  // "What to do next" — the founder's own field method, synthesized into one report: passport
+  // validity vs. the 6-month rule, travel-history strength (with a concrete easier-country
+  // suggestion when there's none yet), and finance readiness (reusing the SAME balancePill/
+  // incomePill DOM state computeFinancials() already maintains — see computeReadinessReportRows()
+  // just above for the identical read-don't-recompute pattern), each with a plain verdict, plus a
+  // prioritized breakdown when travel is only 2-3 months away. Informational-only framing throughout
+  // ("commonly seen as a positive factor", never "you qualify"/"guaranteed") — same lawyer-reviewed
+  // language precedent as updateTravelExperienceGrade() above and docs/terms-of-service-draft.md.
+  function renderNextStepsReport(a){
+    var box = document.getElementById('nextStepsReportBox');
+    if (!box) return;
+    var c = COUNTRIES[currentCountry] || COUNTRIES.UK;
+    var visaShort = c.visaShortLabel || c.name;
+    var sections = '';
+
+    // ---- 1. Passport validity vs. the 6-month rule ----
+    var passportOk = null; // null = not enough info to judge yet
+    var passportHtml;
+    if (!a.passportExpiry){
+      passportHtml = '<div class="scan-msg">Passport expiry not entered yet - fill it in on <b>Session 1 (Validate your International Passport)</b> so this can be checked.</div>';
+    } else {
+      var expiryDate = new Date(a.passportExpiry + 'T00:00:00');
+      if (isNaN(expiryDate.getTime())){
+        passportHtml = '<div class="scan-msg">The passport expiry date entered doesn\'t look valid - double check it on <b>Session 1</b>.</div>';
+      } else {
+        var travelDateObj = a.travelDate ? new Date(a.travelDate) : null;
+        var refDate = (travelDateObj && !isNaN(travelDateObj.getTime())) ? travelDateObj : new Date();
+        var sixAfter = new Date(refDate); sixAfter.setMonth(sixAfter.getMonth() + 6);
+        passportOk = expiryDate >= sixAfter;
+        if (passportOk){
+          passportHtml = '<div class="scan-msg ok">✅ Your passport clears the 6-months-beyond-travel-date rule most '+escapeHtml(visaShort)+' reviewers expect - no action needed here.</div>';
+        } else {
+          passportHtml = '<div class="scan-msg warn">⚠️ Your passport does <b>not</b> clear the 6-months-beyond-travel-date rule. Renew it before applying - this is worth fixing first, since nothing else on this checklist can compensate for an invalid passport.</div>';
+        }
+      }
+    }
+    sections += '<div class="next-steps-block"><h3 style="margin:0 0 6px; font-size:14px;">🛂 Passport validity</h3>' + passportHtml + '</div>';
+
+    // ---- 2. Travel history strength ----
+    var historyCountries = (typeof travelHistoryRows !== 'undefined' ? travelHistoryRows : []).map(function(r){ return r.country; }).filter(Boolean);
+    var hasHistory = !!a.travelledBefore && historyCountries.length > 0;
+    var visitedHighSuccess = historyCountries.some(function(cn){ return TE_HIGH_SUCCESS_COUNTRIES.indexOf(cn) !== -1; });
+    // Computed ahead of the finance section text below (finance-strength is what decides whether the
+    // "build history via South Africa" suggestion applies at all), see the finance block for the
+    // actual verdict this reads.
+    var financeStatusForHistory = readinessStatusFromPill('balancePill', true);
+    var financeLooksStrongForHistory = financeStatusForHistory === 'looks_complete';
+    var travelHtml;
+    if (a.firstTimeAnswer !== 'yes' && !a.firstTimeAnswer){
+      travelHtml = '<div class="scan-msg">Not answered yet - fill in <b>Session 2 (Travel Experience)</b> so this can be checked.</div>';
+    } else if (!hasHistory){
+      var easySuggestion = financeLooksStrongForHistory
+        ? 'Since your finances are already looking strong, South Africa - which also tends to have a comparatively higher success rate - is worth considering alongside the easier options.'
+        : 'Ghana, Kenya, Ethiopia, or Morocco are commonly used as a first destination to build a travel history before applying somewhere more demanding.';
+      travelHtml = '<div class="scan-msg warn">⚠️ No travel history on file yet - a first-time application is judged on paper alone, with nothing to show a reviewer you\'ve travelled and returned before. '+easySuggestion+' A completed, overstay-free trip there is commonly seen as a positive factor for a later '+escapeHtml(visaShort)+' application.</div>';
+    } else {
+      var historyBits = [];
+      if (visitedHighSuccess) historyBits.push('including South Africa, Morocco, and/or Kenya');
+      var overstayedAny = (typeof overstayRows !== 'undefined' ? overstayRows : []).some(function(r){ return r.country && parseNum(r.days) > 0; });
+      if (overstayedAny){
+        travelHtml = '<div class="scan-msg warn">⚠️ You have some travel history, but an overstay is on record - be upfront about it with a clear explanation. This is a real factor reviewers weigh heavily, so it\'s worth addressing directly rather than hoping it goes unnoticed.</div>';
+      } else {
+        travelHtml = '<div class="scan-msg ok">✅ You have travel history on file'+(historyBits.length ? ' ('+historyBits.join(', ')+')' : '')+', with no recorded overstay - this is commonly seen as a positive factor. See the <b>Reasons</b> tab for the full breakdown.</div>';
+      }
+    }
+    sections += '<div class="next-steps-block" style="margin-top:12px;"><h3 style="margin:0 0 6px; font-size:14px;">✈️ Travel history</h3>' + travelHtml + '</div>';
+
+    // ---- 3. Finance readiness ----
+    var balanceStatus = readinessStatusFromPill('balancePill', true);
+    var incomeStatus = readinessStatusFromPill('incomePill', false);
+    var financeEntered = balanceStatus !== 'missing' || incomeStatus !== 'missing';
+    var financeStrong = balanceStatus === 'looks_complete' && incomeStatus === 'looks_complete';
+    var financeHtml;
+    if (!financeEntered){
+      financeHtml = '<div class="scan-msg">Finances not entered yet - fill in <b>Income & bank statement analysis</b> and the <b>Financial readiness calculator</b> above so this can be checked.</div>';
+    } else if (financeStrong){
+      financeHtml = '<div class="scan-msg ok">✅ Your closing balance and income both look strong against '+escapeHtml(c.authority||'the')+'\'s usual '+escapeHtml(c.statementsMonthsText||'6 months')+' of statements - you\'re good to go here.</div>';
+    } else {
+      var financeGaps = [];
+      if (balanceStatus !== 'looks_complete') financeGaps.push('build up your closing balance');
+      if (incomeStatus !== 'looks_complete') financeGaps.push('make your income more consistent and fully explained');
+      financeHtml = '<div class="scan-msg warn">⚠️ Not quite there yet - '+financeGaps.join(' and ')+' over the next '+escapeHtml(c.statementsMonthsText||'6 months')+' of statements before applying. Build your statement history first rather than applying on a weak one.</div>';
+    }
+    sections += '<div class="next-steps-block" style="margin-top:12px;"><h3 style="margin:0 0 6px; font-size:14px;">💰 Finance readiness</h3>' + financeHtml + '</div>';
+
+    // ---- 4. Time-to-travel prioritized breakdown (only if travel is roughly 2-3 months out) ----
+    var daysToTravel = null;
+    if (a.travelDate){
+      var td = new Date(a.travelDate);
+      if (!isNaN(td.getTime())) daysToTravel = Math.round((td.getTime() - Date.now()) / 86400000);
+    }
+    if (daysToTravel !== null && daysToTravel >= 0 && daysToTravel <= 100){
+      var priorities = [];
+      if (passportOk === false) priorities.push('Renew your passport first - it blocks everything else on this list.');
+      if (!hasHistory) priorities.push('Consider an easier destination now to start building travel history, if time allows.');
+      if (!financeStrong) priorities.push('Focus on strengthening your finances - closing balance and income consistency.');
+      if (priorities.length){
+        sections += '<div class="scan-msg warn" style="margin-top:12px;"><b>You have about '+daysToTravel+' day(s) until your travel date</b> - in priority order:<ol style="margin:6px 0 0 18px; padding:0;">'
+          + priorities.map(function(p){ return '<li>'+escapeHtml(p)+'</li>'; }).join('')
+          + '</ol></div>';
+      } else {
+        sections += '<div class="scan-msg ok" style="margin-top:12px;"><b>You have about '+daysToTravel+' day(s) until your travel date</b> and you\'re tracking well across passport, travel history, and finances.</div>';
+      }
+    }
+
+    // ---- Overall verdict ----
+    var verdictHtml;
+    if (passportOk === true && financeStrong){
+      verdictHtml = '<div class="scan-msg ok" style="margin-top:12px; font-weight:600;">Overall: you\'re in a good position to move on to document collection below.</div>';
+    } else if (passportOk === null && !financeEntered){
+      verdictHtml = '<div class="scan-msg" style="margin-top:12px; font-weight:600;">Overall: fill in the sections above (or the linked sessions) for a real verdict here.</div>';
+    } else {
+      verdictHtml = '<div class="scan-msg warn" style="margin-top:12px; font-weight:600;">Overall: a few things above are worth addressing before you dive into document collection - passport, travel history, and finances all feed into how strong your application looks.</div>';
+    }
+    sections += verdictHtml;
+
+    box.innerHTML = sections;
   }
 
   // "Estimated yearly cost of living" — user feedback: "do a price research on house rent and
@@ -13578,6 +13808,8 @@
       document.getElementById('rs_motherDeceased').checked = !!payload.answers.motherDeceased;
       document.getElementById('rs_remittance').value = payload.answers.remittanceAmount || '';
       document.getElementById('rs_verifyConsent').checked = !!payload.answers.remittanceVerifyConsent;
+      // "What to do next" session
+      document.getElementById('nextStepsAck').checked = !!payload.answers.nextStepsAck;
     }
     if (Array.isArray(payload.travelHistoryRows)){
       travelHistoryRows = payload.travelHistoryRows;
@@ -13923,6 +14155,12 @@
     }
     var hostCountryEl = document.getElementById('hostCountryLabel');
     if (hostCountryEl) hostCountryEl.textContent = c.hostCountryLabel;
+    // Spouse/sponsor question on "What to do next" - used to hardcode "a UK visa"/"the UK" regardless
+    // of which country was actually selected, misleading for Canada/Schengen/South Africa applicants.
+    var spouseVisaLabelEl = document.getElementById('rs_spouseVisaLabel');
+    if (spouseVisaLabelEl) spouseVisaLabelEl.textContent = 'a ' + (c.visaShortLabel || c.name) + ' visa';
+    var spouseTravelLabelEl = document.getElementById('rs_spouseTravelLabel');
+    if (spouseTravelLabelEl) spouseTravelLabelEl.textContent = c.hostCountryLabel;
     ['hostTypeLabel1','hostTypeLabel3'].forEach(function(id){
       var el = document.getElementById(id);
       if (el) el.textContent = c.hostTypeLabel;

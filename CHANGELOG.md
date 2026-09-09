@@ -3,6 +3,36 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## New: "What to do next" — a synthesized readiness report + hard gate before document collection
+
+A new session, placed right after the two finance sessions and before the document-checklist
+categories, pulls together everything already entered — passport expiry vs. the 6-months-beyond-
+travel-date rule, travel-history strength (with a concrete suggestion to build history via an
+easier country first — Ghana, Kenya, Ethiopia, or Morocco — or South Africa when finances already
+look strong), and finance readiness (reusing the same closing-balance/income signals the Financial
+readiness calculator already computes) — into one plain-language report, plus a prioritized
+breakdown when travel is only ~2-3 months away.
+
+Unlike every other session in this app, this one is a genuine hard gate: an explicit, informed
+exception to the "pills are always freely clickable" design (see the comment above `goToSession()`
+in `index.html`). Nothing past it — pill clicks included — is reachable until the applicant ticks
+"I've reviewed my next steps above". Founder's own field reasoning: applicants who skip straight to
+document collection without this review end up filling in the wrong things, unprepared.
+
+The three spouse/sponsor decision questions ("Is your spouse willing to fund this trip?" / "…
+gainfully employed?" / "…hold a visa or travelled here before?") moved out of "Your responsibilities"
+into this new session, since that's advice about who applies and who pays, not a document to
+collect — the recommendation logic itself (`renderSponsorRecommendation`) is unchanged and is now
+also fully country-aware (previously hardcoded to say "UK" regardless of the selected destination).
+
+## Document Review offer: trimmed down + benefits dropdown
+
+The offer card (quiz result + finance report screens) dropped its two sentences of explanatory
+copy — now it's just the "50% off launch price" badge, the price, and a direct call-to-action
+button. What used to be prose is now a "What do you get for $25?" dropdown listing the three
+concrete benefits (silent-error detection, finance-vs-story consistency check, a PDF+Excel
+form-filling guide with the "not a visa officer" caveat kept intact).
+
 ## Travel Experience: country-visit commentary moved to Reasons
 
 The blue "You've visited 1 African country…" / "…an EU country…" / "…a major/high-GDP
