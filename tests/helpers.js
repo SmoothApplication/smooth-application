@@ -75,6 +75,17 @@ async function newPageAt(browser, urlPath, opts){
   var page = await context.newPage();
   page.on('dialog', function(d){ d.accept(); }); // auto-accept the "still X% done — proceed anyway?" nudge
   await gotoWithRetry(page, 'http://127.0.0.1:' + PORT + (urlPath || '/index.html'));
+  // Intermittent failures seen across many unrelated test files — "window.__testSkipQuiz is not a
+  // function" right after waiting for #quizIntro, or a click on #quizStartBtn silently doing
+  // nothing — trace back to the same root cause: a gate screen's markup exists in the DOM (Playwright's
+  // waitForSelector is satisfied) before this app's own single big inline <script> has actually
+  // finished running end to end and attached every listener. window.__appReady is set as the very
+  // last statement in that script (see index.html) — waiting for it here, once, for every test,
+  // replaces waiting on an indirect proxy (a DOM element merely existing) with waiting on the real
+  // precondition every test actually depends on.
+  if (urlPath === undefined || urlPath === '/index.html' || urlPath === '/'){
+    await page.waitForFunction(function(){ return window.__appReady === true; }, { timeout: 15000 });
+  }
   return page;
 }
 
@@ -91,6 +102,12 @@ async function newPageAt(browser, urlPath, opts){
 async function passConsentGate(page, options){
   var country = (options && options.country) || 'UK';
   await page.waitForSelector('#quizIntro');
+  // #quizIntro's markup can exist in the DOM slightly before the app's own big inline <script> has
+  // finished running top-to-bottom (window.__testSkipQuiz is assigned quite late in that script) —
+  // a narrow, previously-rarely-losing race that got wide enough to fail consistently once the
+  // script grew (see CHANGELOG). Waiting for the hook itself to actually be a function, not just for
+  // the DOM element to appear, removes that race instead of hoping the timing keeps working out.
+  await page.waitForFunction(function(){ return typeof window.__testSkipQuiz === 'function'; }, { timeout: 10000 });
   await page.evaluate(function(){ window.__testSkipQuiz(); });
   await page.waitForSelector('#docsGateContinue');
   await page.click('#docsGateContinue');
@@ -121,6 +138,25 @@ async function passConsentGate(page, options){
     var el = document.getElementById('appWrap');
     return el && el.style.display !== 'none';
   }, { timeout: 5000 });
+}
+
+// Reaches the standalone "Funded opportunities & exchange programs" screen (see #opportunitiesGate
+// in index.html) directly from the country picker — no country pick, no disclaimer agreement, no
+// situation gate, since it's meant to be reachable by someone who isn't applying for a visa at all.
+// Still passes through the quiz-intro/docs-gate screens first, same as every other path into the
+// app (see passConsentGate above) — those come before the country picker for everyone, real
+// applicant or not; only the ACTUAL country/consent/situation gates are skipped here.
+async function openOpportunitiesGate(page){
+  await page.waitForSelector('#quizIntro');
+  // See the matching comment in passConsentGate above — waits for the hook itself, not just the
+  // surrounding DOM, before calling it.
+  await page.waitForFunction(function(){ return typeof window.__testSkipQuiz === 'function'; }, { timeout: 10000 });
+  await page.evaluate(function(){ window.__testSkipQuiz(); });
+  await page.waitForSelector('#docsGateContinue');
+  await page.click('#docsGateContinue');
+  await page.waitForSelector('#gateOpportunitiesLink', { state: 'visible' });
+  await page.click('#gateOpportunitiesLink');
+  await page.waitForSelector('#opportunitiesGate', { state: 'visible' });
 }
 
 // Jumps directly to a session by index — unlike the "Next →" button, this never triggers the soft
@@ -185,4 +221,4 @@ async function pickTravelCountry(page, containerId, idx, countryName){
   await page.click(optionSel);
 }
 
-module.exports = { startServer, launchBrowser, newPageAt, passConsentGate, goToSessionByPill, goToSessionByLabel, goToFinanceStep, pickTravelCountry, PORT, ROOT };
+module.exports = { startServer, launchBrowser, newPageAt, passConsentGate, openOpportunitiesGate, goToSessionByPill, goToSessionByLabel, goToFinanceStep, pickTravelCountry, PORT, ROOT };

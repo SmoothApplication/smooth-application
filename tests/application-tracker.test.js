@@ -6,14 +6,20 @@
 // something not in the curated list, editing status/deadline/notes, and that the tracker survives a
 // page reload (its own localStorage key, independent of the per-country autosave — see the
 // #appTrackerCard HTML comment in index.html for why it isn't folded into buildPayload()).
+//
+// Later user request: "Move 'Funded opportunities & exchange programs' to a drop down where we have
+// 'Which visa are you preparing for?'" — this card (and the directory beside it) used to be a
+// checklist session; it's now reached via the standalone #opportunitiesGate screen instead (see
+// openOpportunitiesGate() in helpers.js) — no country pick or consent gate needed. That also means
+// the reload check below has to re-open the gate afterwards, since the tracker no longer lives
+// behind the checklist's own country-scoped session flow at all.
 const assert = require('assert');
-const { newPageAt, passConsentGate, goToSessionByLabel } = require('./helpers');
+const { newPageAt, openOpportunitiesGate } = require('./helpers');
 
 exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
-    await passConsentGate(page);
-    await goToSessionByLabel(page, 'Funded opportunities');
+    await openOpportunitiesGate(page);
     await page.waitForSelector('#appTrackerCard');
 
     // Empty state before anything is tracked.
@@ -62,8 +68,7 @@ exports.run = async function(ctx){
     // Reload the page — the tracker (both entries, with the edited status/deadline/notes) should
     // survive, proving it persists independently of the rest of the app's per-country autosave.
     await page.reload();
-    await passConsentGate(page);
-    await goToSessionByLabel(page, 'Funded opportunities');
+    await openOpportunitiesGate(page);
     await page.waitForSelector('#appTrackerCard');
     var rowCountAfterReload = await page.$$eval('#trackerList .tracker-row', function(els){ return els.length; });
     assert.strictEqual(rowCountAfterReload, 2, 'Both tracker entries should survive a page reload');

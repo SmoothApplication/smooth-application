@@ -3,20 +3,25 @@
 // the checklist and hit the financial-readiness reality check (see
 // financial-timing-reality-check.test.js) asked whether the platform could also point them toward a
 // way to travel WITHOUT needing that much money — internships, paid exchange programs, scholarships.
-// This tests the resulting "Funded opportunities & exchange programs" directory: a new, always-visible
-// session (unlike bizLedger, it isn't conditional on anything the applicant has entered) listing 10
+// This tests the resulting "Funded opportunities & exchange programs" directory: listing 10
 // hand-verified real programs, each tagged with a `pathway` describing what it actually requires
 // (semester exchange while staying enrolled at home vs. a full new degree vs. postgrad-only vs. a
 // paid program with real fees) — and a prominent scam warning, since "opportunities for students who
 // can't afford to travel" is exactly the kind of promise scammers imitate.
+//
+// Later user request: "Move 'Funded opportunities & exchange programs' to a drop down where we have
+// 'Which visa are you preparing for?'" — this directory used to be a checklist session reachable only
+// after picking a country/agreeing to the disclaimer/the situation gate; it's now its own standalone
+// screen reached directly from the country picker instead (see #opportunitiesGate,
+// #gateOpportunitiesLink, and openOpportunitiesGate() in helpers.js), with no country pick needed at
+// all — exactly the applicant this feature is meant to help most.
 const assert = require('assert');
-const { newPageAt, passConsentGate, goToSessionByLabel } = require('./helpers');
+const { newPageAt, openOpportunitiesGate } = require('./helpers');
 
 exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
-    await passConsentGate(page);
-    await goToSessionByLabel(page, 'Funded opportunities');
+    await openOpportunitiesGate(page);
     await page.waitForSelector('#opportunitiesCard');
 
     // The scam warning is the single most important line on this card — must be visible without

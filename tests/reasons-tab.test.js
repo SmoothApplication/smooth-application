@@ -68,12 +68,29 @@ exports.run = async function(ctx){
     var overlayHiddenAfterEsc = await page.$eval('#reasonsModalOverlay', function(el){ return el.hidden; });
     assert.strictEqual(overlayHiddenAfterEsc, true, 'Escape should close the Reasons modal');
 
-    // The count badge on the tab itself should reflect a real, non-zero number.
+    // Field feedback: "let Reasons be for each page" — the floating tab's own modal/badge is now
+    // scoped to whichever page it's opened from (the full app-wide breakdown moved to being the
+    // dedicated "Reasons" session's own job — checked below). On the Passport session specifically
+    // that's a small, real number matching what's actually shown, not the ~20+ collected app-wide,
+    // and it should never pull in the pre-session "Quiz" screen's own content either.
     var count = await page.$eval('#reasonsTabCount', function(el){ return parseInt(el.textContent, 10); });
-    assert.ok(count > 20, 'Should have collected a meaningful number of reasons app-wide, got: ' + count);
+    var itemCountInApp = await page.$$eval('#reasonsModalBody .reasons-item', function(els){ return els.length; });
+    assert.strictEqual(count, itemCountInApp, 'Badge count should match exactly what\'s shown for this one page, got badge=' + count + ' items=' + itemCountInApp);
+    assert.ok(count > 0 && count < 20, 'Passport session\'s own reason count should be small and page-scoped, not the ~20+ collected app-wide, got: ' + count);
+    assert.ok(!/reasons-group-title">Quiz</.test(htmlInApp), 'Page-scoped modal should not also show the pre-session Quiz screen\'s content while on the Passport page, got: ' + htmlInApp.slice(0, 200));
 
-    // Session 14 ("Reasons", last in the flow) carries the exact same content as the floating modal.
-    var reasonsSessionIdx = 13; // 14th session, 0-indexed - see new-session-order.test.js
+    // Switching sessions should change what the floating tab shows too, not just the sidebar card.
+    await goToSessionByPill(page, 1); // Travel Experience
+    await page.click('#reasonsTabBtn');
+    await page.waitForSelector('#reasonsModalOverlay:not([hidden])');
+    var htmlOnTravelExp = await page.$eval('#reasonsModalBody', function(el){ return el.innerHTML; });
+    assert.ok(!/Validate your International Passport/.test(htmlOnTravelExp), 'Floating tab should have swapped away from the Passport session\'s own reasons once on a different page, got: ' + htmlOnTravelExp.slice(0, 300));
+    await page.keyboard.press('Escape');
+
+    // Session 13 ("Reasons", last in the flow) carries the exact same content as the floating modal
+    // used to, before it became page-scoped — this dedicated session is deliberately exempt, and is
+    // now the one place that always shows the complete, every-page summary.
+    var reasonsSessionIdx = 13; // 14th session, 0-indexed - see new-session-order.test.js (shifted down by 1 now that "Funded opportunities" moved out of the session list entirely)
     await goToSessionByPill(page, reasonsSessionIdx);
     await page.waitForSelector('#reasonsSessionBody');
     var sessionHtml = await page.$eval('#reasonsSessionBody', function(el){ return el.innerHTML; });

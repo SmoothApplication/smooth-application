@@ -15,14 +15,19 @@ exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page);
+    // "I'm married" + spouse's name stay on "Your responsibilities" (basic facts); the decision
+    // Q&A + recommendation they feed moved to the new "What to do next" session (see the
+    // data-session-key="nextSteps" HTML comment in index.html) - it's advice about who applies/pays,
+    // not a document to collect, so it's a separate session card and needs its own navigation.
     await goToSessionByLabel(page, 'Your responsibilities');
-
-    // Not married yet — nothing shown.
-    var boxEmpty = await page.$eval('#rs_sponsorRecommendationBox', function(el){ return el.innerHTML.trim(); });
-    assert.strictEqual(boxEmpty, '', 'No recommendation should show before "I\'m married" is ticked');
-
     await page.check('#rs_married');
     await page.fill('#rs_spouseName', 'Ngozi Adeyemi');
+
+    await goToSessionByLabel(page, 'What to do next');
+
+    // Not married yet — nothing shown. (Re-checked here too, now that the box lives on this session.)
+    var boxEmpty = await page.$eval('#rs_sponsorRecommendationBox', function(el){ return el.innerHTML.trim(); });
+    assert.strictEqual(boxEmpty, '', 'No recommendation should show before the spouse Q&A below is answered');
 
     // Spouse already has UK history — narrative recommendation, no checklist change.
     await page.selectOption('#rs_spouseUkHistory', 'yes');

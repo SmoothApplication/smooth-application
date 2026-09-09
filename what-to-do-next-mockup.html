@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>What to do next — mockup</title>
+<style>
+  body {
+    margin: 0;
+    padding: 24px;
+    background: #eef3f5;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: #12232e;
+  }
+  .wrap { max-width: 620px; margin: 0 auto; }
+  .note {
+    font-size: 12px;
+    color: #4c6270;
+    margin-bottom: 16px;
+  }
+  .navtext { font-size: 13px; color: #4c6270; margin: 0 0 12px; }
+  .navtext b { color: #12232e; }
+  .dots { display: flex; gap: 6px; margin-bottom: 14px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: #c7d3d8; }
+  .dot.active { background: #6a3fa0; }
+  .cardrow { display: flex; }
+  .accent { width: 5px; background: #6a3fa0; flex-shrink: 0; }
+  .card { background: #ffffff; border-radius: 0 12px 12px 0; padding: 18px 20px; flex: 1; box-shadow: 0 1px 3px rgba(18,35,46,0.08); }
+  .cardhead { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .cardhead .icon { font-size: 20px; }
+  .cardhead .title { font-size: 17px; font-weight: 600; }
+  .intro { font-size: 13px; color: #4c6270; margin: 0 0 16px; }
+  .section { border: 1px solid #d6e0e4; border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; }
+  .label { font-size: 11px; font-weight: 600; color: #4c6270; margin-bottom: 6px; }
+  .pill { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 10px; margin-bottom: 6px; }
+  .pill.ok { background: #dcf3ea; color: #0f6e56; }
+  .pill.warn { background: #fbf0dc; color: #854f0b; }
+  .body-text { font-size: 13px; margin: 0; line-height: 1.5; }
+  .strip { background: #fbf0dc; border: 1px solid #d99a34; border-radius: 12px; padding: 10px 14px; margin-bottom: 16px; }
+  .strip p { font-size: 12.5px; margin: 0; color: #7a5518; line-height: 1.5; }
+  .ackrow { border-top: 1px solid #d6e0e4; padding-top: 14px; display: flex; align-items: flex-start; gap: 10px; }
+  .ackrow input { margin-top: 2px; width: 16px; height: 16px; flex-shrink: 0; }
+  .ackrow label { font-size: 13px; cursor: pointer; }
+  #nextBtn {
+    margin-top: 14px; width: 100%; padding: 11px; border-radius: 8px; border: none;
+    font-size: 14px; font-weight: 600; background: #c7d3d8; color: #5f6d73; cursor: not-allowed;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="note">Mockup of the new "What to do next" session — real colors and copy from the app, not yet live.</p>
+  <p class="navtext">Session 7 of 15: <b>What to do next</b> &middot; 0% filled</p>
+  <div class="dots">
+    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    <div class="dot active"></div><div class="dot"></div><div class="dot"></div>
+  </div>
+  <div class="cardrow">
+    <div class="accent"></div>
+    <div class="card">
+      <div class="cardhead"><span class="icon">🧭</span><span class="title">What to do next</span></div>
+      <p class="intro">Your passport, travel history, and finances, together — one report on where you stand before document collection starts.</p>
+
+      <div class="section">
+        <div class="label">Passport validity</div>
+        <span class="pill ok">OK</span>
+        <p class="body-text">Your passport clears the 6-months-beyond-travel-date rule most UK reviewers expect — no action needed here.</p>
+      </div>
+
+      <div class="section">
+        <div class="label">Travel history</div>
+        <span class="pill warn">Build first</span>
+        <p class="body-text">No travel history on file yet. Ghana, Kenya, Ethiopia, or Morocco are commonly used as a first destination to build history before applying somewhere more demanding.</p>
+      </div>
+
+      <div class="section" style="margin-bottom:14px;">
+        <div class="label">Finance readiness</div>
+        <span class="pill warn">Not there yet</span>
+        <p class="body-text">Build up your closing balance and make your income more consistent over the next 6 months of statements, before applying on a weak one.</p>
+      </div>
+
+      <div class="strip">
+        <p><b>Travel in about 45 days:</b> build travel history now if time allows, then focus on finances. Passport already clears the rule, so it's not on this list.</p>
+      </div>
+
+      <div class="ackrow">
+        <input type="checkbox" id="ack">
+        <label for="ack" id="ackLabel">I've reviewed my next steps above</label>
+      </div>
+    </div>
+  </div>
+  <button id="nextBtn" disabled>Next (blocked until reviewed)</button>
+</div>
+<script>
+  var ack = document.getElementById('ack');
+  var nextBtn = document.getElementById('nextBtn');
+  var ackLabel = document.getElementById('ackLabel');
+  ack.addEventListener('change', function () {
+    if (ack.checked) {
+      nextBtn.disabled = false;
+      nextBtn.style.background = '#12699a';
+      nextBtn.style.color = '#ffffff';
+      nextBtn.style.cursor = 'pointer';
+      nextBtn.textContent = 'Next: Identity and application →';
+      ackLabel.style.color = '#0f6e56';
+    } else {
+      nextBtn.disabled = true;
+      nextBtn.style.background = '#c7d3d8';
+      nextBtn.style.color = '#5f6d73';
+      nextBtn.style.cursor = 'not-allowed';
+      nextBtn.textContent = 'Next (blocked until reviewed)';
+      ackLabel.style.color = '#12232e';
+    }
+  });
+</script>
+</body>
+</html>

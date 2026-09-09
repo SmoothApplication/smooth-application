@@ -1597,6 +1597,11 @@
       <b class="gate-country-confirmed-name"></b>
       <button type="button" class="gate-text-link" id="gateCountryChange">Change</button>
     </div>
+    <!-- User request: "Move 'Funded opportunities & exchange programs' to a drop down where we have
+         'Which visa are you preparing for?'" — a direct way out for someone who can't yet afford a
+         visa at all, right where they're choosing one, rather than several steps into the checklist.
+         See #opportunitiesGate for the standalone screen this opens. -->
+    <button type="button" class="gate-text-link" id="gateOpportunitiesLink" style="margin-top:2px; display:block;">🎓 Not applying for a visa yet? Browse funded opportunities & exchange programs instead</button>
     <div class="gate-select-wrap" style="display:none;" aria-hidden="true">
       <select id="gateCountrySelect">
         <option value="UK">🇬🇧 United Kingdom - Standard Visitor visa</option>
@@ -1648,6 +1653,55 @@
     <div class="za-onboarding-cost" id="zaOnboardingCost"></div>
     <button class="btn primary" id="zaOnboardingContinue" style="margin-top:16px; width:100%;">Continue to your checklist →</button>
     <button type="button" class="gate-text-link" id="zaOnboardingBack">← Back</button>
+    <p class="gate-credit">Built by <b>SafeNetwork</b>. <a href="mailto:lalasionline@gmail.com">Email</a> · <a href="https://wa.me/2349081389969" target="_blank" rel="noopener">WhatsApp</a></p>
+  </div>
+</div>
+
+<!-- User request: "Move 'Funded opportunities & exchange programs' to a drop down where we have
+     'Which visa are you preparing for?'" — previously this (and the application tracker beside it)
+     was a checklist SESSION, reachable only after picking a country, agreeing to the disclaimer, and
+     working through the situation gate — several extra steps for exactly the applicant this is meant
+     to help most: someone who can't yet afford ANY visa and just wants to see funded alternatives.
+     Moved out of the main flow entirely into its own standalone screen, reached directly from a link
+     right next to the country picker (see #gateOpportunitiesLink) — no country pick, no consent
+     checkbox, no situation gate. renderOpportunities()/renderTracker() (see index.html JS) are both
+     already static/country-independent — built once at page load regardless of country — so nothing
+     about their own logic needed to change, only where their markup lives in the DOM. The two intro
+     paragraphs below that used to be swept into the Reasons tab (back when this was a checklist
+     session with its own Reasons group) now stay permanently inline instead — this page is reached
+     BEFORE the consent gate, so an applicant here may never open the main checklist (or its Reasons
+     tab) at all; hiding the explanation would just leave the page looking incomplete for them. -->
+<div id="opportunitiesGate" class="consent-gate" style="display:none;">
+  <div class="gate-blob gate-blob-1" aria-hidden="true"></div>
+  <div class="gate-blob gate-blob-2" aria-hidden="true"></div>
+  <div class="gate-blob gate-blob-3" aria-hidden="true"></div>
+  <div class="consent-gate-card" style="max-width:820px;">
+    <div class="gate-icon-badge" aria-hidden="true">🎓</div>
+    <h1 class="consent-gate-title" style="font-size:26px;">Funded opportunities &amp; exchange programs</h1>
+    <p class="consent-gate-subtitle">Browse real, currently-running programs — no visa pick or checklist needed.</p>
+
+    <div class="card" id="opportunitiesCard" style="border-left: 4px solid #1a8a5f; text-align:left;">
+      <h2 style="margin-top:0;"><span class="card-icon-badge" style="background:#1a8a5f1f; color:#1a8a5f;">🎓</span> Funded opportunities &amp; exchange programs</h2>
+      <p class="item-tip" style="margin-top:-4px;">Can't yet afford the trip you're preparing for? These are real, currently-running programs - scholarships, exchanges, and fellowships - that cover some or all of the cost for students in Nigeria. This list is separate from the visa checklist; it isn't visa-specific, and Smooth Application isn't affiliated with any program on it.</p>
+      <div class="doc-reminder" style="border-color:#a83d3d; background:#a83d3d14; margin:6px 0 10px;">
+        <b>⚠️ Watch for scams.</b> A genuine scholarship, exchange, or fellowship never asks you to pay to be selected, to release your winnings, or to "process" your visa through them. Apply only through the official link shown for each program below - never through an agent, a WhatsApp/Telegram group, or a lookalike site that contacts you first. If in doubt, search the program's name plus the word "scam" before you pay anything or share your documents.
+      </div>
+      <div id="oppFilterRow" class="opp-filter-row"></div>
+      <div id="oppList"></div>
+      <p class="item-tip" style="margin-top:10px;">Details above (funding, eligibility, deadlines) change year to year - always confirm the current cycle on the program's own official site before relying on anything here. Last checked: <span id="oppLastVerified"></span>.</p>
+    </div>
+
+    <div class="card" id="appTrackerCard" style="border-left: 4px solid #1a8a5f; text-align:left; margin-top:14px;">
+      <h2 style="margin-top:0;"><span class="card-icon-badge" style="background:#1a8a5f1f; color:#1a8a5f;">📋</span> My application tracker</h2>
+      <p class="item-tip" style="margin-top:-4px;">Applying to more than one program above? Keep track of where each one stands. This stays on this device only - same "nothing leaves your browser" rule as the rest of this tool.</p>
+      <div id="trackerList"></div>
+      <div class="no-print" style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+        <input type="text" id="trackerCustomName" placeholder="Track a program not listed above - type its name" style="flex:1; min-width:220px;">
+        <button type="button" class="btn" id="btnAddCustomTracker">+ Add to my tracker</button>
+      </div>
+    </div>
+
+    <button type="button" class="gate-text-link" id="opportunitiesGateBack" style="margin-top:16px;">← Back to the visa checklist</button>
     <p class="gate-credit">Built by <b>SafeNetwork</b>. <a href="mailto:lalasionline@gmail.com">Email</a> · <a href="https://wa.me/2349081389969" target="_blank" rel="noopener">WhatsApp</a></p>
   </div>
 </div>
@@ -2805,47 +2859,6 @@
       </details>
 
       <div id="checklistRoot"></div>
-
-      <!-- Direct student feedback from an in-person test at UNILAG: several who came through the
-           checklist and hit the financial-readiness reality check asked whether the platform could
-           also point them toward a way to travel WITHOUT needing this much money - internships, paid
-           exchange, scholarships. This is that directory: real, verifiable, currently-running funded
-           programs, each tagged with a `pathway` so it's honest about what each one actually requires
-           (most "fully funded" scholarships turn out to require either committing to a brand-new
-           degree abroad or already holding a postgraduate qualification - very few let a current
-           undergraduate go abroad short-term while staying enrolled at home). Static content, not
-           tied to `state`/answers, so it's built once via renderOpportunities() rather than on every
-           render() pass. See the OPPORTUNITIES array and PATHWAY_META near renderBusinessIncomeLedger
-           for the data and the scam-warning rationale. -->
-      <div class="card" id="opportunitiesCard" data-session-key="opportunities" style="border-left: 4px solid #1a8a5f;">
-        <h2 style="margin-top:0;"><span class="card-icon-badge" style="background:#1a8a5f1f; color:#1a8a5f;">🎓</span> Funded opportunities &amp; exchange programs</h2>
-        <p class="item-tip" data-reason="1" style="margin-top:-4px;">Can't yet afford the trip you're preparing for above? These are real, currently-running programs - scholarships, exchanges, and fellowships - that cover some or all of the cost for students in Nigeria. This list is separate from the visa checklist above; it isn't visa-specific, and Smooth Application isn't affiliated with any program on it.</p>
-        <div class="doc-reminder" style="border-color:#a83d3d; background:#a83d3d14; margin:6px 0 10px;">
-          <b>⚠️ Watch for scams.</b> A genuine scholarship, exchange, or fellowship never asks you to pay to be selected, to release your winnings, or to "process" your visa through them. Apply only through the official link shown for each program below - never through an agent, a WhatsApp/Telegram group, or a lookalike site that contacts you first. If in doubt, search the program's name plus the word "scam" before you pay anything or share your documents.
-        </div>
-        <div id="oppFilterRow" class="opp-filter-row"></div>
-        <div id="oppList"></div>
-        <p class="item-tip" style="margin-top:10px;">Details above (funding, eligibility, deadlines) change year to year - always confirm the current cycle on the program's own official site before relying on anything here. Last checked: <span id="oppLastVerified"></span>.</p>
-      </div>
-
-      <!-- Phase 2 of the same UNILAG street-test feedback: once students had a list of real programs,
-           the natural next ask was somewhere to track their own applications to more than one at once.
-           Deliberately its own card (same data-session-key, so it shows/hides together with the
-           directory above) rather than merged into it - the directory is reference material anyone
-           browses; the tracker is personal, editable, and often empty at first. Saved under its own
-           localStorage key (see APP_TRACKER_KEY near renderTracker()) rather than folded into
-           buildPayload()/AUTOSAVE_PREFIX - those are keyed per visa country (storageKey() includes
-           currentCountry) and reset/reload on every country switch, but which scholarships someone is
-           applying to has nothing to do with which visa checklist they currently have open. -->
-      <div class="card" id="appTrackerCard" data-session-key="opportunities" style="border-left: 4px solid #1a8a5f;">
-        <h2 style="margin-top:0;"><span class="card-icon-badge" style="background:#1a8a5f1f; color:#1a8a5f;">📋</span> My application tracker</h2>
-        <p class="item-tip" data-reason="1" style="margin-top:-4px;">Applying to more than one program above? Keep track of where each one stands. This stays on this device only - same "nothing leaves your browser" rule as the rest of this tool.</p>
-        <div id="trackerList"></div>
-        <div class="no-print" style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-          <input type="text" id="trackerCustomName" placeholder="Track a program not listed above - type its name" style="flex:1; min-width:220px;">
-          <button type="button" class="btn" id="btnAddCustomTracker">+ Add to my tracker</button>
-        </div>
-      </div>
 
       <div class="card" id="finalSummaryCard" data-session-key="review" style="border-left: 4px solid #1b6fa8;">
         <h2 style="margin-top:0;">Are you ready?</h2>
@@ -4966,13 +4979,11 @@
     // itself (rarely hardcoded that way) absorbs the +1 shift instead. See the #bizLedgerCard HTML
     // comment above for why this session exists at all.
     if (a.selfEmployed) keys.push('bizLedger');
-    // Funded-opportunities directory: unlike bizLedger, this isn't conditional on anything the
-    // applicant has entered — every visitor sees it, since "I can't afford this yet" is exactly the
-    // situation it's meant to help with. Appended here (after every checklist category and bizLedger,
-    // still right before 'review') for the same reason bizLedger is appended here rather than spliced
-    // in earlier: it can't shift the index of any 'cat:...' or 'review' session that existing tests
-    // navigate to by hardcoded pill number.
-    keys.push('opportunities');
+    // The funded-opportunities directory USED to be appended here as a session of its own — moved out
+    // to a standalone screen reached directly from the country picker instead (see #opportunitiesGate
+    // and #gateOpportunitiesLink), since "I can't afford this yet" is exactly the situation it's meant
+    // to help with, and making that applicant pick a country and agree to a visa disclaimer first was
+    // several needless steps in the way. See the CHANGELOG entry for the full reasoning.
     keys.push('review');
     // Field feedback: a dedicated last stop that shows every "why" collected along the way (see the
     // Reasons tab block above), broken down session by session, so every applicant passes through it
@@ -5249,8 +5260,14 @@
     // own modal wasn't — it always showed the full, everywhere list regardless of which page it was
     // opened from. Now scoped the same way (see renderReasonsModal's currentKey param) — the
     // dedicated "Reasons" session at the end of the flow is untouched, and still gets the complete,
-    // every-page summary.
-    if (typeof renderReasonsModal === 'function') renderReasonsModal(currentKey);
+    // every-page summary. Only scope it once the applicant is actually IN the main checklist — this
+    // function also runs once during initial page setup, before the consent gate, while the
+    // floating tab itself is still hidden (setReasonsTabVisible(false)) — page-scoping the modal
+    // that early would silently overwrite its correct pre-gate "everything, including the Quiz
+    // screen" content with the default session's own (e.g. Passport's) narrower content instead.
+    var reasonsTabBtnEl = document.getElementById('reasonsTabBtn');
+    var reasonsTabIsLive = reasonsTabBtnEl && reasonsTabBtnEl.style.display !== 'none';
+    if (typeof renderReasonsModal === 'function') renderReasonsModal(reasonsTabIsLive ? currentKey : undefined);
   }
   // Previously, a session below READY_THRESHOLD_PERCENT complete disabled every LATER session's
   // pill entirely, based on earlier feedback that jumping ahead of an unfinished section could
@@ -12837,9 +12854,16 @@
       if (isReversalNarration(t)){
         tag = ' <span class="src-tag reversal">Reversal</span>';
       } else {
-        var candidates = extractNameCandidates(t.narration);
-        var name = candidates.length ? candidates.reduce(function(a,b){ return b.length > a.length ? b : a; }) : null;
-        tag = name ? (classifySourceType(t.narration) === 'company' ? ' <span class="src-tag company">Company</span>' : ' <span class="src-tag personal">Personal</span>') : ' <span class="src-tag other">No narration</span>';
+        // Was gated on whether extractNameCandidates() found a PERSON-shaped name — but
+        // classifySourceType() itself never needed one; it regexes the raw narration text
+        // directly (COMPANY_KEYWORDS / LIMITED_SUFFIX_RE). Once extraction got stricter about only
+        // returning real name-shaped words (see BANK_NARRATION_STOPWORDS/looksNameShaped), a
+        // narration that's genuinely a company payment but whose only leftover word-shaped tokens
+        // were reference-code fragments (correctly stripped, not a real name) started falling
+        // through to "No narration" even though the narration itself is very much present and
+        // classifiable. Gate on the narration actually existing instead.
+        var hasNarration = !!(t.narration && String(t.narration).trim());
+        tag = hasNarration ? (classifySourceType(t.narration) === 'company' ? ' <span class="src-tag company">Company</span>' : ' <span class="src-tag personal">Personal</span>') : ' <span class="src-tag other">No narration</span>';
       }
       return '<tr><td>'+(idx+1)+'</td><td>'+t.date.toDateString()+'</td><td>'+fmtN(t.credit)+'</td><td>'+(t.narration ? escapeHtml(t.narration) : '<i>(none)</i>')+tag+'</td></tr>';
     }).join('');
@@ -15099,6 +15123,23 @@
     var code = document.getElementById('gateCountrySelect').value;
     if (quizAnswered && COUNTRIES[code] && COUNTRIES[code].ready) applyQuizPrefillToChecklist();
   });
+  // User request: "Move 'Funded opportunities & exchange programs' to a drop down where we have
+  // 'Which visa are you preparing for?'" — a direct escape hatch from the country picker, before any
+  // country/consent/situation gate, for an applicant who can't yet afford a visa at all. Neither
+  // switchCountry() nor gateContinue's own logic ever runs on this path — renderOpportunities()/
+  // renderTracker() already populated #opportunitiesGate's content once at page load, independent of
+  // country (see their own comments), so simply showing the screen is enough.
+  document.getElementById('gateOpportunitiesLink').addEventListener('click', function(){
+    trackEvent('opportunities_gate_opened');
+    document.getElementById('consentGate').style.display = 'none';
+    document.getElementById('opportunitiesGate').style.display = 'flex';
+    window.scrollTo(0,0);
+  });
+  document.getElementById('opportunitiesGateBack').addEventListener('click', function(){
+    document.getElementById('opportunitiesGate').style.display = 'none';
+    document.getElementById('consentGate').style.display = 'flex';
+    window.scrollTo(0,0);
+  });
   document.getElementById('zaOnboardingContinue').addEventListener('click', function(){
     document.getElementById('zaOnboardingGate').style.display = 'none';
     trackEvent('za_onboarding_continued');
@@ -15209,6 +15250,12 @@
     document.getElementById('situationGate').style.display = 'none';
     document.getElementById('appWrap').style.display = 'block';
     setReasonsTabVisible(true);
+    // The floating Reasons tab was just switched from hidden to visible above. applySessionVisibility()
+    // only re-scopes the tab's modal to the current page when the tab is already live (see its
+    // reasonsTabIsLive check) — it was last called (via render()) while the tab was still hidden, so
+    // without this explicit re-call here the modal would keep showing the pre-gate full list forever,
+    // never picking up page-scoping just because the tab became visible.
+    applySessionVisibility();
     window.scrollTo(0,0);
   });
   document.getElementById('situationBack').addEventListener('click', function(){
@@ -15238,6 +15285,19 @@
       } catch (e) { /* never let this break the app */ }
     });
   }
+
+  // Test-suite reliability fix: several test files were seen failing intermittently with
+  // "window.__testSkipQuiz is not a function" or a click on #quizStartBtn silently doing nothing —
+  // both symptoms of the same root cause. This whole script runs as one big synchronous block; a
+  // gate screen's markup (e.g. #quizIntro, #quizGate) exists in the DOM the moment the browser
+  // parses it, which can be BEFORE this script has finished running all the way through and
+  // attached every listener / assigned every window.__test* hook (those near the bottom of this
+  // IIFE, like the quiz's own Start-button listener, run last). Playwright's waitForSelector only
+  // waits for the DOM element, not for the script itself to be done — a narrow, easy-to-lose race on
+  // a slower machine or once this file grows. window.__appReady, set as the very LAST statement in
+  // this entire script, is what newPageAt() in tests/helpers.js now waits for before handing a test
+  // its page — a real "the app is actually ready" signal instead of an indirect proxy for one.
+  window.__appReady = true;
 })();
 </script>
 </body>

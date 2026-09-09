@@ -1,17 +1,20 @@
 'use strict';
 // User report, off their own live bank-statement testing of the "Top 10 most consistent senders"
 // table: two rows were actually the SAME real person, just extracted with different word sets from
-// different narration rows (e.g. a fuller name on some rows, a shorter one plus a trailing
-// bank-code-shaped fragment on others). Splitting one genuinely consistent sender across two weaker
-// rows undersells exactly the "steady month after month" signal this table exists to surface. Their
-// explicit ask: "If you see a name with 2 or more similar names ask the user if it is the same
-// person" — NOT auto-merge, since two different family members can legitimately share a surname.
+// different narration rows (e.g. a fuller name on some rows, a shorter/differently-ordered one on
+// others). Splitting one genuinely consistent sender across two weaker rows undersells exactly the
+// "steady month after month" signal this table exists to surface. Their explicit ask: "If you see a
+// name with 2 or more similar names ask the user if it is the same person" — NOT auto-merge, since
+// two different family members can legitimately share a surname.
 //
 // mergeNameVariants already handled the SAFE case (one extracted name is a full substring of
-// another) before this batch. This covers the fuzzier, unsafe-to-auto-merge case: two names sharing
-// 2+ significant words in some order — see applySenderDuplicateDecisions/sharedSignificantWords in
-// index.html. The fixture (tests/fixtures/sender-duplicate-fixture.pdf) is entirely synthetic —
-// fictional names, not the real applicant data that surfaced this report.
+// another, or the same words just reordered) before this batch. This covers the fuzzier,
+// unsafe-to-auto-merge case: two names sharing 2+ significant words but NOT the same word set — see
+// applySenderDuplicateDecisions/sharedSignificantWords in index.html. The fixture
+// (tests/fixtures/sender-duplicate-fixture.pdf) is entirely synthetic — fictional names, not the
+// real applicant data that surfaced this report. Regenerated via
+// tests/fixtures/gen-sender-duplicate-fixture.py — re-run that script if this fixture ever needs
+// another word changed, rather than hand-editing the binary PDF.
 const assert = require('assert');
 const path = require('path');
 const { newPageAt, passConsentGate, goToSessionByPill, goToFinanceStep } = require('./helpers');
@@ -46,13 +49,13 @@ exports.run = async function(ctx){
     });
     var namesBefore = rowsBefore.map(function(r){ return r[1]; });
     assert.ok(namesBefore.some(function(n){ return /Tunde Bassey Ekpo/i.test(n); }), 'Should list "Tunde Bassey Ekpo" as its own row before any merge decision, got: ' + JSON.stringify(namesBefore));
-    assert.ok(namesBefore.some(function(n){ return /Bassey Ekpo Onb/i.test(n); }), 'Should list "Bassey Ekpo Onb" as its own row before any merge decision, got: ' + JSON.stringify(namesBefore));
+    assert.ok(namesBefore.some(function(n){ return /Bassey Ekpo Adisa/i.test(n); }), 'Should list "Bassey Ekpo Adisa" as its own row before any merge decision, got: ' + JSON.stringify(namesBefore));
     assert.ok(namesBefore.some(function(n){ return /Chidi Ogbonna Traders/i.test(n); }), 'The unrelated contrast sender should also be listed, got: ' + JSON.stringify(namesBefore));
 
     var bannerHtml = await page.$eval('#topConsistentSendersBox', function(el){ return el.innerHTML; });
     assert.ok(/sender-dup-banner/.test(bannerHtml), 'A possible-duplicate prompt banner should render, got: ' + bannerHtml.slice(0, 400));
     assert.ok(/Likely the same name/.test(bannerHtml), 'The prompt should carry a clear "Likely the same name" label, got: ' + bannerHtml.slice(0, 400));
-    assert.ok(/Tunde Bassey Ekpo/.test(bannerHtml) && /Bassey Ekpo Onb/.test(bannerHtml), 'The prompt should name both look-alike senders, got: ' + bannerHtml.slice(0, 800));
+    assert.ok(/Tunde Bassey Ekpo/.test(bannerHtml) && /Bassey Ekpo Adisa/.test(bannerHtml), 'The prompt should name both look-alike senders, got: ' + bannerHtml.slice(0, 800));
     // The genuinely unrelated sender shares no words with either look-alike name, so it should never
     // be pulled into a duplicate prompt of its own.
     var dupBannerCount = await page.$$eval('.sender-dup-banner', function(els){ return els.length; });
@@ -77,9 +80,9 @@ exports.run = async function(ctx){
     var rowsAfter = await page.$$eval('#topConsistentSendersBox tbody tr', function(rows){
       return rows.map(function(r){ return Array.from(r.querySelectorAll('td')).map(function(td){ return td.textContent.trim(); }); });
     });
-    var mergedRow = rowsAfter.find(function(r){ return /Tunde Bassey Ekpo|Bassey Ekpo Onb/i.test(r[1]); });
+    var mergedRow = rowsAfter.find(function(r){ return /Tunde Bassey Ekpo|Bassey Ekpo Adisa/i.test(r[1]); });
     assert.ok(mergedRow, 'One merged row should remain after confirming "same person", got: ' + JSON.stringify(rowsAfter));
-    assert.strictEqual(rowsAfter.filter(function(r){ return /Tunde Bassey Ekpo|Bassey Ekpo Onb/i.test(r[1]); }).length, 1, 'The two look-alike rows should have merged into exactly one row, got: ' + JSON.stringify(rowsAfter));
+    assert.strictEqual(rowsAfter.filter(function(r){ return /Tunde Bassey Ekpo|Bassey Ekpo Adisa/i.test(r[1]); }).length, 1, 'The two look-alike rows should have merged into exactly one row, got: ' + JSON.stringify(rowsAfter));
     assert.strictEqual(mergedRow[2], '5', 'Merged sender should show 5 distinct months (2 from one name + 3 from the other), got: ' + JSON.stringify(mergedRow));
     assert.strictEqual(mergedRow[3], '5', 'Merged sender should show 5 total payments, got: ' + JSON.stringify(mergedRow));
 
@@ -116,7 +119,7 @@ exports.run = async function(ctx){
     });
     var namesAfterSeparate = rowsAfterSeparate.map(function(r){ return r[1]; });
     assert.ok(namesAfterSeparate.some(function(n){ return /Tunde Bassey Ekpo/i.test(n); }), 'Choosing "different people" should keep the first name as its own row, got: ' + JSON.stringify(namesAfterSeparate));
-    assert.ok(namesAfterSeparate.some(function(n){ return /Bassey Ekpo Onb/i.test(n); }), 'Choosing "different people" should keep the second name as its own row, got: ' + JSON.stringify(namesAfterSeparate));
+    assert.ok(namesAfterSeparate.some(function(n){ return /Bassey Ekpo Adisa/i.test(n); }), 'Choosing "different people" should keep the second name as its own row, got: ' + JSON.stringify(namesAfterSeparate));
 
     var bannerAfterSeparate = await page2.$$eval('.sender-dup-banner', function(els){ return els.length; });
     assert.strictEqual(bannerAfterSeparate, 0, 'The prompt should not reappear once answered "different people" either, got ' + bannerAfterSeparate + ' banner(s) still showing');

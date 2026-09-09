@@ -79,7 +79,7 @@ exports.run = async function(ctx){
 
     // ...they should instead show up in session 4 ("Identity & application"), in their own card, ahead
     // of the document checklist for that category.
-    await goToSessionByPill(page, 6); // 'Identity & financial documents' (index 2).
+    await goToSessionByPill(page, 7); // cat:Identity & application (shifted +1 by the nextSteps session).
     var identityCardVisible = await page.$eval('#identityStatusCard', function(el){ return el.offsetParent !== null; });
     assert.strictEqual(identityCardVisible, true, 'The relocated "Application readiness & visa history" card should be visible in the Identity & application session');
 

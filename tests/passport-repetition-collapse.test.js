@@ -28,9 +28,10 @@ exports.run = async function(ctx){
   try {
     await passConsentGate(page);
 
-    // Identity & application is session index 6 (0: passport, 1: travelExperience,
-    // 2: responsibilities, 3: trip, 4: finance2, 5: finance, 6: cat:Identity & application).
-    await goToSessionByPill(page, 6);
+    // Identity & application is session index 7 (0: passport, 1: travelExperience,
+    // 2: responsibilities, 3: trip, 4: finance2, 5: finance, 6: nextSteps,
+    // 7: cat:Identity & application).
+    await goToSessionByPill(page, 7);
 
     // Before attaching anything: no raw upload UI for this item on this page at all (that's owned
     // by Session 1 alone now), just a status line pointing there.
@@ -51,7 +52,7 @@ exports.run = async function(ctx){
 
     // attachFileToItem() sets state + calls render() synchronously (scanning happens after), so
     // the checklist item's status line should already reflect the attachment without waiting on OCR.
-    await goToSessionByPill(page, 6);
+    await goToSessionByPill(page, 7);
     await page.waitForFunction(function(){
       var el = document.querySelector('#item_passport .scan-msg');
       return el && /Verified in Session 1/.test(el.textContent);

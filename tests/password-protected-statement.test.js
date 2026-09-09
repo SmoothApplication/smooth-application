@@ -44,7 +44,7 @@ exports.run = async function(ctx){
     await goToSessionByPill(page2, 3); // trip — Work status field lives here
     await page2.selectOption('#f_workStatus', 'selfEmployed');
     await page2.waitForTimeout(150);
-    await goToSessionByPill(page2, 7); // cat:Financial evidence — #file_bizFinance lives here
+    await goToSessionByPill(page2, 8); // cat:Financial evidence — #file_bizFinance lives here (shifted +1 by the nextSteps session)
     await page2.waitForSelector('#file_bizFinance', { timeout: 5000 });
     await page2.setInputFiles('#file_bizFinance', FIXTURE);
     await page2.waitForTimeout(300);

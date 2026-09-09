@@ -3,6 +3,150 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fix: two follow-up bugs from the sender-name and Reasons-tab changes above
+
+User-reported (from a full `npm test` run: 114/116 passed): two real regressions, both introduced by
+this batch of work rather than by the test suite fix above.
+
+`reasons-tab.test.js` — the floating "📖 Reasons" tab's modal stayed stuck on the pre-consent-gate
+full list (grouped under "Quiz") even once an applicant was well inside the main checklist on the
+Passport page. `applySessionVisibility()` — which re-scopes the modal to the current page — runs once
+during initial page setup, before the consent gate, while the tab is still hidden; it needs to be
+scoped to "show everything" at that point, not the default session's narrow content. It is not,
+however, called again by the click handler that reveals the tab (`situationContinue`, at the end of
+the situation-routing gate) — so the modal never got a fresh, properly page-scoped render at the
+moment an applicant actually entered the checklist. Fixed by calling `applySessionVisibility()`
+explicitly right after `setReasonsTabVisible(true)` in that handler.
+
+`limited-suffix-truncation.test.js` — inflows with a truncated "LIMITE" suffix (bank apps often cut
+off "Limited") stopped being tagged "Company" and fell through to "No narration" instead. Cause: an
+earlier fix in this same batch (adding "MPTJ"/"CG" to `BANK_NARRATION_STOPWORDS`, part of the stricter
+name-only extraction below) made `extractNameCandidates()` correctly return nothing for this
+narration — but `renderTopInflows()`'s Company/Personal tag logic was, incidentally, gated on whether
+a name had been extracted at all, not on whether there was narration text to classify. Company vs.
+personal classification (`classifySourceType()`) never actually depended on name extraction — it
+regexes the raw narration directly. Fixed by gating the tag on raw narration presence instead.
+
+## Fix: test-suite flakiness — wait for the app to actually be ready, not just for a DOM element
+
+User-reported: a full `npm test` run failed dozens of unrelated test files, almost all with the
+identical error `window.__testSkipQuiz is not a function`, plus a `#quizFormWrap` visibility timeout
+on `confidence-quiz.test.js`. Root cause: this whole app is one large synchronous inline `<script>`;
+a gate screen's own markup (`#quizIntro`, `#quizGate`, etc.) exists in the DOM — satisfying
+Playwright's `waitForSelector` — the moment the browser parses it, which can be *before* the script
+has finished running end to end and attached every listener or assigned every `window.__test*` hook
+(those near the bottom of the script, like the quiz's own Start-button listener, run last). Every
+test was effectively waiting on an indirect proxy (a DOM element merely existing) for a precondition
+it actually needed a much stronger guarantee for (the whole script having finished). A narrow,
+previously-rarely-losing race, most likely to actually lose on a slower or more loaded machine.
+
+Added `window.__appReady = true`, set as the literal last statement of the script, and `newPageAt()`
+in `tests/helpers.js` now waits for it before handing a test its page — replacing an indirect proxy
+with the real thing every test depends on. `passConsentGate()`/`openOpportunitiesGate()` additionally
+wait for `window.__testSkipQuiz` specifically to be a function before calling it, as a second,
+narrower guard on top.
+
+## New: "Funded opportunities & exchange programs" moved to the country picker itself
+
+Direct user request: "Move 'Funded opportunities & exchange programs' to a drop down where we have
+'Which visa are you preparing for?'" This directory (and the personal application tracker beside it)
+used to be a checklist session, reachable only after picking a country, agreeing to the disclaimer,
+and getting past the situation gate — several extra steps in the way of exactly the applicant it's
+meant to help most: someone who can't yet afford any visa and just wants to see funded alternatives.
+
+Moved out of the main session flow entirely into its own standalone screen (`#opportunitiesGate`),
+reached with one tap right next to "Which visa are you preparing for?" (`#gateOpportunitiesLink`) —
+no country pick, no consent checkbox, no situation gate. `renderOpportunities()`/`renderTracker()`
+were already static and country-independent (built once at page load regardless of which visa is
+selected), so nothing about their own logic changed — only where their markup lives in the page. The
+two explanatory paragraphs on this screen (the scam warning's intro, and the tracker's privacy note)
+now stay permanently inline instead of being swept into the Reasons tab, since this screen is reached
+*before* the consent gate — an applicant here may never open the main checklist (or its Reasons tab)
+at all.
+
+The main checklist is now 14 top-level sessions instead of 15 (see `new-session-order.test.js`).
+`opportunities-directory.test.js` and `application-tracker.test.js` now reach the directory via the
+new `openOpportunitiesGate()` test helper instead of going through the full checklist flow.
+
+## Fix: floating "Reasons" tab now scoped to the current page, not the whole app
+
+Direct user request: "let Reasons be for each page and a general summary for all pages at the end of
+the session." The sidebar Reasons card was already scoped to whichever session is currently open;
+the floating "📖 Reasons" tab's own modal wasn't — it always showed the complete, everywhere list
+(and a count badge like "28") no matter which page it was opened from, duplicating the sidebar with
+much more (and much less relevant) content. `renderReasonsModal()` now takes the current session key
+and filters its modal/badge to just that page's own reasons, exactly like the sidebar already did.
+The dedicated "Reasons" session at the end of the flow is deliberately exempt from this — opening the
+floating tab there (or before any real session is active yet) still shows the complete, every-page
+summary, which is also the one place that session's own body (`#reasonsSessionBody`) always shows
+regardless.
+
+## New: smarter sender-name grouping — auto-merge reordered names, ask about singleton look-alikes, strict name-only extraction
+
+Three related improvements to the "Top 10 most consistent senders" / income-source grouping, direct
+user request: "if you see a funmi Agboola or agboola funmi pick it as the same name... names that
+appear once... group it and ask if they are the same person... it must be strictly names that
+should be extracted, names alone."
+
+1. Two extracted candidate names built from the exact same set of words, just printed in a different
+   order (a narration can name a sender "surname first" on one row, "first name first" on another) —
+   e.g. "Chidi Nwosu" / "Nwosu Chidi" — are now merged automatically (`sameWordSet()` in
+   `mergeNameVariants`), with total confidence, no ask needed. Previously this fell to the fuzzier
+   "shares 2+ words" duplicate-prompt below, asking the applicant something that had only one honest
+   answer.
+2. A sender name seen only ONCE now gets flagged to ask about even when it shares just a single
+   significant word (e.g. a bare first name) with another sender — e.g. a one-off "Yaro Hassan"
+   against a recurring "Yaro Ibrahim". Previously the general rule (2+ shared words) silently let
+   these singleton near-misses through unflagged. Two senders who both recur and merely share one
+   common first name still correctly go unflagged, exactly as before — the relaxation only applies
+   when at least one side of the pair is a singleton.
+3. `extractNameCandidates` now drops any 3+ letter word with no vowel sound in it (A/E/I/O/U/Y). Real
+   personal names — Nigerian, British, American, or otherwise — always carry one; a bank's own
+   unlisted internal channel/reference code very often doesn't (e.g. "ZQX", "XRTS"), and unlike names,
+   new unseen ones keep turning up that no fixed stopword list can pre-empt. This is a general
+   backstop alongside the existing, narration-specific `BANK_NARRATION_STOPWORDS` entries, not a
+   replacement for them.
+
+Regenerating `tests/fixtures/sender-duplicate-fixture.pdf` (via the new
+`tests/fixtures/gen-sender-duplicate-fixture.py`) was needed alongside this: its synthetic "trailing
+bank-code fragment" ("Bassey Ekpo Onb") stopped being ambiguous once "ONB" was recognised as a real
+narration stopword in an earlier fix, so it started auto-resolving via the plain substring-merge
+instead of ever reaching the ask-the-user prompt the test exists to check — swapped for "Bassey Ekpo
+Adisa" (a plain extra name-word, not a stopword, no substring relationship either way) so the test
+still genuinely exercises asking rather than auto-resolving.
+
+Covered by a new `tests/sender-name-grouping-and-filter.test.js`, using the new
+`window.__testGetTopConsistentSenders` escape hatch (mirrors the existing
+`__testExtractNameCandidates` pattern) to exercise the full grouping pipeline against synthetic
+transactions, without needing another PDF fixture.
+
+## Fix: category sections silently re-collapsing on navigation (race condition)
+
+Jumping straight to a document category via its session pill would sometimes render it collapsed
+instead of open, hiding the very items the applicant just navigated to. Root cause: whether a
+category `<details>` should stay open is tracked in `categoryOpenState`, but that was only ever
+recorded via the native `toggle` DOM event — which, confirmed with an isolated reproduction, fires
+*asynchronously*. A re-render landing in that async window could rebuild the category as closed
+before the browser's own toggle event caught up. Fixed by recording `categoryOpenState[cat] = true`
+synchronously, at the same point `.open = true` is set, in `applySessionVisibility()`.
+
+Also fixed two pre-existing test bugs surfaced while chasing this down: `next-steps-report.test.js`
+Scenario 2 never set `#te_firstTime` before asserting the "no history yet" branch, and
+`employed-supporting-documents.test.js` Scenario 1 used a session-pill index that predated the
+`nextSteps` session's insertion (off by one).
+
+## Fix: bank-statement sender names garbled by structured narration field labels
+
+Some banks print transfer narrations in a structured `LABEL:value` format — e.g.
+`"MPTJ/CG/SENDER:ADISA BILIKIS ABIOLA/REMARK:OK"` — and the "Consistent senders" table was gluing
+the field labels and channel codes (`MPTJ`, `PAYREF`, `SENDER`, `REMARK`, `CG`, `WVV`, `ZMO`, `ONB`)
+straight onto the extracted name (e.g. "Payref Sender Adisa Bilikis Abiola Remark"), which could
+also split one real recurring sender across several differently-garbled rows. Added these as
+recognized narration stopwords (plus plain-English glossary entries for the "decode narration"
+feature) so `extractNameCandidates()` stops at them instead of absorbing them into the name. Covered
+by a new lightweight test (`tests/bank-field-label-name-noise.test.js`) using a new test-only hook,
+`window.__testExtractNameCandidates`, rather than a full PDF-upload fixture.
+
 ## New: 4 more destinations — Ghana, Kenya, Morocco (travel-readiness) and Ethiopia (tourist e-Visa)
 
 User request: "ADD Ghana, Kenya, Ethiopia, or Morocco to this list" (the country picker), later

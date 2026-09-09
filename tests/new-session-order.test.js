@@ -16,14 +16,19 @@ exports.run = async function(ctx){
       return pills.map(function(p){ return (p.getAttribute('title') || '').split(' - ')[0]; });
     });
 
-    // 14 top-level sessions for a typical fresh UK applicant: the 6 fixed topics, then one session
-    // per applicable checklist category (5 of the 9 possible categories apply with no answers yet —
-    // Identity & application / Financial evidence / Ties to Nigeria / Accommodation & UK host /
-    // Travel details — the other 4 are conditional and only add a session once they actually apply),
-    // then the always-visible "Funded opportunities" directory (see opportunities-directory.test.js),
-    // then review, then a dedicated "Reasons" session last (field feedback: "let it be broken down
-    // from Quiz to session 14 why each step was taken" — see reasons-tab.test.js and the
-    // getVisibleSessionKeys() comment in index.html for why it's appended last).
+    // 14 top-level sessions for a typical fresh UK applicant: the 6 fixed topics, then "What to do
+    // next" (a synthesized readiness report + the spouse/sponsor decision, moved off "Your
+    // responsibilities" — see next-steps-report.test.js and the HTML comment on
+    // data-session-key="nextSteps" in index.html), then one session per applicable checklist
+    // category (5 of the 9 possible categories apply with no answers yet — Identity & application /
+    // Financial evidence / Ties to Nigeria / Accommodation & UK host / Travel details — the other 4
+    // are conditional and only add a session once they actually apply), then review, then a
+    // dedicated "Reasons" session last (field feedback: "let it be broken down from Quiz to session
+    // 14 why each step was taken" — see reasons-tab.test.js and the getVisibleSessionKeys() comment
+    // in index.html for why it's appended last). The "Funded opportunities" directory USED to be a
+    // session here too — moved out to its own standalone screen reached from the country picker
+    // instead (see opportunities-directory.test.js), so it's no longer one of these top-level
+    // sessions at all.
     assert.deepStrictEqual(titles, [
       'Validate your International Passport',
       'Travel Experience',
@@ -31,12 +36,12 @@ exports.run = async function(ctx){
       'Your trip details',
       'Income & bank statement analysis',
       'Financial readiness calculator',
+      'What to do next',
       'Identity & application',
       'Financial evidence',
       'Ties to Nigeria',
       'Accommodation & UK host',
       'Travel details',
-      'Funded opportunities',
       'Final review',
       'Reasons'
     ], 'Should show exactly these 14 top-level sessions in this order, got: ' + titles.join(' | '));
