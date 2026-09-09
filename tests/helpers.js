@@ -55,11 +55,26 @@ async function launchBrowser(){
   return chromium.launch(opts);
 }
 
+// The local static server + a fresh browser context occasionally take a moment longer than
+// Playwright's default 30s navigation timeout to fire the 'load' event — observed moving between
+// completely unrelated test files from run to run, never the same one twice, which points to an
+// environment hiccup (machine load, antivirus scanning the new context, etc.) rather than a real
+// page/app hang. One retry with a longer timeout absorbs that without masking a genuine problem: a
+// page that's actually broken will fail the retry too, not silently pass.
+async function gotoWithRetry(page, url){
+  try {
+    await page.goto(url, { timeout: 30000 });
+  } catch (err) {
+    if (!/Timeout.*exceeded/.test(String(err && err.message))) throw err;
+    await page.goto(url, { timeout: 45000 });
+  }
+}
+
 async function newPageAt(browser, urlPath, opts){
   var context = await browser.newContext(opts || {});
   var page = await context.newPage();
   page.on('dialog', function(d){ d.accept(); }); // auto-accept the "still X% done — proceed anyway?" nudge
-  await page.goto('http://127.0.0.1:' + PORT + (urlPath || '/index.html'));
+  await gotoWithRetry(page, 'http://127.0.0.1:' + PORT + (urlPath || '/index.html'));
   return page;
 }
 
