@@ -3,6 +3,13 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fix: one more unrecognized bank channel code leaking into a sender name
+
+Follow-up to the earlier "structured field-label narrations" fix (MPTJ/PAYREF/SENDER/REMARK/CG/
+WVV/ZMO/ONB/OK) — a later round of user testing turned up one more: "IFO", which was showing up
+as "Ifo Agboola Mary Oluwafunmilayo" instead of just "Agboola Mary Oluwafunmilayo". Added to
+`BANK_NARRATION_STOPWORDS`, same as the others.
+
 ## New: Save happens automatically on Next; the separate Save button is gone
 
 User feedback: "let the save be automatic once you move to next to improve the user experience."

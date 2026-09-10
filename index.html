@@ -10911,7 +10911,11 @@
     // extractNameCandidates was gluing all of it onto the front of the real name ("Mptj Cg Sender
     // Crisp N", "Payref Zmo Sender Yaro Remark Ok"), scattering what was likely the SAME recurring
     // sender across several differently-garbled rows in the consistent-senders table instead of one.
-    'MPTJ','PAYREF','SENDER','REMARK','CG','WVV','ZMO','ONB','OK'];
+    'MPTJ','PAYREF','SENDER','REMARK','CG','WVV','ZMO','ONB','OK',
+    // Later round of the same test-user feedback, same statement family — one row still came through
+    // as "Ifo Agboola Mary Oluwafunmilayo" ("IFO" is a new channel/processor code not covered by any
+    // of the ones above; same class of problem, same fix).
+    'IFO'];
 
   // User feedback, off a real statement: most applicants have no idea what "NIP", "ROLEZ" or "CIP"
   // actually mean in their own narration line. Best-effort glossary of the channel/processor/bank
