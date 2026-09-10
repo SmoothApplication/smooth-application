@@ -4,6 +4,11 @@
 // only show up in the pill nav at the TOP of a session, which can be scrolled out of view by the
 // time someone reaches the Save/Next buttons at the bottom. It now also shows directly above those
 // buttons, and updates live as fields are filled, same as the top one.
+//
+// Later user feedback ("let the save be automatic once you move to next", then "Save is still
+// showing" once that shipped) removed the separate "💾 Save" button from this footer entirely —
+// Next now saves automatically (see attemptAdvanceSession()), so the ordering check below is
+// against the Next button instead of the old Save button.
 const assert = require('assert');
 const { newPageAt, passConsentGate, goToSessionByPill } = require('./helpers');
 
@@ -17,15 +22,20 @@ exports.run = async function(ctx){
       return page.$eval('#sessionFooterProgress', function(el){ return el.textContent; }).catch(function(){ return null; });
     };
 
-    // Sits directly above the Save/Next buttons in the footer, not just up in the pill nav.
+    // Sits directly above the Next button in the footer, not just up in the pill nav.
     var order = await page.$eval('#sessionFooter', function(el){
       var progress = el.querySelector('#sessionFooterProgress');
-      var saveBtn = el.querySelector('#sessionSaveBtn');
-      if (!progress || !saveBtn) return null;
-      var pos = progress.compareDocumentPosition(saveBtn);
-      return (pos & Node.DOCUMENT_POSITION_FOLLOWING) ? 'progress-before-save' : 'other';
+      var nextBtn = el.querySelector('#sessionFooterNextBtn');
+      if (!progress || !nextBtn) return null;
+      var pos = progress.compareDocumentPosition(nextBtn);
+      return (pos & Node.DOCUMENT_POSITION_FOLLOWING) ? 'progress-before-next' : 'other';
     });
-    assert.strictEqual(order, 'progress-before-save', 'The footer progress line should appear before the Save button');
+    assert.strictEqual(order, 'progress-before-next', 'The footer progress line should appear before the Next button');
+
+    // The separate Save button is gone — saving now happens automatically (debounced as you type,
+    // and immediately on Next/Back-driven navigation via attemptAdvanceSession()).
+    var saveBtnGone = await page.$('#sessionSaveBtn');
+    assert.strictEqual(saveBtnGone, null, 'The separate Save button should no longer be in the footer');
 
     var before = await footerPctText();
     assert.ok(before && before.indexOf('0%') !== -1, 'Financial readiness footer should start at 0% filled, got: ' + before);

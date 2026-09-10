@@ -5553,15 +5553,21 @@
       + '</div>';
   }
 
-  // A Save + Next pair sitting right below whichever session is currently on screen — progress already
-  // auto-saves as you type/tick things, this just gives an explicit, visible confirmation on demand
-  // instead of relying on the small indicator over in the sidebar, which can be scrolled out of view.
+  // A Back/Next pair sitting right below whichever session is currently on screen. Used to also
+  // carry its own separate "💾 Save" button, but now that attemptAdvanceSession() (see above) saves
+  // automatically on every Next click — on top of the pre-existing debounced auto-save as you
+  // type/tick things — a dedicated Save button next to Next had nothing left to do that Next
+  // wasn't already doing, and just read as one more thing to remember to click. User feedback:
+  // "Save is still showing" after the auto-save-on-Next change, pointing at exactly this
+  // redundancy. Removed; the sidebar's "✅ Saved in this browser - <time>" indicator (updated by
+  // every autoSave() call, including the one now inside attemptAdvanceSession()) remains the
+  // visible confirmation that something was actually saved.
   function renderSessionFooter(keys, idx){
     var footer = document.getElementById('sessionFooter');
     if (!footer) return;
     var isLast = idx === keys.length - 1;
-    // User feedback: show the fill-progress % right above Save/Next too, not just up in the pill nav,
-    // so it's visible at the exact moment someone's about to save and move on — not just at the top of
+    // User feedback: show the fill-progress % right above Next too, not just up in the pill nav,
+    // so it's visible at the exact moment someone's about to move on — not just at the top of
     // the section, where it can be scrolled out of view by the time they reach these buttons.
     var prog = sessionProgress(keys[idx]);
     var progressHtml = prog.total > 0
@@ -5574,26 +5580,16 @@
     // User feedback: "add back button after each session" — the pill nav at the TOP already has a
     // ← Back button, but it can be scrolled well out of view by the time someone reaches the bottom
     // of a long session (this app is built mobile-first). Repeating Back down here, right next to
-    // Save/Next, means getting back to the previous section never requires scrolling back up.
+    // Next, means getting back to the previous section never requires scrolling back up.
     var backBtnHtml = idx > 0 ? '<button type="button" class="btn ghost" id="sessionFooterBackBtn">← Back</button>' : '';
     footer.innerHTML = sessionReportCardHtml(keys[idx], keys[idx + 1])
       + progressHtml
       + backBtnHtml
-      + '<button type="button" class="btn" id="sessionSaveBtn">💾 Save</button>'
       + '<button type="button" class="btn primary" id="sessionFooterNextBtn"'+(isLast?' disabled':'')+'>'+(isLast ? '✓ Last page' : 'Next →')+'</button>'
       + '<p class="session-footer-msg" id="sessionFooterMsg"></p>';
     var backBtn = document.getElementById('sessionFooterBackBtn');
-    var saveBtn = document.getElementById('sessionSaveBtn');
     var nextBtn = document.getElementById('sessionFooterNextBtn');
-    var msg = document.getElementById('sessionFooterMsg');
     if (backBtn) backBtn.addEventListener('click', function(){ goToSession(currentSessionIndex - 1); });
-    if (saveBtn) saveBtn.addEventListener('click', function(){
-      autoSave();
-      // Spells out WHERE explicitly, right at the point of the click — the fuller explanation lives in
-      // the "Save your progress" sidebar card, but that can be scrolled out of view (especially on
-      // mobile), so this shouldn't rely on the person having seen it.
-      if (msg) msg.textContent = '✅ Saved in this browser (nothing uploaded) - ' + new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-    });
     if (nextBtn) nextBtn.addEventListener('click', function(){ attemptAdvanceSession(currentSessionIndex + 1); });
   }
 

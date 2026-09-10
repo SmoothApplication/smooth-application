@@ -3,7 +3,7 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
-## New: Save happens automatically on Next, not just on the separate Save button
+## New: Save happens automatically on Next; the separate Save button is gone
 
 User feedback: "let the save be automatic once you move to next to improve the user experience."
 Progress already auto-saved as you typed (a 600ms-debounced `scheduleAutoSave()`), and the
@@ -14,8 +14,13 @@ the save. `attemptAdvanceSession()` — the function behind every Next-style con
 button all call it) — now calls `autoSave()` unconditionally as its first step, before any of its
 existing gating logic. It saves even when that gating logic ends up not advancing the session
 (below the readiness threshold, or the applicant cancels the "leave anyway?" confirm), since
-there's no reason to withhold a save just because they didn't end up moving on. The manual Save
-button is untouched and still works the same way.
+there's no reason to withhold a save just because they didn't end up moving on.
+
+Follow-up user feedback once this shipped: "Save is still showing" — with autosave now covering
+both typing (debounced) and Next (immediate), the separate "💾 Save" button next to Next had
+nothing left to do that Next wasn't already doing. Removed it from the session footer; the
+sidebar's "✅ Saved in this browser - <time>" indicator (which every `autoSave()` call already
+updates, Next included) remains the visible confirmation.
 
 ## Fix: two follow-up bugs from the sender-name and Reasons-tab changes above
 
