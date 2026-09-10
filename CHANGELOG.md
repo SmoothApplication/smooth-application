@@ -3,6 +3,22 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fix: passport expiry still "not detected" after the earlier printed-text-fallback fix
+
+Same applicant, same passport, a later round of testing: expiry still came back "not detected"
+even though the earlier `extractPrintedExpiryDate()` fallback (see the entry further down) was
+already live. Root cause was one level lower than that fallback — the date-matching regex itself
+never found a date to hand up the chain in the first place. "Date of Expiry / Date d'Expiration 06
+OCT / OCT 27" had BOTH "OCT" occurrences OCR'd as "0CT" (a classic 0-for-O misread) on this scan;
+the first token already tolerated that (an explicit `0ct` alternative existed for it), but the
+second, bilingual token used a bare `[a-z]{3,4}` class that can't match a leading digit at all — so
+the whole date silently failed to match, never even reaching the "any future date on the page"
+fallback that would otherwise have caught it. Widened that second token to `[a-z0][a-z]{2,3}`
+(same single-leading-character tolerance as the first, without narrowing what real second-language
+abbreviations like French "JUIL" still match). Added `window.__testExtractDates` and
+`window.__testParseMrzFields` test hooks and a new lightweight regression test exercising this
+exact corruption, plus the full parseMrzFields() fallback chain end-to-end.
+
 ## Fix: one more unrecognized bank channel code leaking into a sender name
 
 Follow-up to the earlier "structured field-label narrations" fix (MPTJ/PAYREF/SENDER/REMARK/CG/

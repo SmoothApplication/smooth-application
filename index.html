@@ -5349,6 +5349,12 @@
   // just to catch a narration-junk-word regression (e.g. a bank field label like "SENDER"/"REMARK" or
   // a channel code like "MPTJ" leaking into the extracted name).
   window.__testExtractNameCandidates = function(narration){ return extractNameCandidates(narration); };
+  // Same reasoning again — lets a test check exactly what extractDates()/parseMrzFields() pull out of
+  // raw OCR'd passport text directly, without needing a real image fixture run through OCR just to
+  // catch a regression in the date-pattern regexes themselves (e.g. a common OCR "0 read as O"
+  // substitution silently breaking a match).
+  window.__testExtractDates = function(text, opts){ return extractDates(text, opts); };
+  window.__testParseMrzFields = function(text){ return parseMrzFields(text); };
   // Same reasoning again — exercises the full "Top 10 most consistent senders" grouping pipeline
   // (extraction -> mergeNameVariants -> applySenderDuplicateDecisions) against a handful of synthetic
   // {date, amount, narration} entries, without needing a PDF-statement fixture + upload + analyze
@@ -9348,7 +9354,18 @@
       // printed passport dates are routinely just 2 digits ("34", not "2034"), which the old
       // 4-digit-only requirement silently failed to match at all, even though the date was sitting
       // right there correctly OCR'd in the text.
-      /\b(\d{1,2})\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|0ct|oct|nov|dec)[a-z]*\.?(?:\s*\/?\s*[a-z]{3,4}\.?)?\s+(\d{2,4})\b/gi,
+      // Real case, off a client's actual passport (the "06 OCT / OCT 27" expiry date sitting right
+      // next to the photo/hologram — the exact spot already flagged above as prone to worse OCR):
+      // the second-language month token can independently pick up the same "0 read as O" confusion
+      // the FIRST month token already tolerates (via the explicit "0ct" alternative below) — but the
+      // second token's own pattern used to be a generic [a-z]{3,4}, which can't match a leading "0"
+      // at all, since a digit isn't in that character class. When BOTH "OCT"s got OCR'd as "0CT", the
+      // whole date silently failed to match — dropping straight through every fallback (MRZ checksum,
+      // label-based printed-text search) to a bare "not detected", even though the date was sitting
+      // right there, just one character off. [a-z0][a-z]{2,3} tolerates the same substitution in the
+      // FIRST character only (matching how the "0ct" alternative above is shaped) while still accepting
+      // any 3-4 letter second-language word after that, same as before (e.g. French "JUIL" for July).
+      /\b(\d{1,2})\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|0ct|oct|nov|dec)[a-z]*\.?(?:\s*\/?\s*[a-z0][a-z]{2,3}\.?)?\s+(\d{2,4})\b/gi,
       /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+(\d{1,2}),?\s+(\d{4})\b/gi
     ];
     var months = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
