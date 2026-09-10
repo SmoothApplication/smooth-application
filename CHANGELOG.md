@@ -3,6 +3,20 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## New: Save happens automatically on Next, not just on the separate Save button
+
+User feedback: "let the save be automatic once you move to next to improve the user experience."
+Progress already auto-saved as you typed (a 600ms-debounced `scheduleAutoSave()`), and the
+session-footer's own explicit "💾 Save" button always saved instantly on demand — but clicking
+"Next →" right after typing something, before that debounce timer fired, could in theory race
+the save. `attemptAdvanceSession()` — the function behind every Next-style control in the app
+(the session-footer Next button, the top pill-nav's Next button, and the finance-report Continue
+button all call it) — now calls `autoSave()` unconditionally as its first step, before any of its
+existing gating logic. It saves even when that gating logic ends up not advancing the session
+(below the readiness threshold, or the applicant cancels the "leave anyway?" confirm), since
+there's no reason to withhold a save just because they didn't end up moving on. The manual Save
+button is untouched and still works the same way.
+
 ## Fix: two follow-up bugs from the sender-name and Reasons-tab changes above
 
 User-reported (from a full `npm test` run: 114/116 passed): two real regressions, both introduced by

@@ -5460,6 +5460,17 @@
   // below) instead of a plain "proceed anyway?" dialog. Between the threshold and 100% it's still the
   // original soft nudge — a dismissible confirm, since "mostly done" isn't the same problem.
   function attemptAdvanceSession(targetIdx){
+    // User feedback: "let the save be automatic once you move to next" — previously an applicant
+    // had to remember to also hit the separate Save button before Next actually persisted things.
+    // Autosaving right here, rather than in each individual Next-like button's own click handler,
+    // covers all of them in one place: the session-footer Next button, the top pill-nav Next
+    // button, and the finance-report Continue button all funnel through this same function. Saving
+    // unconditionally (even when the block-below-threshold or confirm-and-leave-anyway logic below
+    // ends up NOT advancing the session) is deliberate — there's no reason to withhold a save just
+    // because the applicant didn't end up moving on.
+    autoSave();
+    var footerMsg = document.getElementById('sessionFooterMsg');
+    if (footerMsg) footerMsg.textContent = '✅ Saved in this browser (nothing uploaded) - ' + new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
     var keys = getVisibleSessionKeys();
     if (targetIdx > currentSessionIndex && targetIdx < keys.length){
       var cur = sessionProgress(keys[currentSessionIndex]);
