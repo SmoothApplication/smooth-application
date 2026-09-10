@@ -2382,27 +2382,13 @@
         </div>
 
         <div class="fin-step" data-fin-step="2">
-        <h2 style="margin-top:0;">Income vs. closing balance - two different things</h2>
-        <p class="fin-note">Scored separately below, since they're not the same thing.</p>
-        <details style="margin:-4px 0 8px;"><summary style="cursor:pointer; font-size:12px; color:var(--text-secondary);">Why separately?</summary><p class="fin-note" style="margin-top:4px;">A strong closing balance isn't the same as strong evidence - some applicants have a healthy balance but income that's irregular or impossible to explain.</p></details>
-        <div class="score-mini">
-          <div>
-            <div class="label">Income generation</div>
-            <div id="incomePill" class="status-pill neutral">Enter your figures</div>
-            <div id="incomePillPct" class="fin-note" style="margin-top:4px;"></div>
-          </div>
-          <div>
-            <div class="label">Closing balance strength</div>
-            <div id="balancePill" class="status-pill neutral">Enter your figures</div>
-            <div id="balancePillPct" class="fin-note" style="margin-top:4px;"></div>
-          </div>
-        </div>
-        <div id="incomeSourcePersonal"></div>
-        <div id="incomeSourceBusiness"></div>
-        <div id="matchedIncomeInflowsBox"></div>
-        <div id="unexplainedInflowsBox"></div>
-
-        <h2 style="margin-top:18px;">Monthly cash flow (last 6 months)</h2>
+        <!-- User request: "The income versus closing balance should be moved to REPORT... Let everything
+             reports be moved to the report section neatly." The pills/source boxes/explain-lists that
+             used to open this tab now live on data-fin-step="5" (Report), right after the other 4
+             reports - see the comment there. This tab is now just the cash-flow table itself, still
+             auto-filled the same way from Step 1's upload and still where a no-upload applicant types
+             totals in by hand. -->
+        <h2 style="margin-top:0;">Monthly cash flow (last 6 months)</h2>
         <p class="fin-note">Didn't upload a statement in Step 1? Type the totals in directly below instead.</p>
         <table class="cf-table" id="cashFlowTable">
           <thead><tr><th>Month</th><th>Total inflow (₦)</th><th>Total outflow (₦)</th><th>Closing balance (₦)</th></tr></thead>
@@ -2440,17 +2426,18 @@
         </div>
 
         <!-- User request: a dedicated tab to address every inflow matched against a declared EMPLOYER
-             specifically, separate from the business/self-employed breakdown that stays on Step 2 -
-             previously employer-matched inflows rendered mixed in with business-matched ones inside
-             matchedIncomeInflowsBox on Step 2. Reuses the exact same per-transaction explain-box UI
-             (renderMatchedInflowBoxHtml et al.) via a second call to renderMatchedIncomeInflows, just
-             targeting this tab's own box + a distinct DOM-id prefix ('emp_') so the two renders never
-             collide on element IDs - see the prefix parameter added there. Only ever populated with
-             groups whose label is 'employer'; business groups still render into matchedIncomeInflowsBox
-             on Step 2 as before. -->
+             specifically, separate from the business/self-employed breakdown (now inside the Report
+             tab's "Income vs. closing balance" dropdown - see #incomeVsBalanceDetails). Previously
+             employer-matched inflows rendered mixed in with business-matched ones inside
+             matchedIncomeInflowsBox on the old Step 2. Reuses the exact same per-transaction
+             explain-box UI (renderMatchedInflowBoxHtml et al.) via a second call to
+             renderMatchedIncomeInflows, just targeting this tab's own box + a distinct DOM-id prefix
+             ('emp_') so the two renders never collide on element IDs - see the prefix parameter added
+             there. Only ever populated with groups whose label is 'employer'; business groups still
+             render into matchedIncomeInflowsBox, just on the Report tab now, as before. -->
         <div class="fin-step" data-fin-step="4">
         <h2 style="margin-top:0;">Workplace income</h2>
-        <p class="fin-note" style="margin-top:0;">Every inflow in this statement matched against the employer you entered under "Work status" - pulled out into its own tab so you can go through and confirm each salary payment without it being mixed in with your business inflows or the rest of Step 2. If you're self-employed rather than employed, or your employer name found no matches, this tab will be empty.</p>
+        <p class="fin-note" style="margin-top:0;">Every inflow in this statement matched against the employer you entered under "Work status" - pulled out into its own tab so you can go through and confirm each salary payment without it being mixed in with your business inflows on the Report tab. If you're self-employed rather than employed, or your employer name found no matches, this tab will be empty.</p>
         <div id="employerIncomeInflowsBox"></div>
         <div class="session-nav-btns no-print" style="margin-top:12px;">
           <button type="button" class="btn ghost fin-step-prev" data-fin-prev="3">← Back</button>
@@ -2504,6 +2491,44 @@
         <h4 class="subcat-heading" style="margin-top:24px;">Readiness summary</h4>
         <p class="fin-note" style="margin-top:0;">A category-by-category summary of financial readiness, pulled together from everything filled in on Steps 1-4 - not a single score, since different parts of your evidence can be in very different states at once.</p>
         <div id="readinessReportBox"></div>
+
+        <!-- User request: "The income versus closing balance should be moved to REPORT. Let it show
+             the drop down menu that shows immediately after all the reports, and it shows filling of
+             your narration." Moved here from the old top of "Cash flow & scores" (data-fin-step="2")
+             - same pills, same source/explain boxes, same IDs, same computeFinancials()/
+             renderMatchedIncomeInflows() functions writing into them, only the position changed.
+             Placed after the other 4 reports (Top inflows / Consistent senders / Financial summary /
+             Readiness summary), matching "immediately after all the reports". Wrapped in a <details>
+             dropdown - same "starts OPEN, collapsible via its own summary" convention already used by
+             every other report-group on this tab (see collapsible-inflow-groups.test.js), rather than
+             starting closed and hiding a section that often still has real unexplained-inflow work in
+             it behind an extra click. An applicant can still collapse it away via its own summary once
+             done, same as any other report-group - the toggle is there, it just isn't hidden by
+             default. "Filling of your narration" = the "? What does this narration mean?" toggles
+             inside unexplainedInflowsBox below. -->
+        <details class="tip-details" id="incomeVsBalanceDetails" open style="margin-top:22px; padding-top:12px; border-top:1px solid var(--border);">
+          <summary style="font-size:14px; font-weight:600; color:var(--text-primary);">Income vs. closing balance - two different things</summary>
+          <div style="margin-top:10px;">
+          <p class="fin-note" style="margin-top:0;">Scored separately below, since they're not the same thing.</p>
+          <details style="margin:-4px 0 8px;"><summary style="cursor:pointer; font-size:12px; color:var(--text-secondary);">Why separately?</summary><p class="fin-note" style="margin-top:4px;">A strong closing balance isn't the same as strong evidence - some applicants have a healthy balance but income that's irregular or impossible to explain.</p></details>
+          <div class="score-mini">
+            <div>
+              <div class="label">Income generation</div>
+              <div id="incomePill" class="status-pill neutral">Enter your figures</div>
+              <div id="incomePillPct" class="fin-note" style="margin-top:4px;"></div>
+            </div>
+            <div>
+              <div class="label">Closing balance strength</div>
+              <div id="balancePill" class="status-pill neutral">Enter your figures</div>
+              <div id="balancePillPct" class="fin-note" style="margin-top:4px;"></div>
+            </div>
+          </div>
+          <div id="incomeSourcePersonal"></div>
+          <div id="incomeSourceBusiness"></div>
+          <div id="matchedIncomeInflowsBox"></div>
+          <div id="unexplainedInflowsBox"></div>
+          </div>
+        </details>
 
         <!-- Same fake-door demand test pattern as quizNotifyWhatsApp on the quiz result screen (see
              docs/monetization-strategy.md) - a concrete named offer + price, routed to WhatsApp/email
@@ -12630,7 +12655,9 @@
   // boxId/prefix let this same renderer target two independent tabs without any DOM-id collisions:
   // employer-matched groups render into their own "Workplace income" tab (boxId
   // 'employerIncomeInflowsBox', prefix 'emp_') separate from business-matched groups, which keep
-  // rendering into 'matchedIncomeInflowsBox' on Step 2 with no prefix (unchanged from before). idx is
+  // rendering into 'matchedIncomeInflowsBox' with no prefix (unchanged from before - only its
+  // position moved, from the old Step 2 to the Report tab's "Income vs. closing balance" dropdown).
+  // idx is
   // purely a per-render DOM-id counter (not persisted — inflowExplanations is keyed by inflowKey(t)
   // instead), so reusing 0..N in both calls is safe as long as the prefixes themselves never collide.
   function renderMatchedIncomeInflows(groups, boxId, prefix){
@@ -12734,7 +12761,8 @@
   }
   // Reads the incomePill/balancePill classes computeFinancials() already set, rather than
   // re-deriving the Strong/Needs-attention/Weak thresholds a second time — folds the SAME verdict
-  // already shown on Step 2 into the four-state vocabulary used everywhere else on this tab.
+  // already shown in the "Income vs. closing balance" dropdown further down this tab into the
+  // four-state vocabulary used everywhere else on this tab.
   function readinessStatusFromPill(pillId, neutralMeansMissingOnly){
     var el = document.getElementById(pillId);
     if (!el) return 'missing';
@@ -12757,14 +12785,17 @@
       key: 'balance',
       label: 'Closing balance strength',
       status: readinessStatusFromPill('balancePill', true),
-      detail: (document.getElementById('balancePillPct') && document.getElementById('balancePillPct').textContent) || 'Fill in Step 2 to see this.'
+      // "Fill in Step 2" was accurate while the pill lived on that tab; it now lives further down this
+      // same Report tab, inside the "Income vs. closing balance" dropdown (see the markup comment on
+      // #incomeVsBalanceDetails), so "below" is the correct pointer now.
+      detail: (document.getElementById('balancePillPct') && document.getElementById('balancePillPct').textContent) || 'Open "Income vs. closing balance" below to see this.'
     });
 
     rows.push({
       key: 'income',
       label: 'Income generation & consistency',
       status: readinessStatusFromPill('incomePill', false),
-      detail: (document.getElementById('incomePillPct') && document.getElementById('incomePillPct').textContent) || 'Fill in Step 2 to see this.'
+      detail: (document.getElementById('incomePillPct') && document.getElementById('incomePillPct').textContent) || 'Open "Income vs. closing balance" below to see this.'
     });
 
     var flagged = window.__lastUnexplainedInflows || [];
@@ -12781,7 +12812,7 @@
       unexplainedDetail = 'All ' + flagged.length + ' flagged inflow(s) have an explanation.';
     } else {
       unexplainedStatus = 'needs_review';
-      unexplainedDetail = unexplained.length + ' of ' + flagged.length + ' flagged inflow(s) still need an explanation - see Step 2.';
+      unexplainedDetail = unexplained.length + ' of ' + flagged.length + ' flagged inflow(s) still need an explanation - see "Income vs. closing balance" below.';
     }
     rows.push({key:'unexplained', label:'Unexplained inflows', status: unexplainedStatus, detail: unexplainedDetail});
 
@@ -12805,7 +12836,8 @@
     rows.push({key:'breakdown', label:'Income sources breakdown', status: breakdownStatus, detail: breakdownDetail});
 
     // Workplace (employer) and business income evidence — same logic, different declared name and
-    // different matched-inflow tab (Step 4 for employer, Step 2 for business).
+    // different matched-inflow location (Step 4's own tab for employer; the "Income vs. closing
+    // balance" dropdown further down this Report tab for business).
     var nameChecks = window.__lastNameChecks || [];
     function evidenceRow(key, label, declared, declaredName, stepHint, checkLabel){
       if (!declared || !declaredName){
@@ -12831,7 +12863,10 @@
       return {key:key, label:label, status:'needs_review', detail: entry.inflowCount + ' inflow(s) found from "'+declaredName+'", but not all are explained yet - see '+stepHint+'.'};
     }
     rows.push(evidenceRow('workplace', 'Workplace income evidence', answers.employed, answers.employerName, 'Step 4', 'employer'));
-    rows.push(evidenceRow('business', 'Business income evidence', answers.selfEmployed, answers.businessName, 'Step 2', 'business'));
+    // stepHint was 'Step 2' while matchedIncomeInflowsBox's business-matched groups rendered there;
+    // they now render inside this same Report tab's "Income vs. closing balance" dropdown (see the
+    // move documented on #incomeVsBalanceDetails), so the hint points there instead.
+    rows.push(evidenceRow('business', 'Business income evidence', answers.selfEmployed, answers.businessName, 'the "Income vs. closing balance" section below', 'business'));
 
     return rows;
   }
@@ -13905,8 +13940,9 @@
             }
           });
           // Split by declared source: employer-matched groups get their own "Workplace income" tab
-          // (Step 4), business-matched groups keep rendering on Step 2 as before — see the user
-          // request that added the employer tab, and the boxId/prefix comment on
+          // (Step 4), business-matched groups keep rendering into matchedIncomeInflowsBox as before —
+          // just on the Report tab now, inside the "Income vs. closing balance" dropdown, not the old
+          // Step 2 — see the user request that added the employer tab, and the boxId/prefix comment on
           // renderMatchedIncomeInflows above.
           var businessIncomeGroups = matchedIncomeGroups.filter(function(g){ return g.label !== 'employer'; });
           var employerIncomeGroups = matchedIncomeGroups.filter(function(g){ return g.label === 'employer'; });

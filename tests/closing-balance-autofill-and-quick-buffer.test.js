@@ -9,7 +9,7 @@
 // up in "Your trip details" whenever the detailed calculator hasn't been filled in yet.
 const assert = require('assert');
 const path = require('path');
-const { newPageAt, passConsentGate, goToSessionByPill } = require('./helpers');
+const { newPageAt, passConsentGate, goToSessionByPill, goToFinanceStep } = require('./helpers');
 
 var SAMPLE_STATEMENT = path.join(__dirname, 'fixtures', 'bank-statement-sample.pdf');
 
@@ -37,6 +37,9 @@ exports.run = async function(ctx){
     // touching the detailed financial calculator's flight/accommodation/transport fields at all.
     await page.setInputFiles('#stmtFile1', SAMPLE_STATEMENT);
     await page.click('#btnAnalyzeStatements');
+    // unexplainedInflowsBox now lives on the Report tab (Step 5), inside the "Income vs. closing
+    // balance" dropdown — analysis still auto-advances to Step 2 (the cash-flow table) only.
+    await goToFinanceStep(page, 5);
     await page.waitForSelector('#unexplainedInflowsBox .explain-box', { timeout: 20000 });
     await page.waitForTimeout(500);
 
@@ -73,6 +76,7 @@ exports.run = async function(ctx){
       await goToSessionByPill(page2, 4); // finance2 session — stmtFile1/btnAnalyzeStatements live here
       await page2.setInputFiles('#stmtFile1', SAMPLE_STATEMENT);
       await page2.click('#btnAnalyzeStatements');
+      await goToFinanceStep(page2, 5);
       await page2.waitForSelector('#unexplainedInflowsBox .explain-box', { timeout: 20000 });
       await page2.waitForTimeout(500);
       var preservedVal = await page2.$eval('#fc_closing', function(el){ return el.value; });

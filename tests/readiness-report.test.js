@@ -60,6 +60,9 @@ exports.run = async function(ctx){
     await goToSessionByPill(page2, 4); // finance2
     await page2.setInputFiles('#stmtFile1', INFLOW_STATEMENT);
     await page2.click('#btnAnalyzeStatements');
+    // matchedIncomeInflowsBox now lives on the Report tab (Step 5), inside the "Income vs. closing
+    // balance" dropdown — analysis still only auto-advances to Step 2.
+    await goToFinanceStep(page2, 5);
     await page2.waitForSelector('#matchedIncomeInflowsBox .explain-box', { timeout: 20000 });
     await page2.waitForTimeout(300);
 

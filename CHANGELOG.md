@@ -3,6 +3,31 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Restructure: "Income vs. closing balance" moved into the Report tab
+
+User feedback, off the live "Income & bank statement analysis" section: "The income versus closing
+balance should be moved to REPORT. Let it show the drop down menu that shows immediately after all
+the reports, and it shows filling of your narration. Let us reduce the clumsiness. Let everything
+reports be moved to the report section neatly."
+
+The "Income vs. closing balance - two different things" block (the Income generation / Closing
+balance strength pills, the personal/business income-source boxes, the itemized matched-inflow box,
+and the "N inflow(s) still need an explanation" box with its narration-decode toggles) used to open
+the "Cash flow & scores" tab (Step 2), ahead of the cash-flow table itself. It's now on the Report
+tab (Step 5), positioned right after the other 4 reports (Top 10 inflows, Most consistent senders,
+Financial summary, Readiness summary) and wrapped in its own `<details>` dropdown — same "starts
+open, collapsible via its own summary" convention already used by every other report-group on that
+tab, so nothing that still needs explaining is hidden behind an extra click by default, but it can
+still be tucked away once done. Step 2 is now just the cash-flow table (still auto-filled from
+Step 1's upload, still hand-typeable if nothing was uploaded).
+
+No IDs, computation functions, or auto-tagging logic changed — `computeFinancials()`,
+`renderMatchedIncomeInflows()`, and the readiness-summary's own pill/box reads all still work
+exactly as before, purely by `document.getElementById`, regardless of which tab their target
+element physically sits on. Only the markup position moved. The Report tab's own "Business income
+evidence" / income-percentage fallback text, previously pointing back to "Step 2", now points to
+"below" on the same tab.
+
 ## Fix: passport expiry still "not detected" after the earlier printed-text-fallback fix
 
 Same applicant, same passport, a later round of testing: expiry still came back "not detected"

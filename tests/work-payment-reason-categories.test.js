@@ -16,8 +16,10 @@
 //      still keeps the general list — no specific reason stated, and a business's own income could be
 //      anything (a sale, a service fee), not necessarily payroll.
 // Further user request: employer-matched inflows now render on their own "Workplace income" tab
-// (Step 5), separate from business-matched inflows which stay on Step 2 — the employer-only block below
-// navigates there and uses the 'emp_'-prefixed element IDs; the business-only block is unaffected.
+// (Step 4), separate from business-matched inflows (which later moved again themselves, into the
+// Report tab's "Income vs. closing balance" dropdown, Step 5) — the employer-only block below
+// navigates to Step 4 and uses the 'emp_'-prefixed element IDs; the business-only block now navigates
+// to Step 5 instead.
 const assert = require('assert');
 const path = require('path');
 const { newPageAt, passConsentGate, goToSessionByPill, goToFinanceStep } = require('./helpers');
@@ -100,6 +102,9 @@ exports.run = async function(ctx){
     }, { timeout: 20000 });
     await page2.waitForTimeout(400);
 
+    // matchedIncomeInflowsBox (business-matched groups) now lives on the Report tab (Step 5), inside
+    // the "Income vs. closing balance" dropdown — analysis still only auto-advances to Step 2.
+    await goToFinanceStep(page2, 5);
     await page2.click('#matchcollapsed_0');
     await page2.click('#matchcollapsed_1');
     await page2.waitForSelector('#match_cat_0');

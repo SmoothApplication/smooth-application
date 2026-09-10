@@ -7,7 +7,7 @@
 // deliberately blank-narration credit so it's guaranteed to get flagged regardless of amount.
 const assert = require('assert');
 const path = require('path');
-const { newPageAt, passConsentGate, goToSessionByPill } = require('./helpers');
+const { newPageAt, passConsentGate, goToSessionByPill, goToFinanceStep } = require('./helpers');
 
 var SAMPLE_STATEMENT = path.join(__dirname, 'fixtures', 'bank-statement-sample.pdf');
 
@@ -19,6 +19,9 @@ exports.run = async function(ctx){
 
     await page.setInputFiles('#stmtFile1', SAMPLE_STATEMENT);
     await page.click('#btnAnalyzeStatements');
+    // unexplainedInflowsBox now lives on the Report tab (Step 5), inside the "Income vs. closing
+    // balance" dropdown — analysis still only auto-advances to Step 2 (the cash-flow table).
+    await goToFinanceStep(page, 5);
     await page.waitForSelector('#unexplainedInflowsBox .explain-box', { timeout: 20000 });
 
     // The dropdown should exist (not a free-text box) with exactly the requested options, in order,

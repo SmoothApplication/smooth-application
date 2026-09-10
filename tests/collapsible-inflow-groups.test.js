@@ -9,9 +9,11 @@
 // <details>, open by default so nothing looks different the moment it finishes — with a toggle so the
 // applicant can tuck a long, already-confirmed list away.
 //
-// Further user request: employer-matched inflows moved to their own "Workplace income" tab (Step 5),
-// separate from business-matched inflows on Step 2 — so each now gets its own single collapsible group
-// in its own box, instead of the two groups sharing one box.
+// Further user request: employer-matched inflows moved to their own "Workplace income" tab (Step 4),
+// separate from business-matched inflows (now inside the Report tab's "Income vs. closing balance"
+// dropdown, Step 5 — see the later restructuring documented on #incomeVsBalanceDetails in index.html)
+// — so each now gets its own single collapsible group in its own box, instead of the two groups
+// sharing one box.
 const assert = require('assert');
 const path = require('path');
 const { newPageAt, passConsentGate, goToSessionByPill, goToFinanceStep } = require('./helpers');
@@ -34,12 +36,16 @@ exports.run = async function(ctx){
     await goToSessionByPill(page1, 4);
     await page1.setInputFiles('#stmtFile1', MATCHED_STATEMENT);
     await page1.click('#btnAnalyzeStatements');
+    // matchedIncomeInflowsBox now lives on the Report tab (Step 5), inside the "Income vs. closing
+    // balance" dropdown — analysis still auto-advances to Step 2 (the cash-flow table), so an explicit
+    // jump is needed to reach it.
+    await goToFinanceStep(page1, 5);
     await page1.waitForSelector('#matchedIncomeInflowsBox .explain-box', { timeout: 20000 });
     await page1.waitForTimeout(300);
 
-    // Business-matched inflows (Step 2) get their own single collapsible group.
+    // Business-matched inflows (now on the Report tab) get their own single collapsible group.
     var bizGroupCount = await page1.$$eval('#matchedIncomeInflowsBox details.report-group', function(els){ return els.length; });
-    assert.strictEqual(bizGroupCount, 1, 'Step 2 should wrap the business-matched inflows in one collapsible group, got: ' + bizGroupCount);
+    assert.strictEqual(bizGroupCount, 1, 'Report tab should wrap the business-matched inflows in one collapsible group, got: ' + bizGroupCount);
 
     var bizStartsOpen = await page1.$$eval('#matchedIncomeInflowsBox details.report-group', function(els){ return els.every(function(el){ return el.open; }); });
     assert.strictEqual(bizStartsOpen, true, 'Business group should start OPEN so nothing looks different than before this change');
@@ -94,6 +100,9 @@ exports.run = async function(ctx){
 
     await page2.setInputFiles('#stmtFile1', UNEXPLAINED_STATEMENT);
     await page2.click('#btnAnalyzeStatements');
+    // unexplainedInflowsBox now lives on the Report tab (Step 5) too — see the matchedIncomeInflowsBox
+    // note above.
+    await goToFinanceStep(page2, 5);
     await page2.waitForSelector('#unexplainedInflowsBox .explain-box', { timeout: 20000 });
     await page2.waitForTimeout(300);
 

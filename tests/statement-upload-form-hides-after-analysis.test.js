@@ -28,6 +28,9 @@ exports.run = async function(ctx){
 
     await page.setInputFiles('#stmtFile1', SAMPLE_STATEMENT);
     await page.click('#btnAnalyzeStatements');
+    // unexplainedInflowsBox now lives on the Report tab (Step 5), inside the "Income vs. closing
+    // balance" dropdown — analysis itself still only auto-advances to Step 2 (see the comment below).
+    await goToFinanceStep(page, 5);
     await page.waitForSelector('#unexplainedInflowsBox .explain-box', { timeout: 20000 });
     await page.waitForTimeout(500);
 

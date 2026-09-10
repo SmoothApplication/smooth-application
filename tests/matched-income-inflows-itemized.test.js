@@ -15,8 +15,9 @@
 // assumption — specifically to prove the pre-tag now reads and uses each transaction's own stated reason
 // (see detectWorkPaymentCategory) rather than defaulting off which field it matched.
 //
-// Further user request: give employer-matched inflows their own "Workplace income" tab (Step 5),
-// separate from business-matched inflows which stay on Step 2 — previously both rendered together into
+// Further user request: give employer-matched inflows their own "Workplace income" tab (Step 4),
+// separate from business-matched inflows (which later moved again themselves, into the Report tab's
+// "Income vs. closing balance" dropdown, Step 5) — previously both rendered together into
 // matchedIncomeInflowsBox. This test now checks each group lands in its own box, on its own step tab.
 const assert = require('assert');
 const path = require('path');
@@ -38,26 +39,30 @@ exports.run = async function(ctx){
     await goToSessionByPill(page, 4); // finance2 session — statement upload lives here
     await page.setInputFiles('#stmtFile1', INFLOW_STATEMENT);
     await page.click('#btnAnalyzeStatements');
+    // matchedIncomeInflowsBox (business-matched groups) now lives on the Report tab (Step 5), inside
+    // the "Income vs. closing balance" dropdown — analysis still only auto-advances to Step 2.
+    await goToFinanceStep(page, 5);
     await page.waitForSelector('#matchedIncomeInflowsBox .explain-box', { timeout: 20000 });
     await page.waitForTimeout(300);
 
-    // 3 business inflows on Step 2, 3 employer inflows on Step 5 — split into separate boxes/tabs,
-    // not one rolled-up sentence and not mixed together.
+    // 3 business inflows on the Report tab, 3 employer inflows on Step 4 — split into separate
+    // boxes/tabs, not one rolled-up sentence and not mixed together. The $$eval/$eval reads below don't
+    // need their box's tab to be the active one, so no further navigation is needed just to read them.
     var bizBoxCount = await page.$$eval('#matchedIncomeInflowsBox .explain-box', function(els){ return els.length; });
-    assert.strictEqual(bizBoxCount, 3, 'Step 2 should render 3 individual business-matched inflow boxes, got: ' + bizBoxCount);
+    assert.strictEqual(bizBoxCount, 3, 'Report tab should render 3 individual business-matched inflow boxes, got: ' + bizBoxCount);
 
     var empBoxCount = await page.$$eval('#employerIncomeInflowsBox .explain-box', function(els){ return els.length; });
-    assert.strictEqual(empBoxCount, 3, 'Step 5 (Workplace income) should render 3 individual employer-matched inflow boxes, got: ' + empBoxCount);
+    assert.strictEqual(empBoxCount, 3, 'Step 4 (Workplace income) should render 3 individual employer-matched inflow boxes, got: ' + empBoxCount);
 
     var introHtmlBiz = await page.$eval('#matchedIncomeInflowsBox', function(el){ return el.innerHTML; });
     assert.ok(/Instead of one lump total/.test(introHtmlBiz), 'Should explain these are itemized instead of a lump total, got: ' + introHtmlBiz);
     assert.ok(/3 inflows matching "Bright Homes Cleaning Solutions Ltd"/.test(introHtmlBiz), 'Should mention the 3 business inflows by name, got: ' + introHtmlBiz);
-    assert.ok(!/Grace Covenant Youth Church/.test(introHtmlBiz), 'Employer inflows should not also appear in the Step 2 business box, got: ' + introHtmlBiz);
+    assert.ok(!/Grace Covenant Youth Church/.test(introHtmlBiz), 'Employer inflows should not also appear in the Report tab\'s business box, got: ' + introHtmlBiz);
 
     var introHtmlEmp = await page.$eval('#employerIncomeInflowsBox', function(el){ return el.innerHTML; });
     assert.ok(/Instead of one lump total/.test(introHtmlEmp), 'Should explain these are itemized instead of a lump total, got: ' + introHtmlEmp);
     assert.ok(/3 inflows matching "Grace Covenant Youth Church"/.test(introHtmlEmp), 'Should mention the 3 employer inflows by name, got: ' + introHtmlEmp);
-    assert.ok(!/Bright Homes Cleaning Solutions Ltd/.test(introHtmlEmp), 'Business inflows should not also appear in the Step 5 workplace-income box, got: ' + introHtmlEmp);
+    assert.ok(!/Bright Homes Cleaning Solutions Ltd/.test(introHtmlEmp), 'Business inflows should not also appear in the Step 4 workplace-income box, got: ' + introHtmlEmp);
 
     // Every box should already be auto-tagged (collapsed, showing a checkmark + its category) rather
     // than sitting empty and demanding the applicant redo work the system already knows the answer to.
@@ -83,8 +88,8 @@ exports.run = async function(ctx){
     assert.ok(empSummaries.filter(function(s){ return /- Allowance$/.test(s); }).length === 3, 'The 3 employer inflows, all narrated "Allowance", should be pre-tagged "Allowance" (read from their own narration, not defaulted to "Salary" just because they matched the employer), got: ' + JSON.stringify(empSummaries));
 
     // Still fully editable — a wrongly-matched payment should be re-classifiable, same as any other
-    // inflow explanation on this page. Employer inflows live on Step 4 now, so navigate there first —
-    // Step 2's content (and its own unprefixed matchbox_0) is hidden while Step 4 is active.
+    // inflow explanation on this page. Employer inflows live on Step 4, so navigate there first — the
+    // Report tab's content (and its own unprefixed matchbox_0) is hidden while Step 4 is active.
     await goToFinanceStep(page, 4);
     await page.click('#matchcollapsed_emp_0');
     await page.waitForSelector('#match_cat_emp_0');

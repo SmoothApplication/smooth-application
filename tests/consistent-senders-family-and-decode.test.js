@@ -11,7 +11,8 @@
 //   8/10. Decode common Nigerian bank narration shorthand (NIP, ROLEZ = Moniepoint MFB, WBP = Wema
 //      Bank, etc.) inline, right where each inflow's raw narration is shown.
 // Further user request: employer-matched inflows (exercised in items 8/10 below) now render on their
-// own "Workplace income" tab (Step 5) instead of alongside business inflows on Step 2.
+// own "Workplace income" tab (Step 4) instead of alongside business inflows (which later moved again
+// themselves, into the Report tab's "Income vs. closing balance" dropdown, Step 5).
 const assert = require('assert');
 const path = require('path');
 const { newPageAt, passConsentGate, goToSessionByPill, goToFinanceStep } = require('./helpers');

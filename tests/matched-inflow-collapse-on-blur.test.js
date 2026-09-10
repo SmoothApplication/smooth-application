@@ -9,8 +9,9 @@
 // the same "auto-tidy" pattern used everywhere else on this page.
 //
 // Further user request: employer-matched inflows (the "Allowance"-tagged ones this test exercises) now
-// render on their own "Workplace income" tab (Step 5) instead of alongside business inflows on Step 2 —
-// see matched-income-inflows-itemized.test.js for the full split. This test now navigates there first.
+// render on their own "Workplace income" tab (Step 4) instead of alongside business inflows (which
+// later moved again themselves, into the Report tab's "Income vs. closing balance" dropdown) — see
+// matched-income-inflows-itemized.test.js for the full split. This test now navigates there first.
 const assert = require('assert');
 const path = require('path');
 const { newPageAt, passConsentGate, goToSessionByPill, goToFinanceStep } = require('./helpers');
@@ -31,6 +32,9 @@ exports.run = async function(ctx){
     await goToSessionByPill(page, 4); // 'Financial readiness'
     await page.setInputFiles('#stmtFile1', INFLOW_STATEMENT);
     await page.click('#btnAnalyzeStatements');
+    // matchedIncomeInflowsBox (business-matched groups) now lives on the Report tab (Step 5), inside
+    // the "Income vs. closing balance" dropdown — analysis still only auto-advances to Step 2.
+    await goToFinanceStep(page, 5);
     await page.waitForSelector('#matchedIncomeInflowsBox .explain-box', { timeout: 20000 });
     await page.waitForTimeout(300);
 
@@ -46,7 +50,7 @@ exports.run = async function(ctx){
 
     // ...then click somewhere else entirely WITHOUT changing anything — no select change, no typing.
     // An explicit top-left position (rather than Playwright's default center-of-element point) avoids
-    // landing back on the select itself now that Step 5's scroll position puts it near mid-viewport.
+    // landing back on the select itself now that Step 4's scroll position puts it near mid-viewport.
     await page.click('body', { position: { x: 10, y: 10 } });
     await page.waitForFunction(function(){
       var box = document.getElementById('matchbox_emp_0');

@@ -8,7 +8,7 @@
 // the banner itself flipping from warn/orange to ok/green) the moment none are left.
 const assert = require('assert');
 const path = require('path');
-const { newPageAt, passConsentGate, goToSessionByPill } = require('./helpers');
+const { newPageAt, passConsentGate, goToSessionByPill, goToFinanceStep } = require('./helpers');
 
 var FIXTURE = path.join(__dirname, 'fixtures', 'multi-unexplained-inflows.pdf');
 
@@ -20,6 +20,9 @@ exports.run = async function(ctx){
 
     await page.setInputFiles('#stmtFile1', FIXTURE);
     await page.click('#btnAnalyzeStatements');
+    // unexplainedInflowsBox (and #unexplainedHeaderMsg with it) now lives on the Report tab (Step 5),
+    // inside the "Income vs. closing balance" dropdown — analysis still only auto-advances to Step 2.
+    await goToFinanceStep(page, 5);
     await page.waitForSelector('#unexplainedInflowsBox .explain-box', { timeout: 20000 });
     await page.waitForTimeout(300);
 

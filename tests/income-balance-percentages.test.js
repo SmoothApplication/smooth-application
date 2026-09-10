@@ -8,7 +8,7 @@
 // low month-to-month variance) — into one combined score, not just one or the other.
 const assert = require('assert');
 const path = require('path');
-const { newPageAt, passConsentGate, goToSessionByPill } = require('./helpers');
+const { newPageAt, passConsentGate, goToSessionByPill, goToFinanceStep } = require('./helpers');
 
 var SAMPLE_STATEMENT = path.join(__dirname, 'fixtures', 'bank-statement-sample.pdf');
 
@@ -43,6 +43,10 @@ exports.run = async function(ctx){
     await goToSessionByPill(page, 4); // finance2 — stmtFile1/btnAnalyzeStatements live here
     await page.setInputFiles('#stmtFile1', SAMPLE_STATEMENT);
     await page.click('#btnAnalyzeStatements');
+    // unexplainedInflowsBox (and the explain_cat_0 select used further below) now live on the Report
+    // tab (Step 5), inside the "Income vs. closing balance" dropdown — analysis still only
+    // auto-advances to Step 2 (the cash-flow table).
+    await goToFinanceStep(page, 5);
     await page.waitForSelector('#unexplainedInflowsBox .explain-box', { timeout: 20000 });
     await page.waitForTimeout(500);
 
