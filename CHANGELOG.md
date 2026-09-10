@@ -28,6 +28,15 @@ element physically sits on. Only the markup position moved. The Report tab's own
 evidence" / income-percentage fallback text, previously pointing back to "Step 2", now points to
 "below" on the same tab.
 
+Follow-up, off a real `npm test` run against this change: 10 tests failed navigating to the moved
+boxes, all with the same shape — a Playwright `waitForSelector` call jumping to the Report tab
+*immediately* after clicking "Analyze", before the (async, OCR/PDF-parsing) analysis itself had
+actually finished. Analysis ends by calling the app's own auto-advance to Step 2 as its last step,
+which silently undid the test's early tab switch. Fixed by having each affected test wait for
+`#stmtAnalyzeMsg`'s own "Detected N transaction(s)" text first (set only once that whole sequence —
+auto-advance included — has completed) before switching to the Report tab, the same pattern already
+used successfully by several other tests in this suite.
+
 ## Fix: passport expiry still "not detected" after the earlier printed-text-fallback fix
 
 Same applicant, same passport, a later round of testing: expiry still came back "not detected"

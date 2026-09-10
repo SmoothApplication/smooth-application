@@ -37,8 +37,16 @@ exports.run = async function(ctx){
     await page1.setInputFiles('#stmtFile1', MATCHED_STATEMENT);
     await page1.click('#btnAnalyzeStatements');
     // matchedIncomeInflowsBox now lives on the Report tab (Step 5), inside the "Income vs. closing
-    // balance" dropdown — analysis still auto-advances to Step 2 (the cash-flow table), so an explicit
-    // jump is needed to reach it.
+    // balance" dropdown — analysis still auto-advances to Step 2 (the cash-flow table). Analysis is
+    // async, and that auto-advance fires as part of its own finish-up sequence — navigating to Step 5
+    // too early (before that sequence completes) gets silently undone the moment it does fire. Wait for
+    // #stmtAnalyzeMsg's own "Detected N transaction(s)" text instead of the box itself — it's set as
+    // the LAST step of that whole sequence (after the auto-advance and after every box render), so by
+    // the time it appears it's safe to navigate to Step 5 without racing anything further.
+    await page1.waitForFunction(function(){
+      var el = document.getElementById('stmtAnalyzeMsg');
+      return el && /Detected \d+ transaction/.test(el.textContent);
+    }, { timeout: 20000 });
     await goToFinanceStep(page1, 5);
     await page1.waitForSelector('#matchedIncomeInflowsBox .explain-box', { timeout: 20000 });
     await page1.waitForTimeout(300);
@@ -101,7 +109,11 @@ exports.run = async function(ctx){
     await page2.setInputFiles('#stmtFile1', UNEXPLAINED_STATEMENT);
     await page2.click('#btnAnalyzeStatements');
     // unexplainedInflowsBox now lives on the Report tab (Step 5) too — see the matchedIncomeInflowsBox
-    // note above.
+    // note above (wait for the stmtAnalyzeMsg text, then switch tabs, then wait visible).
+    await page2.waitForFunction(function(){
+      var el = document.getElementById('stmtAnalyzeMsg');
+      return el && /Detected \d+ transaction/.test(el.textContent);
+    }, { timeout: 20000 });
     await goToFinanceStep(page2, 5);
     await page2.waitForSelector('#unexplainedInflowsBox .explain-box', { timeout: 20000 });
     await page2.waitForTimeout(300);

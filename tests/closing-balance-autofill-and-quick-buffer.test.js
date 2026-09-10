@@ -38,7 +38,14 @@ exports.run = async function(ctx){
     await page.setInputFiles('#stmtFile1', SAMPLE_STATEMENT);
     await page.click('#btnAnalyzeStatements');
     // unexplainedInflowsBox now lives on the Report tab (Step 5), inside the "Income vs. closing
-    // balance" dropdown — analysis still auto-advances to Step 2 (the cash-flow table) only.
+    // balance" dropdown — analysis still only auto-advances to Step 2 (the cash-flow table). Wait for
+    // #stmtAnalyzeMsg's own "Detected N transaction(s)" text instead of the box itself — it's set as
+    // the LAST step of the whole analysis sequence (after the auto-advance and every box render), so
+    // by the time it appears it's safe to navigate to Step 5 without racing anything further.
+    await page.waitForFunction(function(){
+      var el = document.getElementById('stmtAnalyzeMsg');
+      return el && /Detected \d+ transaction/.test(el.textContent);
+    }, { timeout: 20000 });
     await goToFinanceStep(page, 5);
     await page.waitForSelector('#unexplainedInflowsBox .explain-box', { timeout: 20000 });
     await page.waitForTimeout(500);
@@ -76,6 +83,10 @@ exports.run = async function(ctx){
       await goToSessionByPill(page2, 4); // finance2 session — stmtFile1/btnAnalyzeStatements live here
       await page2.setInputFiles('#stmtFile1', SAMPLE_STATEMENT);
       await page2.click('#btnAnalyzeStatements');
+      await page2.waitForFunction(function(){
+        var el = document.getElementById('stmtAnalyzeMsg');
+        return el && /Detected \d+ transaction/.test(el.textContent);
+      }, { timeout: 20000 });
       await goToFinanceStep(page2, 5);
       await page2.waitForSelector('#unexplainedInflowsBox .explain-box', { timeout: 20000 });
       await page2.waitForTimeout(500);
