@@ -3,6 +3,64 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Sender grouping: single-word senders, sender-vs-recipient side, short-name merge, "Self" category
+
+User feedback, off a real Sterling statement, across several rapid-fire messages:
+- The 28-item "Other / one-off inflows (no clear sender name)" list stayed unsorted because several
+  rows only ever named their sender in ONE word ("SENDER: BILIKIS", "SENDER: CRISP", "SENDER: YARO")
+  — `extractNameCandidates` required 2+ words to keep a run, so these produced zero candidates and
+  fell into "no clear sender name" instead of grouping with the rest of that person's payments. Now
+  allows a single word to count as a candidate when it directly follows an explicit sender-context
+  marker (SENDER/FROM/FRM) — narrow enough that an unmarked lone word is still dropped as before.
+- A named group titled itself "Agboola Mary Oluwafunmilayo Mint" and absorbed an unrelated payment
+  from "Ibukunoluwa Adedayo" — the narration's RECIPIENT-side name ("...LTD IFO AGBOOLA MARY
+  OLUWAFUNMILAYO") was winning the "longest candidate" tie-break over the real sender-side name
+  ("Xpedite Global Concept"), and excluding it relied only on an exact text match against the typed
+  passport name, which doesn't help when the bank account is registered under a differently-spelled
+  name. `extractNameCandidatesDetailed()` now tracks which stopword marker preceded each extracted
+  run, and `senderSideCandidates()` structurally excludes IFO/TO-marked (recipient-side) runs from
+  "who sent this" everywhere that matters (`identifyIncomeSourceName`, `identifyTopIncomeSource`,
+  `getTopConsistentSenders`, `buildIncomeSourceBreakdown`).
+- "TRF BOO XPEDITE GLOBAL - CONCEPT LTD IFO …" extracted as "Boo Xpedite Global Concept" — "BOO" is a
+  channel/processor code, added to `BANK_NARRATION_STOPWORDS`.
+- A sender's narration sometimes carries their full name ("SENDER: CRISP N") and sometimes just its
+  first word ("SENDER: CRISP") — capturable per the single-word fix above, but too short to clear
+  `NAME_MERGE_MIN_LEN` against the fuller name. `mergeNameVariants` now also merges a single WHOLE
+  word into an existing 2+-word name that contains it, bypassing the length gate for that narrow
+  case (a whole-word match can't accidentally hit half of an unrelated longer word) — this is also
+  what makes a "Fix name" correction on the fuller group automatically cover the merged-in rows too,
+  since they now share the same group key.
+- Recurring inflows whose sender name matches the account holder's OWN name ("SENDER: MARY", where
+  Mary is the applicant) were mis-swept into "Salary" (when the amount recurred) or into their own
+  "Personal" box asking "what's your relationship to this person" — neither makes sense for the
+  applicant's own money moving between their own accounts. New `detectStatementHolderName()` resolves
+  the account holder's identity from whichever full name recurs on the RECIPIENT (TO/IFO) side of the
+  statement's own credit narrations — independent of whatever the applicant typed in the passport-name
+  field, which real statements have shown can differ (a maiden name, a shortened form). Matching
+  inflows (checked BEFORE Salary/named-group routing) now land in a new no-explanation-needed "Self"
+  group/badge instead.
+
+Also added, same session, same statement:
+- **"MINT" stopword**: "...TO AGBOOLA MARY OLUWAFUNMILAYO mint" was extracting "Agboola Mary
+  Oluwafunmilayo Mint" — confirmed with the applicant that "mint" is an account-product/nickname
+  label, not part of her name. Added to `BANK_NARRATION_STOPWORDS` alongside BOO.
+- **Workplace income tab stayed empty despite a confirmed "Fix name" match**: `findInflowsMatchingName`
+  requires 2+ of the declared employer's distinctive words in a transaction's own narration (the
+  safety threshold from `false-positive-name-match.test.js`). When a bank only ever narrates a
+  truncated form ("SENDER: CRISP N" vs. the full declared "Crisp N Clean Exclusive Solutions Ltd"),
+  that threshold can never be reached from the raw text alone — even though the applicant already
+  confirmed the exact link via "Fix name". `findInflowsMatchingName` now also checks the declared
+  name against any existing `senderNameCorrections` entry for that transaction (new
+  `resolveSenderNameCorrection()` helper) before giving up, so a personally-confirmed name unlocks
+  the match without loosening the general threshold for anyone who hasn't corrected anything.
+  **Known limitation**: this only takes effect on the next "Analyze Statements" run — saving a "Fix
+  name" correction alone doesn't yet re-run the Workplace/Business income matching live, so re-click
+  Analyze Statements after fixing a name to see it reflected there.
+
+New test/debug hooks: `window.__testExtractNameCandidatesDetailed`, `window.__testBuildIncomeSourceBreakdown`,
+`window.__testFindInflowsMatchingNameWithCorrections`.
+New regression tests: `tests/sender-self-and-recipient-side.test.js`, `tests/workplace-income-fix-name-fallback.test.js`.
+
 ## Restructure: "Income vs. closing balance" moved into the Report tab
 
 User feedback, off the live "Income & bank statement analysis" section: "The income versus closing

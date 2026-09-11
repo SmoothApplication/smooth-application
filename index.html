@@ -808,6 +808,7 @@
   .src-tag.family { background: var(--accent-wash); color: var(--accent); }
   .src-tag.other { background: var(--critical-wash); color: var(--critical); }
   .src-tag.reversal { background: var(--surface-1); color: var(--text-secondary); border: 1px solid var(--border); }
+  .src-tag.self { background: var(--surface-1); color: var(--text-secondary); border: 1px solid var(--border); }
   .passport-card { border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; background: var(--accent-wash); margin-top: 6px; }
   .passport-card-head { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
   .passport-card-icon { font-size: 20px; line-height: 1; }
@@ -5374,6 +5375,39 @@
   // just to catch a narration-junk-word regression (e.g. a bank field label like "SENDER"/"REMARK" or
   // a channel code like "MPTJ" leaking into the extracted name).
   window.__testExtractNameCandidates = function(narration){ return extractNameCandidates(narration); };
+  // Same reasoning again — lets a test see WHICH side of a FROM/TO-style narration each extracted
+  // candidate came from (extractNameCandidatesDetailed's precededBy), without needing a full
+  // PDF-statement fixture just to catch a sender-vs-recipient regression.
+  window.__testExtractNameCandidatesDetailed = function(narration){ return extractNameCandidatesDetailed(narration); };
+  // Same reasoning again — lets a test drive buildIncomeSourceBreakdown() directly off a small
+  // hand-built transaction list (narration/credit/dateISO), without needing a real PDF-statement
+  // fixture just to catch a Self/Salary/grouping classification regression. dateISO is converted to a
+  // real Date here since JSON can't carry one across page.evaluate's serialization boundary.
+  window.__testBuildIncomeSourceBreakdown = function(txnsIn, applicantName){
+    var txns = (txnsIn || []).map(function(t){
+      return { narration: t.narration, credit: t.credit, date: new Date(t.dateISO) };
+    });
+    return buildIncomeSourceBreakdown(txns, applicantName).map(function(g){
+      return { name: g.name, type: g.type, count: g.count, total: g.total };
+    });
+  };
+  // Same reasoning again — lets a test drive findInflowsMatchingName()'s "Fix name" fallback (see its
+  // comment in index.html) with a specific senderNameCorrections map, without needing to actually
+  // click through the Fix Name UI first. Saves and restores the real senderNameCorrections around the
+  // call so this can't leak state into anything else the page does.
+  window.__testFindInflowsMatchingNameWithCorrections = function(name, txnsIn, corrections){
+    var txns = (txnsIn || []).map(function(t){
+      return { narration: t.narration, credit: t.credit, date: new Date(t.dateISO) };
+    });
+    var saved = senderNameCorrections;
+    senderNameCorrections = corrections || {};
+    try {
+      var result = findInflowsMatchingName(name, txns);
+      return { words: result.words, matchCount: result.matches.length, matchTotal: result.matches.reduce(function(s,t){ return s+t.credit; }, 0) };
+    } finally {
+      senderNameCorrections = saved;
+    }
+  };
   // Same reasoning again — lets a test check exactly what extractDates()/parseMrzFields() pull out of
   // raw OCR'd passport text directly, without needing a real image fixture run through OCR just to
   // catch a regression in the date-pattern regexes themselves (e.g. a common OCR "0 read as O"
@@ -10957,7 +10991,19 @@
     // Later round of the same test-user feedback, same statement family — one row still came through
     // as "Ifo Agboola Mary Oluwafunmilayo" ("IFO" is a new channel/processor code not covered by any
     // of the ones above; same class of problem, same fix).
-    'IFO'];
+    'IFO',
+    // Same statement family, another row: "TRF BOO XPEDITE GLOBAL - CONCEPT LTD IFO …" was extracting
+    // as "Boo Xpedite Global Concept" — "BOO" is yet another channel/processor code (same class as
+    // ETI/VFD/ROLEZ above), not part of the real sender's registered name ("Xpedite Global Concept").
+    'BOO',
+    // Same statement, confirmed by the applicant directly: the account's real name is "Agboola Mary
+    // Oluwafunmilayo" — one row's narration tacked "mint" onto the end of it ("...TO AGBOOLA MARY
+    // OLUWAFUNMILAYO mint"), an account-product/nickname label some banks append (e.g. a named
+    // sub-account or card product), not part of the person's actual name. Same class of fix as
+    // HBD/TOKEN above — trimTrailingNonNameWords only trims trailing junk when it follows a
+    // short "connector" word first, which isn't the case here (it sits directly after the real
+    // name), so this needs to be stopworded outright instead.
+    'MINT'];
 
   // User feedback, off a real statement: most applicants have no idea what "NIP", "ROLEZ" or "CIP"
   // actually mean in their own narration line. Best-effort glossary of the channel/processor/bank
@@ -11272,7 +11318,22 @@
       if (!t.credit || isReversalNarration(t)) return false;
       var upperN = (t.narration || '').toUpperCase();
       var hitCount = words.filter(function(w){ return upperN.indexOf(w) !== -1; }).length;
-      return hitCount >= minWordsNeeded;
+      if (hitCount >= minWordsNeeded) return true;
+      // User-reported real case: a declared employer's FULL registered name ("Crisp N Clean Exclusive
+      // Solutions Ltd") never appears intact in this bank's own narration, which only ever shortens it
+      // to a bare first word or two ("SENDER: CRISP N") — nowhere near 2 of the declared name's
+      // distinctive words, so this transaction would otherwise never count as a match no matter how the
+      // employer name is typed. But the applicant has already confirmed that exact link themselves, via
+      // "Fix name" on the Income sources breakdown (senderNameCorrections, keyed by the raw extracted
+      // name) — so this checks the declared name against that CONFIRMED fuller name too, not just the
+      // raw narration text. Deliberately still gated by the same minWordsNeeded threshold (just applied
+      // to the corrected name instead) — this isn't a loophole around the "one shared generic word"
+      // false-positive guard above, it only ever fires for a transaction the applicant has personally
+      // relabelled.
+      var correctedName = resolveSenderNameCorrection(t.narration);
+      if (!correctedName) return false;
+      var correctedHitCount = words.filter(function(w){ return nameMatchWords(correctedName).indexOf(w) !== -1; }).length;
+      return correctedHitCount >= minWordsNeeded;
     });
     return {words: words, matches: matches};
   }
@@ -11517,23 +11578,54 @@
   function looksNameShaped(w){
     return /[AEIOUY]/.test(w);
   }
-  function extractNameCandidates(narration){
+  // Real-world finding, off a "SENDER:"-labelled narration style ("SENDER: BILIKIS", "SENDER: CRISP",
+  // "SENDER: YARO"): the field after "SENDER"/"FROM"/"FRM" is sometimes just ONE word, not the
+  // first+last-name pair the general 2+-word run requirement below assumes. A single word with no
+  // marker in front of it is still dropped (too likely a stray fragment), but a single word directly
+  // following an explicit sender-context marker is a strong enough signal to keep — without this,
+  // these were falling through to "no clear sender name" (candidates.length === 0) even though the
+  // narration plainly does name a sender, just briefly.
+  var SENDER_MARKERS = ['SENDER','FROM','FRM'];
+  // Symmetric counterpart: the word(s) immediately after "TO"/"IFO" ("in favour of") name the
+  // RECIPIENT of a transfer, not the sender — on an inflow (credit) narration that's the applicant's
+  // own account, almost by definition. Exposed so callers that care specifically about "who paid
+  // this in" (identifyIncomeSourceName / identifyTopIncomeSource / getTopConsistentSenders /
+  // buildIncomeSourceBreakdown) can exclude/deprioritize a recipient-marked run structurally, instead
+  // of relying only on it happening to text-match whatever name the applicant typed on the form —
+  // real narrations have shown the bank account can be registered under a name that reads differently
+  // from the passport-name field (a maiden name, a shortened form, extra middle names).
+  var RECIPIENT_MARKERS = ['TO','IFO'];
+  // Returns [{name, precededBy}] — precededBy is the stopword token (if any) that was flushed
+  // immediately before this run started, or null if the run opens the narration / follows a
+  // non-stopword flush. extractNameCandidates() below is the plain-string view every existing caller
+  // already expects; extractNameCandidatesDetailed() is for callers that need to know which side of a
+  // FROM/TO-style narration a name came from.
+  function extractNameCandidatesDetailed(narration){
     var raw = (narration || '').toUpperCase().replace(/[^A-Z\s]/g, ' ').split(/\s+/);
-    var runs = [], current = [];
+    var runs = [], current = [], lastStopword = null, runMarker = null;
+    function flush(){
+      if (current.length >= 2){
+        runs.push({ name: trimTrailingNonNameWords(current).join(' '), precededBy: runMarker });
+      } else if (current.length === 1 && SENDER_MARKERS.indexOf(runMarker) !== -1){
+        runs.push({ name: current[0], precededBy: runMarker });
+      }
+      current = [];
+    }
     raw.forEach(function(w){
       if (!w) return;
       if (BANK_NARRATION_STOPWORDS.indexOf(w) !== -1 || LIMITED_SUFFIX_RE.test(w)){
-        if (current.length >= 2) runs.push(trimTrailingNonNameWords(current).join(' '));
-        current = [];
+        flush();
+        lastStopword = w;
       } else if (w.length >= 3 && looksNameShaped(w)){
+        if (current.length === 0) runMarker = lastStopword;
         current.push(w);
       } else if (w.length >= 3){
         // 3+ letters but not a single recognised vowel sound among them — almost certainly a
         // reference/channel code rather than a real name (see looksNameShaped above). Treated the
         // same as hitting a stopword: whatever run was building gets flushed, so this can't glue
         // itself onto an otherwise-real name either.
-        if (current.length >= 2) runs.push(trimTrailingNonNameWords(current).join(' '));
-        current = [];
+        flush();
+        lastStopword = null;
       } else if (current.length > 0){
         // A short word (1-2 letters, e.g. a connector like "N" or "&" inside a longer registered name) that isn't a known stopword — keep it
         // as a connector INSIDE an already-started name run, but don't let it start a run on its own
@@ -11541,8 +11633,11 @@
         current.push(w);
       }
     });
-    if (current.length >= 2) runs.push(trimTrailingNonNameWords(current).join(' '));
+    flush();
     return runs;
+  }
+  function extractNameCandidates(narration){
+    return extractNameCandidatesDetailed(narration).map(function(r){ return r.name; });
   }
   function toTitleCase(s){
     return s.toLowerCase().replace(/\b[a-z]/g, function(c){ return c.toUpperCase(); });
@@ -11569,14 +11664,22 @@
     // leaked into the sender list," not "anyone who happens to share a surname."
     return namesLooselyMatch(applicantName, candidate) === 'ok';
   }
+  // Shared by every caller below that wants "who actually sent this money in" — combines the two
+  // exclusion checks: a recipient-marked (TO/IFO) run is structurally the wrong side of the narration
+  // regardless of whose name it happens to be, and isLikelyApplicantsOwnName catches the applicant's
+  // own name even where no TO/IFO marker is present at all (many narrations only ever name one side).
+  function senderSideCandidates(narration, applicantName){
+    return extractNameCandidatesDetailed(narration)
+      .filter(function(r){ return RECIPIENT_MARKERS.indexOf(r.precededBy) === -1 && !isLikelyApplicantsOwnName(r.name, applicantName); })
+      .map(function(r){ return r.name; });
+  }
   function identifyIncomeSourceName(txns, targetAmount, applicantName){
     var buckets = {};
     txns.forEach(function(t){
       if (!t.credit || isReversalNarration(t)) return;
       if (Math.round(t.credit / 5000) * 5000 !== targetAmount) return;
       var monthKey = t.date.getFullYear() + '-' + t.date.getMonth();
-      extractNameCandidates(t.narration).forEach(function(name){
-        if (isLikelyApplicantsOwnName(name, applicantName)) return;
+      senderSideCandidates(t.narration, applicantName).forEach(function(name){
         if (!buckets[name]) buckets[name] = {};
         buckets[name][monthKey] = true;
       });
@@ -11602,7 +11705,7 @@
       // Same fix as identifyIncomeSourceName/getTopConsistentSenders above — the applicant's own name
       // is on the "TO" side of nearly every narration, so left unfiltered it wins "most frequent
       // source" against itself almost every time.
-      var candidates = extractNameCandidates(t.narration).filter(function(c){ return !isLikelyApplicantsOwnName(c, applicantName); });
+      var candidates = senderSideCandidates(t.narration, applicantName);
       if (!candidates.length) return;
       // Use the longest candidate from this narration (most specific / least likely to be a stray fragment)
       // so one transaction only contributes once, rather than once per overlapping substring.
@@ -12950,7 +13053,7 @@
       // inflow), so without this it reliably wins "most consistent sender" against itself, and also
       // tends to get concatenated into whatever garbled run-on candidate a messy narration produces
       // (see isLikelyApplicantsOwnName's substring match, which catches that case too).
-      var candidates = extractNameCandidates(t.narration).filter(function(c){ return !isLikelyApplicantsOwnName(c, applicantName); });
+      var candidates = senderSideCandidates(t.narration, applicantName);
       if (!candidates.length) return;
       var name = toTitleCase(candidates.reduce(function(a,b){ return b.length > a.length ? b : a; }));
       (namedGroups[name] = namedGroups[name] || []).push(t);
@@ -13034,6 +13137,18 @@
     for (var i = 0; i < wa.length; i++){ if (wa[i] !== wb[i]) return false; }
     return true;
   }
+  // Real-world finding: a narration sometimes carries the full recognisable name ("SENDER: CRISP N")
+  // and other times just its first word alone ("SENDER: CRISP") — now capturable as its own one-word
+  // candidate (see the single-word allowance in extractNameCandidatesDetailed above), but too short to
+  // clear NAME_MERGE_MIN_LEN against the fuller name it belongs with (5 letters < 6). A single WHOLE
+  // word is a much safer signal than an arbitrary short substring would be — it can't accidentally
+  // match half of an unrelated longer word — so this bypasses the length gate specifically for that
+  // case: a one-word candidate merges into an existing 2+-word name if it appears there as a complete
+  // word. Also what makes a "Fix name" correction (keyed by the merged/canonical name) automatically
+  // cover these previously-stray single-word rows too, since they now share the same group key.
+  function isWholeWordIn(word, fullName){
+    return new RegExp('\\b' + word + '\\b').test(fullName);
+  }
   function mergeNameVariants(namedGroups){
     var names = Object.keys(namedGroups).sort(function(a,b){ return b.length - a.length; });
     var merged = {}; // canonical (longest-seen) name -> combined txns[]
@@ -13044,6 +13159,8 @@
         var existing = order[i];
         var a = existing.toLowerCase(), b = name.toLowerCase();
         if (sameWordSet(existing, name)){ target = existing; break; }
+        if (b.indexOf(' ') === -1 && a.indexOf(' ') !== -1 && isWholeWordIn(b, a)){ target = existing; break; }
+        if (a.indexOf(' ') === -1 && b.indexOf(' ') !== -1 && isWholeWordIn(a, b)){ target = existing; break; }
         if (Math.min(a.length, b.length) < NAME_MERGE_MIN_LEN) continue;
         if (a.indexOf(b) !== -1 || b.indexOf(a) !== -1){ target = existing; break; }
       }
@@ -13057,6 +13174,50 @@
     return merged;
   }
 
+  // ---- "Self" inflow detection ----
+  // User instruction, off a real statement: several inflows show the account holder's OWN name in
+  // the "SENDER" field ("SENDER: MARY", where Mary is the applicant herself) — a known quirk of some
+  // transfer/collection channels, where the narration's sender label gets populated with the
+  // receiving account's own registered name rather than a genuine third party. Left unhandled, these
+  // got mis-swept into "Salary" (whenever the amount happened to recur) or into their own "Personal"
+  // sender box asking "what's your relationship to this person" — neither makes sense for money that
+  // never left the applicant's own identity. Resolves the statement's own account-holder name from
+  // whichever full name recurs most often on the RECIPIENT (TO/IFO) side of THIS statement's own
+  // credit narrations — more reliable than the typed passport-name field alone, which real statements
+  // have shown can differ from however the bank account is actually registered (a maiden name, a
+  // shortened form, extra/missing middle names) — falling back to the typed applicant name if no
+  // recipient-side name recurs at all.
+  function detectStatementHolderName(txns, applicantName){
+    var buckets = {}; // lowercased name -> count
+    txns.forEach(function(t){
+      if (!t.credit) return;
+      extractNameCandidatesDetailed(t.narration).forEach(function(c){
+        if (RECIPIENT_MARKERS.indexOf(c.precededBy) === -1) return;
+        var key = c.name.toLowerCase();
+        buckets[key] = (buckets[key] || 0) + 1;
+      });
+    });
+    var best = null, bestCount = 0;
+    Object.keys(buckets).forEach(function(k){
+      if (buckets[k] > bestCount){ bestCount = buckets[k]; best = k; }
+    });
+    return (best && bestCount >= 2) ? toTitleCase(best) : (applicantName || null);
+  }
+  // A candidate counts as "self" if it fully matches the resolved holder identity (isLikelyApplicantsOwnName,
+  // via namesLooselyMatch) OR shares at least one significant (3+ letter) word with it. The relaxed
+  // single-shared-word check is needed because a self-referential narration is often reduced to just
+  // one bare name word ("SENDER: MARY") — too little for a full-containment match against a 3-4 word
+  // identity — while still being a strong enough signal here since it's only ever checked against the
+  // resolved account-holder identity, never against an arbitrary other candidate. Trade-off, by
+  // design per the request this implements: a genuinely different third party who happens to share
+  // exactly one first/last name word with the account holder (e.g. a friend also named "Mary") would
+  // also read as "self" here — accepted as the cost of catching the real, observed pattern above.
+  function looksLikeSelfInflow(candidateName, applicantName, holderName){
+    if (isLikelyApplicantsOwnName(candidateName, applicantName)) return true;
+    if (holderName && isLikelyApplicantsOwnName(candidateName, holderName)) return true;
+    if (!holderName) return false;
+    return sharedSignificantWords(candidateName, holderName).length >= 1;
+  }
   function buildIncomeSourceBreakdown(txns, applicantName){
     var stable = identifyStableIncome(txns);
     // A recurring rounded amount only means "stable income from one source" if the transactions making it
@@ -13070,7 +13231,8 @@
     // trusted as "Salary"; a transaction with a name candidate that doesn't match the dominant sender is routed
     // to its own named group instead, exactly like any other identified sender.
     var stableSourceName = stable ? identifyIncomeSourceName(txns, stable.amount, applicantName) : null;
-    var salaryTxns = [], otherTxns = [], reversalTxns = [];
+    var accountHolderName = detectStatementHolderName(txns, applicantName);
+    var salaryTxns = [], otherTxns = [], reversalTxns = [], selfTxns = [];
     var namedGroups = {}; // titleCasedName -> txns[]
     var applicantSurname = surnameOf(applicantName);
 
@@ -13080,10 +13242,19 @@
         reversalTxns.push(t);
         return;
       }
-      // The applicant's own name showing up on the "TO" side of a transfer narration isn't a sender —
-      // filtered out here so it can never become a bogus "dominant sender" match nor a nonsensical
-      // named group titled after the applicant themselves (see isLikelyApplicantsOwnName above).
-      var candidates = extractNameCandidates(t.narration).filter(function(c){ return !isLikelyApplicantsOwnName(c, applicantName); });
+      // The applicant's own name showing up on the "TO"/"IFO" side of a transfer narration isn't a
+      // sender — excluded structurally (whichever side of the narration it's on) so it can never
+      // become a bogus "dominant sender" match nor a nonsensical named group titled after the
+      // applicant themselves (see senderSideCandidates above).
+      var candidates = senderSideCandidates(t.narration, applicantName);
+      // Checked BEFORE the stable-amount Salary match below and before falling through to a named
+      // group — a self-transfer is neither "salary" nor "someone I need to explain my relationship
+      // to," regardless of whether its amount happens to also recur (see detectStatementHolderName/
+      // looksLikeSelfInflow above).
+      if (candidates.some(function(c){ return looksLikeSelfInflow(c, applicantName, accountHolderName); })){
+        selfTxns.push(t);
+        return;
+      }
       if (stable && Math.round(t.credit / 5000) * 5000 === stable.amount){
         var matchesDominantSender = !candidates.length || (stableSourceName && candidates.some(function(cand){
           var a = cand.toLowerCase(), b = stableSourceName.name.toLowerCase();
@@ -13126,6 +13297,7 @@
     });
     if (otherTxns.length) groups.push(summarizeSourceGroup('Other / one-off inflows (no clear sender name)', otherTxns, 'other'));
     if (reversalTxns.length) groups.push(summarizeSourceGroup('Reversals (money returned to you)', reversalTxns, 'reversal'));
+    if (selfTxns.length) groups.push(summarizeSourceGroup('Self (transfers from your own name/account)', selfTxns, 'self'));
 
     groups.sort(function(a,b){ return b.total - a.total; });
     // Checked across ALL inflows here, not per rendered group — a "<Month> Salary"-style payment can
@@ -13246,6 +13418,28 @@
     var corrected = senderNameCorrections[sourceKey(g)];
     return (corrected && corrected.trim()) ? corrected.trim() : g.name;
   }
+  // Used by findInflowsMatchingName's employer/business-matching fallback (see there): given a raw
+  // transaction narration, finds whichever "Fix name" correction (if any) the applicant has already
+  // saved for it. A correction is keyed by the ORIGINAL extracted name (e.g. "Crisp N"), so this
+  // extracts that same candidate from the narration and looks for a key that's a whole-word match for
+  // it, in either direction (the extracted candidate might be the fuller or the shorter form depending
+  // on which specific row's narration this is — see mergeNameVariants' own whole-word check above,
+  // same idea applied here against the correction keys instead of another candidate).
+  function resolveSenderNameCorrection(narration){
+    var candidates = extractNameCandidates(narration);
+    var keys = Object.keys(senderNameCorrections);
+    for (var i = 0; i < candidates.length; i++){
+      var cand = candidates[i].toUpperCase();
+      if (!cand) continue;
+      for (var j = 0; j < keys.length; j++){
+        var keyUpper = keys[j].toUpperCase();
+        if (cand === keyUpper || isWholeWordIn(cand, keyUpper) || isWholeWordIn(keyUpper, cand)){
+          return senderNameCorrections[keys[j]];
+        }
+      }
+    }
+    return null;
+  }
 
   function sourceTypeBadge(type){
     if (type === 'salary') return '<span class="src-tag salary">Salary</span>';
@@ -13253,6 +13447,7 @@
     if (type === 'family') return '<span class="src-tag family">Family</span>';
     if (type === 'personal') return '<span class="src-tag personal">Personal</span>';
     if (type === 'reversal') return '<span class="src-tag reversal">Reversal</span>';
+    if (type === 'self') return '<span class="src-tag self">Self</span>';
     return '<span class="src-tag other">Unclear sender</span>';
   }
 
@@ -13390,7 +13585,8 @@
     var noteBlock = needsNote
         ? modeToggleHtml + groupNoteBlock
           + '<div id="srcexplain_status_'+idx+'">'+(explained ? '<div class="scan-msg ok compact">Saved - auto-saved in this browser, and included if you export it.</div>' : '')+'</div>'
-        : (g.type === 'reversal' ? '<div class="item-tip" style="margin-top:4px;">Detected from "RVSL"/"reversal" in the narration - this is your own money coming back (e.g. a failed payment refunded), not new income, so it needs no explanation.</div>' : '');
+        : (g.type === 'reversal' ? '<div class="item-tip" style="margin-top:4px;">Detected from "RVSL"/"reversal" in the narration - this is your own money coming back (e.g. a failed payment refunded), not new income, so it needs no explanation.</div>'
+          : (g.type === 'self' ? '<div class="item-tip" style="margin-top:4px;">The sender name on these payments matches your own name/account - this looks like money moving between your own accounts, not new income from someone else, so it needs no explanation.</div>' : ''));
     // Direct request: let the applicant correct a name that's been visibly mangled by a bad bank-
     // narration read, rather than the app guessing harder at cleanup heuristics. Editable only for
     // groups whose g.name IS a genuinely extracted sender (personal/company/family) — "Salary",
