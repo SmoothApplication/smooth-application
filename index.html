@@ -13203,19 +13203,23 @@
     });
     return (best && bestCount >= 2) ? toTitleCase(best) : (applicantName || null);
   }
-  // A candidate counts as "self" if it fully matches the resolved holder identity (isLikelyApplicantsOwnName,
-  // via namesLooselyMatch) OR shares at least one significant (3+ letter) word with it. The relaxed
-  // single-shared-word check is needed because a self-referential narration is often reduced to just
-  // one bare name word ("SENDER: MARY") — too little for a full-containment match against a 3-4 word
-  // identity — while still being a strong enough signal here since it's only ever checked against the
-  // resolved account-holder identity, never against an arbitrary other candidate. Trade-off, by
-  // design per the request this implements: a genuinely different third party who happens to share
-  // exactly one first/last name word with the account holder (e.g. a friend also named "Mary") would
-  // also read as "self" here — accepted as the cost of catching the real, observed pattern above.
+  // A candidate counts as "self" if it fully matches the resolved holder identity
+  // (isLikelyApplicantsOwnName, via namesLooselyMatch) OR — ONLY when the candidate is a single bare
+  // word ("SENDER: MARY") — shares at least one significant (3+ letter) word with it. That single-
+  // word restriction is deliberate and was tightened after a real regression: an EARLIER version of
+  // this check fired on any shared significant word regardless of candidate length, which wrongly
+  // caught a full "Mary Smith" sender as "self" purely because she shares the applicant's surname
+  // ("Smith") — exactly the shared-surname pattern the existing Family grouping (sharesSurname) is
+  // there to catch instead. A multi-word candidate carries other identifying words beyond the shared
+  // one; if those don't ALSO match the holder name, it names a genuinely different person (most often
+  // family), not the applicant. A single bare word has no such "other" identity to weigh against, so
+  // any significant overlap there is still a strong enough signal — narrowed, not removed.
   function looksLikeSelfInflow(candidateName, applicantName, holderName){
     if (isLikelyApplicantsOwnName(candidateName, applicantName)) return true;
     if (holderName && isLikelyApplicantsOwnName(candidateName, holderName)) return true;
     if (!holderName) return false;
+    var candWords = (candidateName || '').trim().split(/\s+/).filter(Boolean);
+    if (candWords.length !== 1) return false;
     return sharedSignificantWords(candidateName, holderName).length >= 1;
   }
   function buildIncomeSourceBreakdown(txns, applicantName){

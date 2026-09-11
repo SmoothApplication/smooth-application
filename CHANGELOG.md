@@ -61,6 +61,17 @@ New test/debug hooks: `window.__testExtractNameCandidatesDetailed`, `window.__te
 `window.__testFindInflowsMatchingNameWithCorrections`.
 New regression tests: `tests/sender-self-and-recipient-side.test.js`, `tests/workplace-income-fix-name-fallback.test.js`.
 
+**Regression fix, caught by the full test suite** (`consistent-senders-family-and-decode.test.js`,
+`source-box-collapse-waits-for-payments-panel.test.js`, `source-box-per-payment-reasons.test.js`):
+the "Self" detection above was originally too broad — its relaxed single-shared-word fallback fired
+for ANY candidate sharing a significant word with the resolved holder identity, which wrongly swept a
+full "Mary Smith" sender into "Self" purely because she shares the applicant's surname ("Smith") —
+exactly the shared-surname case the existing Family grouping is there to catch instead, not Self.
+`looksLikeSelfInflow` now only applies that relaxed check to a BARE single-word candidate ("SENDER:
+MARY") — a multi-word candidate needs the strict full-name match. Added a regression test for this
+exact case (a different first name sharing only the applicant's surname) to `sender-self-and-
+recipient-side.test.js`.
+
 ## Restructure: "Income vs. closing balance" moved into the Report tab
 
 User feedback, off the live "Income & bank statement analysis" section: "The income versus closing

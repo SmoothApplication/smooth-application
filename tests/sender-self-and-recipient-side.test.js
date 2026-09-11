@@ -108,6 +108,31 @@ exports.run = async function(ctx){
     var xpediteGroup = selfGroups.filter(function(g){ return /xpedite/i.test(g.name); });
     assert.strictEqual(xpediteGroup.length, 1, 'Xpedite payments should still form their own sender group, got: '+JSON.stringify(selfGroups));
     assert.strictEqual(xpediteGroup[0].type, 'company', 'Xpedite Global Concept Ltd should classify as company, got: '+JSON.stringify(xpediteGroup[0]));
+
+    // Regression guard: a FULL name that merely shares the applicant's surname with the resolved
+    // holder identity (a family member, e.g. "Mary Smith" when the holder is "Test Applicant Smith")
+    // must NOT be swept into "self" — only a BARE single-word candidate should get the relaxed
+    // shared-word treatment; a multi-word candidate needs the strict full-name match instead.
+    var familyGroups = await page.evaluate(function(){
+      return window.__testBuildIncomeSourceBreakdown([
+        // Establishes holder identity "Test Applicant Smith" from the recipient side, AND gives
+        // "Good Employer" a clear 3-month stable-amount lead — deliberately NOT tied with Mary
+        // Smith's own (different, non-recurring) amounts below, so this only exercises the
+        // self-vs-family distinction, not identifyStableIncome's own tie-breaking.
+        { narration: 'NIP TRF GOOD EMPLOYER LTD IFO TEST APPLICANT SMITH', credit: 300000, dateISO: '2026-01-15' },
+        { narration: 'FT GOOD EMPLOYER LTD IFO TEST APPLICANT SMITH', credit: 300000, dateISO: '2026-02-15' },
+        { narration: 'NIP TRF GOOD EMPLOYER LTD IFO TEST APPLICANT SMITH', credit: 300000, dateISO: '2026-03-15' },
+        // Different first name, same surname as the applicant — a family member, not the applicant.
+        // Different (non-recurring) amounts each, so neither collides with the stable-amount check.
+        { narration: 'BANKNIP From 000014 PAYREF: - SENDER: MARY SMITH', credit: 15000, dateISO: '2026-03-01' },
+        { narration: 'BANKNIP From 000014 PAYREF: - SENDER: MARY SMITH', credit: 18000, dateISO: '2026-04-01' }
+      ], 'Test Applicant Smith');
+    });
+    var marySmithGroup = familyGroups.filter(function(g){ return /mary smith/i.test(g.name); });
+    assert.strictEqual(marySmithGroup.length, 1, 'Mary Smith should appear as her own group, not be swept into Self, got: '+JSON.stringify(familyGroups));
+    assert.strictEqual(marySmithGroup[0].type, 'family', 'Mary Smith should be typed "family" (shared surname), got: '+JSON.stringify(marySmithGroup[0]));
+    var familySelfGroup = familyGroups.filter(function(g){ return g.type === 'self'; });
+    assert.strictEqual(familySelfGroup.length, 0, 'No "self" group should exist here — Mary Smith is a different person, got: '+JSON.stringify(familyGroups));
   } finally {
     await page.context().close();
   }
