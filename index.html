@@ -2004,7 +2004,7 @@
         <div class="checkrow"><input type="checkbox" id="rs_married"><label for="rs_married">I'm married</label></div>
         <div id="rs_spouseRow" style="display:none; padding-left:24px; margin:-2px 0 8px;">
           <label class="field" for="rs_spouseName">Spouse's full name</label>
-          <input type="text" id="rs_spouseName" placeholder="e.g. Chidinma Okafor">
+          <input type="text" id="rs_spouseName" placeholder="e.g. Chidinma Okafor" autocomplete="off">
           <!-- Field feedback: the spouse/sponsor DECISION questions (willing to fund? employed?
                travel history?) and the recommendation they feed moved to the new "What to do next"
                session (see data-session-key="nextSteps" below) - that's advice about who applies and
@@ -2073,11 +2073,11 @@
         <div class="row">
           <div>
             <label class="field" for="rs_addressNumber">House/street number</label>
-            <input type="text" id="rs_addressNumber" placeholder="e.g. 14">
+            <input type="text" id="rs_addressNumber" placeholder="e.g. 14" autocomplete="off">
           </div>
           <div>
             <label class="field" for="rs_addressName">Street/address name</label>
-            <input type="text" id="rs_addressName" placeholder="e.g. Adeola Odeku Street">
+            <input type="text" id="rs_addressName" placeholder="e.g. Adeola Odeku Street" autocomplete="off">
           </div>
         </div>
 
@@ -2087,16 +2087,16 @@
           <div class="row">
             <div>
               <label class="field" for="rs_annualRent">Annual rent (₦)</label>
-              <input type="text" inputmode="numeric" id="rs_annualRent" placeholder="e.g. 1500000">
+              <input type="text" inputmode="numeric" id="rs_annualRent" placeholder="e.g. 1500000" autocomplete="off">
             </div>
             <div>
               <label class="field" for="rs_monthlyUpkeep">Monthly upkeep / feeding (₦)</label>
-              <input type="text" inputmode="numeric" id="rs_monthlyUpkeep" placeholder="e.g. 120000">
+              <input type="text" inputmode="numeric" id="rs_monthlyUpkeep" placeholder="e.g. 120000" autocomplete="off">
             </div>
           </div>
           <div id="rs_schoolFeeRow" style="display:none;">
             <label class="field" for="rs_schoolFeePerTerm">School fees per child, per term (₦)</label>
-            <input type="text" inputmode="numeric" id="rs_schoolFeePerTerm" placeholder="e.g. 300000">
+            <input type="text" inputmode="numeric" id="rs_schoolFeePerTerm" placeholder="e.g. 300000" autocomplete="off">
           </div>
           <div id="rs_yearlySummary" style="margin-top:8px;"></div>
         </div>
@@ -2106,17 +2106,17 @@
           <div class="row">
             <div>
               <label class="field" for="rs_fatherName">Father's name</label>
-              <input type="text" id="rs_fatherName" placeholder="e.g. Emeka Okafor">
+              <input type="text" id="rs_fatherName" placeholder="e.g. Emeka Okafor" autocomplete="off">
               <div class="checkrow" style="margin-top:4px;"><input type="checkbox" id="rs_fatherDeceased"><label for="rs_fatherDeceased">Father has passed away / not applicable</label></div>
             </div>
             <div>
               <label class="field" for="rs_motherName">Mother's name</label>
-              <input type="text" id="rs_motherName" placeholder="e.g. Ngozi Okafor">
+              <input type="text" id="rs_motherName" placeholder="e.g. Ngozi Okafor" autocomplete="off">
               <div class="checkrow" style="margin-top:4px;"><input type="checkbox" id="rs_motherDeceased"><label for="rs_motherDeceased">Mother has passed away / not applicable</label></div>
             </div>
           </div>
           <label class="field" for="rs_remittance">How much do you send them (per month, ₦)?</label>
-          <input type="text" inputmode="numeric" id="rs_remittance" placeholder="e.g. 50000">
+          <input type="text" inputmode="numeric" id="rs_remittance" placeholder="e.g. 50000" autocomplete="off">
           <div class="checkrow" style="margin-top:6px;"><input type="checkbox" id="rs_verifyConsent"><label for="rs_verifyConsent">This is fine to cross-check against my bank statement above</label></div>
         </div>
         </div>
@@ -10910,7 +10910,7 @@
   function identifyStableIncome(txns){
     var groups = {};
     txns.forEach(function(t){
-      if (!t.credit || isReversalNarration(t)) return;
+      if (!t.credit || isReversalNarration(t) || isNonIncomeChargeNarration(t.narration)) return;
       var rounded = Math.round(t.credit / 5000) * 5000;
       var monthKey = t.date.getFullYear()+'-'+t.date.getMonth();
       if (!groups[rounded]) groups[rounded] = {};
@@ -10918,6 +10918,14 @@
     });
     var best = null, bestCount = 0;
     Object.keys(groups).forEach(function(k){
+      // Skip the "rounds to ₦0" bucket entirely — every credit under ₦2,500 lands here regardless of
+      // what it actually is (an airtime top-up, an SMS charge, a stray coin credit), so several
+      // completely unrelated tiny amounts can coincidentally pile up into what LOOKS like the
+      // best-recurring bucket. A "stable monthly income" of ₦0 is meaningless by definition, so this
+      // bucket can never win regardless of count — an extra structural safeguard alongside the
+      // narration-based isNonIncomeChargeNarration exclusion above, for whatever that exclusion's
+      // keyword list doesn't happen to catch.
+      if (+k <= 0) return;
       var count = Object.keys(groups[k]).length;
       if (count > bestCount){ bestCount = count; best = +k; }
     });
@@ -11214,6 +11222,24 @@
     if (/\brvsl\b|\brsvl\b|\breversal\b/i.test(narration || '')) return true;
     return !!(isTxn && narrationOrTxn.__amountMatchedReversal);
   }
+  // User-reported real case: 13 small credits narrated "Mobile USSDAirtime N500.00 to ..." and "SMS
+  // NOTIFICATION CHARGE FOR ..." got swept into the auto-detected "Salary" bucket — every one of these
+  // is under ₦2,500, so identifyStableIncome's round-to-nearest-₦5,000 bucketing collapsed them all
+  // into the SAME rounded amount (₦0), which then looked like a recurring "stable income" figure
+  // purely by coincidence of rounding. Whatever these actually are on the underlying statement (a
+  // genuine credit for an airtime/SMS-service refund, or a debit the column-parser assigned to the
+  // wrong side), they are never personal/employer income and should never be counted as any kind of
+  // inflow needing an income-source explanation — same treatment as a reversal, just detected by what
+  // the narration is FOR rather than by whether it undoes an earlier debit.
+  // NOTE: AIRTIME is deliberately NOT wrapped in \b...\b on its left side — real narrations run it
+  // straight into the channel code with no separator ("Mobile USSDAirtime N500.00..."), so a leading
+  // word-boundary check would never match inside "USSDAirtime" at all (no non-word character sits
+  // between the "D" and the "A"). "airtime" as a bare substring is distinctive enough on its own to
+  // not need one.
+  var NON_INCOME_CHARGE_RE = /\bSMS\s*NOTIFICATION\b|AIRTIME|\bDATA\s*BUNDLE\b|\bRECHARGE\b|\bCARD\s*MAINTENANCE\b|\bACCOUNT\s*MAINTENANCE\b|\bSTAMP\s*DUTY\b|\bVAT\s*CHARGE\b|\bCOMMISSION\s*ON\s*TURNOVER\b/i;
+  function isNonIncomeChargeNarration(narration){
+    return NON_INCOME_CHARGE_RE.test(narration || '');
+  }
   // Real-data finding (a real Fidelity Bank statement): a failed POS/transfer attempt can be reversed
   // WITHOUT any "RVSL"/"reversal" keyword in either line's narration — the credit simply repeats the
   // same merchant/reference description as the debit it's undoing (e.g. "ONB TRF TO POS Transf **7126
@@ -11315,7 +11341,7 @@
     // "GTB") before counting a transaction as a match.
     var minWordsNeeded = Math.min(2, words.length);
     var matches = txns.filter(function(t){
-      if (!t.credit || isReversalNarration(t)) return false;
+      if (!t.credit || isReversalNarration(t) || isNonIncomeChargeNarration(t.narration)) return false;
       var upperN = (t.narration || '').toUpperCase();
       var hitCount = words.filter(function(w){ return upperN.indexOf(w) !== -1; }).length;
       if (hitCount >= minWordsNeeded) return true;
@@ -11676,7 +11702,7 @@
   function identifyIncomeSourceName(txns, targetAmount, applicantName){
     var buckets = {};
     txns.forEach(function(t){
-      if (!t.credit || isReversalNarration(t)) return;
+      if (!t.credit || isReversalNarration(t) || isNonIncomeChargeNarration(t.narration)) return;
       if (Math.round(t.credit / 5000) * 5000 !== targetAmount) return;
       var monthKey = t.date.getFullYear() + '-' + t.date.getMonth();
       senderSideCandidates(t.narration, applicantName).forEach(function(name){
@@ -11701,7 +11727,7 @@
   function identifyTopIncomeSource(txns, applicantName){
     var buckets = {}; // name -> {count, totalAmount, months:{}, companyHits}
     txns.forEach(function(t){
-      if (!t.credit || isReversalNarration(t)) return;
+      if (!t.credit || isReversalNarration(t) || isNonIncomeChargeNarration(t.narration)) return;
       // Same fix as identifyIncomeSourceName/getTopConsistentSenders above — the applicant's own name
       // is on the "TO" side of nearly every narration, so left unfiltered it wins "most frequent
       // source" against itself almost every time.
@@ -11907,7 +11933,7 @@
           if (bizIncomeEl) bizIncomeEl.innerHTML = '<div class="scan-msg warn">No recurring personal drawing detected from the business account yet.</div>';
         }
         lastBusinessDrawings = match.transactions;
-        lastBusinessCredits = txns.filter(function(t){ return t.credit > 0 && !isReversalNarration(t); });
+        lastBusinessCredits = txns.filter(function(t){ return t.credit > 0 && !isReversalNarration(t) && !isNonIncomeChargeNarration(t.narration); });
         if (lastBusinessCredits.length){
           results.push({cls:'info', text:'Found '+lastBusinessCredits.length+' incoming payment(s) into the business - add a quick note on who paid and what it was for under "Business Income Record" below to build a clean, dated record for your visa application.'});
         }
@@ -13047,7 +13073,7 @@
   function getTopConsistentSenders(txns, n, applicantName){
     var namedGroups = {};
     txns.forEach(function(t){
-      if (!t.credit || isReversalNarration(t)) return;
+      if (!t.credit || isReversalNarration(t) || isNonIncomeChargeNarration(t.narration)) return;
       // Same fix as buildIncomeSourceBreakdown/identifyIncomeSourceName below — the applicant's own
       // name appears on the "TO" side of nearly every narration (they're the recipient of every
       // inflow), so without this it reliably wins "most consistent sender" against itself, and also
@@ -13242,6 +13268,10 @@
 
     txns.forEach(function(t){
       if (!t.credit) return;
+      // Bank fee / self-service purchase (SMS alert charge, airtime top-up, etc.) — never income,
+      // and unlike a reversal it's not "money that bounced back" either, so it isn't shown in any
+      // group at all, not even as an unexplained inflow needing a reason. See isNonIncomeChargeNarration.
+      if (isNonIncomeChargeNarration(t.narration)) return;
       if (isReversalNarration(t)){
         reversalTxns.push(t);
         return;
@@ -13311,7 +13341,7 @@
     // bucket. Empty nameWords here (see extractNarrationReason) is deliberate: at this point there's no
     // single "sender name" in scope to exclude, and a hint-matched candidate like "February Salary" is
     // already prioritized over a plain company-name candidate regardless.
-    groups.missingSalaryMonths = detectMissingSalaryMonths(txns.filter(function(t){ return t.credit && !isReversalNarration(t); }), []);
+    groups.missingSalaryMonths = detectMissingSalaryMonths(txns.filter(function(t){ return t.credit && !isReversalNarration(t) && !isNonIncomeChargeNarration(t.narration); }), []);
     return groups;
   }
 

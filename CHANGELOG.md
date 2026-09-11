@@ -3,6 +3,66 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Test fix: `closing-balance-autofill-and-quick-buffer` click-intercepted flake
+
+Ran down a `npm test` failure the user hit twice in a row (so not flaky, a real bug — just in the
+TEST, not the app): `closing-balance-autofill-and-quick-buffer.test.js`'s second sub-test forces
+every `<details>` on the page open via `document.querySelectorAll('details').forEach(d => d.open =
+true)` so `#fc_closing` is reachable, but that blanket selector also force-opens the unrelated
+"Advanced details" nav dropdown (`.fin-advanced-menu`) - a floating shortcuts menu, not a content
+section. Left open, its absolutely-positioned dropdown body renders directly on top of the finance
+sub-tabs row underneath, and stays there for the rest of that page's session - so the test's own
+later `goToFinanceStep(page2, 5)` click actually lands on the dropdown's "Top 10 inflows" shortcut
+instead of the Report tab it was aiming for, and times out. Fixed by excluding `.fin-advanced-menu`
+from the force-open sweep - every genuine content section still opens as before, just not this one
+floating menu that was never meant to be forced open in the first place.
+
+## Fix: airtime top-ups and SMS-alert charges swept into "Salary"
+
+User-reported bug, live site (screenshot of the "Salary" box): 13 small credits - recurring "Mobile
+USSDAirtime N500.00 to ..." top-ups, "SMS NOTIFICATION CHARGE FOR ..." bank fees, and one stray
+₦2,000 NIP transfer IFO an unrelated named person - were all swept into the auto-detected "Salary"
+bucket (₦7,077 total). Root cause: every one of these amounts is under ₦2,500, and
+`identifyStableIncome` rounds each credit to the nearest ₦5,000 before grouping by amount to find "the"
+recurring figure - so all of them rounded down to the SAME bucket, ₦0, which then looked like a
+best-recurring "stable income" bucket purely by coincidence of rounding, even though the underlying
+amounts have nothing to do with each other. User's own words: "This cannot be salary, this is airtime
+& SMS charge."
+
+Fixed two ways:
+- Added `isNonIncomeChargeNarration`, which recognizes narrations that are unmistakably a bank fee or
+  self-service purchase (SMS alert charge, airtime top-up, data bundle, recharge, card/account
+  maintenance, stamp duty, VAT charge, commission on turnover) and excludes them from every income-
+  classification entry point (`identifyStableIncome`, `buildIncomeSourceBreakdown`,
+  `identifyIncomeSourceName`, `identifyTopIncomeSource`, `getTopConsistentSenders`,
+  `findInflowsMatchingName`, `detectMissingSalaryMonths`'s input filter, and the Business Income
+  Ledger's credit list) - these are dropped entirely, not even shown as an unexplained inflow needing
+  a reason, the same treatment already given to reversals.
+- `identifyStableIncome` now also refuses to treat the "rounds to ₦0" bucket as a stable-income
+  candidate at all, regardless of narration content - a structural safeguard for whatever the
+  narration-keyword exclusion above doesn't happen to catch (the real report's stray ₦2,000 IFO
+  transfer carries no charge keyword at all, but is just as clearly not a recurring salary; it now
+  falls through to "Other / one-off inflows" instead, same as any other unidentified small credit).
+
+Added `tests/airtime-sms-charge-not-income.test.js` reproducing the exact reported mix (genuine
+₦300,000/month employer salary + 4 airtime/SMS-charge credits + the stray ₦2,000 IFO transfer) and
+confirming Salary contains only the genuine employer payments.
+
+## Fix: browser autofill pasting saved name/address data into "Your responsibilities" fields
+
+User-reported bug, live site: the "Annual rent (₦)" field displayed "Seyi Afeni" (a person's name)
+instead of a number, and "Monthly upkeep / feeding (₦)" showed "17" — matching the unrelated "House/
+street number" field's value. Traced every collection, session-restore, and reset function that
+touches these fields in `index.html` (all read/write each `rs_*` field by its own distinct id, with
+no positional or cross-field mixing anywhere) and confirmed the app's own code was not the cause.
+The real cause: none of this card's free-text inputs (spouse's name, father's/mother's name, house
+number, street name, annual rent, monthly upkeep, school fees, remittance amount) set an
+`autocomplete` attribute, unlike `f_email`/`f_phone` elsewhere in the app which deliberately do. Left
+unset, Chrome's address/name-autofill heuristics can treat this cluster of plain text inputs as one
+address-like form and silently paste a saved browser profile's name or street number into an
+unrelated numeric field. Fixed by adding `autocomplete="off"` to all 9 affected fields, and added
+`tests/responsibilities-autofill-guard.test.js` as a regression guard.
+
 ## Sender grouping: single-word senders, sender-vs-recipient side, short-name merge, "Self" category
 
 User feedback, off a real Sterling statement, across several rapid-fire messages:

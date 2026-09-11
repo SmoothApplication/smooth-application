@@ -78,7 +78,18 @@ exports.run = async function(ctx){
     try {
       await passConsentGate(page2);
       await goToSessionByPill(page2, 5); // finance session — fc_closing lives here
-      await page2.evaluate(function(){ document.querySelectorAll('details').forEach(function(d){ d.open = true; }); });
+      // Force every collapsible OPEN so fc_closing is reachable, EXCEPT the "Advanced details"
+      // dropdown (.fin-advanced-menu) — that one is a <details> too, but it's a floating nav
+      // shortcut menu, not a content section. Forced open, its absolutely-positioned dropdown body
+      // renders right where the finance sub-tabs row sits underneath (see .fin-advanced-menu-body's
+      // `top: calc(100% + 6px)`), and stays open for the rest of this page's session — which then
+      // silently intercepts the goToFinanceStep(page2, 5) click below (Playwright reports the click
+      // landing on the dropdown's "Top 10 inflows" shortcut instead of the Report tab it targeted).
+      await page2.evaluate(function(){
+        document.querySelectorAll('details').forEach(function(d){
+          if (!d.classList.contains('fin-advanced-menu')) d.open = true;
+        });
+      });
       await page2.fill('#fc_closing', '9999999');
       await goToSessionByPill(page2, 4); // finance2 session — stmtFile1/btnAnalyzeStatements live here
       await page2.setInputFiles('#stmtFile1', SAMPLE_STATEMENT);
