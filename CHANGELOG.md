@@ -3,6 +3,20 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## New: Marital status dropdown (Single/Married/Divorced) replaces the "I'm married" checkbox
+
+User request: "create a drop down for marital status and let it have a drop down menu of the following:
+Single, Married, Divorced. Not all applicants are married. Once applicants click Single, clear children
+and do not add the cost of school fees." The old checkbox only distinguished married/not-married; a
+divorced applicant had no accurate option. `#rs_maritalStatus` now offers Select…/Single/Married/
+Divorced; `married` in `getAnswers()` is derived as `maritalStatus === 'married'`, so every existing
+married-only toggle (spouse name row, maiden name row, spouse-sponsor section and checklist item) needed
+no changes. Picking "Single" clears the children count, which in turn hides the school-fee row and
+zeroes it out of the yearly cost estimate (the total multiplies the per-term fee by the child count) —
+rather than leaving a stale child count/school-fee estimate sitting there. Old saved sessions (which
+only have the previous boolean `married` field, not `maritalStatus`) restore correctly: `married:true`
+maps to "Married"; `married:false` is left unanswered rather than guessed at Single vs Divorced.
+
 ## New: "Top 10 most consistent senders" prompts for a missing second name
 
 User request: "Ask for the 2nd name. each person must have at least 2 names." A bank narration

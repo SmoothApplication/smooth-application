@@ -20,7 +20,7 @@ exports.run = async function(ctx){
     // data-session-key="nextSteps" HTML comment in index.html) - it's advice about who applies/pays,
     // not a document to collect, so it's a separate session card and needs its own navigation.
     await goToSessionByLabel(page, 'Your responsibilities');
-    await page.check('#rs_married');
+    await page.selectOption('#rs_maritalStatus', 'married');
     await page.fill('#rs_spouseName', 'Ngozi Adeyemi');
 
     await goToSessionByLabel(page, 'What to do next');

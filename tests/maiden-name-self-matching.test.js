@@ -18,20 +18,20 @@ exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page);
-    // #rs_gender/#rs_married live inside the collapsed "Your responsibilities" session card —
+    // #rs_gender/#rs_maritalStatus live inside the collapsed "Your responsibilities" session card —
     // Playwright's actionability checks require the element to be visible for selectOption/check
     // (unlike $eval, which works on hidden elements), so the card must be opened first.
     await goToSessionByLabel(page, 'Your responsibilities');
 
     // ---- UI: the maiden-name field only appears for a married female applicant ----
     await page.selectOption('#rs_gender', 'female');
-    await page.check('#rs_married');
+    await page.selectOption('#rs_maritalStatus', 'married');
     await page.waitForSelector('#rs_maidenNameRow:not([style*="display: none"])');
     var maidenRowVisible = await page.$eval('#rs_maidenNameRow', function(el){ return el.style.display !== 'none'; });
     assert.strictEqual(maidenRowVisible, true, 'Maiden name field should show once Female + Married are both set');
 
-    // Unchecking married (still Female) should hide it again.
-    await page.uncheck('#rs_married');
+    // Switching to Single (still Female) should hide it again.
+    await page.selectOption('#rs_maritalStatus', 'single');
     await page.waitForFunction(function(){
       var el = document.getElementById('rs_maidenNameRow');
       return el && el.style.display === 'none';
@@ -39,7 +39,7 @@ exports.run = async function(ctx){
 
     // Male + married should NOT show the maiden name field.
     await page.selectOption('#rs_gender', 'male');
-    await page.check('#rs_married');
+    await page.selectOption('#rs_maritalStatus', 'married');
     await page.waitForTimeout(200);
     var maidenRowHiddenForMale = await page.$eval('#rs_maidenNameRow', function(el){ return el.style.display === 'none'; });
     assert.strictEqual(maidenRowHiddenForMale, true, 'Maiden name field should stay hidden for a male applicant even if married');

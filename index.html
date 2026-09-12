@@ -2007,7 +2007,13 @@
           <option value="female">Female</option>
           <option value="male">Male</option>
         </select>
-        <div class="checkrow" style="margin-top:8px;"><input type="checkbox" id="rs_married"><label for="rs_married">I'm married</label></div>
+        <label class="field" for="rs_maritalStatus" style="margin-top:8px;">Marital status</label>
+        <select id="rs_maritalStatus">
+          <option value="">Select…</option>
+          <option value="single">Single</option>
+          <option value="married">Married</option>
+          <option value="divorced">Divorced</option>
+        </select>
         <div id="rs_spouseRow" style="display:none; padding-left:24px; margin:-2px 0 8px;">
           <label class="field" for="rs_spouseName">Spouse's full name</label>
           <input type="text" id="rs_spouseName" placeholder="e.g. Chidinma Okafor" autocomplete="off">
@@ -4918,7 +4924,8 @@
       hasOverstayed: document.getElementById('te_hasOverstayed').checked,
       // Session 3: Your responsibilities
       gender: document.getElementById('rs_gender').value,
-      married: document.getElementById('rs_married').checked,
+      maritalStatus: document.getElementById('rs_maritalStatus').value,
+      married: document.getElementById('rs_maritalStatus').value === 'married',
       maidenName: document.getElementById('rs_maidenName').value.trim(),
       spouseName: document.getElementById('rs_spouseName').value.trim(),
       spouseWilling: document.getElementById('rs_spouseWilling').value,
@@ -5198,7 +5205,7 @@
     }
     if (key === 'responsibilities'){
       var rsFields = ['rs_numKids','rs_state','rs_lga','rs_bedrooms','rs_addressNumber','rs_addressName'];
-      if (document.getElementById('rs_married').checked) rsFields.push('rs_spouseName');
+      if (document.getElementById('rs_maritalStatus').value === 'married') rsFields.push('rs_spouseName');
       if (document.getElementById('rs_agedParents').checked){
         rsFields.push('rs_remittance');
         // A parent who has passed away / isn't applicable shouldn't block 100% — only require a
@@ -6321,9 +6328,11 @@
    // Session 2: Travel Experience
    'te_firstTime','te_euFundsReady','te_euSingleEntryComfort','te_hasOverstayed',
    // Session 3: Your responsibilities
-   // rs_state has its own dedicated change listener (repopulates the LGA dropdown, then renders) —
-   // left out of this generic list to avoid double-rendering on every state change.
-   'rs_gender','rs_married','rs_maidenName','rs_spouseName','rs_spouseWilling','rs_spouseEmployed','rs_spouseUkHistory','rs_spouseSponsoring','rs_numKids','rs_lga','rs_etiOsaArea','rs_premiumPocket','rs_bedrooms','rs_addressNumber','rs_addressName','rs_annualRent','rs_monthlyUpkeep','rs_schoolFeePerTerm','rs_agedParents','rs_fatherName','rs_motherName','rs_fatherDeceased','rs_motherDeceased','rs_remittance','rs_verifyConsent',
+   // rs_state has its own dedicated change listener (repopulates the LGA dropdown, then renders), and
+   // rs_maritalStatus now has its own too (clears the children/school-fee fields on "Single" before
+   // rendering — see just below) — both left out of this generic list for the same reason: to avoid
+   // double-rendering, or in rs_maritalStatus's case, rendering BEFORE its own field-clearing runs.
+   'rs_gender','rs_maidenName','rs_spouseName','rs_spouseWilling','rs_spouseEmployed','rs_spouseUkHistory','rs_spouseSponsoring','rs_numKids','rs_lga','rs_etiOsaArea','rs_premiumPocket','rs_bedrooms','rs_addressNumber','rs_addressName','rs_annualRent','rs_monthlyUpkeep','rs_schoolFeePerTerm','rs_agedParents','rs_fatherName','rs_motherName','rs_fatherDeceased','rs_motherDeceased','rs_remittance','rs_verifyConsent',
    // "What to do next" session
    'nextStepsAck']
     .forEach(function(id){
@@ -6331,6 +6340,25 @@
       el.addEventListener('change', render);
       el.addEventListener('input', render);
     });
+
+  // User request: "create a drop down for marital status... Once applicants click Single, clear
+  // children and do not add the cost of school fees." Not every applicant is married, so this
+  // replaces the old "I'm married" checkbox with a real Single/Married/Divorced choice - see
+  // getAnswers()'s married/maritalStatus fields and the rs_spouseRow/rs_maidenNameRow/
+  // spouseSponsorSection toggles further down, all still keyed off married===true so nothing else
+  // needed to change for Married. Picking "Single" specifically clears the children count (which in
+  // turn hides the school-fee row and zeroes it out of the yearly cost total - see
+  // updateYearlyResponsibilitiesSummary, which multiplies the per-term fee by numKids) rather than just
+  // leaving a stale child count/school-fee estimate sitting there for someone who isn't a parent.
+  // Deliberately its own listener (left out of the generic list above) so this clearing runs BEFORE
+  // render() reads the fields, not after.
+  document.getElementById('rs_maritalStatus').addEventListener('change', function(){
+    if (this.value === 'single'){
+      var numKidsEl = document.getElementById('rs_numKids');
+      if (numKidsEl) numKidsEl.value = '';
+    }
+    render();
+  });
 
   // ---------------- Optional contact capture (Formspree) ----------------
   // Business request: "customers are asking we send the emails when they do not finish" — the
@@ -14765,7 +14793,12 @@
       document.getElementById('te_hasOverstayed').checked = !!payload.answers.hasOverstayed;
       // Session 3: Your responsibilities
       document.getElementById('rs_gender').value = payload.answers.gender || '';
-      document.getElementById('rs_married').checked = !!payload.answers.married;
+      // Backward-compat: a session saved before the Single/Married/Divorced dropdown replaced the old
+      // "I'm married" checkbox only has the old boolean `married` field, not `maritalStatus` - restore
+      // 'married' from it rather than leaving the dropdown on "Select…" (which would otherwise silently
+      // drop a real answer the applicant already gave). A saved `married:false` doesn't distinguish
+      // Single from Divorced, so it's left unanswered rather than guessed.
+      document.getElementById('rs_maritalStatus').value = payload.answers.maritalStatus || (payload.answers.married ? 'married' : '');
       document.getElementById('rs_maidenName').value = payload.answers.maidenName || '';
       document.getElementById('rs_spouseName').value = payload.answers.spouseName || '';
       document.getElementById('rs_spouseWilling').value = payload.answers.spouseWilling || '';
@@ -15038,7 +15071,7 @@
     renderOverstayTable();
     // Session 3: Your responsibilities
     document.getElementById('rs_gender').value = '';
-    document.getElementById('rs_married').checked = false;
+    document.getElementById('rs_maritalStatus').value = '';
     document.getElementById('rs_maidenName').value = '';
     document.getElementById('rs_spouseName').value = '';
     document.getElementById('rs_spouseWilling').value = '';

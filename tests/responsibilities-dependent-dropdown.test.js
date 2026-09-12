@@ -43,12 +43,12 @@ exports.run = async function(ctx){
     // occasionally race a layout shift and miss the target, seen intermittently here otherwise).
     await page.waitForTimeout(100);
 
-    // Married Y/N reveal.
+    // Marital status reveal (Single/Married/Divorced dropdown).
     var spouseRowBefore = await page.$eval('#rs_spouseRow', function(el){ return el.style.display !== 'none'; });
-    assert.strictEqual(spouseRowBefore, false, 'Spouse name field should be hidden before "married" is ticked');
-    await page.check('#rs_married', { force: true });
+    assert.strictEqual(spouseRowBefore, false, 'Spouse name field should be hidden before "Married" is picked');
+    await page.selectOption('#rs_maritalStatus', 'married');
     var spouseRowAfter = await page.$eval('#rs_spouseRow', function(el){ return el.style.display !== 'none'; });
-    assert.strictEqual(spouseRowAfter, true, 'Spouse name field should show once "married" is ticked');
+    assert.strictEqual(spouseRowAfter, true, 'Spouse name field should show once "Married" is picked');
     await page.fill('#rs_spouseName', 'Chidinma Okafor');
 
     // Aged-parents Y/N reveal.
