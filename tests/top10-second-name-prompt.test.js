@@ -25,9 +25,11 @@ exports.run = async function(ctx){
         // prompt despite being a real, recurring sender.
         { date: '2026-01-05', amount: 20000, narration: 'BANKNIP From 000014 PAYREF: - SENDER: MARY' },
         { date: '2026-02-05', amount: 20000, narration: 'BANKNIP From 000014 PAYREF: - SENDER: MARY' },
-        // A normal two-word sender - must NOT get the prompt.
-        { date: '2026-01-10', amount: 50000, narration: 'NIP TRF GOOD EMPLOYER LTD IFO CHIDINMA EZE' },
-        { date: '2026-02-10', amount: 50000, narration: 'NIP TRF GOOD EMPLOYER LTD IFO CHIDINMA EZE' }
+        // A normal two-word sender - must NOT get the prompt. Narrated sender-side (SENDER:, not
+        // IFO/TO) - a recipient-side name is excluded entirely by senderSideCandidates and would never
+        // reach this table at all, which isn't what this row is testing.
+        { date: '2026-01-10', amount: 50000, narration: 'BANKNIP From 000020 PAYREF: - SENDER: CHIDINMA EZE' },
+        { date: '2026-02-10', amount: 50000, narration: 'BANKNIP From 000020 PAYREF: - SENDER: CHIDINMA EZE' }
       ], 'Agboola Mary Oluwafunmilayo');
     });
 
