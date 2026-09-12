@@ -3,6 +3,104 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fix: a self-transfer narrated with the applicant's EXACT full name wasn't recognized as Self
+
+Found while writing a regression test for the previous fix below: a self-transfer whose narration
+states the applicant's own name exactly as typed (e.g. "SENDER: AGBOOLA MARY OLUWAFUNMILAYO" when the
+applicant's name is "Agboola Mary Oluwafunmilayo") was never classified as Self, because
+`senderSideCandidates` — used everywhere else to keep the applicant's own name from being mistaken for
+a legitimate third-party sender — strips out any candidate that's a full match to the applicant's name.
+That left the Self check with an empty candidate list, indistinguishable from a genuinely blank
+narration, so the transaction fell through to whatever stable-amount bucket matched instead. In
+practice this meant a stray, unrelated payment could ride along inside a false "Salary" bucket that the
+applicant's own (undetected) self-transfers had manufactured.
+
+Added `senderSideCandidatesForSelfCheck(narration)` — the same sender-side filtering, without the
+applicant's-own-name exclusion — and used it specifically for the Self check in both
+`buildIncomeSourceBreakdown`'s self-transfer pre-filter and its main classification loop.
+`senderSideCandidates` itself is unchanged for every other use (named-group/stable-sender matching).
+
+## New: Gender + maiden name, wired into Self matching
+
+User request: "Create female and ask if the applicant is married ask for maiden name. Use maiden name
+and married name to trace all inflows. All inflows in maiden name and married name should be taken to
+self." A married woman's bank statement can carry her maiden name on some transactions (an account
+opened before marriage, a recipient-side name never updated, a relative still using the old name) and
+her married/current name on others — both are genuinely the same person's own money.
+
+Added a "Gender" select and a "Maiden name (your name before marriage)" field to "Your
+responsibilities" — the maiden-name field only shows for a Female applicant who is also Married, right
+below the existing spouse's-name field. Threaded through `getAnswers`, session-restore, and reset, the
+same way every other field in that card already is. `buildIncomeSourceBreakdown` now takes an optional
+`maidenName` parameter and folds it in as one more holder-name variant alongside the auto-detected
+ones (see the "Self matching only checked ONE account-holder name variant" fix below), so a
+sender-side candidate matching either her typed passport name OR her maiden name routes to Self. Added
+`tests/maiden-name-self-matching.test.js` covering both the field visibility and the classification
+logic.
+
+## Fix: Top 10 consistent senders never applied "Fix name" corrections
+
+User-reported bug: "After correcting the names, the names corrected should change here. it seems you
+are not noting my corrections" — the "Top 10 most consistent senders" table kept showing the raw
+extracted name (e.g. "Crisp N") even after the applicant corrected it via "Fix name" on the Income
+sources breakdown box below. That box already applies `senderNameCorrections` to its own display (via
+`displaySourceName`), but this completely separate table builds its own groups from scratch and never
+consulted the same correction map. Fixed by looking up the same correction (keyed by the raw,
+uncorrected name) when building this table's rows too, so both tables now agree.
+
+## Fix: an unrelated stray payment rode a self-transfer-inflated "Salary" bucket
+
+User-reported bug: a single, isolated ₦18,730 payment with a blank/coded narration ("AFRC -
+080615544100155048 4891" — no sender name at all) got tagged "Salary", despite having nothing to do
+with the declared employer. User's own words: "This cannot be salary. Salary from what she filled has
+to be from Crisp N Clean Exclusive Solutions Ltd."
+
+Root cause: the applicant's own recurring self-transfers (many ~₦20,000 payments, already correctly
+classified as Self) rounded to the exact same ₦5,000 bucket that `identifyStableIncome` uses to detect
+"the" recurring stable-income amount — and since that detection ran on ALL credits with no awareness
+of Self at all, those self-transfers alone established ₦20,000 as the stable amount. A transaction
+with no sender name at all is trusted as salary whenever its rounded amount matches the established
+pattern (existing, deliberate behavior for genuinely anonymous salary narrations like "SALARY PAYMENT"
+with no employer name) — so the blank-narration payment rode along for free. Self-transfers aren't
+anyone's income and should never be able to manufacture a false "stable income" pattern in the first
+place. Fixed by filtering obvious self-transfers out of the transactions passed into
+`identifyStableIncome`/`identifyIncomeSourceName` inside `buildIncomeSourceBreakdown`, before stable-
+amount detection ever runs. Added `tests/stray-payment-no-false-salary-from-self-bucket.test.js`.
+
+## Fix: Self matching only checked ONE account-holder name variant
+
+User-reported bug, off a real Sterling statement: a payment narrated "SENDER: MARY 380
+OLUWAFUNMILAYO AFENI" landed in "Other / one-off inflows (no clear sender name)" instead of Self.
+User's own words: "Move to self for names that are similar with the names of account holder
+OLUWAFUNMILAYO AFENI or OLUWAFUNMILAYO AFENI MARY OR OLUWAFUNMILAYO AGBOOLA" - the same real account
+holder shows up on the RECIPIENT side of different transactions narrated with different
+subsets/orderings of a longer name, and no single variant necessarily recurs the most.
+
+Root cause: `detectStatementHolderName` picked only the SINGLE most-recurring recipient-side name
+variant and discarded every other one, so a self-transfer narrated with a genuinely-recurring but
+less-common variant never matched. Fixed by adding `detectStatementHolderNames` (plural), which
+returns EVERY recipient-side name variant recurring at least twice instead of just the best one;
+`looksLikeSelfInflow` now checks a candidate against ALL of them. `detectStatementHolderName`
+(singular) is kept as a thin wrapper returning the same "best" pick as before, for backward
+compatibility. Added `tests/self-inflow-holder-name-variants.test.js`.
+
+## Fix: "Fix name" didn't live-refresh Workplace/Business income
+
+User-reported gap, repeated more than once: applying "Fix name" to correct a truncated sender (e.g.
+"Crisp N" -> "Crisp N Clean Exclusive Solutions Ltd") only ever changed how that ONE sender group
+displayed on the Income sources breakdown tab - the Workplace income tab kept showing empty until the
+applicant re-uploaded and re-ran "Analyze Statements" from scratch, even though
+`findInflowsMatchingName` already knows how to use a saved Fix Name correction (via
+`resolveSenderNameCorrection`) once one exists. User's own words: "Automatically put all inflow from
+place of work to workplace income."
+
+Added `rerenderMatchedIncomeGroups()` - the same cheap re-render pattern already used for "Top 10 most
+consistent senders" (`rerenderTopConsistentSenders`, off the cached `window.__lastConsistentSendersInput`)
+- and wired it into the "Fix name" Save handler, so the Workplace/Business income tabs refresh
+immediately off the same cached statement, with no re-upload or re-analysis needed. Added a
+`window.__testRerenderMatchedIncomeGroups` test hook and
+`tests/workplace-income-live-refresh-after-fix-name.test.js`.
+
 ## Test fix: `closing-balance-autofill-and-quick-buffer` click-intercepted flake
 
 Ran down a `npm test` failure the user hit twice in a row (so not flaky, a real bug — just in the

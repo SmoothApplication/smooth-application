@@ -2001,7 +2001,13 @@
           <span class="chevron">▸</span>
         </summary>
         <div class="card-body">
-        <div class="checkrow"><input type="checkbox" id="rs_married"><label for="rs_married">I'm married</label></div>
+        <label class="field" for="rs_gender">Gender</label>
+        <select id="rs_gender">
+          <option value="">Select…</option>
+          <option value="female">Female</option>
+          <option value="male">Male</option>
+        </select>
+        <div class="checkrow" style="margin-top:8px;"><input type="checkbox" id="rs_married"><label for="rs_married">I'm married</label></div>
         <div id="rs_spouseRow" style="display:none; padding-left:24px; margin:-2px 0 8px;">
           <label class="field" for="rs_spouseName">Spouse's full name</label>
           <input type="text" id="rs_spouseName" placeholder="e.g. Chidinma Okafor" autocomplete="off">
@@ -2011,6 +2017,17 @@
                who pays, grouped with the rest of the "here's what to do" report rather than mixed
                into this basic-facts form. Just the spouse's name (needed elsewhere, e.g. sponsor
                letters) stays here. -->
+        </div>
+        <div id="rs_maidenNameRow" style="display:none; padding-left:24px; margin:-2px 0 8px;">
+          <label class="field" for="rs_maidenName">Maiden name (your name before marriage)</label>
+          <input type="text" id="rs_maidenName" placeholder="e.g. Oluwafunmilayo Afeni" autocomplete="off">
+          <!-- User request: bank statements often still carry a married woman's maiden name on some
+               transactions (a bank account registered before marriage, a recipient-side name that
+               never got updated, a relative who still uses the old name) alongside her current married
+               name on others. Asking for both lets Self-classification recognize money moving between
+               her own accounts under EITHER name, not just whichever one she typed as her passport
+               name - see buildIncomeSourceBreakdown's maidenName parameter. -->
+          <details class="tip-details"><summary>Why?</summary><div class="item-tip">Bank statements sometimes show your maiden name instead of your married name on some transactions. Adding it here helps this tool correctly recognize your own money moving between your own accounts, instead of mistaking it for someone else's payment.</div></details>
         </div>
 
         <div class="row">
@@ -4900,7 +4917,9 @@
       euSingleEntryComfort: document.getElementById('te_euSingleEntryComfort').value,
       hasOverstayed: document.getElementById('te_hasOverstayed').checked,
       // Session 3: Your responsibilities
+      gender: document.getElementById('rs_gender').value,
       married: document.getElementById('rs_married').checked,
+      maidenName: document.getElementById('rs_maidenName').value.trim(),
       spouseName: document.getElementById('rs_spouseName').value.trim(),
       spouseWilling: document.getElementById('rs_spouseWilling').value,
       spouseEmployed: document.getElementById('rs_spouseEmployed').value,
@@ -5383,11 +5402,11 @@
   // hand-built transaction list (narration/credit/dateISO), without needing a real PDF-statement
   // fixture just to catch a Self/Salary/grouping classification regression. dateISO is converted to a
   // real Date here since JSON can't carry one across page.evaluate's serialization boundary.
-  window.__testBuildIncomeSourceBreakdown = function(txnsIn, applicantName){
+  window.__testBuildIncomeSourceBreakdown = function(txnsIn, applicantName, maidenName){
     var txns = (txnsIn || []).map(function(t){
       return { narration: t.narration, credit: t.credit, date: new Date(t.dateISO) };
     });
-    return buildIncomeSourceBreakdown(txns, applicantName).map(function(g){
+    return buildIncomeSourceBreakdown(txns, applicantName, maidenName).map(function(g){
       return { name: g.name, type: g.type, count: g.count, total: g.total };
     });
   };
@@ -5406,6 +5425,49 @@
       return { words: result.words, matchCount: result.matches.length, matchTotal: result.matches.reduce(function(s,t){ return s+t.credit; }, 0) };
     } finally {
       senderNameCorrections = saved;
+    }
+  };
+  // Lets a test drive rerenderMatchedIncomeGroups() (the live-refresh triggered by saving a "Fix name"
+  // correction — see its own comment in index.html) directly, without needing to actually parse a real
+  // PDF through the full "Analyze Statements" pipeline or click through the Fix Name UI first. Sets up
+  // exactly the state that function reads (window.__lastConsistentSendersInput, senderNameCorrections,
+  // and the "Work status" employer/business fields), calls it, and returns both boxes' rendered HTML so
+  // a test can check whether the matched inflow(s) actually appear. Restores every piece of state it
+  // touched afterward so it can't leak into anything else the page does.
+  window.__testRerenderMatchedIncomeGroups = function(txnsIn, workAnswers, corrections){
+    var txns = (txnsIn || []).map(function(t){
+      return { narration: t.narration, credit: t.credit, date: new Date(t.dateISO) };
+    });
+    var savedInput = window.__lastConsistentSendersInput;
+    var savedCorrections = senderNameCorrections;
+    var fieldIds = ['f_employed','f_employerName','f_employerAltName','f_selfEmployed','f_businessName','f_businessAltName'];
+    var savedFieldValues = {};
+    fieldIds.forEach(function(id){
+      var el = document.getElementById(id);
+      savedFieldValues[id] = el ? (el.type === 'checkbox' ? el.checked : el.value) : null;
+    });
+    window.__lastConsistentSendersInput = { txns: txns, applicantName: (workAnswers && workAnswers.applicantName) || '' };
+    senderNameCorrections = corrections || {};
+    fieldIds.forEach(function(id){
+      var el = document.getElementById(id);
+      if (!el) return;
+      var v = (workAnswers && (id in workAnswers)) ? workAnswers[id] : (el.type === 'checkbox' ? false : '');
+      if (el.type === 'checkbox') el.checked = !!v; else el.value = v;
+    });
+    try {
+      rerenderMatchedIncomeGroups();
+      return {
+        employerHtml: document.getElementById('employerIncomeInflowsBox').innerHTML,
+        businessHtml: document.getElementById('matchedIncomeInflowsBox').innerHTML
+      };
+    } finally {
+      window.__lastConsistentSendersInput = savedInput;
+      senderNameCorrections = savedCorrections;
+      fieldIds.forEach(function(id){
+        var el = document.getElementById(id);
+        if (!el) return;
+        if (el.type === 'checkbox') el.checked = savedFieldValues[id]; else el.value = savedFieldValues[id];
+      });
     }
   };
   // Same reasoning again — lets a test check exactly what extractDates()/parseMrzFields() pull out of
@@ -5700,6 +5762,8 @@
 
     // Session 3: Your responsibilities
     document.getElementById('rs_spouseRow').style.display = a.married ? 'block' : 'none';
+    var maidenNameRowEl = document.getElementById('rs_maidenNameRow');
+    if (maidenNameRowEl) maidenNameRowEl.style.display = (a.married && a.gender === 'female') ? 'block' : 'none';
     // Spouse/sponsor Q&A itself now lives on the "What to do next" session (see the HTML comment
     // there) - only its visibility toggle stays keyed off the same a.married answer.
     var spouseSponsorSectionEl = document.getElementById('rs_spouseSponsorSection');
@@ -6169,6 +6233,35 @@
     if (!input) return;
     renderTopConsistentSenders(getTopConsistentSenders(input.txns, 10, input.applicantName));
   }
+  // User-reported gap, off a real statement: applying "Fix name" (e.g. "Crisp N" -> "Crisp N Clean
+  // Exclusive Solutions Ltd") only ever changed how that ONE sender group displayed on the Income
+  // sources breakdown tab — the Workplace/Business income tabs kept showing empty (or stale) until the
+  // applicant re-uploaded and re-ran "Analyze Statements" from scratch, even though
+  // findInflowsMatchingName already knows how to use a Fix Name correction (via
+  // resolveSenderNameCorrection) once it exists. Same cheap re-render pattern as
+  // rerenderTopConsistentSenders above — reuses the same cached txns rather than re-parsing anything —
+  // just recomputes the two name-matched groups and redraws both boxes.
+  function rerenderMatchedIncomeGroups(){
+    var input = window.__lastConsistentSendersInput;
+    if (!input) return;
+    var a = getAnswers();
+    var namesToCheck = [];
+    if (a.employed && a.employerName) namesToCheck.push({label:'employer', name: a.employerName, altName: a.employerAltName});
+    if (a.selfEmployed && a.businessName) namesToCheck.push({label:'business', name: a.businessName, altName: a.businessAltName});
+    if (!namesToCheck.length) return;
+    var matchedIncomeGroups = [];
+    namesToCheck.forEach(function(n){
+      var matchName = n.altName ? (n.name + ' ' + n.altName) : n.name;
+      var inflowInfo = findInflowsMatchingName(matchName, input.txns);
+      if (inflowInfo.matches.length){
+        matchedIncomeGroups.push({label: n.label, name: n.name, category: (n.label === 'business' ? 'business' : 'salary'), txns: inflowInfo.matches});
+      }
+    });
+    var businessIncomeGroups = matchedIncomeGroups.filter(function(g){ return g.label !== 'employer'; });
+    var employerIncomeGroups = matchedIncomeGroups.filter(function(g){ return g.label === 'employer'; });
+    renderMatchedIncomeInflows(businessIncomeGroups, 'matchedIncomeInflowsBox');
+    renderMatchedIncomeInflows(employerIncomeGroups, 'employerIncomeInflowsBox', 'emp_');
+  }
 
   ['f_name','f_purpose','f_traveldate','f_returndate','f_appdate','f_travelerCount','f_adults','f_adolescents','f_children','f_hasHost','f_hostFunding','f_employed','f_employerName','f_employerAltName','f_selfEmployed','f_businessName','f_businessAltName','f_student','f_studentSponsor','f_sponsorRelationship','f_hasChild','f_translation','f_readyToSubmit','f_hasRefusal','f_refusalCount','f_refusalDetails',
    // Session 1: Validate your International Passport
@@ -6178,7 +6271,7 @@
    // Session 3: Your responsibilities
    // rs_state has its own dedicated change listener (repopulates the LGA dropdown, then renders) —
    // left out of this generic list to avoid double-rendering on every state change.
-   'rs_married','rs_spouseName','rs_spouseWilling','rs_spouseEmployed','rs_spouseUkHistory','rs_spouseSponsoring','rs_numKids','rs_lga','rs_etiOsaArea','rs_premiumPocket','rs_bedrooms','rs_addressNumber','rs_addressName','rs_annualRent','rs_monthlyUpkeep','rs_schoolFeePerTerm','rs_agedParents','rs_fatherName','rs_motherName','rs_fatherDeceased','rs_motherDeceased','rs_remittance','rs_verifyConsent',
+   'rs_gender','rs_married','rs_maidenName','rs_spouseName','rs_spouseWilling','rs_spouseEmployed','rs_spouseUkHistory','rs_spouseSponsoring','rs_numKids','rs_lga','rs_etiOsaArea','rs_premiumPocket','rs_bedrooms','rs_addressNumber','rs_addressName','rs_annualRent','rs_monthlyUpkeep','rs_schoolFeePerTerm','rs_agedParents','rs_fatherName','rs_motherName','rs_fatherDeceased','rs_motherDeceased','rs_remittance','rs_verifyConsent',
    // "What to do next" session
    'nextStepsAck']
     .forEach(function(id){
@@ -11699,6 +11792,22 @@
       .filter(function(r){ return RECIPIENT_MARKERS.indexOf(r.precededBy) === -1 && !isLikelyApplicantsOwnName(r.name, applicantName); })
       .map(function(r){ return r.name; });
   }
+  // Same sender-side filtering as senderSideCandidates above, WITHOUT the isLikelyApplicantsOwnName
+  // exclusion — used only by the Self check (looksLikeSelfInflow). Real-data bug: a self-transfer
+  // narrated with the applicant's EXACT full typed name ("SENDER: AGBOOLA MARY OLUWAFUNMILAYO", where
+  // that's precisely what's typed as her passport name) got its only candidate stripped out entirely
+  // by senderSideCandidates' own applicant-name exclusion — correct for every OTHER caller (an
+  // employer/business name-matcher shouldn't treat the applicant's own name as a legitimate
+  // third-party sender), but it meant the Self check downstream had NOTHING left to test, so the
+  // transaction looked exactly like a genuinely blank/coded narration and fell through to "no
+  // candidate name — trust it as salary" instead of being recognised as obviously the applicant's own
+  // money. The Self check needs the UNFILTERED candidate precisely so it can positively match it
+  // against the applicant's own name/holder-name variants itself.
+  function senderSideCandidatesForSelfCheck(narration){
+    return extractNameCandidatesDetailed(narration)
+      .filter(function(r){ return RECIPIENT_MARKERS.indexOf(r.precededBy) === -1; })
+      .map(function(r){ return r.name; });
+  }
   function identifyIncomeSourceName(txns, targetAmount, applicantName){
     var buckets = {};
     txns.forEach(function(t){
@@ -13095,7 +13204,12 @@
       var months = {};
       var total = 0;
       grpTxns.forEach(function(t){ months[t.date.getFullYear()+'-'+t.date.getMonth()] = true; total += t.credit; });
-      return {name: name, monthCount: Object.keys(months).length, count: grpTxns.length, total: total};
+      // User-reported bug: this table kept showing the raw extracted name ("Crisp N") even after the
+      // applicant corrected it via "Fix name" on the Income sources breakdown below — that box applies
+      // senderNameCorrections to its own display (see displaySourceName), but this completely separate
+      // table built its own namedGroups and never consulted the same correction map. Same lookup here
+      // (keyed by the raw, uncorrected name, exactly like displaySourceName does) so both tables agree.
+      return {name: displaySourceName({name: name}), monthCount: Object.keys(months).length, count: grpTxns.length, total: total};
     });
     list.sort(function(a,b){ return b.monthCount - a.monthCount || b.count - a.count || b.total - a.total; });
     return {list: list.slice(0, n || 10), pendingDuplicates: dup.pending};
@@ -13213,7 +13327,17 @@
   // have shown can differ from however the bank account is actually registered (a maiden name, a
   // shortened form, extra/missing middle names) — falling back to the typed applicant name if no
   // recipient-side name recurs at all.
-  function detectStatementHolderName(txns, applicantName){
+  // Real-data finding, off a real Sterling statement: the SAME account holder shows up on the
+  // RECIPIENT side of different transactions narrated with DIFFERENT subsets/orderings of a longer
+  // real name — e.g. "Oluwafunmilayo Afeni", "Oluwafunmilayo Afeni Mary", and "Oluwafunmilayo Agboola"
+  // all genuinely refer to one person, none of them the applicant's typed passport name verbatim,
+  // and no single one of them necessarily recurs the MOST often. Picking only the single best-recurring
+  // variant (the old behavior, still exposed below as detectStatementHolderName for whichever caller
+  // wants just one) silently discarded every other variant, so a genuine self-transfer narrated with a
+  // less-common variant fell through to "no clear sender name" / a personal box instead of Self. This
+  // returns EVERY variant that recurs at least twice, so a self-check can match a candidate against
+  // any of them, not just whichever one happened to recur most.
+  function detectStatementHolderNames(txns, applicantName){
     var buckets = {}; // lowercased name -> count
     txns.forEach(function(t){
       if (!t.credit) return;
@@ -13223,33 +13347,78 @@
         buckets[key] = (buckets[key] || 0) + 1;
       });
     });
-    var best = null, bestCount = 0;
-    Object.keys(buckets).forEach(function(k){
-      if (buckets[k] > bestCount){ bestCount = buckets[k]; best = k; }
-    });
-    return (best && bestCount >= 2) ? toTitleCase(best) : (applicantName || null);
+    var keys = Object.keys(buckets).filter(function(k){ return buckets[k] >= 2; });
+    keys.sort(function(a,b){ return buckets[b] - buckets[a]; }); // most-recurring first
+    var variants = keys.map(toTitleCase);
+    return variants.length ? variants : (applicantName ? [applicantName] : []);
   }
-  // A candidate counts as "self" if it fully matches the resolved holder identity
+  // Single-name convenience wrapper — same "most-recurring" pick as this function always made before
+  // detectStatementHolderNames (plural) existed, kept for any caller that only needs one name.
+  function detectStatementHolderName(txns, applicantName){
+    var variants = detectStatementHolderNames(txns, applicantName);
+    return variants.length ? variants[0] : null;
+  }
+  // A candidate counts as "self" if it fully matches ANY resolved holder-name variant
   // (isLikelyApplicantsOwnName, via namesLooselyMatch) OR — ONLY when the candidate is a single bare
-  // word ("SENDER: MARY") — shares at least one significant (3+ letter) word with it. That single-
-  // word restriction is deliberate and was tightened after a real regression: an EARLIER version of
-  // this check fired on any shared significant word regardless of candidate length, which wrongly
-  // caught a full "Mary Smith" sender as "self" purely because she shares the applicant's surname
-  // ("Smith") — exactly the shared-surname pattern the existing Family grouping (sharesSurname) is
-  // there to catch instead. A multi-word candidate carries other identifying words beyond the shared
-  // one; if those don't ALSO match the holder name, it names a genuinely different person (most often
-  // family), not the applicant. A single bare word has no such "other" identity to weigh against, so
-  // any significant overlap there is still a strong enough signal — narrowed, not removed.
-  function looksLikeSelfInflow(candidateName, applicantName, holderName){
+  // word ("SENDER: MARY") — shares at least one significant (3+ letter) word with any of them. That
+  // single-word restriction is deliberate and was tightened after a real regression: an EARLIER
+  // version of this check fired on any shared significant word regardless of candidate length, which
+  // wrongly caught a full "Mary Smith" sender as "self" purely because she shares the applicant's
+  // surname ("Smith") — exactly the shared-surname pattern the existing Family grouping
+  // (sharesSurname) is there to catch instead. A multi-word candidate carries other identifying words
+  // beyond the shared one; if those don't ALSO match a holder-name variant, it names a genuinely
+  // different person (most often family), not the applicant. A single bare word has no such "other"
+  // identity to weigh against, so any significant overlap there is still a strong enough signal —
+  // narrowed, not removed.
+  function looksLikeSelfInflow(candidateName, applicantName, holderNames){
     if (isLikelyApplicantsOwnName(candidateName, applicantName)) return true;
-    if (holderName && isLikelyApplicantsOwnName(candidateName, holderName)) return true;
-    if (!holderName) return false;
+    var variants = holderNames || [];
+    for (var i = 0; i < variants.length; i++){
+      if (isLikelyApplicantsOwnName(candidateName, variants[i])) return true;
+    }
+    if (!variants.length) return false;
     var candWords = (candidateName || '').trim().split(/\s+/).filter(Boolean);
     if (candWords.length !== 1) return false;
-    return sharedSignificantWords(candidateName, holderName).length >= 1;
+    for (var j = 0; j < variants.length; j++){
+      if (sharedSignificantWords(candidateName, variants[j]).length >= 1) return true;
+    }
+    return false;
   }
-  function buildIncomeSourceBreakdown(txns, applicantName){
-    var stable = identifyStableIncome(txns);
+  function buildIncomeSourceBreakdown(txns, applicantName, maidenName){
+    var accountHolderNames = detectStatementHolderNames(txns, applicantName);
+    // User request: a married woman's bank statement can carry her maiden name on some transactions
+    // (an account opened before marriage, a recipient-side name that was never updated, a relative
+    // still using the old name) and her married name on others — both are genuinely the SAME person's
+    // own money, so the maiden name typed in "Your responsibilities" is folded in here as one more
+    // holder-name variant, exactly like the auto-detected ones above, rather than needing its own
+    // separate check.
+    if (maidenName && maidenName.trim()) accountHolderNames = accountHolderNames.concat([maidenName.trim()]);
+    // User-reported bug, off a real statement: a single, isolated ₦18,730 payment with a blank/coded
+    // narration ("AFRC - 080615544100155048 4891" — no sender name at all) got swept into "Salary",
+    // even though it has nothing to do with the declared employer (Crisp N Clean Exclusive Solutions
+    // Ltd). Root cause: the applicant's OWN roughly-₦20,000 self-transfers (many of them, across many
+    // months — see the Self classification above) rounded to the exact same ₦5,000 bucket and, since
+    // identifyStableIncome/identifyIncomeSourceName ran on ALL credits with no awareness of Self at
+    // all, established ₦20,000 as "the" stable recurring amount purely off money moving between the
+    // applicant's own accounts — a bucket that then had room for one more blank-narration payment to
+    // ride along for free (see the "no candidate name" branch below). Self-transfers aren't anyone's
+    // income and should never be able to manufacture a false "stable income" pattern in the first
+    // place, so they're filtered out here, before the stable-amount detection even runs — the same
+    // treatment reversals and bank-fee narrations already get (see isReversalNarration/
+    // isNonIncomeChargeNarration inside identifyStableIncome itself).
+    // Uses senderSideCandidatesForSelfCheck (NOT senderSideCandidates) here deliberately: a self-transfer
+    // narrated with the applicant's EXACT full typed name has its only candidate stripped by
+    // senderSideCandidates' own isLikelyApplicantsOwnName filter, leaving candidates=[] — indistinguishable
+    // from a genuinely blank narration, so it could never be recognized as Self and would ride along in
+    // whatever stable-amount bucket matched instead (real bug: a stray unrelated ₦18,730 payment was folded
+    // into "Salary" this way). The unfiltered candidate list lets the Self check positively match the
+    // applicant's own name here, while every other caller of senderSideCandidates is unaffected.
+    var nonSelfTxns = txns.filter(function(t){
+      if (!t.credit) return true;
+      var selfCheckCandidates = senderSideCandidatesForSelfCheck(t.narration);
+      return !selfCheckCandidates.some(function(c){ return looksLikeSelfInflow(c, applicantName, accountHolderNames); });
+    });
+    var stable = identifyStableIncome(nonSelfTxns);
     // A recurring rounded amount only means "stable income from one source" if the transactions making it
     // up actually share a consistent, identifiable sender — otherwise it's just several DIFFERENT people or
     // companies whose one-off payments happen to land on the same round number (real user report: a genuine
@@ -13260,8 +13429,7 @@
     // sender at all, which most genuine salary narrations don't ("SALARY PAYMENT" with no employer name) — are
     // trusted as "Salary"; a transaction with a name candidate that doesn't match the dominant sender is routed
     // to its own named group instead, exactly like any other identified sender.
-    var stableSourceName = stable ? identifyIncomeSourceName(txns, stable.amount, applicantName) : null;
-    var accountHolderName = detectStatementHolderName(txns, applicantName);
+    var stableSourceName = stable ? identifyIncomeSourceName(nonSelfTxns, stable.amount, applicantName) : null;
     var salaryTxns = [], otherTxns = [], reversalTxns = [], selfTxns = [];
     var namedGroups = {}; // titleCasedName -> txns[]
     var applicantSurname = surnameOf(applicantName);
@@ -13284,8 +13452,12 @@
       // Checked BEFORE the stable-amount Salary match below and before falling through to a named
       // group — a self-transfer is neither "salary" nor "someone I need to explain my relationship
       // to," regardless of whether its amount happens to also recur (see detectStatementHolderName/
-      // looksLikeSelfInflow above).
-      if (candidates.some(function(c){ return looksLikeSelfInflow(c, applicantName, accountHolderName); })){
+      // looksLikeSelfInflow above). Uses the RAW (unfiltered) candidate list for this check specifically
+      // — see senderSideCandidatesForSelfCheck's own comment — so a self-transfer narrated with the
+      // applicant's EXACT full name is still recognized as Self instead of falling through with
+      // candidates=[] to the "no candidate name" / stable-bucket branches below.
+      var selfCheckCandidates = senderSideCandidatesForSelfCheck(t.narration);
+      if (selfCheckCandidates.some(function(c){ return looksLikeSelfInflow(c, applicantName, accountHolderNames); })){
         selfTxns.push(t);
         return;
       }
@@ -13693,6 +13865,11 @@
           var val = inputEl ? inputEl.value.trim() : '';
           if (val && val !== g.name) senderNameCorrections[key] = val; else delete senderNameCorrections[key];
           scheduleAutoSave();
+          // Also live-refreshes the Workplace/Business income tabs — a Fix Name correction is exactly
+          // what lets findInflowsMatchingName's Fix-Name fallback recognize these payments as the
+          // declared employer/business (see resolveSenderNameCorrection), so it shouldn't take a full
+          // re-run of "Analyze Statements" to show up there too.
+          rerenderMatchedIncomeGroups();
           var boxEl = document.getElementById('srcbox_'+idx);
           if (!boxEl) return;
           boxEl.outerHTML = renderSourceBoxHtml(idx, key, g, false);
@@ -14009,7 +14186,7 @@
         // (see rerenderTopConsistentSenders) instead of re-scanning the uploaded file(s).
         window.__lastConsistentSendersInput = {txns: recentTxns, applicantName: getAnswers().name};
         renderTopConsistentSenders(getTopConsistentSenders(recentTxns, 10, getAnswers().name));
-        renderIncomeBreakdown(buildIncomeSourceBreakdown(recentTxns, getAnswers().name));
+        renderIncomeBreakdown(buildIncomeSourceBreakdown(recentTxns, getAnswers().name, getAnswers().maidenName));
         // Auto-advance from the Upload tab to the Cash flow & scores tab so the applicant sees the
         // direct result of what they just uploaded without an extra click — same "nobody has to
         // remember to go find it" idea as the old auto-opening report group this replaced. The
@@ -14504,7 +14681,9 @@
       document.getElementById('te_euSingleEntryComfort').value = payload.answers.euSingleEntryComfort || '';
       document.getElementById('te_hasOverstayed').checked = !!payload.answers.hasOverstayed;
       // Session 3: Your responsibilities
+      document.getElementById('rs_gender').value = payload.answers.gender || '';
       document.getElementById('rs_married').checked = !!payload.answers.married;
+      document.getElementById('rs_maidenName').value = payload.answers.maidenName || '';
       document.getElementById('rs_spouseName').value = payload.answers.spouseName || '';
       document.getElementById('rs_spouseWilling').value = payload.answers.spouseWilling || '';
       document.getElementById('rs_spouseEmployed').value = payload.answers.spouseEmployed || '';
@@ -14775,7 +14954,9 @@
     renderTravelHistoryTable();
     renderOverstayTable();
     // Session 3: Your responsibilities
+    document.getElementById('rs_gender').value = '';
     document.getElementById('rs_married').checked = false;
+    document.getElementById('rs_maidenName').value = '';
     document.getElementById('rs_spouseName').value = '';
     document.getElementById('rs_spouseWilling').value = '';
     document.getElementById('rs_spouseEmployed').value = '';
