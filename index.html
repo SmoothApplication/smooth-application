@@ -5414,6 +5414,16 @@
   // comment in index.html) with a specific senderNameCorrections map, without needing to actually
   // click through the Fix Name UI first. Saves and restores the real senderNameCorrections around the
   // call so this can't leak state into anything else the page does.
+  // Same reasoning again — lets a test drive markAmountMatchedReversals() directly off a small
+  // hand-built debit/credit list (narration/credit/debit/dateISO), without needing a real
+  // PDF-statement fixture just to catch a false-positive/false-negative silent-reversal regression.
+  window.__testMarkAmountMatchedReversals = function(txnsIn){
+    var txns = (txnsIn || []).map(function(t){
+      return { narration: t.narration, credit: t.credit, debit: t.debit, date: new Date(t.dateISO) };
+    });
+    markAmountMatchedReversals(txns);
+    return txns.map(function(t){ return { narration: t.narration, flagged: !!t.__amountMatchedReversal }; });
+  };
   window.__testFindInflowsMatchingNameWithCorrections = function(name, txnsIn, corrections){
     var txns = (txnsIn || []).map(function(t){
       return { narration: t.narration, credit: t.credit, date: new Date(t.dateISO) };
@@ -11039,7 +11049,7 @@
   // make up the "stable income" figure above, and see which name recurs across the most distinct months —
   // the same way a human reviewer notices "oh, it's always from the same employer/company" scanning by eye.
   // Narration text is messy bank shorthand, so this is approximate and clearly labeled as such in the UI.
-  var BANK_NARRATION_STOPWORDS = ['NIP','TRF','FRM','FROM','CR','DR','MOB','STLB','CIP','ONEBANK','BANK',
+  var BANK_NARRATION_STOPWORDS = ['NIP','TRF','FRM','FROM','CR','DR','MOB','STLB','CIP','ONEBANK','BANKNIP','BANK',
     'TRANSFER','VALUE','DATE','SALARY','PAYMENT','GTB','GTBANK','OPAY','FBN','UBA','ZENITH','ACCESS','FIRST',
     'STANBIC','FIDELITY','WEMA','POLARIS','UNION','STERLING','KEYSTONE','PROVIDUS','MONIEPOINT','PALMPAY',
     'KUDA','VAT','CHARGE','STAMP','DUTY','FGN','NGN','TO','THE','FOR','AND','LTD','LIMITED','PLC','ACCOUNT',
@@ -11346,7 +11356,14 @@
   // the same underlying transaction — not just two unrelated payments that happen to share an amount.
   function narrationWordsForReversalMatch(narration){
     return (narration || '').toUpperCase().replace(/[^A-Z0-9\s]/g, ' ').split(/\s+/).filter(function(w){
-      return w.length >= 3 && BANK_NARRATION_STOPWORDS.indexOf(w) === -1;
+      // A purely-numeric token is an account/reference/session number, not a "word" describing what the
+      // transaction was for — real narrations reuse the SAME reference/sort-code numbers across many
+      // unrelated transactions on the same channel (e.g. "BANKNIP From 000014 PAYREF: -" on every single
+      // inflow from a given bank), so letting a shared digit string count as "distinctive overlap" here
+      // was flagging completely unrelated debit/credit pairs as reversals purely because they went through
+      // the same channel. User-reported real case: 36 genuinely unrelated payments on one statement, none
+      // of them a reversal, all wrongly tagged this way.
+      return w.length >= 3 && !/^\d+$/.test(w) && BANK_NARRATION_STOPWORDS.indexOf(w) === -1;
     });
   }
   function markAmountMatchedReversals(txns){
@@ -11361,10 +11378,14 @@
         if (!d.debit || usedDebitIdx[di]) continue;
         if (Math.abs(d.debit - t.credit) > 0.5) continue;
         var debitWords = narrationWordsForReversalMatch(d.narration);
-        var neededOverlap = Math.min(2, Math.min(creditWords.length, debitWords.length));
-        if (neededOverlap === 0) continue;
+        // Always require at least 2 real shared distinctive words — never degraded to 1 for a short
+        // narration. A single shared word is too easy to hit by coincidence (a shared channel code, a
+        // common recipient-side name fragment, etc.) and was the source of real false-positive reversals
+        // on a statement where nothing was actually reversed; if either side doesn't even have 2
+        // qualifying words to begin with, there's no safe basis for a match at all.
+        if (creditWords.length < 2 || debitWords.length < 2) continue;
         var overlap = creditWords.filter(function(w){ return debitWords.indexOf(w) !== -1; }).length;
-        if (overlap >= neededOverlap){
+        if (overlap >= 2){
           t.__amountMatchedReversal = true;
           usedDebitIdx[di] = true;
           break;

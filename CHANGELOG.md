@@ -3,6 +3,25 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fix: 36 unrelated payments falsely tagged "Reversal" with no RVSL keyword anywhere
+
+User's own words, after manually checking her statement: "These are not reversals. they have no RVSL."
+The silent (no-keyword) reversal detector added earlier — `markAmountMatchedReversals`, which flags a
+credit as a reversal when its amount matches a nearby debit and the two narrations share enough
+distinctive words — was triggering on completely unrelated payments. Two compounding bugs:
+`narrationWordsForReversalMatch` didn't filter out purely-numeric tokens, so a shared account/reference/
+sort-code number that appears on every transaction from one channel (e.g. "000014" in "BANKNIP From
+000014 PAYREF: -") counted as "distinctive overlap" between any two transactions on that channel,
+whoever was actually involved; and the required overlap degraded to just 1 shared word whenever either
+narration was short, so a single shared channel-boilerplate token was enough on its own to false-flag a
+pair.
+
+Fixed by stripping purely-numeric tokens from the word-overlap check, stopwording "BANKNIP" (a channel
+variant of the already-stopworded "ONEBANK"/"NIP"), and always requiring a fixed 2 real shared words
+(never degraded to 1) — with no match at all when either narration doesn't even have 2 qualifying words.
+The original genuine case (a same-amount, same-narration debit/credit pair sharing real distinctive
+merchant words) still works unchanged.
+
 ## Fix: a self-transfer narrated with the applicant's EXACT full name wasn't recognized as Self
 
 Found while writing a regression test for the previous fix below: a self-transfer whose narration
