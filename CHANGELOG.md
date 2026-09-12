@@ -3,6 +3,18 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## New: "Top 10 most consistent senders" prompts for a missing second name
+
+User request: "Ask for the 2nd name. each person must have at least 2 names." A bank narration
+sometimes only ever names a sender by a single word (a bare first name, or a truncated read) — not
+enough to trust as a real identified sender, or to tell two different people who share a first name
+apart. Rather than silently showing a bare single word, a row whose sender name is only one word now
+shows an inline "please add the second name" prompt right in the table, with an input and Save button.
+Saved the same way as an existing "Fix name" correction (`senderNameCorrections`, keyed by the raw
+extracted name), so the corrected full name then displays correctly wherever else that sender shows up
+too (Income sources breakdown, Workplace/Business income). Save requires at least 2 words before
+accepting the correction — a single-word entry gets an inline warning instead.
+
 ## Fix: 36 unrelated payments falsely tagged "Reversal" with no RVSL keyword anywhere
 
 User's own words, after manually checking her statement: "These are not reversals. they have no RVSL."

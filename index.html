@@ -5498,6 +5498,23 @@
     });
     return getTopConsistentSenders(txns, 10, applicantName);
   };
+  // Same reasoning again — actually POPULATES the live #topConsistentSendersBox (via the real
+  // rerenderTopConsistentSenders/renderTopConsistentSenders pipeline, exactly like a real "Analyze
+  // Statements" run would), so a test can interact with the real "please add the second name"
+  // input/Save button in the DOM rather than only checking the data layer. Saves/restores
+  // window.__lastConsistentSendersInput so this can't leak into anything else the page does.
+  window.__testRenderTopConsistentSenders = function(entries, applicantName){
+    var txns = (entries || []).map(function(e){
+      return { date: new Date(e.date), credit: e.amount, narration: e.narration };
+    });
+    // Deliberately left set (not saved/restored) — a test needs this same cached input to still be in
+    // place afterward so the "Save" button's own rerenderTopConsistentSenders() call (triggered by the
+    // click handler) keeps rendering off these same synthetic txns, not whatever was cached before.
+    // Callers of this hook own their own page lifecycle (a fresh page per test), so there's nothing real
+    // to leak into.
+    window.__lastConsistentSendersInput = { txns: txns, applicantName: applicantName || '' };
+    rerenderTopConsistentSenders();
+  };
   function renderSessionNav(keys, idx){
     var nav = document.getElementById('sessionNav');
     if (!nav) return;
@@ -6232,6 +6249,31 @@
     if (!nameA || !nameB || (decision !== 'merge' && decision !== 'separate')) return;
     senderMergeDecisions[senderPairKey(nameA, nameB)] = decision;
     trackEvent('sender_duplicate_decision:' + decision);
+    rerenderTopConsistentSenders();
+  });
+  // "Save" on the inline "please add the second name" prompt (see renderTopConsistentSenders) — same
+  // delegated-listener reasoning as the two handlers just above, since this box is rebuilt via
+  // innerHTML on every re-render. Requires at least 2 words before saving (that's the whole point of
+  // the prompt); an incomplete entry gets an inline warning instead of being silently accepted.
+  document.addEventListener('click', function(e){
+    var btn = e.target && e.target.closest ? e.target.closest('.top10-secondname-save') : null;
+    if (!btn) return;
+    var idx = btn.getAttribute('data-idx');
+    var rawName = btn.getAttribute('data-raw');
+    var inputEl = document.getElementById('top10secondname_'+idx);
+    var statusEl = document.getElementById('top10secondname_status_'+idx);
+    var val = inputEl ? inputEl.value.trim() : '';
+    var wordCount = val ? val.split(/\s+/).filter(Boolean).length : 0;
+    if (wordCount < 2){
+      if (statusEl) statusEl.innerHTML = '<div class="scan-msg warn compact" style="margin-top:4px;">Please enter at least two names.</div>';
+      return;
+    }
+    if (!rawName) return;
+    senderNameCorrections[rawName] = val;
+    scheduleAutoSave();
+    trackEvent('top10_second_name_added');
+    // Same live-refresh as a regular "Fix name" save — see rerenderMatchedIncomeGroups's own comment.
+    rerenderMatchedIncomeGroups();
     rerenderTopConsistentSenders();
   });
   // Re-runs just the "Top 10 most consistent senders" table off the last analyzed statement's
@@ -13230,7 +13272,10 @@
       // senderNameCorrections to its own display (see displaySourceName), but this completely separate
       // table built its own namedGroups and never consulted the same correction map. Same lookup here
       // (keyed by the raw, uncorrected name, exactly like displaySourceName does) so both tables agree.
-      return {name: displaySourceName({name: name}), monthCount: Object.keys(months).length, count: grpTxns.length, total: total};
+      // rawName kept alongside the displayed name so a single-word row can offer a "2nd name" fix keyed
+      // correctly — senderNameCorrections is keyed by the ORIGINAL extracted name (see sourceKey), not
+      // by whatever's currently displayed, and displaySourceName(name) can itself already be a correction.
+      return {name: displaySourceName({name: name}), rawName: name, monthCount: Object.keys(months).length, count: grpTxns.length, total: total};
     });
     list.sort(function(a,b){ return b.monthCount - a.monthCount || b.count - a.count || b.total - a.total; });
     return {list: list.slice(0, n || 10), pendingDuplicates: dup.pending};
@@ -13260,7 +13305,24 @@
     });
     if (!list.length){ box.innerHTML = html; return; }
     var rows = list.map(function(g, idx){
-      return '<tr><td>'+(idx+1)+'</td><td>'+escapeHtml(g.name)+'</td><td>'+g.monthCount+'</td><td>'+g.count+'</td><td>'+fmtN(g.total)+'</td></tr>';
+      // User request: "Ask for the 2nd name. each person must have at least 2 names" - a bank narration
+      // sometimes only ever names a sender by a single word (a bare first name, or a truncated read),
+      // which isn't enough to tell two different people with the same first name apart, or to trust as
+      // a real identified sender at all. Rather than silently showing a bare single word, prompt right
+      // here for the missing second name - saved the same way as "Fix name" elsewhere (senderNameCorrections,
+      // keyed by the raw extracted name), so it also then displays correctly wherever else this sender
+      // shows up (see displaySourceName).
+      var wordCount = (g.name || '').trim().split(/\s+/).filter(Boolean).length;
+      var nameCell = escapeHtml(g.name);
+      if (wordCount < 2){
+        nameCell += '<div class="item-tip" style="margin-top:4px;">Only one name was found for this sender - please add the second name.</div>'
+          + '<div style="margin-top:4px;">'
+          + '<input type="text" class="top10-secondname-input" id="top10secondname_'+idx+'" data-raw="'+escapeHtml(g.rawName)+'" placeholder="Full name (at least 2 names)" style="max-width:220px;"> '
+          + '<button type="button" class="btn top10-secondname-save" data-idx="'+idx+'" data-raw="'+escapeHtml(g.rawName)+'" style="font-size:11px; padding:3px 10px;">Save</button>'
+          + '<div id="top10secondname_status_'+idx+'"></div>'
+          + '</div>';
+      }
+      return '<tr><td>'+(idx+1)+'</td><td>'+nameCell+'</td><td>'+g.monthCount+'</td><td>'+g.count+'</td><td>'+fmtN(g.total)+'</td></tr>';
     }).join('');
     html += '<table class="cf-table"><thead><tr><th>#</th><th>Sender</th><th>Distinct months</th><th>Payment(s)</th><th>Total (₦)</th></tr></thead><tbody>'+rows+'</tbody></table>';
     box.innerHTML = html;
