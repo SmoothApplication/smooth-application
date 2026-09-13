@@ -3,6 +3,32 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## New: "below N50,000" note on small inflows (informational only, doesn't affect scoring)
+
+User instruction, as a follow-up to the N50,000 threshold change below: "N50,000 is less than 30
+pounds. The visa needs to see consistent quality inflows above N50,000." Asked whether sub-N50,000
+inflows should be excluded from income-consistency scoring, labelled but still counted, or both —
+product owner chose "add a visible note, but still count them": no scoring math changes. Every inflow
+under N50,000 (the same floor used by the threshold change below) now shows a small inline note next
+to its date/amount/narration line - in both the "needs an explanation" list and the itemized
+matched-income (employer/business) lists - explaining that a reviewer is unlikely to weigh it as
+meaningful income evidence on its own, while it's still fully counted everywhere it already was. Added
+`window.__testInflowPreviewLines()` test hook and `tests/small-inflow-note.test.js`.
+
+## Change: "Needs an explanation" inflow threshold lowered to a flat N50,000
+
+User instruction (as product owner): "we pick transfers from N50,000 above deserve an explanation."
+`findUnexplainedLargeInflows()` previously only flagged an inflow with no descriptive keyword once it
+hit 1.5x the applicant's own average credit, floored at N300,000 — a lower-income applicant's genuinely
+questionable deposit could stay unflagged just because it was "normal" relative to their own small
+average, and the reasoning wasn't something we could explain simply to an applicant asking "why does
+THIS one need an explanation?". Replaced with a flat `UNEXPLAINED_INFLOW_MIN_AMOUNT = 50000` floor —
+any credit at or above N50,000 with no recognized descriptive keyword in its narration is flagged, same
+as before. Blank/numeric-only narrations are still flagged regardless of amount, and a narration that
+already contains a recognized keyword (salary, transfer, gift, etc.) is still exempt at any amount.
+Added `window.__testFindUnexplainedLargeInflows()` test hook and
+`tests/unexplained-inflow-50k-threshold.test.js` to lock in the new floor and the two exemptions.
+
 ## New: Marital status dropdown (Single/Married/Divorced) replaces the "I'm married" checkbox
 
 User request: "create a drop down for marital status and let it have a drop down menu of the following:

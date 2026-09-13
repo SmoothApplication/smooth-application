@@ -5431,6 +5431,17 @@
     markAmountMatchedReversals(txns);
     return txns.map(function(t){ return { narration: t.narration, flagged: !!t.__amountMatchedReversal }; });
   };
+  window.__testFindUnexplainedLargeInflows = function(txnsIn){
+    var txns = (txnsIn || []).map(function(t){
+      return { narration: t.narration, credit: t.credit, debit: t.debit, date: new Date(t.dateISO) };
+    });
+    var flagged = findUnexplainedLargeInflows(txns);
+    return flagged.map(function(t){ return { narration: t.narration, credit: t.credit, flagReason: t.__flagReason }; });
+  };
+  window.__testInflowPreviewLines = function(credit, narration){
+    var t = { credit: credit, narration: narration, date: new Date('2026-01-01') };
+    return { plain: inflowPreviewLine(t, false, false), matched: inflowMatchPreviewLine(t, false) };
+  };
   window.__testFindInflowsMatchingNameWithCorrections = function(name, txnsIn, corrections){
     var txns = (txnsIn || []).map(function(t){
       return { narration: t.narration, credit: t.credit, date: new Date(t.dateISO) };
@@ -12033,12 +12044,29 @@
     }
   }
 
-  // Large credit transactions with no meaningful description — either a blank/numeric-only narration,
-  // or one that's just a sender's name with no descriptive keyword. A strong closing balance built on
+  // Credit transactions with no meaningful description — either a blank/numeric-only narration, or
+  // one that's just a sender's name with no descriptive keyword. A strong closing balance built on
   // inflows like this is much weaker evidence than one a reviewer can actually trace and understand.
   var INFLOW_DESC_KEYWORDS = ['salary','transfer','payment','sale','loan','gift','rent','refund','contract',
     'invoice','fee','proceeds','remittance','dividend','interest','allowance','bonus','commission','pension',
     'drawing','remuneration','reversal','rvsl','withdrawal','deposit'];
+  // User instruction (as product owner): "we pick transfers from N50,000 above deserve an explanation" —
+  // a visa officer is realistically going to query any individual inflow at or above this size, on its
+  // own terms, regardless of how it compares to the applicant's own average. Previously this scaled with
+  // the applicant's own average credit (avg * 1.5, floored at N300,000) — a lower-income applicant's
+  // genuinely suspicious deposit could still fly under the radar just because it was "normal for them,"
+  // and that reasoning wasn't something we could explain simply to an applicant asking "why THIS one?".
+  // A flat, visa-officer-realistic floor is easier to explain and safer to under-flag on.
+  var UNEXPLAINED_INFLOW_MIN_AMOUNT = 50000;
+  // User instruction: "N50,000 is less than 30 pounds. The visa needs to see consistent quality inflows
+  // above N50,000." Decided to keep this purely informational (per product owner's choice) rather than
+  // excluding these inflows from any scoring — they're still counted as income exactly as before, this
+  // just labels them so an applicant understands why a reviewer may not weigh a sub-N50,000 transfer as
+  // meaningful evidence of income, without the app silently deciding it doesn't count.
+  function smallInflowNoteHtml(t){
+    if (!t || t.credit >= UNEXPLAINED_INFLOW_MIN_AMOUNT) return '';
+    return ' <span style="color:var(--text-secondary); font-size:12px;">(below ₦50,000 — about £30, so unlikely to count as meaningful income evidence to a reviewer, though it\'s still included above)</span>';
+  }
   // A narration counts as "blank" if, once dates are stripped out, there's no readable letter content left —
   // e.g. a bare amount/reference-number row with nothing a reviewer could actually read as an explanation.
   function isBlankNarration(narration){
@@ -12048,11 +12076,9 @@
   function findUnexplainedLargeInflows(txns){
     var credits = txns.filter(function(t){ return t.credit > 0 && !isReversalNarration(t); });
     if (!credits.length) return [];
-    var avg = credits.reduce(function(a,t){ return a+t.credit; },0) / credits.length;
-    var threshold = Math.max(avg * 1.5, 300000);
     var flagged = credits.filter(function(t){
       if (isBlankNarration(t.narration)) return true; // flagged regardless of amount - no narration to judge by
-      if (t.credit < threshold) return false;
+      if (t.credit < UNEXPLAINED_INFLOW_MIN_AMOUNT) return false;
       var lower = (t.narration || '').toLowerCase();
       return !INFLOW_DESC_KEYWORDS.some(function(k){ return lower.indexOf(k) !== -1; });
     });
@@ -12664,7 +12690,7 @@
   // open with a wall of finished boxes; freshly-flagged, not-yet-explained ones default to expanded.
   var explainBoxCollapsed = {};
   function inflowPreviewLine(t, isBlank, explained){
-    return (explained ? '✅ ' : '') + t.date.toDateString() + ' - ' + fmtN(t.credit) + (t.narration && !isBlank ? ' ("'+escapeHtml(t.narration)+'")' : ' (no narration detected)');
+    return (explained ? '✅ ' : '') + t.date.toDateString() + ' - ' + fmtN(t.credit) + (t.narration && !isBlank ? ' ("'+escapeHtml(t.narration)+'")' : ' (no narration detected)') + smallInflowNoteHtml(t);
   }
   function renderUnexplainedInflows(flagged){
     var box = document.getElementById('unexplainedInflowsBox');
@@ -12849,7 +12875,7 @@
   // this page, so a transaction explained here also shows as "explained" wherever else it's listed
   // (e.g. inside the "Income sources breakdown" group for the same sender).
   function inflowMatchPreviewLine(t, explained){
-    return (explained ? '✅ ' : '') + t.date.toDateString() + ' - ' + fmtN(t.credit) + (t.narration ? ' ("'+escapeHtml(t.narration)+'")' : ' (no narration)');
+    return (explained ? '✅ ' : '') + t.date.toDateString() + ' - ' + fmtN(t.credit) + (t.narration ? ' ("'+escapeHtml(t.narration)+'")' : ' (no narration)') + smallInflowNoteHtml(t);
   }
   function renderMatchedInflowBoxHtml(idx, key, t, collapsed, prefix){
     prefix = prefix || '';
