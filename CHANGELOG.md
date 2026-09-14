@@ -3,6 +3,36 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## New: Bank statement analysis is recalled automatically - no re-upload needed on return
+
+User question: "is there a way applicants can recall their bank statements without having to
+download from the app." Previously the itemized statement-analysis boxes (the "needs an
+explanation" list, Top 10 inflows/senders, income-source breakdown, employer/business matched
+inflows) only ever existed in memory for the life of one browser tab - a returning applicant had
+to re-upload the identical PDF just to see that breakdown again, even though their own notes on
+each inflow were already being saved separately. Analyzing a statement now also caches its parsed
+transaction list (`lastPersonalStatementTxns`) and persists it via `buildPayload()`'s new
+`statementTxns` field (date/credit/debit/narration/balance per row only - no file bytes, no raw
+page text). On restore (auto-saved or manually imported), `applyPayload()` feeds that saved list
+into the new `rebuildStatementItemizedViews()`, which rebuilds every itemized box exactly as a live
+analysis would, without reading any file. The upload area shows a "✅ Recalled from your last visit"
+done-bar and a short note explaining a new upload is only needed to add a new/updated statement (see
+`showStatementRecalledNote()`).
+
+Deliberately out of scope for this pass: the one-time scan narrative (account-holder-name match,
+"columns detected", salary-consistency percentages, truncated-page notices) isn't reproduced on
+restore, since that needs the statement's raw text, which isn't part of what's persisted; and the
+employer/business "found" check on restore only counts an actual matched inflow, not a bare mention
+of the name elsewhere in the statement text (the live scan credits both) - the safer direction to
+be strict in. The BUSINESS-statement side (`lastBusinessCredits`/`lastBusinessDrawings`) isn't
+persisted yet either - a possible follow-on.
+
+Added `window.__testRebuildStatementItemizedViews()` test hook,
+`tests/statement-recall-without-reupload.test.js` (a real reload round-trip: analyze a statement,
+reload the page, confirm the itemized boxes and done-bar reappear with no file re-selected), and
+`tests/statement-recall-employer-match.test.js` (covers the employer/business matched-inflow branch
+directly, off synthetic transactions).
+
 ## New: "below N50,000" note on small inflows (informational only, doesn't affect scoring)
 
 User instruction, as a follow-up to the N50,000 threshold change below: "N50,000 is less than 30

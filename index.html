@@ -5417,6 +5417,22 @@
       return { name: g.name, type: g.type, count: g.count, total: g.total };
     });
   };
+  // Drives rebuildStatementItemizedViews() directly off a hand-built transaction list and answers
+  // object, without needing a real PDF/reload round-trip - covers the employer/business matched-inflow
+  // branch (findInflowsMatchingName + __lastNameChecks), which the reload E2E test
+  // (statement-recall-without-reupload.test.js) doesn't exercise on its own.
+  window.__testRebuildStatementItemizedViews = function(txnsIn, workAnswers){
+    var txns = (txnsIn || []).map(function(t){
+      return { narration: t.narration, credit: t.credit || 0, debit: t.debit || 0, balance: t.balance || 0, date: new Date(t.dateISO) };
+    });
+    rebuildStatementItemizedViews(txns, workAnswers || {});
+    return {
+      unexplainedCount: (window.__lastUnexplainedInflows || []).length,
+      nameChecks: (window.__lastNameChecks || []).map(function(c){ return {label: c.label, name: c.name, inflowCount: c.inflowCount, found: c.found}; }),
+      matchedBoxHasContent: document.getElementById('matchedIncomeInflowsBox').innerHTML.length > 0,
+      employerBoxHasContent: document.getElementById('employerIncomeInflowsBox').innerHTML.length > 0
+    };
+  };
   // Same reasoning again — lets a test drive findInflowsMatchingName()'s "Fix name" fallback (see its
   // comment in index.html) with a specific senderNameCorrections map, without needing to actually
   // click through the Fix Name UI first. Saves and restores the real senderNameCorrections around the
@@ -10373,6 +10389,19 @@
     if (block) block.style.display = '';
     if (bar) bar.style.display = 'none';
   }
+  // User report: "is there a way applicants can recall their bank statements without having to
+  // download from the app" - called once, right after applyPayload() rebuilds the itemized boxes from
+  // a saved statementTxns array, so a returning applicant sees the SAME done-bar/"analyzed already"
+  // state a live analysis would have left them in, rather than the upload form looking untouched even
+  // though their breakdown is sitting right below it. Reuses hideStatementUploadForm's existing show/
+  // hide plumbing, just with wording that says where this came from instead of a bare "Ready".
+  function showStatementRecalledNote(){
+    hideStatementUploadForm();
+    var textEl = document.getElementById('stmtUploadDoneBarText');
+    if (textEl) textEl.textContent = 'Recalled from your last visit';
+    var msgEl = document.getElementById('stmtAnalyzeMsg');
+    if (msgEl && !msgEl.innerHTML) msgEl.innerHTML = '<div class="scan-msg ok">📂 Picking up where you left off - this is the same statement analysis from your last visit, recalled automatically. No need to re-upload unless you want to add a new or updated statement (use "Upload different statement(s)" above).</div>';
+  }
 
   // User feedback, on this exact section: "looks too clumsy." Root cause: after analyzing a
   // statement this could stack ten-odd full-width colored boxes in a row — errors, warnings, info,
@@ -12003,6 +12032,15 @@
   // (re-)scans, in whichever order the applicant uploads them.
   var lastBusinessDrawings = null; // array of {date, amount} debits out of the business statement
   var lastPersonalCredits = null;  // array of {date, amount} credits into the personal statement
+  // User report: "is there a way applicants can recall their bank statements without having to
+  // download from the app" - the full structured transaction list from the most recently analyzed
+  // PERSONAL statement (date/credit/debit/narration/balance per row, no file bytes or raw page text).
+  // Persisted via buildPayload()'s `statementTxns` field and restored in applyPayload() so a returning
+  // applicant sees their itemized "needs an explanation"/Top senders/income-breakdown/matched-inflow
+  // boxes again without re-uploading the same PDF - see rebuildStatementItemizedViews below, which both
+  // a live upload and a session restore call. Kept separate from lastBusinessCredits/lastBusinessDrawings
+  // above (the BUSINESS-statement side isn't persisted yet - a possible follow-on, not part of this).
+  var lastPersonalStatementTxns = null;
   // Business Income Record (see the card comment above bizLedgerCard in the HTML): the incoming
   // payments (credits) on the most recently scanned business statement, and the applicant's own
   // "who paid / what for" note on each one — keyed by inflowKey(t) (defined below), same stable-key
@@ -14210,6 +14248,68 @@
     window.XLSX.writeFile(wb, 'income-source-breakdown.xlsx');
   });
 
+  // User report: "is there a way applicants can recall their bank statements without having to
+  // download from the app" - previously the itemized statement-analysis boxes below (needs-an-
+  // explanation list, Top 10 inflows/senders, income breakdown, employer/business matched inflows)
+  // only ever existed for the life of one browser tab; a returning applicant had to re-upload the
+  // IDENTICAL PDF just to see that breakdown again, even though their own notes on each inflow were
+  // already being saved. Rebuilds all of those boxes from an already-parsed transaction array (no file
+  // needed) — called once right after a live upload/scan (see runStatementAnalysis below) and again
+  // whenever a saved session (auto-saved or manually imported) is restored with a statementTxns array
+  // in it (see applyPayload). Deliberately does NOT reproduce the one-time scan narrative (account-
+  // holder-name match, "columns detected", truncated-page notices, salary-consistency percentages,
+  // etc.) - those read the statement's raw text/lines, which isn't part of what's persisted (kept
+  // small on purpose: date/amount/narration per row, no file bytes or full page text). One accepted
+  // trade-off from that: the employer/business "found" check below only counts an actual matched
+  // inflow, not a bare mention of the name elsewhere in the statement text (the live scan credits both -
+  // see nameAppearsInStatementText in runStatementAnalysis) - the safer direction to be strict in,
+  // since it can only under-credit evidence, never invent evidence that isn't really an inflow.
+  function rebuildStatementItemizedViews(txns, workAnswers){
+    if (!txns || !txns.length) return;
+    var flagged = findUnexplainedLargeInflows(txns);
+    renderUnexplainedInflows(flagged);
+
+    // Same "last 6 months" scoping as the live-upload path, for the same reason - Top inflows/senders/
+    // breakdown line up with whatever window the cash-flow table itself covers.
+    var months = aggregateTransactions(txns);
+    var recent = months.slice(-CF_MONTHS);
+    var recentMonthKeys = {};
+    recent.forEach(function(m){ if (m) recentMonthKeys[m.year+'-'+m.month] = true; });
+    var recentTxns = txns.filter(function(t){ return recentMonthKeys[t.date.getFullYear()+'-'+t.date.getMonth()]; });
+    renderTopInflows(getTopInflows(recentTxns, 10));
+    window.__lastConsistentSendersInput = {txns: recentTxns, applicantName: workAnswers.name};
+    renderTopConsistentSenders(getTopConsistentSenders(recentTxns, 10, workAnswers.name));
+    renderIncomeBreakdown(buildIncomeSourceBreakdown(recentTxns, workAnswers.name, workAnswers.maidenName));
+
+    // Employer/business matching uses the FULL txns list (not just the recent window) — same as the
+    // live-upload path, since a declared employer's payment history can predate the last 6 months.
+    var namesToCheck = [];
+    if (workAnswers.employed && workAnswers.employerName) namesToCheck.push({label:'employer', name: workAnswers.employerName, altName: workAnswers.employerAltName});
+    if (workAnswers.selfEmployed && workAnswers.businessName) namesToCheck.push({label:'business', name: workAnswers.businessName, altName: workAnswers.businessAltName});
+    if (namesToCheck.length){
+      var nameChecks = namesToCheck.map(function(n){
+        var matchName = n.altName ? (n.name + ' ' + n.altName) : n.name;
+        var inflowInfo = findInflowsMatchingName(matchName, txns);
+        var inflowMatches = inflowInfo.matches;
+        inflowMatches.forEach(function(t){ t.__narrationReason = extractNarrationReason(t.narration, inflowInfo.words); });
+        return {label: n.label, name: n.name, inflowCount: inflowMatches.length, inflowMatches: inflowMatches, found: inflowMatches.length > 0};
+      });
+      window.__lastNameChecks = nameChecks;
+      var matchedIncomeGroups = nameChecks.filter(function(c){ return c.inflowCount > 0; }).map(function(c){
+        return {label: c.label, name: c.name, category: (c.label === 'business' ? 'business' : 'salary'), txns: c.inflowMatches};
+      });
+      var businessIncomeGroups = matchedIncomeGroups.filter(function(g){ return g.label !== 'employer'; });
+      var employerIncomeGroups = matchedIncomeGroups.filter(function(g){ return g.label === 'employer'; });
+      renderMatchedIncomeInflows(businessIncomeGroups, 'matchedIncomeInflowsBox');
+      renderMatchedIncomeInflows(employerIncomeGroups, 'employerIncomeInflowsBox', 'emp_');
+    } else {
+      renderMatchedIncomeInflows([], 'matchedIncomeInflowsBox');
+      renderMatchedIncomeInflows([], 'employerIncomeInflowsBox', 'emp_');
+      window.__lastNameChecks = [];
+    }
+    computeFinancials();
+  }
+
   // Shared pipeline behind BOTH the dedicated "Analyze statement(s)" uploader in the Financial Calculator
   // AND the "Personal bank statements" checklist item's own Scan button — one analysis, fed from either
   // entry point, always auto-filling the same cash-flow table. onMessage(clsOrArray[, text]) renders wherever
@@ -14276,6 +14376,10 @@
           onMessage('err','Couldn\'t automatically detect transaction rows in these file(s) - the format may be unusual, or the scan quality too low. Please fill in the cash-flow table manually using your own statement. '+reportProblemLinksHtml('statement analysis (no rows detected)')+' - telling us which bank this statement is from helps us support more formats.');
           return;
         }
+        // Cache the structured transaction list itself (not the raw file/text) so a future visit can
+        // rebuild the itemized boxes below without needing this PDF re-uploaded - see
+        // lastPersonalStatementTxns above and rebuildStatementItemizedViews below.
+        lastPersonalStatementTxns = txns;
         var columnsDetected = !!detectColumns(allLines);
         var months = aggregateTransactions(txns);
         var recent = months.slice(-CF_MONTHS);
@@ -14617,6 +14721,13 @@
         // refresh the pill/percentage right away rather than waiting for the next navigation.
         if (typeof applySessionVisibility === 'function') applySessionVisibility();
 
+        // Saves lastPersonalStatementTxns (set above) into this browser right away, rather than
+        // waiting for some unrelated field's own autosave trigger to happen to fire first - otherwise
+        // an applicant who closes the tab immediately after analyzing, before touching anything else,
+        // would lose the itemized breakdown this whole feature exists to keep (see
+        // rebuildStatementItemizedViews).
+        if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+
         // Pairs with 'statement_analysis:attempted' above — reaching this line means at least one
         // transaction was successfully parsed and the results actually rendered, i.e. a genuinely
         // successful analysis, not just "didn't crash".
@@ -14758,13 +14869,24 @@
 
   // Shared by the manual "Export progress" download AND the silent auto-save to localStorage below —
   // one source of truth for what a saved snapshot contains, so the two never drift apart.
+  // User report: "is there a way applicants can recall their bank statements without having to
+  // download from the app" - serializes lastPersonalStatementTxns (see its declaration above) into
+  // the same small, plain-data shape restored by applyPayload below. Deliberately just
+  // date/credit/debit/narration/balance per row (plus the one derived reversal flag) - no file bytes,
+  // no raw statement text - small enough to sit comfortably alongside everything else already saved.
+  function serializeStatementTxns(){
+    if (!lastPersonalStatementTxns || !lastPersonalStatementTxns.length) return [];
+    return lastPersonalStatementTxns.map(function(t){
+      return { dateISO: t.date.toISOString(), narration: t.narration, credit: t.credit, debit: t.debit, balance: t.balance, amountMatchedReversal: !!t.__amountMatchedReversal };
+    });
+  }
   function buildPayload(){
     var declaration = {
       name: document.getElementById('decl_name').value,
       date: document.getElementById('decl_date').value,
       confirmed: document.getElementById('decl_confirm').checked
     };
-    return { country: currentCountry, answers: getAnswers(), state: state, financials: getFinancials(), inflowExplanations: inflowExplanations, sourceExplanations: sourceExplanations, sourcePerPaymentMode: sourcePerPaymentMode, senderMergeDecisions: senderMergeDecisions, senderNameCorrections: senderNameCorrections, businessIncomeLedger: businessIncomeLedger, declaration: declaration, travelHistoryRows: travelHistoryRows, overstayRows: overstayRows, exportedAt: new Date().toISOString() };
+    return { country: currentCountry, answers: getAnswers(), state: state, financials: getFinancials(), inflowExplanations: inflowExplanations, sourceExplanations: sourceExplanations, sourcePerPaymentMode: sourcePerPaymentMode, senderMergeDecisions: senderMergeDecisions, senderNameCorrections: senderNameCorrections, businessIncomeLedger: businessIncomeLedger, declaration: declaration, travelHistoryRows: travelHistoryRows, overstayRows: overstayRows, statementTxns: serializeStatementTxns(), exportedAt: new Date().toISOString() };
   }
 
   document.getElementById('btnExport').addEventListener('click', function(){
@@ -14945,6 +15067,19 @@
       document.getElementById('decl_confirm').checked = !!payload.declaration.confirmed;
       updateDeclaration();
     }
+    // User report: "is there a way applicants can recall their bank statements without having to
+    // download from the app" - if a previous session's personal-statement analysis was saved (see
+    // serializeStatementTxns/buildPayload above), rebuild every itemized box from it now instead of
+    // leaving them empty until the applicant re-uploads the identical PDF. Answers are already filled
+    // in on document by this point in applyPayload, so getAnswers() below reads the just-restored
+    // employer/business/applicant name correctly.
+    if (Array.isArray(payload.statementTxns) && payload.statementTxns.length){
+      lastPersonalStatementTxns = payload.statementTxns.map(function(rt){
+        return { date: new Date(rt.dateISO), narration: rt.narration, credit: rt.credit, debit: rt.debit, balance: rt.balance, __amountMatchedReversal: !!rt.amountMatchedReversal };
+      });
+      rebuildStatementItemizedViews(lastPersonalStatementTxns, getAnswers());
+      showStatementRecalledNote();
+    }
   }
 
   /* ---------------- Auto-save (localStorage) ----------------
@@ -15068,6 +15203,7 @@
     lastBusinessDrawings = null;
     lastPersonalCredits = null;
     lastBusinessCredits = null;
+    lastPersonalStatementTxns = null;
     businessIncomeLedger = {};
     renderBusinessIncomeLedger();
     currentSessionIndex = 0;
@@ -15237,6 +15373,7 @@
     lastBusinessDrawings = null;
     lastPersonalCredits = null;
     lastBusinessCredits = null;
+    lastPersonalStatementTxns = null;
     businessIncomeLedger = {};
     renderBusinessIncomeLedger();
     currentSessionIndex = 0;
