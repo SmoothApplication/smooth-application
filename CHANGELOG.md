@@ -3,6 +3,29 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fix: Opay "OWealth Interest Earned" credits showing as garbled sender names
+
+User-reported bug, off a real Opay statement, flagged twice in a row ("do not acknowledge these ...
+as names"): automatic daily interest credits on Opay's OWealth savings wallet narrate with no sender
+at all — just a timestamp, the product name, and a long opaque reference token, e.g. "07 Aug 2026
+01:40:30 OWealth Interest Earned -- Mobile uJ 260808994uHYYGJHzJblKYq3Jmt1". The name-extraction logic
+(built and tuned entirely against Sterling Bank narrations) had never seen this shape before, so it
+swept "Earned"/"Mobile"/"Owealth" plus the reference token in as if they were a person's name,
+producing garbled "sender" groups like "Earned Mobile Rtntgkunklgbaieworixg Yfu Otxcrrmj Ebk D".
+
+Fixed by adding `isInterestEarnedNarration()` — detects "interest earned" in the narration and routes
+it to its own dedicated group BEFORE name extraction ever runs, at the same priority as the existing
+Reversal/Self checks (see `buildIncomeSourceBreakdown`). These land in a new "Interest earned
+(savings/wallet, e.g. OWealth)" group with its own badge and explanatory note ("this is interest your
+bank/wallet paid on your own savings, not income from a person or company, so it needs no
+explanation") instead of a "Fix name" box — Fix Name was never the right tool here since there was no
+real name underneath to correct, unlike the earlier "Ibukunoluwa Adedayo Afeni Fg Ij K X"-style case
+that feature was built for. Regression test uses the real narration text from the user's own statement.
+Also fixed, same session: `tests/refusal-letter-routing.test.js` was calling
+`page.evaluate(fn, a, b, c)` with three separate extra arguments — Playwright only accepts one — so
+the routing sub-test was failing with "Too many arguments" on every run; bundled into a single object
+argument instead. Confirmed via a full local `npm test` run (134/134 passed) and a push to `main`.
+
 ## New: Refusal-letter upload helps you read your own letter (situation gate)
 
 User request: "once an applicant clicks and have been refused before, create a picture page and ask
