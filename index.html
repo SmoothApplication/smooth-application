@@ -1815,25 +1815,39 @@
       </button>
     </div>
 
-    <!-- Refused follow-up. The letter-upload/OCR block below is a deliberately careful addition on
-         top of the original lightweight version (see the big block comment above #situationGate) -
-         it only ever SUGGESTS a starting point ("letters like this often come down to...") and never
-         states a diagnosis of the applicant's own case, precisely because doing the latter edges into
-         OISC/RCIC-regulated "immigration advice" territory. Every suggestion sits right next to a "See
-         my full checklist instead" button, and skipping the upload entirely still reaches the same
-         quick-context WhatsApp/email form below it as before. -->
+    <!-- Refused follow-up. The letter-upload block below is a deliberately careful addition on top of
+         the original lightweight version (see the big block comment above #situationGate) - and it was
+         deliberately REDESIGNED (see CHANGELOG) after a closer look at the OISC "immigration advice"
+         rule: what actually matters is whether the advice is tailored to one person's specific case, not
+         how carefully the wording is hedged. Reading someone's own letter and picking their next step
+         from its content is inherently tailored to their case, no matter how softly that's phrased. So
+         OCR here does ONLY ONE thing now: extract the letter's text and show it back to the applicant -
+         the same as a friend with good English reading it aloud for them. It never classifies what the
+         letter means or picks a next step on its own. The applicant reads their own letter (right here,
+         or on paper) and answers two plain questions themselves; THEIR answer - never the app's reading
+         of the letter - drives the suggestion. A prominent note also points to a real OISC/RCIC-registered
+         adviser for an actual assessment. Every suggestion still sits next to a "See my full checklist
+         instead" button, and skipping the upload entirely still reaches the same quick-context
+         WhatsApp/email form below it as before. -->
     <div id="situationRefusedFollowup" class="situation-followup" style="display:none;">
       <div id="situationRefusedUpload" style="margin-bottom:16px;">
         <label class="field" style="margin-bottom:4px;">📄 Have your refusal letter handy? (optional)</label>
-        <p class="item-tip" style="margin:0 0 8px;">Upload a photo or PDF and we'll suggest where to start based on it - read entirely on your device, nothing uploaded anywhere. Prefer not to? <a href="#" id="situationRefusedManualToggle">Just tell us directly</a>, or skip straight to the quick details below.</p>
+        <p class="item-tip" style="margin:0 0 8px;">Upload a photo or PDF and we'll show you what it says, right here, so you don't have to retype anything - read entirely on your device, nothing uploaded anywhere. Prefer not to? <a href="#" id="situationRefusedManualToggle">Just tell us directly</a>, or skip straight to the quick details below.</p>
         <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px; align-items:center;">
           <input type="file" id="situationRefusedLetterFile" accept="image/*,application/pdf" style="max-width:220px;">
           <button type="button" class="btn" id="btnSituationRefusedLetterScan" disabled>📎 Read my letter</button>
         </div>
         <div id="situationRefusedLetterMsg" class="scan-msg" style="display:none;"></div>
+        <!-- Plain extracted text, shown back to the applicant so THEY can read their own letter and
+             judge it - this app never summarizes, classifies, or interprets what it means. Rendered via
+             textContent only (see the JS), never innerHTML, so nothing in a scanned letter can inject
+             markup here. -->
+        <div id="situationRefusedLetterText" class="item-tip" style="display:none; white-space:pre-wrap; max-height:180px; overflow-y:auto; background:var(--bg-secondary,rgba(127,127,127,.08)); border-radius:6px; padding:8px 10px; margin:8px 0; font-size:12px;"></div>
 
-        <!-- Manual fallback: reachable directly via "Just tell us directly" above, or shown automatically
-             if OCR can't confidently read a date off the upload - never a dead end either way. -->
+        <!-- The only path to a suggestion below: the applicant's OWN answers, whether typed here directly
+             or after reading the extracted text above. The date may be pre-filled from the letter (a plain
+             fact, not a judgment) but the financial question is always left blank for the applicant to
+             answer themselves - this app never guesses it from the letter's wording. -->
         <div id="situationRefusedManual" style="display:none; margin-top:10px;">
           <div class="row">
             <div>
@@ -1841,7 +1855,7 @@
               <input type="date" id="situationRefusedManualDate">
             </div>
             <div>
-              <label class="field" for="situationRefusedManualFinancial">Was it mainly about your finances (funds/bank statement)?</label>
+              <label class="field" for="situationRefusedManualFinancial">Reading your letter yourself: was it mainly about your finances (funds/bank statement)?</label>
               <select id="situationRefusedManualFinancial">
                 <option value="">Not sure</option>
                 <option value="yes">Yes</option>
@@ -1849,11 +1863,13 @@
               </select>
             </div>
           </div>
+          <p class="item-tip" style="margin:6px 0 8px;">This isn't professional advice, and this app doesn't try to read or judge your case for you - it just helps you get your own first look. For an actual assessment, an OISC-registered (UK) or RCIC-registered (Canada) adviser can properly review your refusal.</p>
           <button type="button" class="btn ghost" id="btnSituationRefusedManualApply">Use this</button>
         </div>
 
-        <!-- Suggestion banner: appears once we have a date to work from, from either OCR or the manual
-             form above. Wording is deliberately a suggestion ("you may want to"), never a verdict. -->
+        <!-- Suggestion banner: appears only once the APPLICANT has answered the two questions above and
+             clicked "Use this" - never automatically from OCR. Wording is deliberately a suggestion
+             ("you may want to"), never a verdict. -->
         <div id="situationRefusedSuggestion" class="scan-msg info" style="display:none; margin-top:10px;">
           <div id="situationRefusedSuggestionText"></div>
           <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
@@ -16180,6 +16196,31 @@
   function showSituationRefusedManual(){
     document.getElementById('situationRefusedManual').style.display = 'block';
   }
+  // Shows the letter's extracted text back to the applicant, verbatim - via textContent, never
+  // innerHTML, so nothing OCR'd from a photo can ever be interpreted as markup. This is the ONLY thing
+  // OCR does with the letter's content now: read it aloud, so to speak. It never decides what the
+  // letter means.
+  function showSituationRefusedLetterText(text){
+    var el = document.getElementById('situationRefusedLetterText');
+    el.textContent = text;
+    el.style.display = 'block';
+  }
+  // A date is a plain, objective fact to extract (not a judgment about the applicant's case), so this
+  // is the one thing still safe to pre-fill automatically - it saves retyping, and the applicant can
+  // freely edit or clear it before clicking "Use this". The financial question is deliberately NEVER
+  // pre-filled - see applySituationRefusedRouting's caller below, which only ever reads it from what
+  // the applicant themselves picked in the dropdown.
+  function prefillSituationRefusedManualDate(dateObj){
+    if (!dateObj) return;
+    var y = dateObj.getFullYear();
+    var m = String(dateObj.getMonth() + 1).padStart(2, '0');
+    var d = String(dateObj.getDate()).padStart(2, '0');
+    document.getElementById('situationRefusedManualDate').value = y + '-' + m + '-' + d;
+  }
+  // Computes and shows the suggestion - called ONLY from the applicant's own "Use this" click (see the
+  // btnSituationRefusedManualApply handler below), whether they got here by reading the OCR'd text above
+  // or by skipping straight to typing their own answers. isFinancial always comes from what the
+  // applicant themselves selected, never from this app's own reading of the letter.
   function applySituationRefusedRouting(dateObj, isFinancial){
     var routing = computeRefusalRouting(dateObj, isFinancial);
     situationRefusedRouting = routing;
@@ -16190,11 +16231,21 @@
   }
   // Test-only hooks, same convention as __testFindUnexplainedLargeInflows etc. elsewhere in this file
   // - let tests exercise the keyword/date parsing and routing decision directly, without needing a
-  // real file + working OCR/CDN access just to check the logic itself.
+  // real file + working OCR/CDN access just to check the logic itself. refusalTextLooksFinancial is
+  // kept available for tests (and any future informational-only use) even though the live OCR path no
+  // longer calls it to drive a decision - see the block comment above #situationRefusedUpload for why.
   window.__testRefusalTextLooksFinancial = refusalTextLooksFinancial;
   window.__testParseRefusalDateFromText = parseRefusalDateFromText;
   window.__testComputeRefusalRouting = computeRefusalRouting;
   window.__testApplySituationRefusedRouting = applySituationRefusedRouting;
+  // Test-only: exercises exactly what the OCR success handler below does with a given text, without
+  // needing a real file + working OCR/CDN access - lets tests verify the letter text is shown, the date
+  // is pre-filled, and (this is the point of the redesign) nothing gets auto-classified or auto-routed.
+  window.__testApplyOcrExtractedText = function(text){
+    showSituationRefusedLetterText(text);
+    prefillSituationRefusedManualDate(parseRefusalDateFromText(text));
+    showSituationRefusedManual();
+  };
 
   document.getElementById('situationRefusedLetterFile').addEventListener('change', function(){
     document.getElementById('btnSituationRefusedLetterScan').disabled = !this.files || !this.files[0];
@@ -16219,15 +16270,12 @@
         showSituationRefusedManual();
         return;
       }
-      var isFinancial = refusalTextLooksFinancial(text);
-      var dateObj = parseRefusalDateFromText(text);
-      if (!dateObj){
-        setSituationRefusedLetterMsg('info', "We read your letter but couldn't confidently find a date on it - just tell us directly below.");
-        showSituationRefusedManual();
-        return;
-      }
-      setSituationRefusedLetterMsg('ok', 'Got it - read your letter.');
-      applySituationRefusedRouting(dateObj, isFinancial);
+      // Show the applicant their own letter's text, and pre-fill only the date (a plain fact) - never
+      // decide the financial question for them. See the block comment above #situationRefusedUpload.
+      showSituationRefusedLetterText(text);
+      prefillSituationRefusedManualDate(parseRefusalDateFromText(text));
+      setSituationRefusedLetterMsg('ok', "Got it - here's what your letter says. Take a look below, then answer the two questions to see a suggestion.");
+      showSituationRefusedManual();
       trackEvent('situation_refused_letter:read');
     }).catch(function(err){
       logClientError('situation_refused_letter', err);
@@ -16271,6 +16319,8 @@
     document.getElementById('situationRefusedManual').style.display = 'none';
     document.getElementById('situationRefusedManualDate').value = '';
     document.getElementById('situationRefusedManualFinancial').value = '';
+    document.getElementById('situationRefusedLetterText').style.display = 'none';
+    document.getElementById('situationRefusedLetterText').textContent = '';
     document.getElementById('situationRefusedSuggestion').style.display = 'none';
     situationRefusedRouting = null;
   }

@@ -3,7 +3,7 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
-## New: Refusal-letter upload suggests where to start (situation gate)
+## New: Refusal-letter upload helps you read your own letter (situation gate)
 
 User request: "once an applicant clicks and have been refused before, create a picture page and ask
 the applicant to upload the letter of refusal... scan it and pick keywords. Once you pick keywords
@@ -11,21 +11,26 @@ like financial inconsistency related to finances, send such refused applicants s
 and bank statement analysis... you pick the date of the refusal. Once the date of the refusal is
 above six months, the applicant will start back from scanning passport to confirm. Both if the
 applicant just got refused within a month, take the applicant straight to income and bank statement
-analysis." Adds an optional letter upload to the existing "I've been refused before" step - read
-entirely on-device via the same OCR pipeline already used for passports and bank statements
-(getLinesFromPdf / smartRecognize), nothing uploaded anywhere. A letter with financial wording
-(sufficient funds, bank statement, source of funds, etc. - real UK Home Office refusal-letter
-boilerplate) suggests starting at Income & bank statement analysis regardless of age; otherwise it
-goes by how recent the refusal was - clarified with the product owner that "within a month" extends
-to the whole 1-6 month range (little has likely changed either way) - over 6 months old suggests
-restarting from the passport scan instead. A manual date+reason fallback covers a letter OCR can't
-read confidently (or an applicant who'd rather not upload one at all), so this is never a dead end.
-Deliberately worded as a SUGGESTION, never a diagnosis ("letters like this often come down to..."),
-with a "See my full checklist instead" button next to every suggestion - see the block comment above
-#situationRefusedUpload in index.html: stating a definitive read on someone's specific refusal
-reason edges into OISC/RCIC-regulated "immigration advice" territory, which this app has deliberately
-stayed out of since the situation gate was first built. The original quick-context WhatsApp/email
-form (country/times refused/reason/balance) is unchanged and still reachable below this either way.
+analysis." Adds an optional letter upload to the existing "I've been refused before" step.
+
+First version auto-classified the letter's content (keyword match -> financial or not) and used that
+to pick a suggested next step automatically. Paused before shipping and redesigned after a closer look
+at the actual OISC rule: it isn't about how carefully the wording is hedged, it's about whether the
+advice is tailored to one person's specific case - and reading someone's letter and picking their next
+step FROM ITS CONTENT is tailored no matter how softly it's phrased. Final design: OCR (same on-device
+pipeline as passports/bank statements - getLinesFromPdf / smartRecognize, nothing uploaded anywhere)
+does exactly one thing - extract the letter's text and show it back to the applicant, verbatim, like a
+friend with good English reading it aloud. It never classifies what the letter means. The applicant
+reads it themselves and answers two plain questions - a date (pre-filled from the letter, since a date
+is a plain fact, not a judgment) and whether it was mainly about finances, which is ALWAYS left for the
+applicant to answer and never auto-set from the letter's wording. Only the applicant's own answer, via
+an explicit "Use this" click, produces a suggestion: a recent (within 6 months) or financial refusal
+suggests Income & bank statement analysis; an older, non-financial one suggests restarting from the
+passport scan. A prominent note next to the two questions points to a real OISC-registered (UK) or
+RCIC-registered (Canada) adviser for an actual case assessment. Every suggestion still sits next to a
+"See my full checklist instead" button, and skipping the upload entirely (or clicking "Just tell us
+directly") still reaches the same manual questions or the original quick-context WhatsApp/email form
+(country/times refused/reason/balance), unchanged.
 
 ## Change: Document Review pricing - N22,000 full price, 70% off for first 100 applicants
 

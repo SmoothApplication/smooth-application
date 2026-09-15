@@ -11,16 +11,26 @@
 // treated the same as "within a month" (still -> finance2); a non-financial refusal goes by date
 // alone; a financial-keyword match routes to finance2 regardless of age, since that's the thing to
 // revisit either way; and every suggestion is phrased as a suggestion, never a diagnosis, sitting
-// next to a "See my full checklist instead" escape hatch — see the block comment above
-// #situationRefusedUpload in index.html for the OISC/RCIC "immigration advice" reasoning behind that.
+// next to a "See my full checklist instead" escape hatch.
+//
+// REDESIGNED after shipping the first version (see CHANGELOG): a closer look at the actual OISC rule
+// showed the risk isn't about how carefully the wording is hedged - it's about whether the advice is
+// tailored to one person's specific case. Reading someone's own letter and picking their next step
+// FROM ITS CONTENT is tailored to their case no matter how softly it's phrased. So OCR's job shrank to
+// exactly one thing: extract the letter's text and show it back to the applicant, like a friend with
+// good English reading it aloud. It never classifies what the letter means. The applicant reads it
+// themselves and answers two plain questions (a pre-fillable date, and a financial yes/no THEY pick,
+// never auto-set) - their own answer, not the app's reading of the letter, drives the suggestion. See
+// the block comment above #situationRefusedUpload in index.html for the full reasoning.
 //
 // Scope note: this covers the keyword/date-parsing logic and the manual-entry -> routing -> session
-// jump wiring end to end. It deliberately does NOT drive a real file through the OCR button itself —
-// that button calls straight into the same getLinesFromPdf/smartRecognize pipeline already covered by
-// existing passport-scan and bank-statement tests, so re-proving OCR itself here would be redundant;
-// what's actually new here (keyword/date parsing, the routing decision, the suggestion UI, the session
-// jump) is covered directly via the __test hooks and the manual-entry path, which feeds the exact same
-// applySituationRefusedRouting() function the OCR success path calls.
+// jump wiring end to end, plus the redesign's core guarantee (OCR extracts and pre-fills a date, but
+// never auto-picks the financial answer or shows a suggestion on its own). It deliberately does NOT
+// drive a real file through the OCR scan button itself — that button calls straight into the same
+// getLinesFromPdf/smartRecognize pipeline already covered by existing passport-scan and bank-statement
+// tests, so re-proving OCR itself here would be redundant; what's actually new here is covered directly
+// via the __test hooks (which exercise the exact same code the OCR success handler calls) and the
+// manual-entry path, which is now the ONLY path that ever calls applySituationRefusedRouting().
 const assert = require('assert');
 const { newPageAt } = require('./helpers');
 
@@ -81,7 +91,8 @@ exports.run = async function(ctx){
     var recent = monthsAgoYMD(2);
     var midRange = monthsAgoYMD(5); // the clarified 1-6 month bucket
     var old = monthsAgoYMD(9);
-    var routing = await page.evaluate(function(recent, midRange, old){
+    var routing = await page.evaluate(function(args){
+      var recent = args.recent, midRange = args.midRange, old = args.old;
       function d(ymd){ return new Date(ymd.y, ymd.m - 1, ymd.d); }
       return {
         financialOld: window.__testComputeRefusalRouting(d(old), true).target,
@@ -90,7 +101,7 @@ exports.run = async function(ctx){
         nonFinancialMidRange: window.__testComputeRefusalRouting(d(midRange), false).target,
         nonFinancialOld: window.__testComputeRefusalRouting(d(old), false).target
       };
-    }, recent, midRange, old);
+    }, { recent: recent, midRange: midRange, old: old });
     assert.strictEqual(routing.financialOld, 'finance2', 'A financial-keyword refusal should route to finance2 even if it was long ago, got: ' + routing.financialOld);
     assert.strictEqual(routing.financialRecent, 'finance2', 'A recent financial-keyword refusal should route to finance2, got: ' + routing.financialRecent);
     assert.strictEqual(routing.nonFinancialRecent, 'finance2', 'A recent (within 1 month) non-financial refusal should route to finance2, got: ' + routing.nonFinancialRecent);
@@ -179,5 +190,46 @@ exports.run = async function(ctx){
     assert.strictEqual(gateHidden, true, 'Situation gate should be hidden after "See my full checklist instead"');
   } finally {
     await page4.context().close();
+  }
+
+  // ---- Redesign guarantee: "OCR" (simulated via the test hook, same code path the real scan button
+  // calls) shows the letter's text and pre-fills the date, but NEVER auto-picks the financial answer or
+  // shows a suggestion on its own - only the applicant's own "Use this" click can do that. ----
+  var page5 = await newPageAt(ctx.browser, '/index.html');
+  try {
+    await reachSituationGate(page5, 'UK');
+    await page5.click('#situationOptRefused');
+    await page5.waitForFunction(function(){ return typeof window.__testApplyOcrExtractedText === 'function'; }, { timeout: 10000 });
+
+    var letterText = 'UK Visas and Immigration\nDate: 14 September 2025\n\nDear Applicant,\nWe are not satisfied that you have sufficient funds to cover your trip, and your bank statement does not demonstrate this.';
+    await page5.evaluate(function(text){ window.__testApplyOcrExtractedText(text); }, letterText);
+
+    // The letter's own text should be shown back to the applicant, verbatim.
+    var shownText = await page5.$eval('#situationRefusedLetterText', function(el){ return el.textContent; });
+    assert.ok(shownText.indexOf('sufficient funds') !== -1, 'The extracted letter text should be shown back to the applicant, got: ' + shownText);
+
+    // The date is a plain fact, so it's fine to pre-fill it automatically.
+    var prefilledDate = await page5.$eval('#situationRefusedManualDate', function(el){ return el.value; });
+    assert.strictEqual(prefilledDate, '2025-09-14', 'A confidently-parsed date should pre-fill the manual date field, got: ' + prefilledDate);
+
+    // The financial question must NEVER be auto-set from the letter's content, even though this exact
+    // letter text contains financial keywords ("sufficient funds") that the OLD design would have used
+    // to auto-classify it - this is the actual point of the redesign.
+    var financialValue = await page5.$eval('#situationRefusedManualFinancial', function(el){ return el.value; });
+    assert.strictEqual(financialValue, '', 'The financial dropdown must stay unset ("Not sure") after OCR - the applicant must answer it themselves, got: ' + financialValue);
+
+    // No suggestion should appear until the applicant clicks "Use this" themselves.
+    var suggestionVisibleBeforeApply = await page5.$eval('#situationRefusedSuggestion', function(el){ return getComputedStyle(el).display !== 'none'; });
+    assert.strictEqual(suggestionVisibleBeforeApply, false, 'No suggestion should appear from OCR alone, before the applicant answers and clicks "Use this"');
+
+    // Now the applicant reads the shown text themselves and answers "yes" - only THIS should produce a
+    // suggestion.
+    await page5.selectOption('#situationRefusedManualFinancial', 'yes');
+    await page5.click('#btnSituationRefusedManualApply');
+    await page5.waitForSelector('#situationRefusedSuggestion', { state: 'visible' });
+    var suggestionTextAfter = await page5.$eval('#situationRefusedSuggestionText', function(el){ return el.textContent; });
+    assert.ok(/Income & bank statement analysis/.test(suggestionTextAfter), 'Suggestion should only appear after the applicant\'s own answer, got: ' + suggestionTextAfter);
+  } finally {
+    await page5.context().close();
   }
 };
