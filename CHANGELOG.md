@@ -3,6 +3,26 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## New: SEO pass on `<head>` - title, description, Open Graph/Twitter cards, structured data
+
+User request: "Description smooth application that would significantly boost the SEO and make
+this project easier to find on Google." `<title>` and the meta description are now keyword-first
+("Free UK Visa Checklist for Nigerians | Smooth Application" / a 142-character description leading
+with "UK visa checklist" and naming the bank-statement-checking differentiator) rather than
+brand-first, since discovery by people who don't yet know the brand was the stated goal. Added a
+canonical `<link>`, full Open Graph + Twitter Card tags (so a shared link actually renders a preview
+card on WhatsApp - this product's #1 real share/contact channel per its own analytics - and on
+X/Facebook, instead of a bare URL), and `SoftwareApplication` JSON-LD structured data naming every
+currently-LIVE country (UK, Canada, Schengen, South Africa, Ghana, Kenya, Morocco, Ethiopia -
+deliberately NOT the unreleased US/Australia/China entries in the `COUNTRIES` object). No
+`aggregateRating`/review was added to the structured data - there's no genuine review data behind
+this app yet, and Google's structured-data policy treats a fabricated rating as a violation, not
+just something ignored. og:image/twitter:image point at the existing `icons/icon-512.png` (square -
+fine for a WhatsApp preview, though a proper wide 1200×630 banner would look sharper on Facebook/
+LinkedIn specifically, if that's ever wanted). Added `tests/seo-meta-tags.test.js` to lock all of
+this in, including the "every live country is named, no unreleased one is" accuracy check and the
+no-fake-rating check.
+
 ## New: Bank statement analysis is recalled automatically - no re-upload needed on return
 
 User question: "is there a way applicants can recall their bank statements without having to

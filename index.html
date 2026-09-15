@@ -3,8 +3,66 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Smooth Application - UK Visitor Visa Checklist for Nigeria</title>
-<meta name="description" content="Free, private, on-device document-readiness checklist for UK Standard Visitor and Canada visitor visa applicants. Your documents and files never leave your device.">
+<!-- SEO pass: user request ("boost SEO, make this easier to find on Google"). Title/description are
+     keyword-first (the actual search phrase before the brand name) rather than brand-first, since the
+     goal is discovery by people who don't know the brand yet, not recognition by people who do. Kept
+     UK as the headline keyword - it's both the flagship checklist (built from a personal reviewed-case
+     track record, unlike the others) and the term real applicants actually search/share around (see
+     docs/marketing-plan.md §2/§6 and the live GoatCounter funnel: UK accounts for the overwhelming
+     majority of real sessions) - but every OTHER live country (Canada, Schengen, South Africa, Ghana,
+     Kenya, Morocco, Ethiopia - see the COUNTRIES object below; US/Australia/China are NOT live, so
+     deliberately not claimed here) is still named in the longer og:description/JSON-LD copy below,
+     both for accuracy and to pick up their own long-tail search traffic. -->
+<title>Free UK Visa Checklist for Nigerians | Smooth Application</title>
+<meta name="description" content="Free UK visa checklist for Nigerians — auto-checks your bank statement for issues reviewers flag. 100% private, runs entirely in your browser.">
+<link rel="canonical" href="https://smoothapplication.github.io/smooth-application/">
+<!-- Open Graph + Twitter Card: mainly for how a shared link actually looks on WhatsApp (this
+     product's #1 real share/contact channel per its own analytics - see the "notify me" WhatsApp vs
+     email split) and X/Facebook - without these, a shared link shows no preview card at all, just a
+     bare URL. icon-512.png is square (not the "ideal" 1200x630 og:image) but a square image renders
+     fine in a WhatsApp preview, which is what actually matters here; a proper wide banner is a nice-
+     to-have, not blocking, if this needs to look sharper on Facebook/LinkedIn specifically later. -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Smooth Application">
+<meta property="og:url" content="https://smoothapplication.github.io/smooth-application/">
+<meta property="og:title" content="Free UK Visa Checklist for Nigerians | Smooth Application">
+<meta property="og:description" content="Auto-checks your bank statement for issues UK reviewers flag, tracks your documents, and also covers Canada, Schengen, South Africa, Ghana, Kenya, Morocco &amp; Ethiopia. 100% private - runs in your browser, nothing is uploaded.">
+<meta property="og:image" content="https://smoothapplication.github.io/smooth-application/icons/icon-512.png">
+<meta property="og:image:width" content="512">
+<meta property="og:image:height" content="512">
+<meta property="og:locale" content="en_NG">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Free UK Visa Checklist for Nigerians | Smooth Application">
+<meta name="twitter:description" content="Auto-checks your bank statement for issues UK reviewers flag. 100% private - runs entirely in your browser, nothing is uploaded.">
+<meta name="twitter:image" content="https://smoothapplication.github.io/smooth-application/icons/icon-512.png">
+<!-- SoftwareApplication structured data: no aggregateRating/review is included, deliberately - there
+     is no genuine review data behind this app yet, and Google's structured-data guidelines treat
+     fabricated ratings as a policy violation that can get a page penalized, not just ignored. This
+     still helps Google's own understanding of what the page is, even without a special rich-result
+     eligibility. -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Smooth Application",
+  "url": "https://smoothapplication.github.io/smooth-application/",
+  "description": "Free, private visa and travel document-readiness checklist for Nigerian applicants, covering the UK, Canada, Schengen, South Africa, Ghana, Kenya, Morocco and Ethiopia. Automatically checks bank statements for issues reviewers commonly flag - everything runs in your browser, nothing is uploaded.",
+  "applicationCategory": "TravelApplication",
+  "operatingSystem": "Any (web browser)",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "NGN"
+  },
+  "audience": {
+    "@type": "Audience",
+    "geographicArea": {
+      "@type": "Country",
+      "name": "Nigeria"
+    }
+  }
+}
+</script>
 <meta name="theme-color" content="#1b6fa8">
 <link rel="manifest" href="./manifest.json">
 <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png">
