@@ -90,7 +90,7 @@ exports.run = async function(ctx){
     var paidWaHref = await page.$eval('#situationPaidWhatsApp', function(el){ return el.getAttribute('href'); });
     var paidMsg = decodeURIComponent(paidWaHref.split('?text=')[1]);
     assert.ok(/United Kingdom/.test(paidMsg), 'Paid-follow-up message should name the current country, got: ' + paidMsg);
-    assert.ok(/\$25/.test(paidMsg), 'Paid-follow-up message should mention the Document Review price, got: ' + paidMsg);
+    assert.ok(/\$4/.test(paidMsg), 'Paid-follow-up message should mention the Document Review price, got: ' + paidMsg);
 
     // Clicking through (without sending a message) should still land on the real checklist - a
     // refusal/review question is never a dead end.

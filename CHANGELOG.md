@@ -3,6 +3,22 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Change: Document Review pricing - N22,000 full price, 70% off for first 100 applicants
+
+User request: "Make the fee N22,000 which is 10% of the visa fees for 6 months. Then give
+applicants a 70% discount for 1st 100 applicants." Replaces the old $50/$25 (₦80,000/₦40,000, 50%
+off) Document Review offer shown on the quiz-result and finance-report screens with $14/₦22,000 full
+price and $4/₦6,600 for the first 100 applicants (70% off). USD figures use this app's existing
+~₦1,600/$1 display convention (approximate, not a live rate - same as elsewhere in the app). Updated
+everywhere the old price appeared: both promo badges, both "what do you get for $X" summaries, both
+"Get my Document Review" buttons, the paid-follow-up message on the situation gate, and all three
+WhatsApp/email message templates. Worded as a launch/introductory price being discounted from a
+stated genuine future rate (₦22,000), not a fabricated "was" price, since Nigeria's FCCPC (and
+equivalents elsewhere) treat fake reference pricing as misleading - this only stays honest if ₦22,000
+is genuinely the intended post-promo rate. Note: this app has no backend/counter, so nothing here
+technically enforces the "first 100 applicants" cutoff - that has to be tracked and honored manually
+via the WhatsApp/email replies once it's live.
+
 ## New: SEO pass on `<head>` - title, description, Open Graph/Twitter cards, structured data
 
 User request: "Description smooth application that would significantly boost the SEO and make

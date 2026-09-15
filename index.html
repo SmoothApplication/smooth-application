@@ -534,12 +534,17 @@
     position: static; top: auto; right: auto; margin-left: 4px; vertical-align: 4px;
   }
   /* Promotional framing for the Document Review offer (quiz result + finance report screens).
-     The actual price stays $25/₦40,000 exactly as before - this only adds a "50% off our launch
-     price" anchor next to it. Deliberately worded as a LAUNCH/introductory price we're discounting
-     FROM a stated future rate, not "was $50" - there's no real prior price history for this
-     never-yet-charged offer, and a fabricated "was" price is a misleading-pricing risk (FCCPC in
-     Nigeria and equivalents elsewhere police fake reference pricing). This framing is honest as
-     long as $50 is genuinely the intended post-launch rate. */
+     User-set pricing: ₦22,000 full price (10% of 6 months' worth of visa fees - the applicant's own
+     rough cost-anchor), 70% off (₦6,600) for the first 100 applicants. USD figures ($14/$4) use this
+     app's existing ~₦1,600/$1 display convention (see the earlier $50/$25 pricing this replaced),
+     not a live rate - approximate, same as "about ₦X" is used elsewhere for USD-denominated things.
+     Deliberately worded as a LAUNCH/introductory price we're discounting FROM a stated genuine future
+     rate, not a fabricated "was" price - there's no real prior price history for this never-yet-
+     charged offer, and a fake reference price is a misleading-pricing risk (FCCPC in Nigeria and
+     equivalents elsewhere police fake reference pricing). This framing is honest as long as ₦22,000
+     is genuinely the intended post-promo rate, AND the "first 100 applicants" claim is genuinely
+     honored - note this app has no backend/counter, so nothing here technically enforces a 100-person
+     cutoff; that has to be tracked and honored manually (WhatsApp/email replies) once it's live. */
   .promo-badge {
     display: inline-block; font-size: 10.5px; font-weight: 800; letter-spacing: 0.04em;
     color: var(--warning-text); background: var(--warning-wash); border-radius: 20px;
@@ -1567,12 +1572,12 @@
       </div>
       <div class="quiz-notify-card">
         <b>📋 Document Review</b>
-        <div style="margin-top:6px;"><span class="promo-badge">50% OFF LAUNCH PRICE</span><span class="promo-strike">$50 (₦80,000)</span> → <b>$25 (₦40,000)</b></div>
+        <div style="margin-top:6px;"><span class="promo-badge">70% OFF - FIRST 100 APPLICANTS</span><span class="promo-strike">$14 (₦22,000)</span> → <b>$4 (₦6,600)</b></div>
         <!-- data-keep-inline: this is a direct part of the paid offer right above it, not neutral
              background framing - collectReasons() sweeps every OTHER .tip-details into the Reasons
              tab, but this one needs to stay put, same opt-out already used for the landing screen's
              "What you need to know" toggle. -->
-        <details class="tip-details" data-keep-inline="1" style="margin-top:8px;"><summary>What do you get for $25?</summary><div class="item-tip">
+        <details class="tip-details" data-keep-inline="1" style="margin-top:8px;"><summary>What do you get for $4?</summary><div class="item-tip">
           <ul style="margin:0; padding-left:18px;">
             <li>We catch silent errors in your documents - the kind that quietly lead to refusal.</li>
             <li>We check your finances actually match your story - most refusals come from a mismatch between the two.</li>
@@ -1580,7 +1585,7 @@
           </ul>
         </div></details>
         <div style="margin-top:10px;">
-          <a class="btn primary" id="quizNotifyWhatsApp" href="#" target="_blank" rel="noopener" style="display:inline-block;">💬 Get my Document Review - $25</a>
+          <a class="btn primary" id="quizNotifyWhatsApp" href="#" target="_blank" rel="noopener" style="display:inline-block;">💬 Get my Document Review - $4</a>
           <span style="font-size:12px; color:var(--text-muted);"> or <a id="quizNotifyEmail" href="#">email us</a> instead</span>
         </div>
       </div>
@@ -1852,7 +1857,7 @@
          WhatsApp number/inbox, same fake-door test - see docs/monetization-strategy.md) rather than
          building a second, separate review mechanism. -->
     <div id="situationPaidFollowup" class="situation-followup" style="display:none;">
-      <p class="item-tip" style="margin-top:0;">We're testing a paid Document Review - a real person checks your form, passport and statements for completeness and quality before your appointment, from $25 (about ₦40,000). Message us and attach what you'd like reviewed.</p>
+      <p class="item-tip" style="margin-top:0;">We're testing a paid Document Review - a real person checks your form, passport and statements for completeness and quality before your appointment, from $4 (about ₦6,600) for our first 100 applicants. Message us and attach what you'd like reviewed.</p>
       <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
         <a class="btn primary" id="situationPaidWhatsApp" href="#" target="_blank" rel="noopener">💬 Message us for a review</a>
         <a class="btn ghost" id="situationPaidEmail" href="#">✉️ Email instead</a>
@@ -2620,10 +2625,10 @@
              point a second pair of eyes is most useful to offer, not before. -->
         <div class="quiz-notify-card" style="margin-top:14px;">
           <b>📋 Document Review</b>
-          <div style="margin-top:6px;"><span class="promo-badge">50% OFF LAUNCH PRICE</span><span class="promo-strike">$50 (₦80,000)</span> → <b>$25 (₦40,000)</b></div>
+          <div style="margin-top:6px;"><span class="promo-badge">70% OFF - FIRST 100 APPLICANTS</span><span class="promo-strike">$14 (₦22,000)</span> → <b>$4 (₦6,600)</b></div>
           <!-- data-keep-inline: see the matching note on the quiz-result version of this card above -
                this is part of the paid offer itself, not neutral framing collectReasons() should sweep. -->
-          <details class="tip-details" data-keep-inline="1" style="margin-top:8px;"><summary>What do you get for $25?</summary><div class="item-tip">
+          <details class="tip-details" data-keep-inline="1" style="margin-top:8px;"><summary>What do you get for $4?</summary><div class="item-tip">
             <ul style="margin:0; padding-left:18px;">
               <li>We catch silent errors in your documents - the kind that quietly lead to refusal.</li>
               <li>We check your finances actually match your story - most refusals come from a mismatch between the two.</li>
@@ -2631,7 +2636,7 @@
             </ul>
           </div></details>
           <div style="margin-top:10px;">
-            <a class="btn primary" id="finReportReviewWhatsApp" href="#" target="_blank" rel="noopener" style="display:inline-block;">💬 Get my Document Review - $25</a>
+            <a class="btn primary" id="finReportReviewWhatsApp" href="#" target="_blank" rel="noopener" style="display:inline-block;">💬 Get my Document Review - $4</a>
             <span style="font-size:12px; color:var(--text-muted);"> or <a id="finReportReviewEmail" href="#">email us</a> instead</span>
           </div>
         </div>
@@ -15730,7 +15735,7 @@
   // option for anyone who prefers it. No preventDefault anywhere: this only ever records the click,
   // the link's own href does the actual navigating.
   (function(){
-    var msg = "Hi, I just took the Smooth Application readiness quiz and I'm interested in the paid Document Review (50% off launch price - $25 instead of $50).";
+    var msg = "Hi, I just took the Smooth Application readiness quiz and I'm interested in the paid Document Review (70% off for the first 100 applicants - $4 instead of $14).";
     var waLink = document.getElementById('quizNotifyWhatsApp');
     var emailLink = document.getElementById('quizNotifyEmail');
     waLink.href = 'https://wa.me/2349081389969?text=' + encodeURIComponent(msg);
@@ -15765,7 +15770,7 @@
   // tracked under its own event names since it's a genuinely different touchpoint (post-readiness-
   // report, not post-quiz) worth measuring separately.
   (function(){
-    var msg = "Hi, I just finished my readiness report on Smooth Application and I'm interested in the paid Document Review (50% off launch price - $25 instead of $50).";
+    var msg = "Hi, I just finished my readiness report on Smooth Application and I'm interested in the paid Document Review (70% off for the first 100 applicants - $4 instead of $14).";
     var waLink = document.getElementById('finReportReviewWhatsApp');
     var emailLink = document.getElementById('finReportReviewEmail');
     waLink.href = 'https://wa.me/2349081389969?text=' + encodeURIComponent(msg);
@@ -16049,7 +16054,7 @@
     el.addEventListener('change', updateSituationRefusedHref);
   });
   function updateSituationPaidHref(){
-    var msg = "Hi, I've already paid the fee and filled my " + destName() + " form. I'm interested in the paid Document Review (50% off launch price - $25 instead of $50) before my appointment.";
+    var msg = "Hi, I've already paid the fee and filled my " + destName() + " form. I'm interested in the paid Document Review (70% off for the first 100 applicants - $4 instead of $14) before my appointment.";
     document.getElementById('situationPaidWhatsApp').href = 'https://wa.me/2349081389969?text=' + encodeURIComponent(msg);
     document.getElementById('situationPaidEmail').href = 'mailto:lalasionline@gmail.com?subject=' + encodeURIComponent('Document Review - already applied') + '&body=' + encodeURIComponent(msg);
   }
