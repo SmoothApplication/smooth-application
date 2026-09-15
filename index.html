@@ -1815,10 +1815,53 @@
       </button>
     </div>
 
-    <!-- Refused follow-up: quick context only, no letter upload/OCR yet (see the block comment
-         above #situationGate for why) - just enough for whoever reads the WhatsApp/email to reply
-         with something genuinely useful instead of "tell me more". -->
+    <!-- Refused follow-up. The letter-upload/OCR block below is a deliberately careful addition on
+         top of the original lightweight version (see the big block comment above #situationGate) -
+         it only ever SUGGESTS a starting point ("letters like this often come down to...") and never
+         states a diagnosis of the applicant's own case, precisely because doing the latter edges into
+         OISC/RCIC-regulated "immigration advice" territory. Every suggestion sits right next to a "See
+         my full checklist instead" button, and skipping the upload entirely still reaches the same
+         quick-context WhatsApp/email form below it as before. -->
     <div id="situationRefusedFollowup" class="situation-followup" style="display:none;">
+      <div id="situationRefusedUpload" style="margin-bottom:16px;">
+        <label class="field" style="margin-bottom:4px;">📄 Have your refusal letter handy? (optional)</label>
+        <p class="item-tip" style="margin:0 0 8px;">Upload a photo or PDF and we'll suggest where to start based on it - read entirely on your device, nothing uploaded anywhere. Prefer not to? <a href="#" id="situationRefusedManualToggle">Just tell us directly</a>, or skip straight to the quick details below.</p>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px; align-items:center;">
+          <input type="file" id="situationRefusedLetterFile" accept="image/*,application/pdf" style="max-width:220px;">
+          <button type="button" class="btn" id="btnSituationRefusedLetterScan" disabled>📎 Read my letter</button>
+        </div>
+        <div id="situationRefusedLetterMsg" class="scan-msg" style="display:none;"></div>
+
+        <!-- Manual fallback: reachable directly via "Just tell us directly" above, or shown automatically
+             if OCR can't confidently read a date off the upload - never a dead end either way. -->
+        <div id="situationRefusedManual" style="display:none; margin-top:10px;">
+          <div class="row">
+            <div>
+              <label class="field" for="situationRefusedManualDate">When were you refused? (roughly is fine)</label>
+              <input type="date" id="situationRefusedManualDate">
+            </div>
+            <div>
+              <label class="field" for="situationRefusedManualFinancial">Was it mainly about your finances (funds/bank statement)?</label>
+              <select id="situationRefusedManualFinancial">
+                <option value="">Not sure</option>
+                <option value="yes">Yes</option>
+                <option value="no">No / something else</option>
+              </select>
+            </div>
+          </div>
+          <button type="button" class="btn ghost" id="btnSituationRefusedManualApply">Use this</button>
+        </div>
+
+        <!-- Suggestion banner: appears once we have a date to work from, from either OCR or the manual
+             form above. Wording is deliberately a suggestion ("you may want to"), never a verdict. -->
+        <div id="situationRefusedSuggestion" class="scan-msg info" style="display:none; margin-top:10px;">
+          <div id="situationRefusedSuggestionText"></div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
+            <button type="button" class="btn primary" id="btnSituationRefusedSuggestionGo">Take me there →</button>
+            <button type="button" class="btn ghost" id="btnSituationRefusedSuggestionSkip">See my full checklist instead</button>
+          </div>
+        </div>
+      </div>
       <div class="row">
         <div>
           <label class="field" for="situationRefusedCountry">Which country refused you?</label>
@@ -5441,6 +5484,15 @@
   function goToPassportSession(){
     var keys = getVisibleSessionKeys();
     var idx = keys.indexOf('passport');
+    if (idx === -1) return;
+    goToSession(idx);
+  }
+  // Same pattern as goToPassportSession() above - used by the situation gate's refusal-letter
+  // suggestion (see the block comment above #situationRefusedUpload in the HTML) to jump straight to
+  // Income & bank statement analysis rather than hardcoding a session index.
+  function goToFinance2Session(){
+    var keys = getVisibleSessionKeys();
+    var idx = keys.indexOf('finance2');
     if (idx === -1) return;
     goToSession(idx);
   }
@@ -15993,8 +16045,218 @@
     window.scrollTo(0,0);
   });
 
+  // ---- Refusal-letter auto-routing (situation gate) ----
+  // Field/founder request: read an uploaded refusal letter - entirely on-device, reusing the exact
+  // same OCR pipeline as everywhere else in this app (ensureLibs/smartRecognize/getLinesFromPdf) - and
+  // use it to SUGGEST a starting point, never to state a diagnosis. See the big block comment above
+  // #situationGate in the HTML: giving automated advice tied to a specific refusal reason edges into
+  // OISC/RCIC-regulated "immigration advice" territory, so every suggestion here is phrased as just
+  // that (a suggestion) and sits right next to a "See my full checklist instead" button.
+  //
+  // Routing rule (product decision, see CHANGELOG): a letter with financial wording (proof of funds,
+  // bank statement, sufficient funds, etc. - real UK Home Office refusal-letter boilerplate) suggests
+  // Income & bank statement analysis regardless of how long ago it was, since that's the thing to
+  // revisit either way. Otherwise, it comes down to how recent the refusal was: within the last
+  // RECENT_REFUSAL_MONTHS months, little has likely changed, so still straight to Income & bank
+  // statement analysis; older than that, enough could plausibly have changed (passport validity,
+  // personal circumstances) that starting fresh from the passport scan is the safer suggestion.
+  var RECENT_REFUSAL_MONTHS = 6;
+  var FINANCIAL_REFUSAL_KEYWORDS = [
+    'sufficient funds', 'insufficient funds', 'source of funds', 'source of income',
+    'financial circumstances', 'financial situation', 'financial standing',
+    'maintain and accommodate', 'maintenance and accommodation', 'bank statement',
+    'bank statements', 'genuine and available', 'evidence of your income',
+    'evidence of your savings', 'level of funds', 'financial history',
+    'proof of funds', 'personal financial', 'economic situation', 'available to you'
+  ];
+  function refusalTextLooksFinancial(text){
+    var norm = String(text || '').toLowerCase().replace(/\s+/g, ' ');
+    return FINANCIAL_REFUSAL_KEYWORDS.some(function(kw){ return norm.indexOf(kw) !== -1; });
+  }
+  var REFUSAL_MONTH_NAMES = 'jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t|tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?';
+  var REFUSAL_MONTH_MAP = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+  function refusalMonthIndexFromName(name){
+    var key = String(name || '').slice(0,3).toLowerCase();
+    return REFUSAL_MONTH_MAP.hasOwnProperty(key) ? REFUSAL_MONTH_MAP[key] : -1;
+  }
+  // Tries "14 September 2026" / "14 Sep 2026" style first (most common on UK Home Office letters),
+  // then the US "September 14, 2026" order, then plain numeric DD/MM/YYYY - stops at the first match
+  // rather than trying to reconcile several, same "trust the first clean read" approach used for
+  // passport dates elsewhere in this app.
+  function findDateInRefusalText(text){
+    var reWordy = new RegExp('\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+(' + REFUSAL_MONTH_NAMES + ')\\.?,?\\s+(\\d{4})\\b', 'i');
+    var m = text.match(reWordy);
+    if (m){
+      var mi = refusalMonthIndexFromName(m[2]);
+      if (mi !== -1){
+        var d = new Date(Number(m[3]), mi, Number(m[1]));
+        if (!isNaN(d.getTime())) return d;
+      }
+    }
+    var reWordyUS = new RegExp('\\b(' + REFUSAL_MONTH_NAMES + ')\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?,?\\s+(\\d{4})\\b', 'i');
+    var m2 = text.match(reWordyUS);
+    if (m2){
+      var mi2 = refusalMonthIndexFromName(m2[1]);
+      if (mi2 !== -1){
+        var d2 = new Date(Number(m2[3]), mi2, Number(m2[2]));
+        if (!isNaN(d2.getTime())) return d2;
+      }
+    }
+    var reNumeric = /\b(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})\b/;
+    var m3 = text.match(reNumeric);
+    if (m3){
+      var day = Number(m3[1]), mon = Number(m3[2]) - 1, yr = Number(m3[3]);
+      if (mon >= 0 && mon <= 11 && day >= 1 && day <= 31){
+        var d3 = new Date(yr, mon, day);
+        if (!isNaN(d3.getTime())) return d3;
+      }
+    }
+    return null;
+  }
+  // Bias toward the top of the letter, where a decision date normally sits (letterhead/reference
+  // block) - fall back to scanning the whole document if nothing turns up there, rather than never
+  // matching a letter whose date happens to sit lower on the page.
+  function parseRefusalDateFromText(text){
+    var norm = String(text || '').replace(/\r/g, '');
+    var head = norm.slice(0, 1200);
+    return findDateInRefusalText(head) || findDateInRefusalText(norm);
+  }
+  function refusalMonthsBetween(date, now){
+    var months = (now.getFullYear() - date.getFullYear()) * 12 + (now.getMonth() - date.getMonth());
+    if (now.getDate() < date.getDate()) months -= 1;
+    return months;
+  }
+  // dateObj may be null (shouldn't normally happen by the time this is called - both the OCR path and
+  // the manual-entry path require a date first - but fails safe toward the "recent" branch rather than
+  // throwing if it ever is).
+  function computeRefusalRouting(dateObj, isFinancial){
+    var months = dateObj ? refusalMonthsBetween(dateObj, new Date()) : null;
+    if (!isFinancial && months !== null && months > RECENT_REFUSAL_MONTHS){
+      return { target: 'restart', months: months };
+    }
+    return { target: 'finance2', months: months };
+  }
+  function refusalSuggestionText(routing, isFinancial){
+    if (routing.target === 'finance2'){
+      return isFinancial
+        ? 'Letters like this often come down to your finances - you may want to start with <b>Income &amp; bank statement analysis</b>. You can still look at your full checklist any time.'
+        : "That was recent enough that little has likely changed - <b>Income &amp; bank statement analysis</b> is probably the best place to pick up. You can still look at your full checklist any time.";
+    }
+    return "It's been a while since then, so a few things may have changed - starting fresh from your <b>passport scan</b> is probably the safer bet. You can still look at your full checklist any time.";
+  }
+  // Reuses the same on-device pipeline as every other document scan in this app (ensureLibs for
+  // pdf.js/Tesseract, getLinesFromPdf for a PDF's text layer with an automatic OCR fallback for a
+  // scanned/image PDF, loadFileToCanvas+smartRecognize for a direct photo) - nothing new to load,
+  // nothing uploaded anywhere.
+  function scanRefusalLetterText(file){
+    return ensureLibs().then(function(){
+      if (file.type === 'application/pdf'){
+        if (!libsLoaded.pdf) return Promise.reject(new Error('PDF tools ' + ocrUnavailableReason()));
+        return file.arrayBuffer().then(function(buf){
+          return window.pdfjsLib.getDocument({data: buf}).promise;
+        }).then(function(pdf){
+          return getLinesFromPdf(pdf);
+        }).then(function(lines){
+          return lines.map(function(l){ return l.text; }).join('\n');
+        });
+      } else if (file.type.indexOf('image/') === 0){
+        if (!libsLoaded.tesseract) return Promise.reject(new Error('Image scanning tool ' + ocrUnavailableReason()));
+        return loadFileToCanvas(file).then(function(canvas){
+          return smartRecognize(canvas, {expectMrz:false});
+        }).then(function(best){
+          return best ? best.text : '';
+        });
+      }
+      return Promise.reject(new Error('Please upload a PDF or an image (JPG/PNG).'));
+    });
+  }
+  function setSituationRefusedLetterMsg(cls, text){
+    var el = document.getElementById('situationRefusedLetterMsg');
+    el.className = 'scan-msg ' + cls;
+    el.style.display = 'block';
+    el.textContent = text;
+  }
+  var situationRefusedRouting = null;
+  function showSituationRefusedManual(){
+    document.getElementById('situationRefusedManual').style.display = 'block';
+  }
+  function applySituationRefusedRouting(dateObj, isFinancial){
+    var routing = computeRefusalRouting(dateObj, isFinancial);
+    situationRefusedRouting = routing;
+    var box = document.getElementById('situationRefusedSuggestion');
+    document.getElementById('situationRefusedSuggestionText').innerHTML = refusalSuggestionText(routing, isFinancial);
+    box.style.display = 'block';
+    trackEvent('situation_refused_routing:' + routing.target);
+  }
+  // Test-only hooks, same convention as __testFindUnexplainedLargeInflows etc. elsewhere in this file
+  // - let tests exercise the keyword/date parsing and routing decision directly, without needing a
+  // real file + working OCR/CDN access just to check the logic itself.
+  window.__testRefusalTextLooksFinancial = refusalTextLooksFinancial;
+  window.__testParseRefusalDateFromText = parseRefusalDateFromText;
+  window.__testComputeRefusalRouting = computeRefusalRouting;
+  window.__testApplySituationRefusedRouting = applySituationRefusedRouting;
+
+  document.getElementById('situationRefusedLetterFile').addEventListener('change', function(){
+    document.getElementById('btnSituationRefusedLetterScan').disabled = !this.files || !this.files[0];
+  });
+  document.getElementById('situationRefusedManualToggle').addEventListener('click', function(e){
+    e.preventDefault();
+    showSituationRefusedManual();
+  });
+  document.getElementById('btnSituationRefusedLetterScan').addEventListener('click', function(){
+    var fileInput = document.getElementById('situationRefusedLetterFile');
+    var file = fileInput.files && fileInput.files[0];
+    if (!file) return;
+    if (file.size > 20*1024*1024){
+      setSituationRefusedLetterMsg('err', 'File is larger than 20MB - please pick a smaller copy, or use "Just tell us directly" below.');
+      return;
+    }
+    trackEvent('situation_refused_letter:attempted');
+    setSituationRefusedLetterMsg('busy', 'Reading your letter… this can take up to 30 seconds (nothing leaves your browser).');
+    scanRefusalLetterText(file).then(function(text){
+      if (!text || !text.trim()){
+        setSituationRefusedLetterMsg('info', "Couldn't read that clearly - try a clearer photo, or just tell us directly below.");
+        showSituationRefusedManual();
+        return;
+      }
+      var isFinancial = refusalTextLooksFinancial(text);
+      var dateObj = parseRefusalDateFromText(text);
+      if (!dateObj){
+        setSituationRefusedLetterMsg('info', "We read your letter but couldn't confidently find a date on it - just tell us directly below.");
+        showSituationRefusedManual();
+        return;
+      }
+      setSituationRefusedLetterMsg('ok', 'Got it - read your letter.');
+      applySituationRefusedRouting(dateObj, isFinancial);
+      trackEvent('situation_refused_letter:read');
+    }).catch(function(err){
+      logClientError('situation_refused_letter', err);
+      setSituationRefusedLetterMsg('err', ((err && err.message) ? err.message : "Couldn't read this file automatically.") + ' You can still just tell us directly below.');
+      showSituationRefusedManual();
+    });
+  });
+  document.getElementById('btnSituationRefusedManualApply').addEventListener('click', function(){
+    var dateVal = document.getElementById('situationRefusedManualDate').value;
+    var finVal = document.getElementById('situationRefusedManualFinancial').value;
+    if (!dateVal) return;
+    var parts = dateVal.split('-');
+    var dateObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    trackEvent('situation_refused_manual:applied');
+    applySituationRefusedRouting(dateObj, finVal === 'yes');
+  });
+  document.getElementById('btnSituationRefusedSuggestionGo').addEventListener('click', function(){
+    trackEvent('situation_refused_suggestion:accepted');
+    enterChecklistFromSituationGate();
+    if (situationRefusedRouting && situationRefusedRouting.target === 'finance2') goToFinance2Session();
+  });
+  document.getElementById('btnSituationRefusedSuggestionSkip').addEventListener('click', function(){
+    trackEvent('situation_refused_suggestion:skipped');
+    enterChecklistFromSituationGate();
+  });
+
   // "Where are you in the process?" gate — see the big block comment above #situationGate in the
-  // HTML for why this exists and why it's deliberately this lightweight (no OCR, no agent backend).
+  // HTML for why this exists and why it's deliberately this lightweight-by-default (no agent backend,
+  // no automated diagnosis - see the refusal-letter routing block above for the one careful exception).
   function resetSituationGate(){
     document.querySelectorAll('.situation-option').forEach(function(btn){
       btn.classList.remove('selected');
@@ -16003,6 +16265,14 @@
     document.getElementById('situationRefusedFollowup').style.display = 'none';
     document.getElementById('situationPaidFollowup').style.display = 'none';
     document.getElementById('situationContinue').style.display = 'none';
+    document.getElementById('situationRefusedLetterFile').value = '';
+    document.getElementById('btnSituationRefusedLetterScan').disabled = true;
+    document.getElementById('situationRefusedLetterMsg').style.display = 'none';
+    document.getElementById('situationRefusedManual').style.display = 'none';
+    document.getElementById('situationRefusedManualDate').value = '';
+    document.getElementById('situationRefusedManualFinancial').value = '';
+    document.getElementById('situationRefusedSuggestion').style.display = 'none';
+    situationRefusedRouting = null;
   }
   function showSituationGate(){
     resetSituationGate();
@@ -16062,8 +16332,10 @@
   document.getElementById('situationRefusedEmail').addEventListener('click', function(){ trackEvent('situation_refused_contact:email'); });
   document.getElementById('situationPaidWhatsApp').addEventListener('click', function(){ trackEvent('situation_paid_contact:whatsapp'); });
   document.getElementById('situationPaidEmail').addEventListener('click', function(){ trackEvent('situation_paid_contact:email'); });
-  document.getElementById('situationContinue').addEventListener('click', function(){
-    trackEvent('situation_continue_clicked');
+  // Shared "close the gate, show the real checklist" step - factored out of situationContinue's own
+  // handler so the refusal-letter suggestion buttons (see the routing block above) can reuse it
+  // exactly, then additionally jump to a specific session where the suggestion calls for that.
+  function enterChecklistFromSituationGate(){
     document.getElementById('situationGate').style.display = 'none';
     document.getElementById('appWrap').style.display = 'block';
     setReasonsTabVisible(true);
@@ -16074,6 +16346,10 @@
     // never picking up page-scoping just because the tab became visible.
     applySessionVisibility();
     window.scrollTo(0,0);
+  }
+  document.getElementById('situationContinue').addEventListener('click', function(){
+    trackEvent('situation_continue_clicked');
+    enterChecklistFromSituationGate();
   });
   document.getElementById('situationBack').addEventListener('click', function(){
     document.getElementById('situationGate').style.display = 'none';

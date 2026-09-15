@@ -3,6 +3,30 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## New: Refusal-letter upload suggests where to start (situation gate)
+
+User request: "once an applicant clicks and have been refused before, create a picture page and ask
+the applicant to upload the letter of refusal... scan it and pick keywords. Once you pick keywords
+like financial inconsistency related to finances, send such refused applicants straight to income
+and bank statement analysis... you pick the date of the refusal. Once the date of the refusal is
+above six months, the applicant will start back from scanning passport to confirm. Both if the
+applicant just got refused within a month, take the applicant straight to income and bank statement
+analysis." Adds an optional letter upload to the existing "I've been refused before" step - read
+entirely on-device via the same OCR pipeline already used for passports and bank statements
+(getLinesFromPdf / smartRecognize), nothing uploaded anywhere. A letter with financial wording
+(sufficient funds, bank statement, source of funds, etc. - real UK Home Office refusal-letter
+boilerplate) suggests starting at Income & bank statement analysis regardless of age; otherwise it
+goes by how recent the refusal was - clarified with the product owner that "within a month" extends
+to the whole 1-6 month range (little has likely changed either way) - over 6 months old suggests
+restarting from the passport scan instead. A manual date+reason fallback covers a letter OCR can't
+read confidently (or an applicant who'd rather not upload one at all), so this is never a dead end.
+Deliberately worded as a SUGGESTION, never a diagnosis ("letters like this often come down to..."),
+with a "See my full checklist instead" button next to every suggestion - see the block comment above
+#situationRefusedUpload in index.html: stating a definitive read on someone's specific refusal
+reason edges into OISC/RCIC-regulated "immigration advice" territory, which this app has deliberately
+stayed out of since the situation gate was first built. The original quick-context WhatsApp/email
+form (country/times refused/reason/balance) is unchanged and still reachable below this either way.
+
 ## Change: Document Review pricing - N22,000 full price, 70% off for first 100 applicants
 
 User request: "Make the fee N22,000 which is 10% of the visa fees for 6 months. Then give
