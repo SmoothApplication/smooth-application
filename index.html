@@ -3163,6 +3163,19 @@
           <input type="file" id="importFile" accept="application/json" style="display:none;">
           <button class="btn ghost" id="btnReset">Reset everything</button>
         </div>
+        <div class="no-print" style="margin-top:12px; padding-top:12px; border-top:1px solid var(--border);">
+          <p class="item-tip" data-reason="1" style="margin:0 0 6px; font-weight:600;">🔔 Coming soon: we're considering making this automatic</p>
+          <p class="item-tip" data-reason="1" style="margin:0 0 8px;">Automatic reminders as your deadline nears, or your report emailed to you with no manual save/export needed. Want one? Tell us which and we'll notify you first when it ships - nothing is sent unless you press send yourself, same as everywhere else in this app.</p>
+          <select id="waitlistFeature" style="margin-bottom:6px; width:100%;">
+            <option value="reminders">Automatic reminders as my deadline nears</option>
+            <option value="emailed_report">Emailed report - no manual save needed</option>
+            <option value="flight_pricing">Live flight pricing for my trip</option>
+          </select>
+          <div class="sidebar-actions">
+            <a class="btn" id="waitlistWhatsApp" href="#" target="_blank" rel="noopener">💬 Notify me on WhatsApp</a>
+            <a class="btn ghost" id="waitlistEmail" href="#">✉️ Notify me by email</a>
+          </div>
+        </div>
       </div>
 
       <!-- Field feedback: "session one, all the reasons there should go to a reason tab at the right
@@ -15837,6 +15850,38 @@
     emailLink.href = 'mailto:lalasionline@gmail.com?subject=' + encodeURIComponent('Interested: Document Review') + '&body=' + encodeURIComponent(msg);
     waLink.addEventListener('click', function(){ trackEvent('quiz_notify_me_clicked:whatsapp'); });
     emailLink.addEventListener('click', function(){ trackEvent('quiz_notify_me_clicked:email'); });
+  })();
+
+  // Cheapest demand-signal test for the deferred freemium backend features (automatic reminders,
+  // emailed report, live flight pricing) - see docs/monetization-strategy.md §1 "How to test cheaply
+  // first": before building any of this speculatively, a simple "Notify me when this ships" link
+  // tells us whether real demand exists. Same zero-backend pattern as quizNotifyWhatsApp just above -
+  // WhatsApp/mailto links only, nothing sent unless the applicant presses send themselves, and their
+  // own email/WhatsApp number comes along for free as the sender - no separate email input field
+  // needed, which also keeps this consistent with the app's "nothing leaves your device unless you
+  // choose to send it" privacy promise. Lives in the "Save your progress" sidebar since that's
+  // exactly where an applicant doing the manual save/export would naturally wonder why it isn't
+  // automatic already.
+  (function(){
+    var select = document.getElementById('waitlistFeature');
+    var waLink = document.getElementById('waitlistWhatsApp');
+    var emailLink = document.getElementById('waitlistEmail');
+    if (!select || !waLink || !emailLink) return;
+    var WAITLIST_FEATURE_LABELS = {
+      reminders: 'automatic WhatsApp/email reminders as my deadline nears',
+      emailed_report: 'a one-tap emailed report, instead of manually saving/exporting',
+      flight_pricing: 'live flight pricing for my trip'
+    };
+    function refreshWaitlistLinks(){
+      var feature = select.value;
+      var msg = "Hi, I'm using the Smooth Application visa checklist and I'd like to be notified when you add " + WAITLIST_FEATURE_LABELS[feature] + ".";
+      waLink.href = 'https://wa.me/2349081389969?text=' + encodeURIComponent(msg);
+      emailLink.href = 'mailto:lalasionline@gmail.com?subject=' + encodeURIComponent('Notify me: ' + feature) + '&body=' + encodeURIComponent(msg);
+    }
+    refreshWaitlistLinks();
+    select.addEventListener('change', refreshWaitlistLinks);
+    waLink.addEventListener('click', function(){ trackEvent('waitlist_notify_clicked:' + select.value + ':whatsapp'); });
+    emailLink.addEventListener('click', function(){ trackEvent('waitlist_notify_clicked:' + select.value + ':email'); });
   })();
 
   // "Get full report" href stays in sync with whatever's currently in the email field, recomputed

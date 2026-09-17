@@ -3,6 +3,24 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## New: "Notify me" waitlist for the deferred freemium features (cheapest demand test, path 1)
+
+Per docs/monetization-strategy.md §1 ("How to test cheaply first"): before building any of the
+deferred backend features (automatic reminders, an emailed report, live flight pricing)
+speculatively, ship the cheapest possible way to measure real demand for each one first. Adds a
+"🔔 Coming soon" card to the "Save your progress" sidebar — a feature picker plus "Notify me on
+WhatsApp" / "Notify me by email" links, prefilled with a message naming whichever feature is
+selected. Same zero-backend, zero-third-party-form pattern already used by the existing
+`quizNotifyWhatsApp` fake-door test for the paid Document Review offer: real `<a href>` links, not
+a JS redirect (a JS-driven mailto silently does nothing on phones with no mail app configured —
+see the existing comment on quizNotifyWhatsApp), nothing sent unless the applicant presses send in
+their own WhatsApp/mail app, and no email input field needed since their own address/number comes
+along for free as the sender — keeps the app's "nothing leaves your device unless you choose to
+send it" privacy promise intact for this feature too. Demand is measured via new
+`waitlist_notify_clicked:<feature>:<channel>` GoatCounter events, same naming convention as
+`quiz_notify_me_clicked:<channel>`. Regression test covers the default link content, the links
+updating when the feature dropdown changes, and both click events firing correctly.
+
 ## Fix: Opay "OWealth Interest Earned" credits showing as garbled sender names
 
 User-reported bug, off a real Opay statement, flagged twice in a row ("do not acknowledge these ...

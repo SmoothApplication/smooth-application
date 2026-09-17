@@ -18,6 +18,17 @@ and (later) live flight pricing.
   free version. If a meaningful fraction of users sign up, that's a much cheaper demand signal
   than building the whole thing. Note this itself needs a lightweight backend (or a third-party
   form tool) — much cheaper than the full reminder system.
+
+  **Shipped:** rather than a real form + backend, this ended up using the SAME zero-backend
+  WhatsApp/mailto pattern as every other fake-door test in this app (see the "Notify me" links in
+  the "Save your progress" sidebar) — a feature picker (automatic reminders / emailed report /
+  live flight pricing) plus a prefilled WhatsApp or email link the applicant sends themselves. No
+  email input field needed: their own address/number comes along for free as the sender, which
+  also keeps the privacy promise ("nothing leaves your device unless you choose to send it")
+  intact for this feature too. Demand is measured the same way as the Document Review test below —
+  via `waitlist_notify_clicked:<feature>:<channel>` events on the GoatCounter dashboard — cheaper
+  and faster to ship than standing up a real form service, at the cost of a real click-through
+  (send the message) rather than a lighter-weight email-only signup.
 - **Rough pricing shape to test:** a small one-time fee (e.g. ₦1,000–2,000) for a bundle of
   reminders + emailed report per application, rather than a recurring subscription — most
   applicants use a tool like this once or twice a year, so subscription pricing is a mismatch for
