@@ -70,7 +70,8 @@ exports.run = async function(ctx){
     // Run every fixture through the real classifier in one page.evaluate call, alongside 3 months
     // of genuine recurring salary so 'personal'/'self' rows are judged in a realistic statement
     // context rather than in isolation.
-    var result = await page.evaluate(function(applicantName, fixtures){
+    var result = await page.evaluate(function(args){
+      var applicantName = args.applicantName, fixtures = args.fixtures;
       var salaryTxns = [
         { narration: 'NIP TRF GOOD EMPLOYER LTD IFO TEST APPLICANT SMITH', credit: 300000, dateISO: '2026-01-15' },
         { narration: 'NIP TRF GOOD EMPLOYER LTD IFO TEST APPLICANT SMITH', credit: 300000, dateISO: '2026-02-15' },
@@ -81,7 +82,7 @@ exports.run = async function(ctx){
       });
       var groups = window.__testBuildIncomeSourceBreakdown(salaryTxns.concat(fixtureTxns), applicantName, '');
       return { groups: groups };
-    }, APPLICANT_NAME, FIXTURES);
+    }, { applicantName: APPLICANT_NAME, fixtures: FIXTURES });
 
     var groups = result.groups;
     var allNames = groups.map(function(g){ return g.name; }).join(' | ');
