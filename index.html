@@ -2450,6 +2450,14 @@
           <span class="chevron">▸</span>
         </summary>
         <div class="card-body">
+        <!-- Founder decision: this session moved to be FIRST (ahead of Passport - see
+             scripts/reorder-finance2-first.js and the matching CHANGELOG entry) because it's the one
+             requirement with real calendar lead time - passport renewal can run in parallel, but
+             building clean statement history or fixing gaps takes actual weeks. Landing on "upload
+             3-6 months of bank statements" as literally the first ask, with zero context yet, could
+             read as an aggressive opener rather than a deliberate one - this line says the why out
+             loud before anything else on the tab. -->
+        <p class="fin-note" style="margin-top:0; font-weight:600;">We start here on purpose: this is the one requirement that takes real time to fix, so it's worth facing first. Your passport can renew in parallel - this can't.</p>
         <!-- User feedback (repeated, across two rounds): this whole session reads as "information
              overload" / "clumsy". The underlying problem was structural, not cosmetic - this one
              session does several genuinely different jobs (upload data, show automatic analysis
@@ -11383,7 +11391,15 @@
     // HBD/TOKEN above — trimTrailingNonNameWords only trims trailing junk when it follows a
     // short "connector" word first, which isn't the case here (it sits directly after the real
     // name), so this needs to be stopworded outright instead.
-    'MINT'];
+    'MINT',
+    // Real Wema/ALAT statement finding: inbound interbank credits there sometimes narrate as
+    // "eTZ:<sender name>-<note>" (e.g. "eTZ:OLUWABUSOLAMI ELIZABETH OSHINOWO-NXG :MOBILET") — "ETZ" is
+    // eTranzact, an interbank real-time-transfer channel/processor (the same role NIP plays on most
+    // other narrations), not part of the sender's name. Without this stopworded, the extracted name
+    // came through as "Etz Oluwabusolami Elizabeth Oshinowo" instead of just "Oluwabusolami Elizabeth
+    // Oshinowo" — same class of bug as NIP/ONB/ROLEZ above, just a channel code this engine hadn't
+    // seen tagged onto a real narration yet.
+    'ETZ'];
 
   // User feedback, off a real statement: most applicants have no idea what "NIP", "ROLEZ" or "CIP"
   // actually mean in their own narration line. Best-effort glossary of the channel/processor/bank
@@ -11432,6 +11448,7 @@
     'SENDER': 'A field label - the sender\'s name follows it in the narration.',
     'REMARK': 'A field label - an optional note from the sender follows it (often just "OK" when none was given).',
     'CG': 'Bank-internal channel/processor code.',
+    'ETZ': 'eTranzact - an interbank real-time-transfer channel/processor, similar to NIP.',
     'WVV': 'Bank-internal channel/processor code.',
     'ZMO': 'Bank-internal channel/processor code.',
     'ONB': 'Online banking channel.'

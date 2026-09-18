@@ -3,6 +3,45 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fix: "eTZ:" channel code bleeding into extracted sender names (real WEMA/ALAT statement)
+
+Found by testing the engine against a real WEMA Bank (ALAT) statement rather than synthetic
+fixtures. Some inbound ALAT narrations read `eTZ:<sender name>-<note>` — "ETZ" is eTranzact, an
+interbank real-time-transfer channel/processor (the same role NIP plays on most other narrations),
+not part of the sender's own name. `extractNameCandidatesDetailed` had no reason to treat "ETZ" as
+anything but a name-shaped word (it has a vowel, isn't a recognised stopword), so it glued onto the
+front of the extracted name — `eTZ:OLUWABUSOLAMI ELIZABETH OSHINOWO-...` came through as "Etz
+Oluwabusolami Elizabeth Oshinowo" instead of just the real name. Same class of bug as the earlier
+NIP/ONB/ROLEZ/BOO channel-code fixes, just a code this engine hadn't seen tagged onto a real
+narration until this statement surfaced it. Fixed by adding `'ETZ'` to
+`BANK_NARRATION_STOPWORDS` plus a `BANK_NARRATION_GLOSSARY` entry so the decoder explains it too.
+See `tests/etz-channel-code-name-noise.test.js`.
+
+Also added three more per-bank SEO guides to `docs/bank-statement-seo-guides.md` — Fidelity Bank,
+WEMA/ALAT, and GTBank — written after testing real statements from all three banks against the
+engine, same approach as the earlier Sterling/Opay/Zenith guides (grounded in genuine
+narration-format quirks found on real statements, not invented for the page; all real
+names/accounts fictionalized).
+
+## Reorder: Income & bank statement analysis moves to the first session, ahead of Passport
+
+Founder decision, on reflection against the "quick win first" ordering used until now: passport
+renewal is parallelizable (you can start it and forget it while everything else proceeds), but
+building 3-6 months of clean bank statement history — or fixing gaps that need a covering
+explanation — is the one requirement with real calendar lead time. Facing that first gives an
+applicant the runway to fix the slow-moving constraint while there's still time to act on it,
+rather than discovering it deep into the checklist. Also surfaces the product's most differentiated
+feature (narration classification tuned to Nigerian bank formats — see the fixture library above)
+immediately after the quiz instead of several sessions in, where GoatCounter funnel data showed
+real drop-off happening before users ever reached it.
+
+Implemented via `scripts/reorder-finance2-first.js` (run once, not part of the app itself) rather
+than hand-editing the ~280-line finance2 session block in place, to avoid transcription risk on a
+move that large. The script also remaps every hardcoded `goToSessionByPill(page, N)` index across
+the test suite (152 call sites, 84 files) to match the new session order — only indices 0-4 shift;
+finance/nextSteps/checklist-category/review sessions keep their existing index since they sit after
+finance2 in both the old and new order.
+
 ## New: consolidated bank-narration fixture library + landing-page trust signal
 
 Two independent fixes shipped together:
