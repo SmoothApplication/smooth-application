@@ -3,6 +3,28 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## New: consolidated bank-narration fixture library + landing-page trust signal
+
+Two independent fixes shipped together:
+
+1. **`tests/narration-classification-fixture-library.test.js`** — the bank-statement narration
+   classifier (reversals, interest-earned, non-income charges, self-transfers, salary detection)
+   has been the single highest-recurring bug class this engagement, each new narration shape
+   shipped as its own one-off test. This adds a fast, no-PDF, table-driven regression net that runs
+   every known narration shape through `window.__testBuildIncomeSourceBreakdown()` in one place, so
+   the next reported bug can be added as a single fixture row instead of a whole new test file, and
+   any future change to the classifier's priority ordering gets checked against every past bug at
+   once. Complements, not replaces, the existing individual bug-history test files.
+2. **Landing-page trust signal** — user feedback that the site's address "looks dubious" (a
+   `*.github.io`/`*.netlify.app` URL with no custom domain, exactly the trust-signal shape of a
+   visa-document scam). `consentGate` already carried a `.gate-trust-row` reassuring visitors
+   nothing is uploaded; `quizGate` — the actual first screen nearly all traffic lands on — didn't.
+   Added the same trust row there, plus a new link to the public GitHub source so a skeptical
+   applicant can verify the "nothing is uploaded" claim themselves. See
+   `tests/landing-trust-signal.test.js`. A custom domain (replacing the raw github.io/netlify.app
+   address entirely) remains the highest-leverage fix for this but is outside what code changes can
+   do — flagged separately.
+
 ## New: "Notify me" waitlist for the deferred freemium features (cheapest demand test, path 1)
 
 Per docs/monetization-strategy.md §1 ("How to test cheaply first"): before building any of the

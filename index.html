@@ -1357,6 +1357,20 @@
            relative to what?) and the italic on the country list (bold+italic on a whole clause read
            as over-emphasis, competing with the button right below it). Plain bold, no badge. -->
       <p class="consent-gate-subtitle">A free document checklist for <b>UK, Canada, Schengen &amp; South Africa visitor visas</b>.</p>
+      <!-- User feedback: this is the very first screen most cold traffic lands on (nairaland ad, a
+           forwarded link, a raw github.io/netlify.app URL with no custom domain) - exactly the kind
+           of address a visa applicant is primed to be wary of, since it matches the trust-signal
+           profile of a scam asking for passport/bank documents. consentGate (one screen later) already
+           had a .gate-trust-row for this; this screen - the one that actually needs it most - didn't.
+           Reused verbatim rather than inventing new markup/CSS. The source-code link is new: a
+           skeptical applicant (or their tech-savvy relative) can actually verify the "never uploaded"
+           claim instead of just taking the app's word for it. -->
+      <div class="gate-trust-row">
+        <span class="gate-trust-badge">🔒 Runs in your browser - nothing you upload is ever sent to a server</span>
+        <span class="gate-trust-badge">🆓 Free, always</span>
+        <span class="gate-trust-badge">🇳🇬 Built for Nigerian applicants</span>
+      </div>
+      <p class="gate-credit" style="margin-top:-10px;">Don't take our word for it - <a href="https://github.com/SmoothApplication/smooth-application" target="_blank" rel="noopener">the source code is public</a>.</p>
       <div class="quiz-actions">
         <button type="button" class="btn primary" id="quizStartBtn" style="width:100%;">Start the quick check</button>
       </div>
