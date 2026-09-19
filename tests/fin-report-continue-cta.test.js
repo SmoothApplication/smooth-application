@@ -44,7 +44,11 @@ exports.run = async function(ctx){
     await page.waitForTimeout(200);
     assert.strictEqual(dialogMessages.length, 0, 'A ready (>=70%) finance2 session should advance with no gate dialog');
     var nowOnSession = await page.$eval('.session-pill.active', function(el){ return el.getAttribute('data-idx'); });
-    assert.strictEqual(nowOnSession, '5', 'Clicking the Report step CTA should advance to the next session (Financial readiness calculator)');
+    // finance2 now leads the flow (see sessionFlowOrder() in index.html) — passport/travelExperience/
+    // responsibilities/trip follow it in their original relative order, then 'finance' and onward
+    // unchanged. So advancing from finance2 lands on Passport (keys[] index 0), not 'finance' (index 5)
+    // as it did back when finance2 sat right before finance in the old order.
+    assert.strictEqual(nowOnSession, '0', 'Clicking the Report step CTA should advance to the next session (Validate your International Passport)');
   } finally {
     await page.context().close();
   }

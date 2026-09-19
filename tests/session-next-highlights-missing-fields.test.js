@@ -113,7 +113,11 @@ exports.run = async function(ctx){
     await page.waitForTimeout(200);
     assert.strictEqual(dialogMessages.length, 0, 'A fully-filled "Your trip details" session should advance with no nudge dialog at all');
     var nowOnSession = await page.$eval('.session-pill.active', function(el){ return el.getAttribute('data-idx'); });
-    assert.strictEqual(nowOnSession, '4', 'Should have actually advanced to "Income & bank statement analysis"');
+    // finance2 ("Income & bank statement analysis") now leads the flow (see sessionFlowOrder() in
+    // index.html), so it already came BEFORE passport/travelExperience/responsibilities/trip — moving
+    // forward from trip lands on 'finance' ("Financial readiness calculator", keys[] index 5), not
+    // back on finance2 (keys[] index 4).
+    assert.strictEqual(nowOnSession, '5', 'Should have actually advanced to "Financial readiness calculator"');
   } finally {
     await page.context().close();
   }

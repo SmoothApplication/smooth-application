@@ -11,11 +11,13 @@ exports.run = async function(ctx){
   try {
     await passConsentGate(page);
 
-    // Session 0 (passport, open by default) — first session, no footer Back button.
+    // finance2 (Income & bank statement analysis) is the landing session, open by default, and the
+    // first session in FLOW order (see sessionFlowOrder in index.html) — no footer Back button.
     var backOnFirst = await page.$('#sessionFooterBackBtn');
     assert.strictEqual(backOnFirst, null, 'The very first session should NOT show a footer Back button');
 
-    // Session 1 (Travel Experience) — footer Back button should now be present and functional.
+    // Travel Experience (keys[] index 1) — footer Back button should now be present and functional,
+    // and step to Passport (flow-previous, same as keys[] order for this particular pair).
     await goToSessionByPill(page, 1);
     await page.waitForSelector('#sessionFooterBackBtn');
     await page.click('#sessionFooterBackBtn');

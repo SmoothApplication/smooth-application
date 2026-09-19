@@ -47,8 +47,12 @@ exports.run = async function(ctx){
 
     // Proceed into the real app: the tab should become visible, and a real session's content should
     // show up grouped correctly — using the passport session's "Why?" tip on the full-name field as a
-    // known example.
+    // known example. The floating modal is deliberately page-scoped to whichever session is currently
+    // active (see renderReasonsModal's currentKey filtering) — finance2 is the landing session now
+    // (see finance2-session-first.test.js), so jump to Passport first rather than relying on it being
+    // the default.
     await passConsentGate(page);
+    await goToSessionByPill(page, 0);
     var tabVisibleInApp = await page.$eval('#reasonsTabBtn', function(el){ return getComputedStyle(el).display !== 'none'; });
     assert.strictEqual(tabVisibleInApp, true, 'Reasons tab should become visible once inside the main checklist');
     await page.click('#reasonsTabBtn');

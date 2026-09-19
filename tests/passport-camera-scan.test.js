@@ -10,7 +10,7 @@
 // granted on this page's own context, since Chromium still gates getUserMedia behind a permission
 // check even with a fake device wired up.
 const assert = require('assert');
-const { newPageAt, passConsentGate } = require('./helpers');
+const { newPageAt, passConsentGate, goToSessionByPill } = require('./helpers');
 
 exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html', { permissions: ['camera'] });
@@ -26,9 +26,11 @@ exports.run = async function(ctx){
     return ' | pageErrors: ' + JSON.stringify(pageErrors) + ' | console: ' + JSON.stringify(consoleLogs.slice(-20));
   }
   try {
-    // "Validate your International Passport" is Session 1 — already the active session right after
-    // the consent gate.
+    // "Validate your International Passport" used to be Session 1 and already the active session
+    // right after the consent gate — now "Income & bank statement analysis" (finance2) leads the
+    // flow instead (see sessionFlowOrder() in index.html), so jump to the passport session explicitly.
     await passConsentGate(page);
+    await goToSessionByPill(page, 0);
 
     // --- Opening the camera shows a live video feed, not a dead/black box ------------------------
     await page.click('#btnPassportCamOpen');

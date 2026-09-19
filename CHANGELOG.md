@@ -3,6 +3,77 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fix: actually ship the finance2-first session reorder (was documented, never landed)
+
+Caught by finance2-session-first.test.js failing on a full suite run: the session pill order was
+still Passport first, Income & bank statement analysis fifth — despite a CHANGELOG entry and this
+very test describing the reorder as already shipped via a one-off `scripts/reorder-finance2-first.js`
+migration. That script is gone from the repo and the `keys[]` array in `getVisibleSessionKeys()` was
+never actually changed, so the founder decision (finance2 first — bank-statement readiness has real
+calendar lead time, passport renewal doesn't) had silently never taken effect in the live app.
+
+Implemented differently this time, without the original script's 152-call-site/84-file test remap:
+`keys[]` itself is untouched (finance2 is still index 4, passport still index 0, etc — every existing
+`goToSessionByPill(page, N)` call across the suite still means exactly what it always meant, since
+`__testGoToSession`/`goToSession` index directly into `keys[]`). A new `sessionFlowOrder()` permutation
+in index.html governs only the user-facing flow — pill visual order, Back/Next stepping, the
+"Session X of Y" count, and `attemptAdvanceSession`'s forward/backward gate check — putting finance2
+first and leaving indices 5+ (finance, nextSteps, categories, review, reasons) exactly where they
+were. The landing `currentSessionIndex` (both the initial value and the two full-reset points) now
+starts on finance2 instead of passport.
+
+Since passport was the only session ever open-by-default pre-reorder, any test that interacted with
+a passport-only field (scan upload, expiry, passport number) right after `passConsentGate()` with no
+explicit navigation would have silently started failing — fixed ~13 such test files by adding an
+explicit `goToSessionByPill(page, 0)` jump first. `new-session-order.test.js` (which locked in the
+old pill order and landing session) and `finance2-session-first.test.js` itself were updated to match
+the new intended behavior.
+
+Also caught (by `maiden-name-self-matching.test.js` timing out on a `#rs_gender` select that never
+became visible): `tests/helpers.js`'s `goToSessionByLabel()` found a matching pill by its position in
+the `.session-pill` NodeList and passed that position straight to `__testGoToSession()` as if it were
+the session's `keys[]` index — true before this reorder (DOM order == keys[] order), false now (pills
+render in flow order, `data-idx` still holds the real keys[] index). Fixed to read the pill's own
+`data-idx` attribute instead of its loop position.
+
+### Follow-up: 14 more regressions surfaced by a full suite run, all fixed
+
+Two real app-code bugs, both in code paths `applySessionVisibility()`/routing hadn't been exercised by
+before this reorder:
+
+- Passport's `<details ... open>` card carries that `open` attribute statically in the markup.
+  `applySessionVisibility()` only ever toggled `display:none` on non-active session cards, never reset
+  `open` — harmless while passport was always the first (and often only-ever-opened) session, but once
+  finance2 became the landing session, passport was left permanently `open` — expanded — even while
+  hidden. Fixed: the loop now explicitly sets `el.open = false` for every non-active `<details>`
+  session card (and `= true` on the one becoming active during a real transition).
+- The "Take me there" button on the refusal-letter routing screen
+  (`btnSituationRefusedSuggestionGo`) only had an explicit redirect for `situationRefusedRouting.target
+  === 'finance2'`; the `'restart'` target relied on whatever session happened to be open by default —
+  passport, before this reorder. Fixed: added an explicit `else if (target === 'restart')
+  goToPassportSession();` branch instead of relying on the (now different) default.
+
+The rest were stale test expectations, not app bugs — the reorder changes what "the next session" and
+"Session N" mean in several places tests had hardcoded:
+
+- `tests/trip-progress-requires-work-name.test.js` matched literal header text `"Session 4 of ..."`
+  for the "Your trip details" session — trip is still `keys[]` index 3, but its FLOW position (what
+  the header actually prints) shifted from 4 to 5 once finance2 moved ahead of it. Updated the regex.
+- `tests/session-next-highlights-missing-fields.test.js` and `tests/fin-report-continue-cta.test.js`
+  both asserted which session "Next" lands on after completing "Your trip details" / finance2
+  respectively. Since finance2 now comes BEFORE passport/travelExperience/responsibilities/trip in flow
+  order (not right after trip, as it did before), advancing off trip now lands on `finance` (keys[]
+  index 5, "Financial readiness calculator") instead of finance2, and advancing off a ready finance2
+  now lands on `passport` (keys[] index 0) instead of `finance`. Updated both expected `data-idx`
+  values.
+- `tests/reasons-tab.test.js` opened the floating Reasons tab right after `passConsentGate()` and
+  expected the Passport session's own reasons to show — `renderReasonsModal()` deliberately page-scopes
+  that tab to whichever session is currently active, and the active session right after the gate is now
+  finance2, not passport. Added an explicit `goToSessionByPill(page, 0)` before the assertion.
+- `tests/passport-camera-scan.test.js` was the one passport-selector test the earlier sweep missed — it
+  relied on a stale comment ("Passport is Session 1 — already active right after the consent gate") and
+  never navigated there. Added the same explicit `goToSessionByPill(page, 0)` jump used everywhere else.
+
 ## Fix: Opay internal wallet/sub-balance movements ("Other" clutter, real Opay statements)
 
 Found by testing against two real Opay wallet/savings statements for the same applicant. Opay's

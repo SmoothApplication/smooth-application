@@ -1,10 +1,21 @@
 'use strict';
-// Founder decision: Income & bank statement analysis (finance2) moves to be the FIRST session,
-// ahead of Passport — bank-statement readiness is the one requirement with real calendar lead
-// time (passport renewal is parallelizable, this isn't). See scripts/reorder-finance2-first.js
-// (run once against index.html + the test suite's hardcoded pill indices) and the matching
-// CHANGELOG entry. This test guards the two user-visible parts of that change: session order
-// itself, and the "why this comes first" line that explains an otherwise-abrupt hard opener.
+// Founder decision: Income & bank statement analysis (finance2) is the FIRST session shown, ahead
+// of Passport — bank-statement readiness is the one requirement with real calendar lead time
+// (passport renewal is parallelizable, this isn't).
+//
+// Implementation note: this was originally meant to ship via a one-off scripts/reorder-finance2-first.js
+// migration that physically moved 'finance2' to index 0 in the keys[] array and remapped every
+// hardcoded goToSessionByPill(page, N) call across the suite (152 call sites, 84 files) to match.
+// That script was written and documented in CHANGELOG, but the actual reorder never landed in
+// index.html — this test (and the CHANGELOG entry) were the only trace of the intended change until
+// it was caught here and actually implemented, differently: keys[] itself is UNCHANGED (finance2 is
+// still index 4, passport still index 0, etc — every existing goToSessionByPill(page, N) call in the
+// suite still means exactly what it always meant), and only the user-facing FLOW (pill visual order,
+// Back/Next stepping, the "Session X of Y" count, and attemptAdvanceSession's forward/backward gate
+// check) follows a separate sessionFlowOrder() permutation defined right after getVisibleSessionKeys()
+// in index.html. Zero other test files needed touching. This test guards the two user-visible parts
+// of that change: session order itself, and the "why this comes first" line that explains an
+// otherwise-abrupt hard opener.
 const assert = require('assert');
 const { newPageAt, passConsentGate, goToSessionByPill } = require('./helpers');
 

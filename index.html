@@ -5156,7 +5156,9 @@
   // stays exactly where it was in the DOM, this just toggles which one is currently on screen. The list
   // of sessions is recomputed on every render() since which categories even apply (and so how many
   // sessions there are) shifts as the applicant fills in trip details.
-  var currentSessionIndex = 0;
+  // 4 = finance2's fixed position in getVisibleSessionKeys()'s array (see sessionFlowOrder below) —
+  // that's the session applicants land on first now, not literal position 0 (passport).
+  var currentSessionIndex = 4;
   // Tracks the session key applySessionVisibility() last applied, so it can tell a genuine session
   // transition (force every matching card open) apart from a same-session re-render triggered by a
   // keystroke elsewhere (leave manually-collapsed cards alone). Starts null so the very first call —
@@ -5202,6 +5204,40 @@
     // session that existing tests navigate to by hardcoded pill number.
     keys.push('reasons');
     return keys;
+  }
+  // Founder decision: Income & bank statement analysis (finance2) is the first session applicants
+  // land on and the first pill shown — bank-statement readiness is the one requirement with real
+  // calendar lead time (passport renewal is parallelizable, this isn't); see CHANGELOG. Rather than
+  // reordering keys[] itself — which would silently break every existing hardcoded
+  // goToSessionByPill(page, N) call across the test suite, since __testGoToSession(idx)/goToSession(idx)
+  // both index directly into keys[] — the underlying array order stays EXACTLY as declared above
+  // (passport=0, travelExperience=1, responsibilities=2, trip=3, finance2=4, finance=5, nextSteps=6,
+  // then categories/bizLedger/review/reasons). Only the user-FACING flow — pill visual order,
+  // Back/Next stepping, the "Session X of Y" number, and the forward/backward direction check in
+  // attemptAdvanceSession — follows this flow order instead of the raw array index. keys[N] and
+  // data-idx="N" everywhere else still mean exactly what they always meant, so no test file needed
+  // touching for this change.
+  function sessionFlowOrder(keys){
+    if (keys.length < 5) return keys.map(function(_, i){ return i; });
+    var order = [4, 0, 1, 2, 3];
+    for (var i = 5; i < keys.length; i++) order.push(i);
+    return order;
+  }
+  function sessionFlowPosition(keys, keyIdx){
+    return sessionFlowOrder(keys).indexOf(keyIdx);
+  }
+  // Returns the keys[] index of the session one step forward/back in the FLOW order from keyIdx — or
+  // keyIdx itself, unchanged, if already at the last/first flow position (so callers can compare the
+  // result to keyIdx to detect "nowhere left to go" without a separate bounds check).
+  function sessionFlowNext(keys, keyIdx){
+    var order = sessionFlowOrder(keys);
+    var pos = order.indexOf(keyIdx);
+    return (pos === -1 || pos >= order.length - 1) ? keyIdx : order[pos + 1];
+  }
+  function sessionFlowPrev(keys, keyIdx){
+    var order = sessionFlowOrder(keys);
+    var pos = order.indexOf(keyIdx);
+    return (pos <= 0) ? keyIdx : order[pos - 1];
   }
   function sessionLabel(key){
     if (key === 'reasons') return 'Reasons';
@@ -5445,7 +5481,15 @@
     document.querySelectorAll('[data-session-key]').forEach(function(el){
       var match = el.getAttribute('data-session-key') === currentKey;
       el.style.display = match ? '' : 'none';
-      if (match && isSessionTransition && el.tagName === 'DETAILS') el.open = true;
+      if (el.tagName === 'DETAILS'){
+        if (match && isSessionTransition) el.open = true;
+        // Passport's <details> carries a static `open` attribute in the markup (harmless back when
+        // it was always the landing session — see finance2-session-first.test.js/CHANGELOG for why
+        // that's no longer true). A non-active session is already display:none either way, but its
+        // `open` attribute should still honestly reflect "not the current session" rather than
+        // whatever the initial HTML happened to set, so real DOM state matches what's rendered.
+        else if (!match) el.open = false;
+      }
     });
     document.querySelectorAll('#checklistRoot [data-cat]').forEach(function(el){
       var match = ('cat:' + el.getAttribute('data-cat')) === currentKey;
@@ -5720,9 +5764,15 @@
     var nav = document.getElementById('sessionNav');
     if (!nav) return;
     var curProgress = sessionProgress(keys[idx]);
+    var order = sessionFlowOrder(keys);
+    var flowPos = order.indexOf(idx);
     // Pills are always clickable now (see the comment above computeLockAfterIndex) — every session
     // can be freely previewed/explored, regardless of how filled-in earlier ones are.
-    var pills = keys.map(function(k, i){
+    // Rendered in FLOW order (finance2 first — see sessionFlowOrder above), but data-idx stays the
+    // underlying keys[] index, so goToSession() and every existing pill-index test keep working
+    // exactly as before; only the on-screen ORDER of the buttons changed.
+    var pills = order.map(function(i, pos){
+      var k = keys[i];
       var p = sessionProgress(k);
       var doneCls = sessionIsDone(k) ? ' done' : (p.total > 0 && p.points > 0 ? ' partial' : '');
       var cls = 'session-pill' + (i === idx ? ' active' : '') + doneCls;
@@ -5731,9 +5781,10 @@
       // names the session for a hover (kept in its original "Label - X% filled" shape — several
       // tests split on that), and "Session 2 of 14: Travel Experience" right above already says the
       // number in words. aria-label adds the position back in for a screen reader, where a title
-      // attribute alone isn't reliably announced.
+      // attribute alone isn't reliably announced. Position number is the pill's FLOW position (pos),
+      // not its keys[] index, so it matches what's actually announced right above it.
       var titleText = sessionLabel(k) + pctTitle;
-      return '<button type="button" class="'+cls+'" data-idx="'+i+'" title="'+escapeHtml(titleText)+'" aria-label="'+escapeHtml((i + 1) + ' of ' + keys.length + ': ' + titleText)+'"></button>';
+      return '<button type="button" class="'+cls+'" data-idx="'+i+'" title="'+escapeHtml(titleText)+'" aria-label="'+escapeHtml((pos + 1) + ' of ' + order.length + ': ' + titleText)+'"></button>';
     }).join('');
     // Next is only ever DISABLED outright for being the last session. Below the readiness
     // threshold it deliberately stays clickable — attemptAdvanceSession() is what actually
@@ -5742,13 +5793,15 @@
     // block for analytics. A disabled button can't do any of that (a real click never reaches a
     // disabled element's listener at all — this was tried and silently made the block a dead
     // end), and on the mobile-first layout this app is built for, a greyed-out button with no
-    // affordance is the least helpful way to tell someone why they're stuck.
+    // affordance is the least helpful way to tell someone why they're stuck. The LAST flow position
+    // is always the same keys[] index as before (only positions 0-4 got permuted — see
+    // sessionFlowOrder), so "idx === keys.length - 1" still correctly identifies it.
     var nextDisabled = (idx === keys.length - 1);
     var progressSuffix = curProgress.total > 0 ? (' - <span id="sessionProgressPct">'+curProgress.percent+'% filled</span>') : '';
-    nav.innerHTML = '<p class="session-progress-text">Session '+(idx+1)+' of '+keys.length+': <b>'+escapeHtml(sessionLabel(keys[idx]))+'</b>'+progressSuffix+'</p>'
+    nav.innerHTML = '<p class="session-progress-text">Session '+(flowPos+1)+' of '+order.length+': <b>'+escapeHtml(sessionLabel(keys[idx]))+'</b>'+progressSuffix+'</p>'
       + '<div class="session-pills">'+pills+'</div>'
       + '<div class="session-nav-btns">'
-      + '<button type="button" class="btn ghost" id="sessionBackBtn"'+(idx===0?' disabled':'')+'>← Back</button>'
+      + '<button type="button" class="btn ghost" id="sessionBackBtn"'+(flowPos===0?' disabled':'')+'>← Back</button>'
       + '<button type="button" class="btn primary" id="sessionNextBtn"'+(nextDisabled?' disabled':'')+'>Next →</button>'
       + '</div>';
     nav.querySelectorAll('.session-pill').forEach(function(btn){
@@ -5756,8 +5809,8 @@
     });
     var backBtn = document.getElementById('sessionBackBtn');
     var nextBtn = document.getElementById('sessionNextBtn');
-    if (backBtn) backBtn.addEventListener('click', function(){ goToSession(currentSessionIndex - 1); });
-    if (nextBtn) nextBtn.addEventListener('click', function(){ attemptAdvanceSession(currentSessionIndex + 1); });
+    if (backBtn) backBtn.addEventListener('click', function(){ goToSession(sessionFlowPrev(getVisibleSessionKeys(), currentSessionIndex)); });
+    if (nextBtn) nextBtn.addEventListener('click', function(){ attemptAdvanceSession(sessionFlowNext(getVisibleSessionKeys(), currentSessionIndex)); });
   }
   // User feedback: "Can the system point out where I have not filled before proceeding." A bare
   // percentage ("86% filled") doesn't say WHICH field is still empty — the applicant has to hunt for
@@ -5827,7 +5880,11 @@
     var footerMsg = document.getElementById('sessionFooterMsg');
     if (footerMsg) footerMsg.textContent = '✅ Saved in this browser (nothing uploaded) - ' + new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
     var keys = getVisibleSessionKeys();
-    if (targetIdx > currentSessionIndex && targetIdx < keys.length){
+    // "Forward" means later in the FLOW order (finance2 first), not a bigger keys[] index — those
+    // differ for the finance2<->passport step specifically now (finance2=4 comes before passport=0
+    // in flow order despite its literal index being higher). See sessionFlowOrder above.
+    var isForwardMove = sessionFlowPosition(keys, targetIdx) > sessionFlowPosition(keys, currentSessionIndex);
+    if (isForwardMove && targetIdx < keys.length){
       var cur = sessionProgress(keys[currentSessionIndex]);
       if (cur.total > 0 && cur.points < cur.total){
         highlightMissingFields(cur.missing);
@@ -5936,16 +5993,21 @@
     // ← Back button, but it can be scrolled well out of view by the time someone reaches the bottom
     // of a long session (this app is built mobile-first). Repeating Back down here, right next to
     // Next, means getting back to the previous section never requires scrolling back up.
-    var backBtnHtml = idx > 0 ? '<button type="button" class="btn ghost" id="sessionFooterBackBtn">← Back</button>' : '';
-    footer.innerHTML = sessionReportCardHtml(keys[idx], keys[idx + 1])
+    var flowPos = sessionFlowPosition(keys, idx);
+    var backBtnHtml = flowPos > 0 ? '<button type="button" class="btn ghost" id="sessionFooterBackBtn">← Back</button>' : '';
+    // "Next session" for the congrats copy must follow FLOW order too (finance2's flow-next is
+    // passport, not keys[idx+1] literally — see sessionFlowOrder above), not the raw array index.
+    var flowNextIdx = sessionFlowNext(keys, idx);
+    var flowNextKey = flowNextIdx === idx ? null : keys[flowNextIdx];
+    footer.innerHTML = sessionReportCardHtml(keys[idx], flowNextKey)
       + progressHtml
       + backBtnHtml
       + '<button type="button" class="btn primary" id="sessionFooterNextBtn"'+(isLast?' disabled':'')+'>'+(isLast ? '✓ Last page' : 'Next →')+'</button>'
       + '<p class="session-footer-msg" id="sessionFooterMsg"></p>';
     var backBtn = document.getElementById('sessionFooterBackBtn');
     var nextBtn = document.getElementById('sessionFooterNextBtn');
-    if (backBtn) backBtn.addEventListener('click', function(){ goToSession(currentSessionIndex - 1); });
-    if (nextBtn) nextBtn.addEventListener('click', function(){ attemptAdvanceSession(currentSessionIndex + 1); });
+    if (backBtn) backBtn.addEventListener('click', function(){ goToSession(sessionFlowPrev(keys, currentSessionIndex)); });
+    if (nextBtn) nextBtn.addEventListener('click', function(){ attemptAdvanceSession(sessionFlowNext(keys, currentSessionIndex)); });
   }
 
   function render(){
@@ -7265,7 +7327,7 @@
   // to within this session), it moves to the NEXT SESSION, via the exact same gate/highlight-missing
   // logic the real session-footer Next button uses (see attemptAdvanceSession above).
   var btnFinReportContinue = document.getElementById('btnFinReportContinue');
-  if (btnFinReportContinue) btnFinReportContinue.addEventListener('click', function(){ attemptAdvanceSession(currentSessionIndex + 1); });
+  if (btnFinReportContinue) btnFinReportContinue.addEventListener('click', function(){ attemptAdvanceSession(sessionFlowNext(getVisibleSessionKeys(), currentSessionIndex)); });
   setFinanceStep(1, false);
 
   // Country-visit "grading" summary — informal guidance copy, not an eligibility prediction, built
@@ -15437,7 +15499,7 @@
     lastPersonalStatementTxns = null;
     businessIncomeLedger = {};
     renderBusinessIncomeLedger();
-    currentSessionIndex = 0;
+    currentSessionIndex = 4; // finance2's fixed position — see sessionFlowOrder comment above.
     ['stmtFile1','stmtFile2','stmtFile3'].forEach(function(id){ document.getElementById(id).value = ''; });
     document.getElementById('btnAnalyzeStatements').disabled = true;
     showStatementUploadForm();
@@ -15607,7 +15669,7 @@
     lastPersonalStatementTxns = null;
     businessIncomeLedger = {};
     renderBusinessIncomeLedger();
-    currentSessionIndex = 0;
+    currentSessionIndex = 4; // finance2's fixed position — see sessionFlowOrder comment above.
     categoryOpenState = {};
     itemCollapsed = {};
     itemCollapseTimers = {};
@@ -16427,7 +16489,12 @@
   document.getElementById('btnSituationRefusedSuggestionGo').addEventListener('click', function(){
     trackEvent('situation_refused_suggestion:accepted');
     enterChecklistFromSituationGate();
+    // 'restart' used to need no explicit redirect here — passport was the app's own default landing
+    // session, so enterChecklistFromSituationGate() already left the applicant there for free. Now
+    // that finance2 is the default landing session (see finance2-session-first.test.js/CHANGELOG),
+    // an old non-financial refusal has to be routed to passport explicitly instead of relying on it.
     if (situationRefusedRouting && situationRefusedRouting.target === 'finance2') goToFinance2Session();
+    else if (situationRefusedRouting && situationRefusedRouting.target === 'restart') goToPassportSession();
   });
   document.getElementById('btnSituationRefusedSuggestionSkip').addEventListener('click', function(){
     trackEvent('situation_refused_suggestion:skipped');

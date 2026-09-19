@@ -10,7 +10,7 @@
 // applicant's document).
 const assert = require('assert');
 const path = require('path');
-const { newPageAt, passConsentGate } = require('./helpers');
+const { newPageAt, passConsentGate, goToSessionByPill } = require('./helpers');
 
 var MRZ_DIGIT_FIXTURE = path.join(__dirname, 'fixtures', 'mrz-name-digit-fixture.pdf');
 
@@ -18,6 +18,9 @@ exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page);
+    // finance2 is the landing session now (see finance2-session-first.test.js) — jump to Passport
+    // (keys[] index 0) before touching its upload widget.
+    await goToSessionByPill(page, 0);
     await page.setInputFiles('#file_passportValidate', MRZ_DIGIT_FIXTURE);
     await page.click('#btnPassportValidateAttach');
     await page.waitForFunction(function(){

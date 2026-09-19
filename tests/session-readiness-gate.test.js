@@ -16,12 +16,15 @@
 // hard-block experience (highlighting missing fields, scrolling to the report card, recording the
 // block) into dead code, since a disabled element never fires a real click event in the first place.
 const assert = require('assert');
-const { newPageAt, passConsentGate } = require('./helpers');
+const { newPageAt, passConsentGate, goToSessionByPill } = require('./helpers');
 
 exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page);
+    // finance2 is the landing session now (see finance2-session-first.test.js) — this test is
+    // specifically about the passport session's own gate, so jump there explicitly.
+    await goToSessionByPill(page, 0);
     await page.waitForSelector('#f_passportNumber');
 
     // Stub the analytics transport so the two new tracked events (session_gate_blocked,

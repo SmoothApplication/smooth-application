@@ -64,7 +64,10 @@ exports.run = async function(ctx){
   var page2 = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page2);
-    // Passport session (index 0, open by default) - expiry well beyond any 6-month rule.
+    // Passport session (keys[] index 0) - finance2 is the landing session now (see
+    // finance2-session-first.test.js), so passport's card starts hidden; jump there first or
+    // page.fill() can't act on a display:none field. Expiry well beyond any 6-month rule.
+    await goToSessionByPill(page2, 0);
     await page2.fill('#f_passportExpiry', '2035-01-01');
     // Travel Experience session - explicitly answer "no travel history" so the report's travel-
     // history section has an actual answer to read, rather than falling into its "not answered

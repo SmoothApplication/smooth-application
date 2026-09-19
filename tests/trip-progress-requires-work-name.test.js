@@ -4,16 +4,19 @@
 // required (marked with a red *) the moment "I'm self-employed" or "I'm currently employed" is
 // checked. That let the session read 100% filled while a required field sat empty.
 //
-// "Your trip details" is its own session again (index 3, "Session 4" in the 1-based header text —
-// see getVisibleSessionKeys() in index.html), so this no longer needs to fill in passport/travel
-// experience/responsibilities first — trip's own required-field total is self-contained.
+// "Your trip details" is its own session again (keys[] index 3, but "Session 5" in the 1-based
+// header text — see getVisibleSessionKeys() in index.html), so this no longer needs to fill in
+// passport/travel experience/responsibilities first — trip's own required-field total is
+// self-contained. Header numbering follows FLOW order (finance2 first — see sessionFlowOrder() in
+// index.html), not the raw keys[] index: finance2(1), passport(2), travelExperience(3),
+// responsibilities(4), trip(5).
 const assert = require('assert');
 const { newPageAt, passConsentGate, goToSessionByPill } = require('./helpers');
 
 async function readTripHeader(page){
   return page.evaluate(function(){
-    // 'trip' is session index 3, i.e. "Session 4" in the 1-based header text.
-    var m = document.body.innerText.match(/Session 4 of \d+.*?filled/);
+    // 'trip' is flow position 5 (1-based) in the header text now that finance2 leads the flow.
+    var m = document.body.innerText.match(/Session 5 of \d+.*?filled/);
     return m ? m[0] : null;
   });
 }

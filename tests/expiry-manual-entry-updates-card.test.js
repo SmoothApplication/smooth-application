@@ -10,7 +10,7 @@
 // off.
 const assert = require('assert');
 const path = require('path');
-const { newPageAt, passConsentGate } = require('./helpers');
+const { newPageAt, passConsentGate, goToSessionByPill } = require('./helpers');
 
 var FIXTURE = path.join(__dirname, 'fixtures', 'expiry-unrecoverable-fixture.pdf');
 
@@ -18,6 +18,9 @@ exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page);
+    // finance2 is the landing session now (see finance2-session-first.test.js), not passport — jump
+    // there first so its fields/upload widget are actually visible/actionable.
+    await goToSessionByPill(page, 0);
     await page.setInputFiles('#file_passportValidate', FIXTURE);
     await page.click('#btnPassportValidateAttach');
     await page.waitForFunction(function(){

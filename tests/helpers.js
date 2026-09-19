@@ -174,11 +174,18 @@ async function goToSessionByPill(page, idx){
 // which shifted every previously-hardcoded index by +3. Index-based navigation is still fine for
 // existing tests (all shifted in one pass), but new tests should prefer this where practical so a
 // future reorder doesn't require another repo-wide shift.
+//
+// Reads each pill's own data-idx attribute (the real keys[] index __testGoToSession()/goToSession()
+// expect) rather than its position in the pill NodeList. Those used to be the same number, but
+// pills now render in FLOW order (finance2 first — see sessionFlowOrder() in index.html) while
+// data-idx still holds the underlying keys[] index, so the two diverge for the first 5 sessions.
+// Using the loop position here sent this helper to the wrong session entirely once that shipped
+// (e.g. asking for 'Your responsibilities' silently landed on 'trip' instead).
 async function goToSessionByLabel(page, label){
   var idx = await page.$$eval('.session-pill', function(pills, label){
     for (var i = 0; i < pills.length; i++){
       var title = pills[i].getAttribute('title') || '';
-      if (title.indexOf(label) === 0) return i;
+      if (title.indexOf(label) === 0) return parseInt(pills[i].getAttribute('data-idx'), 10);
     }
     return -1;
   }, label);

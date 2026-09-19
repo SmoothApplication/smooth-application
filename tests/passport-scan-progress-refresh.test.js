@@ -13,7 +13,7 @@
 // would trigger the generic field-list render() wiring and mask the exact bug that shipped.
 const assert = require('assert');
 const path = require('path');
-const { newPageAt, passConsentGate } = require('./helpers');
+const { newPageAt, passConsentGate, goToSessionByPill } = require('./helpers');
 
 // A real, OCR-readable passport fixture (used elsewhere for MRZ digit-recovery tests) — needed
 // here specifically because it produces a genuine parsed passport number + expiry date, unlike the
@@ -32,11 +32,13 @@ exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page);
-    // Passport is its own session again (index 0, the default landing session — no navigation
-    // needed), with just its own 2 fields (f_passportNumber, f_passportExpiry) counted toward its
-    // footer — no other card's fields factor in any more, which actually simplifies isolating
-    // exactly what this test is about: does the footer refresh from the passport auto-fill alone,
-    // without any other field being touched afterward.
+    // Passport is its own session again (keys[] index 0), with just its own 2 fields
+    // (f_passportNumber, f_passportExpiry) counted toward its footer — no other card's fields factor
+    // in any more, which actually simplifies isolating exactly what this test is about: does the
+    // footer refresh from the passport auto-fill alone, without any other field being touched
+    // afterward. finance2 is the landing session now (see finance2-session-first.test.js), so jump
+    // to Passport explicitly first.
+    await goToSessionByPill(page, 0);
     await page.waitForSelector('#file_passportValidate');
     await page.waitForTimeout(200);
 

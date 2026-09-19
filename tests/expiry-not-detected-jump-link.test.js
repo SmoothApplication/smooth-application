@@ -11,16 +11,18 @@
 // success) and actually focuses it.
 const assert = require('assert');
 const path = require('path');
-const { newPageAt, passConsentGate } = require('./helpers');
+const { newPageAt, passConsentGate, goToSessionByPill } = require('./helpers');
 
 var FIXTURE = path.join(__dirname, 'fixtures', 'expiry-unrecoverable-fixture.pdf');
 
 exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
-    // "Validate your International Passport" is Session 1 — already the active session right after
-    // the consent gate, same starting point expiry-letter-misread-fixture.test.js uses.
+    // "Validate your International Passport" is keys[] index 0 — finance2 is the landing session now
+    // (see finance2-session-first.test.js), so jump here explicitly rather than relying on it being
+    // open by default.
     await passConsentGate(page);
+    await goToSessionByPill(page, 0);
     await page.setInputFiles('#file_passportValidate', FIXTURE);
     await page.click('#btnPassportValidateAttach');
     await page.waitForFunction(function(){

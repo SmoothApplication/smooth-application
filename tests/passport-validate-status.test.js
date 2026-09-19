@@ -4,7 +4,7 @@
 // travel date, since at this point in the flow the applicant hasn't reached the trip-details session
 // yet (see updatePassportValidateStatus in index.html).
 const assert = require('assert');
-const { newPageAt, passConsentGate } = require('./helpers');
+const { newPageAt, passConsentGate, goToSessionByPill } = require('./helpers');
 
 function isoDate(d){
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
@@ -14,7 +14,9 @@ exports.run = async function(ctx){
   var page = await newPageAt(ctx.browser, '/index.html');
   try {
     await passConsentGate(page);
-    // Session 1 is the default first session — no navigation needed.
+    // finance2 is the default landing session now (see finance2-session-first.test.js) — jump to
+    // Passport (keys[] index 0) explicitly.
+    await goToSessionByPill(page, 0);
     await page.waitForSelector('#f_passportExpiry');
 
     // Nothing typed yet — no status message either way.

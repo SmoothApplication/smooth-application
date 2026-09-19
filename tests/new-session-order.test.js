@@ -29,12 +29,18 @@ exports.run = async function(ctx){
     // session here too — moved out to its own standalone screen reached from the country picker
     // instead (see opportunities-directory.test.js), so it's no longer one of these top-level
     // sessions at all.
+    //
+    // Founder decision (see finance2-session-first.test.js and CHANGELOG): "Income & bank statement
+    // analysis" is shown FIRST, ahead of Passport — bank-statement readiness has real calendar lead
+    // time, passport renewal doesn't. This reorders only the on-screen pill/flow order (via
+    // sessionFlowOrder() in index.html); the underlying keys[] array — and so every OTHER hardcoded
+    // pill index used across the rest of the test suite — is unchanged.
     assert.deepStrictEqual(titles, [
+      'Income & bank statement analysis',
       'Validate your International Passport',
       'Travel Experience',
       'Your responsibilities',
       'Your trip details',
-      'Income & bank statement analysis',
       'Financial readiness calculator',
       'What to do next',
       'Identity & application',
@@ -46,9 +52,10 @@ exports.run = async function(ctx){
       'Reasons'
     ], 'Should show exactly these 14 top-level sessions in this order, got: ' + titles.join(' | '));
 
-    // Session 1 (passport) should be the one showing open/current on first load.
-    var firstPillActive = await page.$eval('.session-pill[data-idx="0"]', function(el){ return el.classList.contains('active'); });
-    assert.strictEqual(firstPillActive, true, '"Validate your International Passport" should be the default landing session');
+    // finance2 (data-idx="4" in keys[] — see sessionFlowOrder in index.html) is the one showing
+    // open/current on first load now, not literal pill position/data-idx 0 (passport).
+    var firstPillActive = await page.$eval('.session-pill[data-idx="4"]', function(el){ return el.classList.contains('active'); });
+    assert.strictEqual(firstPillActive, true, '"Income & bank statement analysis" should be the default landing session');
 
     // Each of the old merged group's cards is its own independent session again — the "About you"
     // wrapper is gone, so each of these 4 has its own distinct data-session-key.
@@ -62,10 +69,11 @@ exports.run = async function(ctx){
     // 0% complete — street-tested feedback ("why lock the pages, allow us to explore") pushed this
     // away from a hard pill-lock. The 70% readiness threshold still applies, but only to the Next
     // button (see below and session-readiness-gate.test.js).
+    // data-idx="1" is 'travelExperience' (keys[] index, unaffected by the flow reorder above).
     var pill2Disabled = await page.$eval('.session-pill[data-idx="1"]', function(el){ return el.disabled; });
-    assert.strictEqual(pill2Disabled, false, 'Session 2 pill should be clickable even while session 1 is under 70% complete');
+    assert.strictEqual(pill2Disabled, false, 'travelExperience pill should be clickable even while the landing session is under 70% complete');
     var pill2Locked = await page.$eval('.session-pill[data-idx="1"]', function(el){ return el.classList.contains('locked'); });
-    assert.strictEqual(pill2Locked, false, 'Session 2 pill should not carry a .locked class — pill locking was removed');
+    assert.strictEqual(pill2Locked, false, 'travelExperience pill should not carry a .locked class — pill locking was removed');
 
     // The section report card should show for a session with real content, explain the gate, and
     // link out to the same WhatsApp/email contact used elsewhere in the app.
@@ -88,8 +96,8 @@ exports.run = async function(ctx){
     // attemptAdvanceSession(), not by disabling the button.
     await page.click('#sessionFooterNextBtn');
     await page.waitForTimeout(200);
-    var stillOnPassport = await page.$eval('.session-pill[data-idx="0"]', function(el){ return el.classList.contains('active'); });
-    assert.strictEqual(stillOnPassport, true, 'Clicking Next while under the readiness threshold must not advance the session');
+    var stillOnFinance2 = await page.$eval('.session-pill[data-idx="4"]', function(el){ return el.classList.contains('active'); });
+    assert.strictEqual(stillOnFinance2, true, 'Clicking Next while under the readiness threshold must not advance the session');
   } finally {
     await page.context().close();
   }
