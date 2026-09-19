@@ -11626,6 +11626,25 @@
   function isInterestEarnedNarration(narration){
     return /\binterest\s*earned\b/i.test(narration || '');
   }
+  // Real-data finding (two genuine Opay wallet/savings statements for the same applicant): beyond the
+  // "OWealth Interest Earned" credits already handled above, Opay's auto-save/sub-balance feature
+  // generates several OTHER credit narrations that are just as clearly not income — the applicant's own
+  // money moving between their main wallet and its OWealth/Targets/SafeBox sub-balances — but none of
+  // them contain the word "interest" so isInterestEarnedNarration doesn't catch them: "Auto-save to
+  // OWealth Balance", "OWealth Withdrawal(Transaction Payment)", "OWealth Deposit(from Targets)",
+  // "OWealth Deposit(from Fixed)", "OWealth Deposit(Transaction Refund)", "Targets Deposit", "SafeBox
+  // Deposit"/"SafeBox Withdrawal". None of these name a sender at all, so before this fix they fell
+  // through to candidate-name extraction (finding nothing) and landed in "Other / one-off inflows (no
+  // clear sender name)" — technically harmless (never mislabeled as a person), but still surfaced to the
+  // applicant as an unexplained inflow needing a reason/category, when it's actually just internal
+  // wallet bookkeeping. Routed to its own bucket, same treatment as interest earned, so it stops
+  // cluttering the "needs an explanation" list. Matched generically on the product-feature vocabulary
+  // (OWealth/Targets/SafeBox deposit-or-withdrawal, or "auto-save") rather than only Opay's exact
+  // wording, so the same fix covers another wallet's similarly-worded internal sub-balance transfer.
+  var INTERNAL_WALLET_MOVEMENT_RE = /\bowealth\s*(deposit|withdrawal)\b|\bauto-?save\b|\btargets?\s*(deposit|withdrawal)\b|\bsafebox\s*(deposit|withdrawal)\b/i;
+  function isInternalWalletMovementNarration(narration){
+    return INTERNAL_WALLET_MOVEMENT_RE.test(narration || '');
+  }
   // User-reported real case: 13 small credits narrated "Mobile USSDAirtime N500.00 to ..." and "SMS
   // NOTIFICATION CHARGE FOR ..." got swept into the auto-detected "Salary" bucket — every one of these
   // is under ₦2,500, so identifyStableIncome's round-to-nearest-₦5,000 bucketing collapsed them all
@@ -13796,7 +13815,7 @@
     // trusted as "Salary"; a transaction with a name candidate that doesn't match the dominant sender is routed
     // to its own named group instead, exactly like any other identified sender.
     var stableSourceName = stable ? identifyIncomeSourceName(nonSelfTxns, stable.amount, applicantName) : null;
-    var salaryTxns = [], otherTxns = [], reversalTxns = [], selfTxns = [], interestTxns = [];
+    var salaryTxns = [], otherTxns = [], reversalTxns = [], selfTxns = [], interestTxns = [], internalTxns = [];
     var namedGroups = {}; // titleCasedName -> txns[]
     var applicantSurname = surnameOf(applicantName);
 
@@ -13816,6 +13835,13 @@
       // candidate-name extraction produces a garbled fake "sender" instead of what it actually is.
       if (isInterestEarnedNarration(t.narration)){
         interestTxns.push(t);
+        return;
+      }
+      // Opay-style internal sub-balance movement (OWealth/Targets/SafeBox deposit or withdrawal,
+      // auto-save) — see isInternalWalletMovementNarration above. Checked right alongside interest,
+      // for the same reason: no sender at all, so it must never reach name extraction or "Other".
+      if (isInternalWalletMovementNarration(t.narration)){
+        internalTxns.push(t);
         return;
       }
       // The applicant's own name showing up on the "TO"/"IFO" side of a transfer narration isn't a
@@ -13879,6 +13905,7 @@
     if (reversalTxns.length) groups.push(summarizeSourceGroup('Reversals (money returned to you)', reversalTxns, 'reversal'));
     if (selfTxns.length) groups.push(summarizeSourceGroup('Self (transfers from your own name/account)', selfTxns, 'self'));
     if (interestTxns.length) groups.push(summarizeSourceGroup('Interest earned (savings/wallet, e.g. OWealth)', interestTxns, 'interest'));
+    if (internalTxns.length) groups.push(summarizeSourceGroup('Internal transfers within your own wallet/savings (not income, e.g. OWealth/Targets/SafeBox)', internalTxns, 'internal'));
 
     groups.sort(function(a,b){ return b.total - a.total; });
     // Checked across ALL inflows here, not per rendered group — a "<Month> Salary"-style payment can
@@ -14030,6 +14057,7 @@
     if (type === 'reversal') return '<span class="src-tag reversal">Reversal</span>';
     if (type === 'self') return '<span class="src-tag self">Self</span>';
     if (type === 'interest') return '<span class="src-tag interest">Interest</span>';
+    if (type === 'internal') return '<span class="src-tag interest">Internal transfer</span>';
     return '<span class="src-tag other">Unclear sender</span>';
   }
 
@@ -14089,7 +14117,7 @@
     // amount "Salary" bucket (g.type === 'salary') has no real sender name of its own — g.name is just
     // the label "Salary" — so nothing is excluded as "the sender's own name" for that bucket specifically;
     // for every other group, the group's own name IS excluded so it doesn't get echoed back as the reason.
-    var nameWords = (g.name && g.type !== 'salary' && g.type !== 'interest') ? g.name.toUpperCase().split(/\s+/) : [];
+    var nameWords = (g.name && g.type !== 'salary' && g.type !== 'interest' && g.type !== 'internal') ? g.name.toUpperCase().split(/\s+/) : [];
     // Surname-matched "Family" senders get the narrower, purpose-built dropdown (gift / sale of
     // property / rental income / others) instead of the full general-purpose category list. Reused
     // below for BOTH the single group-level dropdown and, in per-payment mode, every individual
@@ -14169,7 +14197,8 @@
           + '<div id="srcexplain_status_'+idx+'">'+(explained ? '<div class="scan-msg ok compact">Saved - auto-saved in this browser, and included if you export it.</div>' : '')+'</div>'
         : (g.type === 'reversal' ? '<div class="item-tip" style="margin-top:4px;">Detected from "RVSL"/"reversal" in the narration - this is your own money coming back (e.g. a failed payment refunded), not new income, so it needs no explanation.</div>'
           : (g.type === 'self' ? '<div class="item-tip" style="margin-top:4px;">The sender name on these payments matches your own name/account - this looks like money moving between your own accounts, not new income from someone else, so it needs no explanation.</div>'
-          : (g.type === 'interest' ? '<div class="item-tip" style="margin-top:4px;">Detected from "Interest Earned" in the narration - this is interest your bank/wallet paid on your own savings, not income from a person or company, so it needs no explanation.</div>' : '')));
+          : (g.type === 'interest' ? '<div class="item-tip" style="margin-top:4px;">Detected from "Interest Earned" in the narration - this is interest your bank/wallet paid on your own savings, not income from a person or company, so it needs no explanation.</div>'
+          : (g.type === 'internal' ? '<div class="item-tip" style="margin-top:4px;">Detected as a transfer between your own wallet and its savings sub-balance (e.g. OWealth/Targets/SafeBox) - this is your own money moving around, not new income, so it needs no explanation.</div>' : ''))));
     // Direct request: let the applicant correct a name that's been visibly mangled by a bad bank-
     // narration read, rather than the app guessing harder at cleanup heuristics. Editable only for
     // groups whose g.name IS a genuinely extracted sender (personal/company/family) — "Salary",
@@ -14430,7 +14459,7 @@
       // Same exception as the on-screen render — the auto-detected recurring-amount "Salary" bucket
       // has no real sender name of its own (g.name is just the label "Salary"), so nothing is excluded
       // as "the sender's own name" for that bucket specifically.
-      var nameWords = (g.name && g.type !== 'salary' && g.type !== 'interest') ? g.name.toUpperCase().split(/\s+/) : [];
+      var nameWords = (g.name && g.type !== 'salary' && g.type !== 'interest' && g.type !== 'internal') ? g.name.toUpperCase().split(/\s+/) : [];
       g.txns.forEach(function(t, i){
         // Whatever the applicant typed against this exact payment — in the "large inflow(s) that need an
         // explanation" boxes above the cash-flow table — always wins. The per-source note (typed under this

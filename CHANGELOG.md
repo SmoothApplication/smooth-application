@@ -3,6 +3,23 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fix: Opay internal wallet/sub-balance movements ("Other" clutter, real Opay statements)
+
+Found by testing against two real Opay wallet/savings statements for the same applicant. Opay's
+auto-save/sub-balance feature (OWealth, Targets, SafeBox) generates several credit narrations that
+are the applicant's own money moving between their main wallet and a sub-balance — "Auto-save to
+OWealth Balance", "OWealth Withdrawal(Transaction Payment)", "OWealth Deposit(from Targets)",
+"OWealth Deposit(from Fixed)", "OWealth Deposit(Transaction Refund)", "Targets Deposit", "SafeBox
+Deposit"/"SafeBox Withdrawal". None of these name a sender, so they never got mis-extracted as a
+fake person's name (the earlier OWealth-interest bug class), but they had no dedicated bucket either
+and fell into "Other / one-off inflows (no clear sender name)" — surfaced to the applicant as
+inflows needing an explanation, when they're really just internal bookkeeping. Added
+`isInternalWalletMovementNarration`, checked at the same priority tier as the existing
+`isInterestEarnedNarration` check (right after it, before self/salary/name extraction), routing
+these into their own "Internal transfers within your own wallet/savings (not income)" group —
+excluded from `sourceNeedsNote` like interest and reversals, with a matching item-tip explaining
+why no reason is needed. New regression test: `tests/internal-wallet-movement-narration.test.js`.
+
 ## Fix: "eTZ:" channel code bleeding into extracted sender names (real WEMA/ALAT statement)
 
 Found by testing the engine against a real WEMA Bank (ALAT) statement rather than synthetic
