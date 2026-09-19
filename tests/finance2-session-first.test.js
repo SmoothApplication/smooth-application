@@ -13,9 +13,11 @@ exports.run = async function(ctx){
   try {
     await passConsentGate(page);
 
-    // Session pill order: finance2 first, passport second.
+    // Session pill order: finance2 first, passport second. Pills are icon-only (no visible text) -
+    // the session name lives in the title attribute ("Label - X% filled"), not textContent, which is
+    // always empty. See the renderSessionNav comment in index.html.
     var pillLabels = await page.$$eval('.session-pill', function(pills){
-      return pills.map(function(p){ return p.textContent.trim(); });
+      return pills.map(function(p){ return (p.getAttribute('title') || '').trim(); });
     });
     assert.ok(/Income|bank statement/i.test(pillLabels[0] || ''),
       'First session pill should be Income & bank statement analysis, got: ' + JSON.stringify(pillLabels.slice(0, 3)));
