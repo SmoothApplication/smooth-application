@@ -7962,6 +7962,11 @@
     // (e.g. a months-to-save estimate for salary earners).
     var rows = [];
     var cfTotalIn = 0, cfTotalOut = 0, cfLastBalance = null, cfAnyRow = false;
+    // Tracked alongside cfLastBalance for the same reason — rows are filled oldest → newest, so the
+    // LAST row with a typed month label is the most recent one, whether it got there via a real
+    // statement scan or the applicant typing totals in by hand (see the recency check below, which
+    // deliberately doesn't care which path filled it in).
+    var cfLastMonthLabel = null;
     for (var i = 1; i <= CF_MONTHS; i++){
       var inflow = parseNum(document.getElementById('cf_in_'+i).value);
       var outflow = parseNum(document.getElementById('cf_out_'+i).value);
@@ -7977,6 +7982,7 @@
         // that's what matters for "where do things stand now", not a sum (closing balances aren't additive
         // across months the way inflow/outflow are).
         if (balanceStr) cfLastBalance = parseNum(balanceStr);
+        if (monthLabel) cfLastMonthLabel = monthLabel;
       }
     }
     var cfTotalRowEl = document.getElementById('cfTotalRow');
@@ -8197,6 +8203,37 @@
       cfSummary.innerHTML = '<div class="scan-msg info">Fill in at least a couple of months to check your income stability - the more months, the better the picture.</div>';
     } else {
       var cfMsgs = [];
+      // User report: a manually-typed (or auto-filled) cash-flow table ending in, say, "Aug 2026" was
+      // never flagged as stale once "today" moved into September - the per-transaction recency check
+      // further down (searching for daysSinceLatest > 45) only ever ran off REAL parsed transaction
+      // dates from an uploaded statement, so it silently did nothing for anyone typing totals in by
+      // hand instead (the "Didn't upload a statement in Step 1? Type the totals in directly below"
+      // path) - and even for an upload, it only warned about the deepest bank-statement page, not
+      // whatever's actually showing in this table right now. This checks the LAST filled month LABEL
+      // in the table itself, however it got there, against today's date - same 45-day tolerance and
+      // wording as the per-transaction version, so the two stay consistent.
+      if (cfLastMonthLabel){
+        var cfMonthNames = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+        var cfLabelMatch = /([A-Za-z]{3,})\.?\s*'?(\d{2,4})/.exec(cfLastMonthLabel);
+        if (cfLabelMatch){
+          var cfLabelMonthIdx = cfMonthNames.indexOf(cfLabelMatch[1].slice(0,3).toLowerCase());
+          var cfLabelYear = parseInt(cfLabelMatch[2], 10);
+          if (cfLabelYear < 100) cfLabelYear += 2000;
+          if (cfLabelMonthIdx !== -1 && !isNaN(cfLabelYear)){
+            // Treat the label as covering up to the LAST day of that month, not the 1st - a statement
+            // labelled "Aug 2026" plausibly runs all the way to August 31st.
+            var cfLabelDate = new Date(cfLabelYear, cfLabelMonthIdx + 1, 0);
+            var cfTodayDate = new Date();
+            var cfDaysSinceLabel = (cfTodayDate - cfLabelDate) / 86400000;
+            if (cfDaysSinceLabel > 45){
+              cfMsgs.push({cls:'err', text:'Your most recent month in this table is "'+escapeHtml(cfLastMonthLabel)+'", which is over 6 weeks before today ('+cfTodayDate.toDateString()+'). A reviewer expects statements that run up close to your application date - update this table (or upload a fresher statement in Step 1) so it covers your most recent month, not an older one.'});
+              bump('err'); incomeIssue = true;
+            } else if (cfDaysSinceLabel < -31){
+              cfMsgs.push({cls:'warn', text:'Your most recent month in this table is "'+escapeHtml(cfLastMonthLabel)+'", which is after today - double-check this label is correct.'});
+            }
+          }
+        }
+      }
       if (zeroMonths > 0){
         cfMsgs.push({cls:'warn', text: zeroMonths+' month(s) show no income at all - gaps like this can raise questions. A consistent monthly salary is much stronger evidence than an irregular one.'});
         bump('warn'); incomeIssue = true;

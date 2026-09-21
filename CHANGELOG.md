@@ -3,6 +3,25 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fix: stale cash-flow table month never flagged (manual-entry path had no recency check at all)
+
+User report, off a live screenshot: the "Cash flow & scores" tab showed a 6-month table ending in
+"Aug 2026" with no warning, even though "today" had already moved into September. Root cause: the
+existing recency check (`daysSinceLatest > 45`) only ever ran off REAL per-transaction `Date` objects
+parsed out of an uploaded statement PDF — it lived entirely inside the upload-analysis code path. The
+"Didn't upload a statement in Step 1? Type the totals in directly below instead." manual-entry path
+(and any statement an applicant hand-edited after a scan) had no recency check running against it at
+all, since there are no per-transaction dates to check in the first place — just free-text month
+labels typed into `#cf_month_1..6`.
+
+Added a second, independent check in `computeFinancials()` (fires on every keystroke in the cash-flow
+table, regardless of how the row got filled in): parses the LAST filled `#cf_month_N` label (rows run
+oldest → newest) against today's date, using the same 45-day tolerance and message wording as the
+existing upload-based check so the two read consistently. A stale most-recent month is now a hard
+`err`-level warning right on the "Cash flow & scores" tab, naming the exact month it found and telling
+the applicant to update the table or upload a fresher statement — it also feeds the sidebar readiness
+pill, so a stale table can no longer show "Looking solid". See `tests/cash-flow-table-stale-month.test.js`.
+
 ## Fix: actually ship the finance2-first session reorder (was documented, never landed)
 
 Caught by finance2-session-first.test.js failing on a full suite run: the session pill order was
