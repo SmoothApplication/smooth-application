@@ -6628,6 +6628,23 @@
   // this app's "nothing leaves your browser" privacy promise, and it's disclosed in the tip text next
   // to the fields and in docs/privacy-policy-draft.md. Added August 2026.
   var CONTACT_FORM_ENDPOINT = 'https://formspree.io/f/myegrvnq';
+  // The platform app (Super Admin/sub-admin dashboards, password-setup + reminder emails — see
+  // web/README.md) reads from the same Supabase project this writes to. Only fired alongside the
+  // Formspree submission above, i.e. only once the applicant has explicitly opted in via
+  // f_contactConsent — creating them a login account is a bigger step than a one-off inbox message,
+  // so it gets the same explicit consent, not a lower bar. Update this if the platform's deployed
+  // URL ever changes.
+  var PLATFORM_CAPTURE_ENDPOINT = 'https://smooth-application-five.vercel.app/api/capture-email';
+  // Rough overall completion percent across every item that currently applies to this applicant's
+  // answers, for the admin dashboard's "in progress vs. complete" view — same checked/applicable
+  // logic as sessionProgress()'s cat: branch above, just not filtered down to one category.
+  function computeOverallPercent(){
+    var a = getAnswers();
+    var applicable = CHECKLIST.filter(function(it){ return itemApplies(it, a); });
+    if (!applicable.length) return 0;
+    var checked = applicable.filter(function(it){ return state[it.id] && state[it.id].checked; }).length;
+    return Math.round(checked / applicable.length * 100);
+  }
   var lastContactSubmissionSignature = '';
   function maybeSubmitContactInfo(){
     var consentEl = document.getElementById('f_contactConsent');
@@ -6651,6 +6668,23 @@
         message: 'Opted in to be contacted about their Smooth Application visa checklist.'
       })
     }).catch(function(){ /* Silent on purpose - offline/blocked shouldn't interrupt the applicant's flow. */ });
+    // Also provisions/updates their platform account (login + progress tracking + reminder
+    // emails) — only when there's an email to create the account with; phone-only opt-ins have
+    // nowhere in the platform schema to go yet.
+    if (email){
+      var visibleKeys = getVisibleSessionKeys();
+      var sessionKey = visibleKeys[currentSessionIndex] || null;
+      fetch(PLATFORM_CAPTURE_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email,
+          country: currentCountry,
+          sessionKey: sessionKey,
+          percentComplete: computeOverallPercent()
+        })
+      }).catch(function(){ /* Silent on purpose, same as above - never block the applicant's flow. */ });
+    }
   }
   ['f_email','f_phone'].forEach(function(id){
     document.getElementById(id).addEventListener('blur', maybeSubmitContactInfo);

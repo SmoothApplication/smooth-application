@@ -3,6 +3,35 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Wire the free checklist to the new platform (`web/`)
+
+The platform app (Super Admin/sub-admin dashboards, Resend email automation — see `web/README.md`)
+was deployed but nothing in `index.html` ever called its `/api/capture-email` endpoint, so the
+dashboard sat at 0 applicants no matter how many people used the checklist.
+
+Hooked into the existing, already-consented contact-capture flow (`maybeSubmitContactInfo()`,
+gated by the `f_contactConsent` checkbox on the passport session) rather than adding a new, lower-bar
+trigger: creating someone a login account is a bigger step than forwarding their details to an
+inbox, so it gets the same explicit opt-in, fired alongside the existing Formspree submission. Added
+a `computeOverallPercent()` helper (checked vs. applicable items across the whole checklist, same
+logic `sessionProgress()` already used per-category) to send a rough completion percent along with
+the email, country, and current session key.
+
+Added CORS headers (`OPTIONS` handler + `Access-Control-Allow-Origin: *`) to
+`web/app/api/capture-email/route.ts` — the checklist and the platform app live on different
+origins, so the browser would otherwise block the request. Wildcarded deliberately: the endpoint
+takes no cookies/session and was already reachable by anyone who had the URL, so restricting Origin
+would only break things whenever the checklist's hosting domain changes, not add real security.
+
+Extended `tests/contact-capture-consent.test.js` to intercept the new platform endpoint alongside
+the existing Formspree one, asserting: no request before consent is checked, exactly one once it is
+(with the right email + a numeric `percentComplete`), and no duplicate on a no-op re-blur.
+
+Known follow-up: the platform's `NEXT_PUBLIC_SITE_URL` env var isn't set yet on Vercel (a UI dialog
+there wasn't accepting the save in testing), so the invite/password-setup email link and redirect
+will point at an unset URL until that's added — doesn't block this capture wiring, but the email
+Resend sends won't have a working link until it's fixed.
+
 ## Fix: stale cash-flow table month never flagged (manual-entry path had no recency check at all)
 
 User report, off a live screenshot: the "Cash flow & scores" tab showed a 6-month table ending in

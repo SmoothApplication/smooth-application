@@ -9,6 +9,26 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendCreatePasswordEmail } from '@/lib/resend';
 
+// The free checklist (index.html) lives on a different origin — GitHub Pages today, possibly a
+// custom domain or Netlify mirror later — so this needs CORS headers to be callable from browser
+// JS there at all. Wildcarded on purpose: this endpoint takes no cookies/session and was already
+// reachable by anyone who could see the URL (it's protected by nothing but the request body being
+// a plausible email), so restricting the Origin header wouldn't add real security, just break
+// legitimate calls whenever the checklist's hosting domain changes.
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
+}
+
+function corsJson(body: Record<string, unknown>, init?: { status?: number }) {
+  return NextResponse.json(body, { status: init?.status, headers: CORS_HEADERS });
+}
+
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
   const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : '';
@@ -17,7 +37,7 @@ export async function POST(request: Request) {
   const percentComplete = Number.isFinite(body?.percentComplete) ? Math.max(0, Math.min(100, body.percentComplete)) : 0;
 
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return NextResponse.json({ error: 'A valid email is required' }, { status: 400 });
+    return corsJson({ error: 'A valid email is required' }, { status: 400 });
   }
 
   const supabase = createAdminClient();
@@ -33,7 +53,7 @@ export async function POST(request: Request) {
       redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/create-password`,
     });
     if (inviteErr || !invited?.user) {
-      return NextResponse.json({ error: inviteErr?.message || 'Could not create account' }, { status: 500 });
+      return corsJson({ error: inviteErr?.message || 'Could not create account' }, { status: 500 });
     }
     userId = invited.user.id;
     isNewApplicant = true;
@@ -57,7 +77,7 @@ export async function POST(request: Request) {
   // not one of the four analytics numbers the Super Admin dashboard actually needs.
 
   if (upsertErr) {
-    return NextResponse.json({ error: upsertErr.message }, { status: 500 });
+    return corsJson({ error: upsertErr.message }, { status: 500 });
   }
 
   if (isNewApplicant) {
@@ -66,5 +86,5 @@ export async function POST(request: Request) {
     await supabase.from('email_log').insert({ applicant_id: userId, email_type: 'password_setup' });
   }
 
-  return NextResponse.json({ ok: true });
+  return corsJson({ ok: true });
 }
