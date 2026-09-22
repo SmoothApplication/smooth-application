@@ -5,7 +5,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { wrapInviteLink } from '@/lib/invite-link';
+import { createInviteLink } from '@/lib/invite-link';
 
 export async function POST(request: Request) {
   const supabase = createClient();
@@ -80,5 +80,6 @@ export async function POST(request: Request) {
   });
   if (upsertErr) return NextResponse.json({ error: upsertErr.message }, { status: 500 });
 
-  return NextResponse.json({ ok: true, inviteLink: inviteLink ? wrapInviteLink(inviteLink) : null });
+  const shortLink = inviteLink ? await createInviteLink(admin, inviteLink) : null;
+  return NextResponse.json({ ok: true, inviteLink: shortLink });
 }

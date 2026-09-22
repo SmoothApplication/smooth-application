@@ -9,11 +9,19 @@ The COO's copy-pasted invite link (see previous entry) landed on `/create-passwo
 session missing!" — WhatsApp fetches a message's links server-side to build the preview card,
 which silently consumed Supabase's one-time-use token before he ever tapped it.
 
-Added `web/app/invite-link/page.tsx`, a click-gated landing page: it does nothing on load (safe
-for a preview bot to fetch), and only navigates to the real Supabase link from inside a button's
-`onClick` — a genuine user gesture a crawler can't trigger. `wrapInviteLink()` in the new
-`web/lib/invite-link.ts` wraps every link both invite routes hand back, so this applies wherever
-the manual-copy fallback is used, not just this one case.
+First pass: added `web/app/invite-link/page.tsx`, a click-gated landing page that does nothing on
+load (safe for a preview bot to fetch) and only navigates to the real Supabase link from inside a
+button's `onClick`. That alone wasn't enough — embedding the full Supabase link in the page's own
+query string made the shared URL 300+ characters (a link inside a link), long enough that WhatsApp
+mangled/truncated it in transit before the invitee's tap ever reached us, landing on the click-gate
+page with no destination at all.
+
+Fixed properly with a short link: added `invite_redirects` (`supabase/migrations/0002_...sql`), a
+service-role-only table mapping a short random id to the real one-time link, plus
+`GET /api/invite-redirect/[id]` to resolve (and delete, single-use) it. `createInviteLink()` in
+`web/lib/invite-link.ts` now inserts the row and hands back a short `/invite-link?id=...` URL —
+nothing for a messaging app to truncate — and the click-gate page only calls the resolve endpoint
+from inside the button's `onClick`, so the real link still never gets touched by a preview bot.
 
 Also fixed the Supabase project's own `URL Configuration` (Site URL was still the scaffold's
 `http://localhost:3000`, with no entries in the redirect allow-list) — that's why the very first
