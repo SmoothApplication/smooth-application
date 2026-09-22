@@ -33,11 +33,16 @@ export async function middleware(request: NextRequest) {
     }
     const { data: adminRow } = await supabase
       .from('admin_users')
-      .select('role')
+      .select('role, must_change_password')
       .eq('id', user.id)
       .maybeSingle();
     if (!adminRow) {
       return NextResponse.redirect(new URL('/', request.url));
+    }
+    // Invited via a temp password (see supabase/migrations/0003_temp_password_invites.sql) — force
+    // them through the change-password screen before anything else in /admin is reachable.
+    if (adminRow.must_change_password && request.nextUrl.pathname !== '/admin/change-password') {
+      return NextResponse.redirect(new URL('/admin/change-password', request.url));
     }
   }
 

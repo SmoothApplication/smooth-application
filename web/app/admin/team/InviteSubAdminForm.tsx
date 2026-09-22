@@ -8,13 +8,14 @@ export default function InviteSubAdminForm({ departments }: { departments: { id:
   const [newDepartmentName, setNewDepartmentName] = useState('');
   const [status, setStatus] = useState<'idle' | 'saving' | 'done' | 'error'>('idle');
   const [message, setMessage] = useState('');
-  const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [tempPassword, setTempPassword] = useState<string | null>(null);
+  const [invitedEmail, setInvitedEmail] = useState('');
   const [copied, setCopied] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setStatus('saving');
-    setInviteLink(null);
+    setTempPassword(null);
     setCopied(false);
     const res = await fetch('/api/admin/invite-sub-admin', {
       method: 'POST',
@@ -32,19 +33,20 @@ export default function InviteSubAdminForm({ departments }: { departments: { id:
       return;
     }
     setStatus('done');
-    setMessage(`Invited ${email} as a sub-admin.`);
-    setInviteLink(body.inviteLink || null);
+    setMessage(`Created ${email} as a sub-admin.`);
+    setTempPassword(body.tempPassword || null);
+    setInvitedEmail(email);
     setEmail('');
     setNewDepartmentName('');
   }
 
-  async function copyLink() {
-    if (!inviteLink) return;
+  async function copyPassword() {
+    if (!tempPassword) return;
     try {
-      await navigator.clipboard.writeText(inviteLink);
+      await navigator.clipboard.writeText(tempPassword);
       setCopied(true);
     } catch {
-      // clipboard API unavailable — the link is still selectable/visible below
+      // clipboard API unavailable — the password is still selectable/visible below
     }
   }
 
@@ -96,25 +98,26 @@ export default function InviteSubAdminForm({ departments }: { departments: { id:
       {message && (
         <p className={`w-full text-sm ${status === 'error' ? 'text-red-600' : 'text-green-600'}`}>{message}</p>
       )}
-      {inviteLink && (
+      {tempPassword && (
         <div className="w-full rounded-md border border-amber-200 bg-amber-50 p-3 text-sm">
           <p className="mb-2 text-amber-800">
-            We can&apos;t auto-email this address yet (no verified sending domain) — copy this link and send it to
-            them yourself:
+            Temporary password for <strong>{invitedEmail}</strong> — tell them this directly (text, call, in
+            person). They&apos;ll be asked to set their own password the moment they sign in with it, so this one
+            stops working right after:
           </p>
           <div className="flex flex-wrap items-center gap-2">
             <input
               readOnly
-              value={inviteLink}
+              value={tempPassword}
               onFocus={(e) => e.currentTarget.select()}
-              className="min-w-0 flex-1 rounded border border-gray-300 bg-white px-2 py-1 text-xs"
+              className="min-w-0 flex-1 rounded border border-gray-300 bg-white px-2 py-1 font-mono text-xs"
             />
             <button
               type="button"
-              onClick={copyLink}
+              onClick={copyPassword}
               className="rounded-md bg-brand px-3 py-1 text-xs font-medium text-white hover:bg-brand-dark"
             >
-              {copied ? 'Copied!' : 'Copy link'}
+              {copied ? 'Copied!' : 'Copy password'}
             </button>
           </div>
         </div>

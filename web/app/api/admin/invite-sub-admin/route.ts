@@ -5,7 +5,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { createInviteLink } from '@/lib/invite-link';
+import { generateTempPassword } from '@/lib/temp-password';
 
 export async function POST(request: Request) {
   const supabase = createClient();
@@ -42,33 +42,28 @@ export async function POST(request: Request) {
   const { data: existingUsers } = await admin.auth.admin.listUsers();
   let userId = existingUsers?.users.find((u) => u.email?.toLowerCase() === email)?.id;
 
-  // generateLink never sends an email itself — it just creates the user (for type: 'invite') or
-  // resolves an existing one (type: 'magiclink') and hands back a one-time sign-in URL. That link
-  // is what actually matters: Resend's sandbox sender (onboarding@resend.dev, see lib/resend.ts)
-  // can only deliver to the Resend account's own email address, so any automated email to a real
-  // teammate silently fails until a custom domain is verified. Until then, the link below is
-  // returned to the caller so the admin can copy/paste it to the invitee themselves.
-  const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL}/create-password`;
-  let inviteLink: string | null = null;
+  // Sets a temp password directly instead of emailing/linking one — see
+  // supabase/migrations/0003_temp_password_invites.sql for why. The admin sees this password once,
+  // on screen, and shares it with the invitee themselves (text, call, in person). The
+  // must_change_password flag below forces them to replace it with their own password on first
+  // sign-in, so the shared value is only ever useful for that one login.
+  const tempPassword = generateTempPassword();
 
   if (!userId) {
-    const { data: linked, error: linkErr } = await admin.auth.admin.generateLink({
-      type: 'invite',
+    const { data: created, error: createErr } = await admin.auth.admin.createUser({
       email,
-      options: { redirectTo },
+      password: tempPassword,
+      email_confirm: true,
     });
-    if (linkErr || !linked?.user) {
-      return NextResponse.json({ error: linkErr?.message || 'Could not invite user' }, { status: 500 });
+    if (createErr || !created?.user) {
+      return NextResponse.json({ error: createErr?.message || 'Could not create user' }, { status: 500 });
     }
-    userId = linked.user.id;
-    inviteLink = linked.properties?.action_link ?? null;
+    userId = created.user.id;
   } else {
-    const { data: linked, error: linkErr } = await admin.auth.admin.generateLink({
-      type: 'magiclink',
-      email,
-      options: { redirectTo },
-    });
-    if (!linkErr) inviteLink = linked?.properties?.action_link ?? null;
+    const { error: updateErr } = await admin.auth.admin.updateUserById(userId, { password: tempPassword });
+    if (updateErr) {
+      return NextResponse.json({ error: updateErr.message }, { status: 500 });
+    }
   }
 
   const { error: upsertErr } = await admin.from('admin_users').upsert({
@@ -77,9 +72,9 @@ export async function POST(request: Request) {
     role: 'sub_admin',
     department_id: departmentId,
     invited_by: user.id,
+    must_change_password: true,
   });
   if (upsertErr) return NextResponse.json({ error: upsertErr.message }, { status: 500 });
 
-  const shortLink = inviteLink ? await createInviteLink(admin, inviteLink) : null;
-  return NextResponse.json({ ok: true, inviteLink: shortLink });
+  return NextResponse.json({ ok: true, tempPassword });
 }

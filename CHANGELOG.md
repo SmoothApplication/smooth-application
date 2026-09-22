@@ -3,6 +3,26 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Replace invite links with temp password + forced change (`web/`)
+
+Dropped the magic-link invite flow entirely (see the two entries below for its history) in favor
+of setting a temporary password directly on the invited account via Supabase's admin API
+(`admin.auth.admin.createUser`/`updateUserById`). The super/sub-admin sees the password once on
+the Team page and shares it with the invitee themselves — no link, so nothing for WhatsApp's
+preview bot or anything else to prefetch and burn.
+
+`admin_users.must_change_password` (new column, migration `0003_temp_password_invites.sql`) is
+set `true` on every invite. `middleware.ts` now redirects any admin with that flag to the new
+`/admin/change-password` page and blocks every other `/admin` route until it's cleared, so the
+shared temp password is only ever usable for that one first sign-in. The change-password page
+calls the new `/api/admin/complete-password-change` route (needs the service-role client — RLS
+doesn't let anyone update their own `admin_users` row) to clear the flag once they've set their
+own password.
+
+Also dropped: `app/invite-link/page.tsx`, `app/api/invite-redirect/[id]/route.ts`,
+`lib/invite-link.ts`, and the `invite_redirects` table — all dead weight now that there's no link
+to protect.
+
 ## Fix invite links dying before the invitee opens them (`web/`)
 
 The COO's copy-pasted invite link (see previous entry) landed on `/create-password` with "Auth

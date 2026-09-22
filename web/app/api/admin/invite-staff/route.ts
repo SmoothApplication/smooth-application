@@ -3,7 +3,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { createInviteLink } from '@/lib/invite-link';
+import { generateTempPassword } from '@/lib/temp-password';
 
 export async function POST(request: Request) {
   const supabase = createClient();
@@ -38,30 +38,25 @@ export async function POST(request: Request) {
   const { data: existingUsers } = await admin.auth.admin.listUsers();
   let userId = existingUsers?.users.find((u) => u.email?.toLowerCase() === email)?.id;
 
-  // See invite-sub-admin/route.ts for why we generate a link instead of relying solely on
-  // Supabase's/Resend's automated email — Resend's sandbox sender can't deliver to real
-  // teammates until a custom domain is verified, so the link is returned for manual sharing.
-  const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL}/create-password`;
-  let inviteLink: string | null = null;
+  // See invite-sub-admin/route.ts for why this sets a temp password directly rather than emailing
+  // or linking one.
+  const tempPassword = generateTempPassword();
 
   if (!userId) {
-    const { data: linked, error: linkErr } = await admin.auth.admin.generateLink({
-      type: 'invite',
+    const { data: created, error: createErr } = await admin.auth.admin.createUser({
       email,
-      options: { redirectTo },
+      password: tempPassword,
+      email_confirm: true,
     });
-    if (linkErr || !linked?.user) {
-      return NextResponse.json({ error: linkErr?.message || 'Could not invite user' }, { status: 500 });
+    if (createErr || !created?.user) {
+      return NextResponse.json({ error: createErr?.message || 'Could not create user' }, { status: 500 });
     }
-    userId = linked.user.id;
-    inviteLink = linked.properties?.action_link ?? null;
+    userId = created.user.id;
   } else {
-    const { data: linked, error: linkErr } = await admin.auth.admin.generateLink({
-      type: 'magiclink',
-      email,
-      options: { redirectTo },
-    });
-    if (!linkErr) inviteLink = linked?.properties?.action_link ?? null;
+    const { error: updateErr } = await admin.auth.admin.updateUserById(userId, { password: tempPassword });
+    if (updateErr) {
+      return NextResponse.json({ error: updateErr.message }, { status: 500 });
+    }
   }
 
   const { error: upsertErr } = await admin.from('admin_users').upsert({
@@ -71,9 +66,9 @@ export async function POST(request: Request) {
     department_id: me.department_id,
     staff_role_id: role.id,
     invited_by: user.id,
+    must_change_password: true,
   });
   if (upsertErr) return NextResponse.json({ error: upsertErr.message }, { status: 500 });
 
-  const shortLink = inviteLink ? await createInviteLink(admin, inviteLink) : null;
-  return NextResponse.json({ ok: true, inviteLink: shortLink });
+  return NextResponse.json({ ok: true, tempPassword });
 }
