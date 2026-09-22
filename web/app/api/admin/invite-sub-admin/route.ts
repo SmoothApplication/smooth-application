@@ -41,14 +41,33 @@ export async function POST(request: Request) {
   const { data: existingUsers } = await admin.auth.admin.listUsers();
   let userId = existingUsers?.users.find((u) => u.email?.toLowerCase() === email)?.id;
 
+  // generateLink never sends an email itself — it just creates the user (for type: 'invite') or
+  // resolves an existing one (type: 'magiclink') and hands back a one-time sign-in URL. That link
+  // is what actually matters: Resend's sandbox sender (onboarding@resend.dev, see lib/resend.ts)
+  // can only deliver to the Resend account's own email address, so any automated email to a real
+  // teammate silently fails until a custom domain is verified. Until then, the link below is
+  // returned to the caller so the admin can copy/paste it to the invitee themselves.
+  const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL}/create-password`;
+  let inviteLink: string | null = null;
+
   if (!userId) {
-    const { data: invited, error: inviteErr } = await admin.auth.admin.inviteUserByEmail(email, {
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/create-password`,
+    const { data: linked, error: linkErr } = await admin.auth.admin.generateLink({
+      type: 'invite',
+      email,
+      options: { redirectTo },
     });
-    if (inviteErr || !invited?.user) {
-      return NextResponse.json({ error: inviteErr?.message || 'Could not invite user' }, { status: 500 });
+    if (linkErr || !linked?.user) {
+      return NextResponse.json({ error: linkErr?.message || 'Could not invite user' }, { status: 500 });
     }
-    userId = invited.user.id;
+    userId = linked.user.id;
+    inviteLink = linked.properties?.action_link ?? null;
+  } else {
+    const { data: linked, error: linkErr } = await admin.auth.admin.generateLink({
+      type: 'magiclink',
+      email,
+      options: { redirectTo },
+    });
+    if (!linkErr) inviteLink = linked?.properties?.action_link ?? null;
   }
 
   const { error: upsertErr } = await admin.from('admin_users').upsert({
@@ -60,5 +79,5 @@ export async function POST(request: Request) {
   });
   if (upsertErr) return NextResponse.json({ error: upsertErr.message }, { status: 500 });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, inviteLink });
 }

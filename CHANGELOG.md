@@ -3,6 +3,20 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Manual invite-link fallback for sub-admin/staff invites (`web/`)
+
+Resend's default sandbox sender (`onboarding@resend.dev`, used until a custom domain is verified)
+can only deliver to the email address that owns the Resend account — sending to anyone else fails
+outright. That made `invite-sub-admin` and `invite-staff` silently unusable for real teammates,
+since both relied solely on Supabase's built-in invite email going through that same sender.
+
+Switched both routes from `inviteUserByEmail` to `admin.auth.admin.generateLink()` (type `invite`
+for brand-new users, `magiclink` to re-issue a link for an existing-but-unconfirmed user), which
+returns the one-time sign-in URL directly instead of only emailing it. Both API responses now
+include `inviteLink`, and `InviteSubAdminForm`/`InviteStaffForm` show a "Copy link" box on success
+so the admin can hand the link to the invitee themselves (WhatsApp, Slack, text) until a verified
+sending domain makes automated delivery reliable.
+
 ## Wire the free checklist to the new platform (`web/`)
 
 The platform app (Super Admin/sub-admin dashboards, Resend email automation — see `web/README.md`)

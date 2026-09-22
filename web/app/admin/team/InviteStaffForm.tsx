@@ -7,10 +7,14 @@ export default function InviteStaffForm({ departmentId }: { departmentId: string
   const [title, setTitle] = useState('');
   const [status, setStatus] = useState<'idle' | 'saving' | 'done' | 'error'>('idle');
   const [message, setMessage] = useState('');
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setStatus('saving');
+    setInviteLink(null);
+    setCopied(false);
     const res = await fetch('/api/admin/invite-staff', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -24,8 +28,19 @@ export default function InviteStaffForm({ departmentId }: { departmentId: string
     }
     setStatus('done');
     setMessage(`Invited ${email} as "${title}".`);
+    setInviteLink(body.inviteLink || null);
     setEmail('');
     setTitle('');
+  }
+
+  async function copyLink() {
+    if (!inviteLink) return;
+    try {
+      await navigator.clipboard.writeText(inviteLink);
+      setCopied(true);
+    } catch {
+      // clipboard API unavailable — the link is still selectable/visible below
+    }
   }
 
   return (
@@ -59,6 +74,29 @@ export default function InviteStaffForm({ departmentId }: { departmentId: string
       </button>
       {message && (
         <p className={`w-full text-sm ${status === 'error' ? 'text-red-600' : 'text-green-600'}`}>{message}</p>
+      )}
+      {inviteLink && (
+        <div className="w-full rounded-md border border-amber-200 bg-amber-50 p-3 text-sm">
+          <p className="mb-2 text-amber-800">
+            We can&apos;t auto-email this address yet (no verified sending domain) — copy this link and send it to
+            them yourself:
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              readOnly
+              value={inviteLink}
+              onFocus={(e) => e.currentTarget.select()}
+              className="min-w-0 flex-1 rounded border border-gray-300 bg-white px-2 py-1 text-xs"
+            />
+            <button
+              type="button"
+              onClick={copyLink}
+              className="rounded-md bg-brand px-3 py-1 text-xs font-medium text-white hover:bg-brand-dark"
+            >
+              {copied ? 'Copied!' : 'Copy link'}
+            </button>
+          </div>
+        </div>
       )}
     </form>
   );
