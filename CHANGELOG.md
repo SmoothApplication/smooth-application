@@ -3,6 +3,22 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fix invite links dying before the invitee opens them (`web/`)
+
+The COO's copy-pasted invite link (see previous entry) landed on `/create-password` with "Auth
+session missing!" — WhatsApp fetches a message's links server-side to build the preview card,
+which silently consumed Supabase's one-time-use token before he ever tapped it.
+
+Added `web/app/invite-link/page.tsx`, a click-gated landing page: it does nothing on load (safe
+for a preview bot to fetch), and only navigates to the real Supabase link from inside a button's
+`onClick` — a genuine user gesture a crawler can't trigger. `wrapInviteLink()` in the new
+`web/lib/invite-link.ts` wraps every link both invite routes hand back, so this applies wherever
+the manual-copy fallback is used, not just this one case.
+
+Also fixed the Supabase project's own `URL Configuration` (Site URL was still the scaffold's
+`http://localhost:3000`, with no entries in the redirect allow-list) — that's why the very first
+generated link silently fell back to `localhost` instead of the live Vercel domain.
+
 ## Manual invite-link fallback for sub-admin/staff invites (`web/`)
 
 Resend's default sandbox sender (`onboarding@resend.dev`, used until a custom domain is verified)
