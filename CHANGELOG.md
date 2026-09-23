@@ -3,6 +3,42 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Port the checklist into Next.js — Phase 1: front door (`web/`)
+
+First real slice of task "Port the 15k-line checklist (index.html) into Next.js incrementally."
+Replaced the placeholder `web/app/page.tsx` (which only linked to admin sign-in) with an
+applicant-facing landing page, and added `web/app/checklist/start/page.tsx` (country picker +
+guidance-only consent gate, ported from index.html's `#consentGate` — all 7 live countries'
+disclaimer text carried over verbatim) and `web/app/checklist/page.tsx` (a stub landing spot for
+the country a visitor picked).
+
+Scope decision, called out in code comments: index.html's actual front door is a 2-3 minute
+confidence quiz (`#quizGate`) ahead of the consent gate — a substantial, separately-scoped piece
+(10 branching questions, a scoring rubric, pre-fill into the checklist). Porting that faithfully is
+deferred to a later phase; this phase's landing page reproduces the quiz screen's *intro* content
+(brand row, trust badges, value-prop copy, "what you need to know" FAQ) and its CTA skips straight
+to the country picker rather than a half-built quiz.
+
+The checklist body itself (passport scan, bank-statement analysis, financial calculator, and the
+dozen-plus sessions after country selection) is NOT ported yet — `/checklist` is an honest stub:
+it links out to the original free checklist (still the real product today) and offers an
+email-capture form wired to the existing `/api/capture-email` endpoint, so real Next.js traffic
+starts showing up in the Super Admin dashboard's applicant counts even before the full experience
+lands.
+
+**Known issue surfaced while wiring this, not yet fixed**: `/api/capture-email` sends its
+"create your password" email via `admin.auth.admin.inviteUserByEmail`, which goes through the same
+Resend sandbox sender (`onboarding@resend.dev`) already known to only deliver to the Resend
+account's own inbox (see the admin-invite entries above). A real applicant's email will save to
+`applicant_profiles` correctly, but the follow-up email currently won't reach them. Same root
+cause, same fix needed: a verified sending domain in Resend. Left as-is rather than applying the
+temp-password workaround used for admin invites, since that pattern doesn't fit a public,
+self-serve signup at scale — flagging here so it isn't lost.
+
+Also added real brand/accent color tokens to `tailwind.config.ts` (`accent`, `good`, `warn`)
+matching index.html's actual `:root` custom properties, so ported applicant-facing pages look like
+a continuation of the live checklist rather than a re-skin using the admin panel's placeholder teal.
+
 ## Replace invite links with temp password + forced change (`web/`)
 
 Dropped the magic-link invite flow entirely (see the two entries below for its history) in favor
