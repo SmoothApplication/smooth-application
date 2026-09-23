@@ -14,6 +14,7 @@ export default function ChangePasswordPage() {
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [visible, setVisible] = useState(false);
   const router = useRouter();
 
   async function handleSubmit(e: React.FormEvent) {
@@ -56,7 +57,7 @@ export default function ChangePasswordPage() {
       </div>
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         <input
-          type="password"
+          type={visible ? 'text' : 'password'}
           required
           placeholder="New password"
           value={password}
@@ -64,13 +65,17 @@ export default function ChangePasswordPage() {
           className="rounded-md border border-gray-300 px-3 py-2"
         />
         <input
-          type="password"
+          type={visible ? 'text' : 'password'}
           required
           placeholder="Confirm password"
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
           className="rounded-md border border-gray-300 px-3 py-2"
         />
+        <label className="flex items-center gap-2 text-sm text-gray-600">
+          <input type="checkbox" checked={visible} onChange={(e) => setVisible(e.target.checked)} />
+          Show password
+        </label>
         {error && <p className="text-sm text-red-600">{error}</p>}
         <button
           type="submit"

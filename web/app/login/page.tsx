@@ -14,6 +14,7 @@ function LoginForm() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [visible, setVisible] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -45,13 +46,17 @@ function LoginForm() {
           className="rounded-md border border-gray-300 px-3 py-2"
         />
         <input
-          type="password"
+          type={visible ? 'text' : 'password'}
           required
           placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           className="rounded-md border border-gray-300 px-3 py-2"
         />
+        <label className="flex items-center gap-2 text-sm text-gray-600">
+          <input type="checkbox" checked={visible} onChange={(e) => setVisible(e.target.checked)} />
+          Show password
+        </label>
         {error && <p className="text-sm text-red-600">{error}</p>}
         <button
           type="submit"
