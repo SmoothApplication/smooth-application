@@ -3,6 +3,27 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Port the checklist into Next.js — Phase 3: financial readiness calculator (`web/`)
+
+Third slice of task "Port the 15k-line checklist (index.html) into Next.js incrementally." Ported
+the maths behind index.html's `computeFinancials()` into `web/lib/checklist/financial.ts`: trip
+cost estimate (flight with adolescent/child discount, accommodation, transport, shopping,
+sightseeing), the 2× funds-buffer rule, a 6-month cash-flow table with income-stability checks
+(average monthly savings, coefficient-of-variation warning on erratic income, zero-income-month
+flag), and the "reality check" that compares how long closing a savings shortfall would take
+against the applicant's own planned submission date. Built `web/app/checklist/uk/financial/page.tsx`
+around it — same privacy model as the rest of the checklist, all figures typed in stay in
+`localStorage` (`sa_uk_financial`) and are never sent anywhere — and linked it from the checklist
+progress header.
+
+Deliberately NOT ported in this phase: index.html's OCR-driven "Analyze statement(s)" pipeline
+(Tesseract.js + PDF.js bank-statement parsing that auto-fills the cash-flow table and closing
+balance from an uploaded PDF), the matching document-upload/checkbox items on the checklist body
+itself (passport MRZ scan, bank-statement/employer-letter cross-checks), and the end-of-flow
+"Reasons" summary tab. Those are each substantial, separate pieces of work (browser-side OCR in
+particular) tracked for a later phase — this phase ships the real arithmetic an applicant needs
+today, fed from typed figures instead of a scanned statement.
+
 ## Port the checklist into Next.js — Phase 2: UK checklist body (`web/`)
 
 Second slice of task "Port the 15k-line checklist (index.html) into Next.js incrementally."

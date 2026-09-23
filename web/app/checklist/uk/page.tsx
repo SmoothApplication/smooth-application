@@ -185,6 +185,9 @@ export default function UKChecklistPage() {
         <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-black/10">
           <div className="h-full rounded-full bg-accent transition-all" style={{ width: `${percent}%` }} />
         </div>
+        <Link href="/checklist/uk/financial" className="mt-2 inline-block text-xs text-accent underline">
+          💰 Financial readiness calculator
+        </Link>
       </div>
 
       {CAT_ORDER_UK.map((cat) => {
