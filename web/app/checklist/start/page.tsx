@@ -25,7 +25,9 @@ export default function ChecklistStartPage() {
     } catch {
       // localStorage unavailable (private browsing, etc.) — country still gets passed via query.
     }
-    router.push(`/checklist?country=${country.code}`);
+    // UK has a real ported checklist (Phase 2 of task #244) — everything else still falls back to
+    // the honest stub until its own data/UI is ported in a later phase.
+    router.push(country.code === 'UK' ? '/checklist/uk' : `/checklist?country=${country.code}`);
   }
 
   return (

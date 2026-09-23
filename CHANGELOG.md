@@ -3,6 +3,33 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Port the checklist into Next.js — Phase 2: UK checklist body (`web/`)
+
+Second slice of task "Port the 15k-line checklist (index.html) into Next.js incrementally."
+Ported `CHECKLIST_UK`/`CAT_ORDER_UK` from index.html into `web/lib/checklist/uk.ts` (item text,
+tips, and `appliesIf` conditional logic carried over faithfully — the same reviewed 49-item UK
+document list, not a rewrite) and built `web/app/checklist/uk/page.tsx`: a short qualifying form
+(employed/self-employed/student/married/host/child/refusal/translation/purpose — trimmed to just
+the fields the real `appliesIf` functions key off) followed by the categorized, checkable document
+list with per-item "Why?" tips, required/recommended badges, and a live overall-progress bar using
+the same `checked/applicable` math as index.html's `computeOverallPercent()`.
+
+Scope decision: Phase 2 is UK only — the highest-traffic country per `docs/marketing-plan.md`'s
+funnel data. `/checklist/start` now routes UK straight into this real checklist; every other
+country still lands on the Phase 1 stub until its own data gets ported in a later phase.
+
+Privacy note, unchanged from index.html and worth restating since this is the piece that actually
+holds real applicant answers: qualifying answers and checked state live in this browser's
+`localStorage` only (`sa_uk_answers` / `sa_uk_checked`), never sent to Supabase or anywhere else.
+Only email/country/progress-percent go server-side, and only if/when an applicant drops an email
+elsewhere in the flow — this page doesn't do that yet (no session-key/percent sync to
+`applicant_profiles` in this phase; that's still to come).
+
+Not yet ported in this phase: file upload + the browser-side checks that come with it (passport
+MRZ scan, bank-statement OCR/analysis, employment-letter name cross-check, etc.), the financial
+readiness calculator, and the Reasons/summary tab. Those are heavier, separately-scoped pieces of
+later phases.
+
 ## Port the checklist into Next.js — Phase 1: front door (`web/`)
 
 First real slice of task "Port the 15k-line checklist (index.html) into Next.js incrementally."
