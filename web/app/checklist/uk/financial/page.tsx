@@ -47,6 +47,33 @@ export default function UKFinancialCalculatorPage() {
 
   const result = useMemo(() => computeFinancials(inputs), [inputs]);
 
+  // Return date can't be on or before the travel date — mirrors index.html's returnDateInput.min
+  // behavior (index.html:7848-7869): constrains the native date picker to only offer valid dates,
+  // rather than just rejecting an invalid pick after the fact.
+  const minReturnDate = useMemo(() => {
+    if (!inputs.travelDate) return undefined;
+    const d = new Date(inputs.travelDate + 'T00:00:00');
+    if (isNaN(d.getTime())) return undefined;
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().slice(0, 10);
+  }, [inputs.travelDate]);
+  const returnDateInvalid = !!(inputs.travelDate && inputs.returnDate && inputs.returnDate <= inputs.travelDate);
+
+  // Auto-fills "Nights" from the two dates, same as index.html — still editable by hand if only
+  // one date (or neither) is filled in yet.
+  useEffect(() => {
+    if (!loaded) return;
+    if (inputs.travelDate && inputs.returnDate && inputs.returnDate > inputs.travelDate) {
+      const nights = Math.round(
+        (new Date(inputs.returnDate + 'T00:00:00').getTime() - new Date(inputs.travelDate + 'T00:00:00').getTime()) / 86400000
+      );
+      if (nights !== inputs.costs.nights) {
+        setInputs((p) => ({ ...p, costs: { ...p.costs, nights } }));
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inputs.travelDate, inputs.returnDate, loaded]);
+
   if (!loaded) return null;
 
   function setCost<K extends keyof FinancialInputs['costs']>(key: K, v: string) {
@@ -91,9 +118,19 @@ export default function UKFinancialCalculatorPage() {
         <h2 className="mb-3 text-sm font-semibold text-[#12232e]">Trip dates</h2>
         <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
           <Field label="Travel date" type="date" value={inputs.travelDate} onChange={(v) => setInputs((p) => ({ ...p, travelDate: v }))} />
-          <Field label="Return date" type="date" value={inputs.returnDate} onChange={(v) => setInputs((p) => ({ ...p, returnDate: v }))} />
+          <Field
+            label="Return date"
+            type="date"
+            value={inputs.returnDate}
+            onChange={(v) => setInputs((p) => ({ ...p, returnDate: v }))}
+            min={minReturnDate}
+            invalid={returnDateInvalid}
+          />
           <Field label="Planned application date" type="date" value={inputs.appDate} onChange={(v) => setInputs((p) => ({ ...p, appDate: v }))} />
         </div>
+        {returnDateInvalid && (
+          <p className="mt-2 text-xs text-warn-text">⚠️ Return date must be after your travel date.</p>
+        )}
         {result.daysToPrep !== null && (
           <p className="mt-2 text-xs text-[#566a76]">
             {result.daysToPrep < 0
@@ -242,11 +279,15 @@ function Field({
   value,
   onChange,
   type = 'text',
+  min,
+  invalid,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   type?: string;
+  min?: string;
+  invalid?: boolean;
 }) {
   return (
     <label className="block">
@@ -256,7 +297,8 @@ function Field({
         inputMode={type === 'date' ? undefined : 'numeric'}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-md border border-gray-300 px-3 py-2"
+        min={min}
+        className={`w-full rounded-md border px-3 py-2 ${invalid ? 'border-warn' : 'border-gray-300'}`}
       />
     </label>
   );
