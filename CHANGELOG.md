@@ -3,6 +3,44 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Port the checklist into Next.js — Phase 4: all countries, Reasons, confidence quiz (`web/`)
+
+Fourth slice of task "Port the 15k-line checklist (index.html) into Next.js incrementally."
+
+**4a — remaining 7 countries.** Ported `CHECKLIST_CA/EU/ZA/GH/KE/ET/MA` and their `CAT_ORDER_*`
+from index.html into `web/lib/checklist/{ca,eu,za,gh,ke,et,ma}.ts`, following the same faithful
+porting rules as the UK checklist (Phase 2): item text, tips, and `appliesIf` conditional logic
+carried over verbatim, `accepts`/`checkKind`/`multiple` (the old file-upload/OCR UI) dropped since
+that hasn't been ported yet. Ghana, Kenya, and Morocco keep their genuinely shorter category lists
+(visa-free/eTA-exempt travel-readiness checklists, not full visa applications) rather than being
+forced into the UK's 9-category shape.
+
+**4b — one checklist UI for every country.** Factored the UK-only checklist page (Phase 2) into a
+shared `components/checklist/CountryChecklistApp.tsx`, parameterized by country. `/checklist/uk`
+now uses it directly; the other 7 countries are served by a new generic `/checklist/[country]`
+route reading from `web/lib/checklist/registry.ts`. `/checklist/start`'s country picker now routes
+all 8 ready countries to a real checklist instead of 7 of them falling back to the old stub.
+
+**4c — "Why these documents" (Reasons).** A scoped port of index.html's end-of-flow Reasons
+tab: `components/checklist/ReasonsView.tsx`, reachable from every country's checklist header,
+groups each applicable item's own "Why?" tip by category so it reads as a personal explanation
+rather than a generic document dump. Narrower than index.html's version, which also sweeps in
+standalone explanatory paragraphs scattered across ~14 other sessions — this covers what's been
+ported so far.
+
+**4d — confidence quiz.** A scoped port of index.html's pre-checklist quiz at `/quiz`: a short
+set of qualifying questions + purpose, a plain-language "what stands out" result (no invented
+numeric score), and a "Continue" that saves answers to `localStorage` (`sa_quiz_prefill`) which
+`CountryChecklistApp` reads once to pre-fill a first-time visitor's profile form. Linked as a
+secondary option from the landing page; the primary CTA still goes straight to the country picker.
+
+**Deliberately still not ported:** the OCR/file-upload pipeline (Tesseract.js passport-MRZ and
+bank-statement scanning, PDF.js parsing) that the old `accepts`/`checkKind` fields drove — this
+remains the single largest piece of unported functionality and needs its own dedicated phase
+(browser-side OCR is substantial, security- and correctness-sensitive work, not something to rush
+through in the same pass as content porting). Until then, every checklist item is a manual
+checkbox — which is honest and fully functional, just not auto-verified against an uploaded file.
+
 ## Port the checklist into Next.js — Phase 3: financial readiness calculator (`web/`)
 
 Third slice of task "Port the 15k-line checklist (index.html) into Next.js incrementally." Ported

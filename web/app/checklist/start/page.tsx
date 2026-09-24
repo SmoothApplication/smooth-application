@@ -25,9 +25,19 @@ export default function ChecklistStartPage() {
     } catch {
       // localStorage unavailable (private browsing, etc.) — country still gets passed via query.
     }
-    // UK has a real ported checklist (Phase 2 of task #244) — everything else still falls back to
-    // the honest stub until its own data/UI is ported in a later phase.
-    router.push(country.code === 'UK' ? '/checklist/uk' : `/checklist?country=${country.code}`);
+    // Phase 4b of task #244: all 7 ready countries now have a real ported checklist — UK keeps
+    // its own dedicated route (built in Phase 2), the rest go through the generic
+    // /checklist/[country] route (registry in lib/checklist/registry.ts). AU/CN/US aren't
+    // selectable here (COUNTRIES marks them ready:false), so this else-branch is unreachable for
+    // them, but /checklist?country=CODE stays as a safety-net fallback for any future addition.
+    const readyPorted = ['UK', 'CA', 'EU', 'ZA', 'GH', 'KE', 'ET', 'MA'];
+    if (country.code === 'UK') {
+      router.push('/checklist/uk');
+    } else if (readyPorted.includes(country.code)) {
+      router.push(`/checklist/${country.code.toLowerCase()}`);
+    } else {
+      router.push(`/checklist?country=${country.code}`);
+    }
   }
 
   return (

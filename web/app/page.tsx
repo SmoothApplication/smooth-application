@@ -4,12 +4,11 @@ import Link from 'next/link';
 // app (see CHANGELOG / task #244). This replaces the earlier placeholder that only linked to
 // admin sign-in.
 //
-// Scope decision for this phase: index.html's actual front door is a 2-3 minute confidence quiz
-// (#quizGate) that leads into the consent gate. That quiz is a substantial, separately-scoped
-// piece of work (10 questions, branching results, pre-fill logic) — porting it faithfully belongs
-// in a later phase. For now this page reproduces #quizGate's *intro* state (the brand row, trust
-// badges, and value-prop copy every visitor sees first) and its CTA goes straight to the country
-// picker + consent gate at /checklist/start, skipping the quiz rather than half-building it.
+// The primary CTA still goes straight to the country picker (/checklist/start) — that's the
+// fastest path for someone who already knows what they need. A scoped version of index.html's
+// pre-checklist confidence quiz shipped in Phase 4d at /quiz (a handful of qualifying questions
+// + a directional readiness read, pre-filling the checklist's profile form) and is offered here
+// as a secondary link for anyone who wants a warm-up first, rather than replacing the fast path.
 //
 // Copy note: index.html's subtitle still says "UK, Canada, Schengen & South Africa" — stale by
 // the time this was ported (Ghana, Kenya, Ethiopia and Morocco all shipped since). Corrected here.
@@ -65,6 +64,9 @@ export default function Home() {
           className="block w-full rounded-lg bg-accent px-4 py-3 text-center font-semibold text-white hover:opacity-90"
         >
           Start your free checklist
+        </Link>
+        <Link href="/quiz" className="mt-2 block text-center text-xs text-accent underline">
+          Not sure where you stand? Take the 2-minute readiness check
         </Link>
 
         <details className="mt-5 rounded-lg border border-black/10 p-3 text-sm text-[#4c6270]">
