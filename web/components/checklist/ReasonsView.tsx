@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Answers, DEFAULT_ANSWERS, ChecklistItem, itemApplies } from '@/lib/checklist/uk';
+import { ALL_CHECKLISTS } from '@/lib/checklist/all';
 
 // Phase 4c of task #244: a simplified port of index.html's "Reasons" tab/modal — the end-of-flow
 // explanation of WHY each document is asked for. index.html's version sweeps a much wider set of
@@ -12,17 +13,19 @@ import { Answers, DEFAULT_ANSWERS, ChecklistItem, itemApplies } from '@/lib/chec
 // items that currently apply to the applicant's answers (same itemApplies() used by the checklist
 // body) so it reads as a personal explanation, not a generic dump of every possible document.
 export type ReasonsViewProps = {
+  code: string;
   flag: string;
   name: string;
   visaName: string;
-  catOrder: string[];
-  checklist: ChecklistItem[];
   answersKey: string;
   checkedKey: string;
   backHref: string;
 };
 
-export default function ReasonsView({ flag, name, visaName, catOrder, checklist, answersKey, checkedKey, backHref }: ReasonsViewProps) {
+export default function ReasonsView({ code, flag, name, visaName, answersKey, checkedKey, backHref }: ReasonsViewProps) {
+  // Looked up here (inside this Client Component) rather than passed as a prop — see the comment
+  // at the top of lib/checklist/all.ts for why passing ChecklistItem[] as a prop broke the build.
+  const { catOrder, checklist } = ALL_CHECKLISTS[code] ?? { catOrder: [], checklist: [] as ChecklistItem[] };
   const [answers, setAnswers] = useState<Answers>(DEFAULT_ANSWERS);
   const [checked, setChecked] = useState<Record<string, boolean>>({});
   const [loaded, setLoaded] = useState(false);

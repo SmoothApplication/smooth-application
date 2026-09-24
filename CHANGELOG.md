@@ -3,6 +3,24 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Hotfix: Phase 4 production build failure (`web/`)
+
+The Phase 4 deployment (commit `473defe`) failed on Vercel: `Static page generation for
+/checklist/uk is still timing out after 3 attempts`. Root cause — `app/checklist/uk/page.tsx` and
+`app/checklist/[country]/page.tsx` are Server Components (required so the latter can export
+`generateStaticParams`), and they were passing each country's `ChecklistItem[]` array as a prop
+into `CountryChecklistApp`/`ReasonsView` (Client Components). Every item's `appliesIf` is a
+function, and functions can't cross the React Server Components serialization boundary — Next.js
+hung retrying rather than failing with a clear error.
+
+Fix: added `web/lib/checklist/all.ts`, a lookup table keyed by country code, imported only inside
+the Client Components themselves. Page files now pass just plain strings (`code`, `flag`, `name`,
+`visaName`, hrefs); `CountryChecklistApp` and `ReasonsView` look up their own `catOrder`/`checklist`
+internally by `code`. Verified with a full local `next build` (all 36 routes, including the 7
+`/checklist/[country]` static paths and `/checklist/uk`, generate cleanly) before redeploying —
+`tsc --noEmit` alone hadn't caught this, since it only checks types, not the RSC serialization
+boundary.
+
 ## Port the checklist into Next.js — Phase 4: all countries, Reasons, confidence quiz (`web/`)
 
 Fourth slice of task "Port the 15k-line checklist (index.html) into Next.js incrementally."

@@ -20,13 +20,13 @@ export default function CountryReasonsPage({ params }: { params: { country: stri
     MA: 'travel readiness',
   };
 
+  // Only plain strings passed as props — see the comment in ../page.tsx and lib/checklist/all.ts.
   return (
     <ReasonsView
+      code={data.code}
       flag={data.flag}
       name={data.name}
       visaName={visaNameByCode[data.code] ?? 'checklist'}
-      catOrder={data.catOrder}
-      checklist={data.checklist}
       answersKey={`sa_${data.code.toLowerCase()}_answers`}
       checkedKey={`sa_${data.code.toLowerCase()}_checked`}
       backHref={`/checklist/${params.country}`}

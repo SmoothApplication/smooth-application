@@ -9,6 +9,7 @@ import {
   itemApplies,
   computeOverallPercent,
 } from '@/lib/checklist/uk';
+import { ALL_CHECKLISTS } from '@/lib/checklist/all';
 
 // Phase 4b of task #244: the shared checklist app UI, factored out of the UK-only
 // web/app/checklist/uk/page.tsx (Phase 2) so the same profile-form + categorized-document-list
@@ -36,8 +37,6 @@ export type CountryChecklistAppProps = {
   flag: string;
   name: string;
   visaName: string;
-  catOrder: string[];
-  checklist: ChecklistItem[];
   changeCountryHref: string;
   reasonsHref: string;
   financialHref: string;
@@ -48,12 +47,13 @@ export default function CountryChecklistApp({
   flag,
   name,
   visaName,
-  catOrder,
-  checklist,
   changeCountryHref,
   reasonsHref,
   financialHref,
 }: CountryChecklistAppProps) {
+  // Looked up here (inside this Client Component) rather than passed as a prop — see the comment
+  // at the top of lib/checklist/all.ts for why passing ChecklistItem[] as a prop broke the build.
+  const { catOrder, checklist } = ALL_CHECKLISTS[code] ?? { catOrder: [], checklist: [] as ChecklistItem[] };
   const answersKey = `sa_${code.toLowerCase()}_answers`;
   const checkedKey = `sa_${code.toLowerCase()}_checked`;
 

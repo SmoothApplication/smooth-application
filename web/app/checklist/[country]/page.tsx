@@ -22,14 +22,15 @@ export default function CountryChecklistPage({ params }: { params: { country: st
     MA: 'travel readiness',
   };
 
+  // Only plain strings passed as props below — CountryChecklistApp looks up its own checklist
+  // data internally by `code` (see lib/checklist/all.ts). Passing data.checklist itself here
+  // (an array containing appliesIf functions) is what broke the production build previously.
   return (
     <CountryChecklistApp
       code={data.code}
       flag={data.flag}
       name={data.name}
       visaName={visaNameByCode[data.code] ?? 'checklist'}
-      catOrder={data.catOrder}
-      checklist={data.checklist}
       changeCountryHref="/checklist/start"
       reasonsHref={`/checklist/${params.country}/reasons`}
       financialHref="/checklist/uk/financial"
