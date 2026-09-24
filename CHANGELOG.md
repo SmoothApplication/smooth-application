@@ -3,6 +3,37 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Regression tests for the Next.js port + fix a real percent-complete bug (`web/`)
+
+Task #275: added a Jest suite (`npm test` in `web/`) covering the pure logic behind the Phase
+2–4 Next.js port — none of it had automated tests before now:
+
+- `lib/checklist/__tests__/percent.test.ts` — `itemApplies()`, `computeOverallPercent()`, and a
+  data-integrity sweep over `ALL_CHECKLISTS` (no duplicate item ids, every item's category is
+  listed in that country's `catOrder`, all 8 countries present).
+- `lib/checklist/__tests__/financial.test.ts` — `computeFinancials()` and `fmtN()`: trip-cost
+  math, adolescent/child flight discounts, the 2x funds-buffer rule, cash-flow averaging and
+  income-stability CV, and the "reality check" timing message.
+- `lib/checklist/__tests__/quiz-signals.test.ts` — the confidence quiz's "what we noticed" logic,
+  extracted from `app/quiz/page.tsx` into `lib/quiz-signals.ts` so it's testable outside a React
+  render.
+
+**Bug found and fixed while writing these tests:** `computeOverallPercent()` was hardcoded to
+filter against `CHECKLIST_UK` internally, regardless of which country's checklist it was actually
+called for. Since Phase 4b made every ported country (`CA`/`EU`/`ZA`/`GH`/`KE`/`ET`/`MA`) share
+the same `CountryChecklistApp` component, this meant every non-UK applicant's progress bar was
+silently computed against the UK's ~30-item list instead of their own (much shorter) one — so a
+GH applicant who'd checked every applicable GH item would never see 100%. Fixed by having
+`computeOverallPercent(checklist, answers, checked)` take the checklist as a parameter; the one
+call site in `CountryChecklistApp.tsx` now passes the country's own looked-up `checklist`. Caught
+entirely by the new `ALL_CHECKLISTS` regression test in `percent.test.ts` before this ever hit a
+real applicant.
+
+Verified via `npx tsc --noEmit` (clean) and the full `npm test` run (63/63 passing). A full
+`next build` should still be run before pushing, per the lesson in the Phase 4 hotfix entry below
+— `tsc` alone doesn't catch RSC serialization-boundary issues, though this change doesn't touch
+any Server→Client prop boundary (both edited call sites are already inside Client Components).
+
 ## Hotfix: Phase 4 production build failure (`web/`)
 
 The Phase 4 deployment (commit `473defe`) failed on Vercel: `Static page generation for

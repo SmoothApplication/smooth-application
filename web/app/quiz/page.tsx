@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Answers, DEFAULT_ANSWERS } from '@/lib/checklist/uk';
+import { QuizAnswers, computeQuizSignals } from '@/lib/quiz-signals';
 
 // Phase 4d of task #244: a scoped port of index.html's pre-checklist "confidence quiz" — a
 // short, low-commitment set of questions before the country picker, meant to give a directional
@@ -19,11 +20,6 @@ import { Answers, DEFAULT_ANSWERS } from '@/lib/checklist/uk';
 // CountryChecklistApp on first visit to pre-fill its own per-country profile form — see the
 // prefill logic there. Privacy is unchanged: nothing here is sent anywhere.
 const QUIZ_PREFILL_KEY = 'sa_quiz_prefill';
-
-type QuizAnswers = Pick<
-  Answers,
-  'employed' | 'selfEmployed' | 'student' | 'married' | 'hasHost' | 'hasChild' | 'hasRefusal' | 'translation' | 'purpose'
->;
 
 const DEFAULT_QUIZ: QuizAnswers = {
   employed: DEFAULT_ANSWERS.employed,
@@ -55,28 +51,7 @@ export default function ConfidenceQuizPage() {
   const [done, setDone] = useState(false);
   const router = useRouter();
 
-  const signals = useMemo(() => {
-    const positives: string[] = [];
-    const watchOuts: string[] = [];
-    if (answers.employed || answers.selfEmployed || answers.student) {
-      positives.push(
-        answers.employed
-          ? "Being employed gives you a clean income story and a leave-approval letter — both strong ties documents."
-          : answers.selfEmployed
-          ? "Running a business is a valid ground for travel funds — just keep business and personal finances clearly separated on paper."
-          : "As a student, your enrolment letter is strong evidence you're expected back — sponsor documents matter if someone else is funding the trip."
-      );
-    } else {
-      watchOuts.push("Without employment, self-employment, or study, you'll want to lean harder on other ties to Nigeria — property, family, or other commitments.");
-    }
-    if (answers.hasRefusal) {
-      watchOuts.push('A previous refusal is not disqualifying, but reviewers expect to see what changed since then — be ready to explain it plainly.');
-    }
-    if (!answers.purpose) {
-      watchOuts.push('Pin down your main purpose of travel — it drives a whole category of purpose-specific documents on the checklist.');
-    }
-    return { positives, watchOuts };
-  }, [answers]);
+  const signals = useMemo(() => computeQuizSignals(answers), [answers]);
 
   function handleContinue() {
     try {

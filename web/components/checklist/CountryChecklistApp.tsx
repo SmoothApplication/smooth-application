@@ -102,7 +102,7 @@ export default function CountryChecklistApp({
     }
   }, [checked, loaded, checkedKey]);
 
-  const percent = useMemo(() => computeOverallPercent(answers, checked), [answers, checked]);
+  const percent = useMemo(() => computeOverallPercent(checklist, answers, checked), [checklist, answers, checked]);
 
   function toggle(id: string) {
     setChecked((prev) => ({ ...prev, [id]: !prev[id] }));

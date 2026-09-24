@@ -327,8 +327,12 @@ export function itemApplies(item: ChecklistItem, a: Answers): boolean {
   return item.appliesIf ? item.appliesIf(a) : true;
 }
 
-export function computeOverallPercent(a: Answers, checked: Record<string, boolean>): number {
-  const applicable = CHECKLIST_UK.filter((it) => itemApplies(it, a));
+// Takes the checklist explicitly (rather than always using CHECKLIST_UK) so it works correctly
+// for every ported country, not just the UK — see regression tests in __tests__/percent.test.ts
+// for the bug this used to have when every country's percent was silently computed against the
+// UK's (much longer) item list.
+export function computeOverallPercent(checklist: ChecklistItem[], a: Answers, checked: Record<string, boolean>): number {
+  const applicable = checklist.filter((it) => itemApplies(it, a));
   if (!applicable.length) return 0;
   const done = applicable.filter((it) => checked[it.id]).length;
   return Math.round((done / applicable.length) * 100);
