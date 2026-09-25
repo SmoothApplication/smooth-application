@@ -4,6 +4,7 @@
   "private": true,
   "description": "Applicant accounts, Super Admin / sub-admin dashboards, and Resend email automation for Smooth Application. Deployed separately from the free index.html checklist.",
   "scripts": {
+    "postinstall": "node scripts/copy-pdf-worker.js",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
@@ -15,9 +16,11 @@
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.45.4",
     "next": "^14.2.15",
+    "pdfjs-dist": "^6.3.289",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "resend": "^4.0.0"
+    "resend": "^4.0.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",

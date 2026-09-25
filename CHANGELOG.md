@@ -3,6 +3,36 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Bank-statement upload + file extraction (`web/`, Phase 2)
+
+Task #244 continued: Phase 2 of the bank-statement analysis port, on top of Phase 1's pure
+parsing/classification engine (below). Adds real file intake — a PDF or spreadsheet (.xlsx/.xls)
+bank statement can now be read entirely in the browser and turned into the `Line[]` shape Phase
+1's `parseStatementLinesWithFallback` expects. OCR/scanned-PDF support (Tesseract.js) is
+deliberately out of scope for this pass — a PDF with no text layer just surfaces "couldn't find
+any readable text" rather than attempting OCR.
+
+- `web/lib/statement/extractFile.ts` — `getLinesFromPdf` (pdfjs-dist text-content extraction,
+  bucketed into lines by y-position, reusing Phase 1's `linesFromTextContent`), `linesFromWorkbook`
+  (SheetJS), `getLinesFromFile` (dispatches by type).
+- `web/components/checklist/StatementUpload.tsx` — a file input + Analyze button rendering a plain
+  itemized transaction list, with the same "processed entirely in your browser, never uploaded
+  anywhere" privacy language used elsewhere in the app.
+- `web/app/checklist/statement-test/page.tsx` — standalone, unlinked route for manually verifying
+  the upload → parse pipeline before it's wired into the real checklist flow (a later phase).
+
+Worth flagging for future maintainers: `pdfjs-dist`'s documented worker-loading pattern
+(`new URL('pdfjs-dist/legacy/build/pdf.worker.min.mjs', import.meta.url)`) works in dev but broke
+`next build` — Next's production Terser pass tried to minify the worker as a plain script and
+failed on `import.meta` (the worker file is itself an ES module). Fixed by serving the worker as a
+static file instead: `web/scripts/copy-pdf-worker.js` copies it into `web/public/` via a new
+`postinstall` script, and `extractFile.ts` points `workerSrc` at that fixed `/pdf.worker.min.mjs`
+path so webpack/Terser never touches it.
+
+Verified: `npx tsc --noEmit` clean, `npm test` — 85/85 passing (no regressions), `npm run build`
+succeeds (the new route adds ~233 kB First Load JS, isolated to that one page since pdfjs-dist/xlsx
+are only imported there).
+
 ## Port bank-statement parsing/classification engine to TypeScript (`web/lib/statement/`, Phase 1)
 
 Task #244 continued: the original `index.html`'s "Income & bank statement analysis" (finance2)
