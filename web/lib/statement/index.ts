@@ -6,3 +6,4 @@ export * from './columns';
 export * from './parse';
 export * from './names';
 export * from './classify';
+export * from './persist';

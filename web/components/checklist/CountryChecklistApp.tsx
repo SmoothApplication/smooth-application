@@ -40,6 +40,10 @@ export type CountryChecklistAppProps = {
   changeCountryHref: string;
   reasonsHref: string;
   financialHref: string;
+  /** Phase 4 of task #244: link to the bank-statement check page. UK-only for now (see
+   * web/app/checklist/uk/page.tsx) — left undefined for the other countries' routes, which simply
+   * omits the link below rather than pointing at a page that doesn't exist for them yet. */
+  statementHref?: string;
 };
 
 export default function CountryChecklistApp({
@@ -50,6 +54,7 @@ export default function CountryChecklistApp({
   changeCountryHref,
   reasonsHref,
   financialHref,
+  statementHref,
 }: CountryChecklistAppProps) {
   // Looked up here (inside this Client Component) rather than passed as a prop — see the comment
   // at the top of lib/checklist/all.ts for why passing ChecklistItem[] as a prop broke the build.
@@ -224,6 +229,11 @@ export default function CountryChecklistApp({
           <Link href={financialHref} className="inline-block text-xs text-accent underline">
             💰 Financial readiness calculator
           </Link>
+          {statementHref && (
+            <Link href={statementHref} className="inline-block text-xs text-accent underline">
+              🏦 Bank statement check
+            </Link>
+          )}
           <Link href={reasonsHref} className="inline-block text-xs text-accent underline">
             📖 Why these documents
           </Link>

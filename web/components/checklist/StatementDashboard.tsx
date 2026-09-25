@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ParsedTxn,
   SourceGroup,
@@ -17,9 +17,11 @@ import {
 // "Report" tab (a plain-language readiness summary), adapted from index.html's Income sources
 // breakdown / Top 10 senders / Readiness report sections.
 //
-// Deliberately NOT wired to persistence yet (name corrections, applicant name, tab choice all reset on
-// reload) - that's a separate later pass. Nothing here talks to the network; everything runs on the
-// ParsedTxn[] already produced client-side by extractFile.ts.
+// Phase 4 lifts applicant name / maiden name / name corrections up to an optional parent (via the
+// on*Change callbacks below) so a page can persist them to localStorage - see
+// web/app/checklist/uk/statement/page.tsx. Tab choice still resets on reload; that stays local UI
+// state. Nothing here talks to the network; everything runs on the ParsedTxn[] already produced
+// client-side by extractFile.ts.
 
 function formatAmount(n: number): string {
   if (!n) return '₦0.00';
@@ -68,16 +70,28 @@ const NO_EXPLANATION_NOTE: Record<string, string> = {
 
 interface StatementDashboardProps {
   txns: ParsedTxn[];
-  /** The real app will pull these from the checklist's saved answers in a later phase - for now
-   * they're plain text inputs the applicant can fill in directly above the tabs. */
+  /** Initial values only (uncontrolled) - this component owns the live state internally and
+   * reports changes back up via the on*Change callbacks below, so a parent page can persist them
+   * (see web/app/checklist/uk/statement/page.tsx, Phase 4) without this component needing to know
+   * anything about localStorage itself. */
   applicantName?: string;
   maidenName?: string;
+  /** Initial "Fix name" corrections map (see nameCorrections below) - same deal, uncontrolled seed
+   * value only. */
+  nameCorrections?: Record<string, string>;
+  onApplicantNameChange?: (name: string) => void;
+  onMaidenNameChange?: (name: string) => void;
+  onNameCorrectionsChange?: (corrections: Record<string, string>) => void;
 }
 
 export default function StatementDashboard({
   txns,
   applicantName: initialApplicantName = '',
   maidenName: initialMaidenName = '',
+  nameCorrections: initialNameCorrections,
+  onApplicantNameChange,
+  onMaidenNameChange,
+  onNameCorrectionsChange,
 }: StatementDashboardProps) {
   const [applicantName, setApplicantName] = useState(initialApplicantName);
   const [maidenName, setMaidenName] = useState(initialMaidenName);
@@ -86,9 +100,27 @@ export default function StatementDashboard({
   // Keyed by the RAW extracted name (same key buildIncomeSourceBreakdown and getTopConsistentSenders
   // both produce via senderSideCandidates -> toTitleCase -> mergeNameVariants), so one correction
   // shows up consistently in both the source cards and the Top 10 senders table - same approach as
-  // index.html's senderNameCorrections (~line 14156), just held in local React state instead of the
-  // persisted autosave store.
-  const [nameCorrections, setNameCorrections] = useState<Record<string, string>>({});
+  // index.html's senderNameCorrections (~line 14156). Phase 4 lifts this to the parent page for
+  // persistence via onNameCorrectionsChange; seeded here from the initial value on first render.
+  const [nameCorrections, setNameCorrections] = useState<Record<string, string>>(
+    initialNameCorrections || {}
+  );
+
+  // Report state changes up to the parent for persistence (Phase 4). Deliberately not merged into
+  // the setters above - StatementUpload (the standalone test page) passes none of these callbacks,
+  // so this is a no-op there, exactly like before.
+  useEffect(() => {
+    onApplicantNameChange?.(applicantName);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [applicantName]);
+  useEffect(() => {
+    onMaidenNameChange?.(maidenName);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [maidenName]);
+  useEffect(() => {
+    onNameCorrectionsChange?.(nameCorrections);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nameCorrections]);
   const [editingName, setEditingName] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
 
@@ -165,7 +197,7 @@ export default function StatementDashboard({
             className="w-full rounded-lg border border-black/10 px-3 py-2 text-sm text-[#12232e]"
           />
           <p className="mt-1 text-xs text-[#566a76]">
-            Used to tell your own name apart from senders - won&apos;t be saved yet in this preview.
+            Used to tell your own name apart from senders.
           </p>
         </div>
         <div>

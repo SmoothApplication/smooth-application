@@ -21,6 +21,7 @@ export default function UKChecklistPage() {
       changeCountryHref="/checklist/start"
       reasonsHref="/checklist/uk/reasons"
       financialHref="/checklist/uk/financial"
+      statementHref="/checklist/uk/statement"
     />
   );
 }

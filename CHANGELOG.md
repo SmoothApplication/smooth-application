@@ -3,6 +3,33 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Wire statement analysis into the real checklist + persistence (`web/`, Phase 4)
+
+Task #244 continued: Phase 4 of the bank-statement analysis port. Moves the feature out of the
+unlinked test route and into the real checklist, with the same browser-only persistence model the
+rest of the app uses.
+
+- `web/app/checklist/uk/statement/page.tsx` — new real page (upload → parse → dashboard), linked
+  from the UK checklist's sticky header as "🏦 Bank statement check" alongside the existing
+  Financial readiness calculator and Reasons links. Scoped to UK only for now, matching how the
+  financial calculator itself started UK-only before being generalized.
+- `web/components/checklist/CountryChecklistApp.tsx` — added an optional `statementHref` prop so
+  the header link only appears where a country actually has this page wired up.
+- `web/lib/statement/persist.ts` — `serializeTxns`/`deserializeTxns` helpers, converting between
+  the in-memory `ParsedTxn[]` (real `Date` objects) and a plain-data shape safe for localStorage
+  (`dateISO` string instead of a `Date`) — no file bytes or the original statement file are ever
+  stored, matching the original app's design.
+- New localStorage key `sa_uk_statement`: `{ txns, applicantName, maidenName, nameCorrections }`.
+  On page load, if a saved statement exists, the dashboard renders immediately from the restored
+  data with a "📄 Statement recalled from your last visit — no need to re-upload" banner, instead
+  of showing the upload form again. An "Upload a different statement" action clears it and returns
+  to the upload form.
+
+`npx tsc --noEmit` clean; `npm test` — 91/91 passing (4 new for the serialize/deserialize round
+trip). `npm run build` wasn't run to completion in the dev sandbox this time (filesystem too slow
+on this particular mounted path to finish within the tool's time limits) — Vercel's own build on
+deploy is the real gate, same as always.
+
 ## Two-tab statement analysis dashboard (`web/`, Phase 3)
 
 Task #244 continued: Phase 3 of the bank-statement analysis port, on top of Phase 1 (parsing
