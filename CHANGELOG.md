@@ -3,6 +3,24 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Broaden statement-analysis regression coverage (`web/`, Phase 5)
+
+Task #244 continued: Phase 5 ports 20 more of the original ~55 Playwright-based finance2 test
+fixtures into Jest unit tests against the pure functions in `web/lib/statement/`, on top of the
+11 ported in Phase 1. Each preserves the real narration strings and expected outcomes from the
+original fixture rather than inventing generic replacements — these encode specific historical
+bugs (name noise from bank field labels and ETZ channel codes, RSVL-spelled reversals, loan-code
+narrations misread as income sources, missing-salary-month detection across month boundaries,
+the ₦50k unexplained-inflow threshold, shared reversal boilerplate false positives, limited-
+suffix name truncation, self-bucket stray payments not becoming false salary, and more).
+
+Two original fixtures were checked and correctly left unported: `small-inflow-note` and
+`text-page-cap-raised` both test UI-rendering/browser-`File` behavior with no pure-function
+equivalent in this app yet (no interactive dashboard note-rendering or `getLinesFromPdf`-in-Jest
+path exists to test against).
+
+`npx tsc --noEmit` clean; `npm test` — 136/136 passing (up from 91), no regressions.
+
 ## Wire statement analysis into the real checklist + persistence (`web/`, Phase 4)
 
 Task #244 continued: Phase 4 of the bank-statement analysis port. Moves the feature out of the
