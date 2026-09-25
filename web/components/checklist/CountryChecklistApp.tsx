@@ -40,13 +40,12 @@ export type CountryChecklistAppProps = {
   changeCountryHref: string;
   reasonsHref: string;
   financialHref: string;
-  /** Phase 4 of task #244: link to the bank-statement check page. UK-only for now (see
-   * web/app/checklist/uk/page.tsx) — left undefined for the other countries' routes, which simply
-   * omits the link below rather than pointing at a page that doesn't exist for them yet. */
+  /** Phase 4 of task #244: link to the bank-statement check page. Passed by every country's route
+   * (/checklist/uk/page.tsx and /checklist/[country]/page.tsx) as of Phase 4e — still optional
+   * here so the link simply doesn't render if a caller omits it. */
   statementHref?: string;
-  /** Phase 3 of the passport-MRZ port: link to the passport-scan page. UK-only for now (see
-   * web/app/checklist/uk/page.tsx), same reasoning as statementHref above — left undefined for
-   * the other countries' routes until they get their own passport-scan page. */
+  /** Phase 3 of the passport-MRZ port: link to the passport-scan page. Passed by every country's
+   * route as of Phase 4e — same reasoning as statementHref above. */
   passportHref?: string;
 };
 

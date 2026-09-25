@@ -82,6 +82,11 @@ interface StatementDashboardProps {
   onApplicantNameChange?: (name: string) => void;
   onMaidenNameChange?: (name: string) => void;
   onNameCorrectionsChange?: (corrections: Record<string, string>) => void;
+  /** Link to the Report tab's "Financial readiness calculator" cross-reference (see ReportTab
+   * below). Defaults to the UK's route so the standalone /checklist/statement-test dev page
+   * (StatementUpload.tsx, which doesn't pass this) keeps working unchanged; every real checklist
+   * route passes its own country's href via StatementCheck.tsx. */
+  financialHref?: string;
 }
 
 export default function StatementDashboard({
@@ -92,6 +97,7 @@ export default function StatementDashboard({
   onApplicantNameChange,
   onMaidenNameChange,
   onNameCorrectionsChange,
+  financialHref = '/checklist/uk/financial',
 }: StatementDashboardProps) {
   const [applicantName, setApplicantName] = useState(initialApplicantName);
   const [maidenName, setMaidenName] = useState(initialMaidenName);
@@ -256,6 +262,7 @@ export default function StatementDashboard({
           totalIncomeIdentified={totalIncomeIdentified}
           incomeSourceCount={incomeSourceCount}
           unexplainedInflows={unexplainedInflows}
+          financialHref={financialHref}
         />
       )}
     </div>
@@ -495,10 +502,12 @@ function ReportTab({
   totalIncomeIdentified,
   incomeSourceCount,
   unexplainedInflows,
+  financialHref,
 }: {
   totalIncomeIdentified: number;
   incomeSourceCount: number;
   unexplainedInflows: ParsedTxn[];
+  financialHref: string;
 }) {
   const unexplainedTotal = unexplainedInflows.reduce((s, t) => s + t.credit, 0);
   const incomeStatus: 'good' | 'warn' = unexplainedInflows.length === 0 ? 'good' : 'warn';
@@ -545,7 +554,7 @@ function ReportTab({
               <p className="text-sm font-medium text-[#12232e]">Balance status</p>
               <p className="mt-1 text-xs text-[#566a76]">
                 Closing balance check happens in the{' '}
-                <a href="/checklist/uk/financial" className="text-accent hover:underline">
+                <a href={financialHref} className="text-accent hover:underline">
                   Financial readiness calculator
                 </a>
                 .

@@ -1,7 +1,8 @@
 // Phase 4a of task #244: registry tying each ready country's checklist data (lib/checklist/{code}.ts)
-// to the generic /checklist/[country] page. UK keeps its own dedicated /checklist/uk route (built in
-// Phase 2, and the financial calculator lives under it) rather than moving into this registry —
-// this just covers the 7 newly-ported countries so /checklist/[country] can render any of them.
+// to the generic /checklist/[country] page (and, as of Phase 4e, its /financial, /statement and
+// /passport sub-routes). UK keeps its own dedicated /checklist/uk route and sub-routes (built in
+// Phase 2 onward) rather than moving into this registry — this just covers the 7 newly-ported
+// countries so /checklist/[country] and friends can render any of them.
 import { ChecklistItem } from './uk';
 import { CAT_ORDER_CA, CHECKLIST_CA } from './ca';
 import { CAT_ORDER_EU, CHECKLIST_EU } from './eu';

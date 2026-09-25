@@ -3,6 +3,42 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Extend financial calculator, bank statement, and passport scan to all 8 countries (`web/`)
+
+The financial readiness calculator, bank-statement analysis, and passport scan were UK-only since
+each was ported directly into a `web/app/checklist/uk/...` page. Audited all three engines
+(`lib/checklist/financial.ts`, `lib/statement/*`, `lib/passport/*`) and confirmed none contain
+UK-specific logic or constants — the port only needed the routing and localStorage keys
+parameterized by country.
+
+- New shared client components, each taking a `countryCode` prop and building its localStorage key
+  as `sa_<countrycode>_<feature>`: `components/checklist/FinancialCalculator.tsx`,
+  `StatementCheck.tsx`, `PassportCheck.tsx`.
+- New dynamic routes `app/checklist/[country]/{financial,statement,passport}/page.tsx`, each
+  validating the country code against `lib/checklist/registry.ts`'s `COUNTRY_CHECKLISTS` and
+  calling `notFound()` for an unknown code — the same validation pattern already used by
+  `[country]/reasons/page.tsx`. Only plain strings (the country code) cross the
+  Server-Component-to-Client-Component boundary, per the established constraint (passing a
+  `ChecklistItem[]` with function-valued `appliesIf` closures as a prop previously broke
+  `next build`).
+- `web/app/checklist/uk/{financial,statement,passport}/page.tsx` refactored into thin wrappers
+  rendering the new shared components with `countryCode="UK"` — URLs and existing users' localStorage
+  keys (`sa_uk_financial`, `sa_uk_statement`, `sa_uk_passport`) unchanged, so no migration needed.
+- **Bug fix**: `app/checklist/[country]/page.tsx` had `financialHref` hardcoded to
+  `/checklist/uk/financial` for every country, meaning a non-UK applicant's financial-calculator
+  data would have been written into the UK's `sa_uk_financial` localStorage key instead of their
+  own country's. Fixed with template-literal hrefs (`` `/checklist/${country}/financial` `` etc.);
+  `statementHref`/`passportHref` were also missing entirely for non-UK countries and are now passed.
+- **Bug fix (found during this change's own verification)**: `StatementDashboard.tsx`'s Report tab
+  had a second, independent hardcoded `<a href="/checklist/uk/financial">` cross-link, which would
+  have sent every non-UK applicant back to the UK calculator from inside their own statement report.
+  Fixed by adding an optional `financialHref` prop (defaults to the UK path only for the standalone
+  `statement-test` dev route, which doesn't pass one).
+
+`npx tsc --noEmit` clean; `npx jest` — 157/157 passing across 46 suites, no regressions (no new
+tests needed — the underlying engines were untouched, only routing/props). `npm run build` not run
+locally (sandbox filesystem limitation) — Vercel's deploy build is the real gate.
+
 ## Wire passport scan into the real checklist + persistence (`web/`, Phase 3)
 
 Passport scanning continued: moves the feature out of the unlinked test route and into the real

@@ -33,7 +33,9 @@ export default function CountryChecklistPage({ params }: { params: { country: st
       visaName={visaNameByCode[data.code] ?? 'checklist'}
       changeCountryHref="/checklist/start"
       reasonsHref={`/checklist/${params.country}/reasons`}
-      financialHref="/checklist/uk/financial"
+      financialHref={`/checklist/${params.country}/financial`}
+      statementHref={`/checklist/${params.country}/statement`}
+      passportHref={`/checklist/${params.country}/passport`}
     />
   );
 }
