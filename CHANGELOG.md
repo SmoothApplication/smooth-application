@@ -3,6 +3,35 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Passport camera capture + OCR UI (`web/`, Phase 2)
+
+Task continued: Phase 2 of the passport scan port, on top of Phase 1's pure MRZ engine. Adds real
+image acquisition and OCR — a live camera capture or a file/PDF upload, run through Tesseract.js
+entirely in the browser, feeding into `parseMrzFields`/`validateMrz` from Phase 1.
+
+- `web/lib/passport/extractText.ts` — `getImageFromFile` (image → direct canvas; PDF → first page
+  rendered via pdf.js, reusing the existing worker setup from the statement-upload phase),
+  `preprocessImageForOcr` (upscale to a 1600px-wide minimum + grayscale/contrast-stretch — the
+  same low-end-phone-photo handling the original app used), `recognizeText` (Tesseract.js OCR).
+- `web/components/checklist/PassportScan.tsx` — camera capture (`getUserMedia`, environment-facing,
+  with a brightness check on each frame — captures below luminance 55 are rejected and the user is
+  prompted to retake, same threshold as the original) with a graceful fallback to file upload when
+  no camera is available or permission is denied; file upload always works independently either
+  way. Runs OCR → MRZ parsing → editable result fields (name, DOB, passport number, nationality,
+  sex, expiry), an `mrzCheckSummary` status line, and a clear "couldn't read this automatically,
+  please fill in below" manual-entry fallback rather than a dead end when parsing fails.
+- `web/app/checklist/passport-test/page.tsx` — standalone, unlinked test route, matching the
+  `/checklist/statement-test` pattern.
+- New dependency: `tesseract.js`.
+
+Privacy copy matches the rest of the app: processed entirely in the browser, and specific to this
+feature, the captured photo itself is discarded right after OCR — only the extracted text fields
+are ever kept, never the image.
+
+`npx tsc --noEmit` clean; `npm test` — 150/150 passing, no regressions. `npm run build` not run
+locally (sandbox filesystem too slow, same known issue as before) — Vercel's deploy build is the
+real gate.
+
 ## Port MRZ parsing engine to TypeScript (`web/lib/passport/`, Phase 1)
 
 Starting the port of the passport OCR scan session — applicants photograph/upload their passport's
