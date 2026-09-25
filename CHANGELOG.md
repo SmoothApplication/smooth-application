@@ -3,6 +3,52 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Port bank-statement parsing/classification engine to TypeScript (`web/lib/statement/`, Phase 1)
+
+Task #244 continued: the original `index.html`'s "Income & bank statement analysis" (finance2)
+session is the single biggest remaining feature not yet in the new Next.js app — roughly 100
+functions covering PDF/OCR text extraction, row parsing, sender-name extraction, and income
+classification (salary/business/self/interest/internal-wallet/reversal buckets), backed by ~55
+dedicated test files and representing 150+ historical bug fixes found on real Nigerian bank
+statements (column drift, wrapped narrations, split dates across lines, silent reversals, maiden
+names, sender-name deduping, etc.).
+
+Given the size, this is being ported in phases rather than as one push, starting with the pure
+parsing/classification logic (no UI, no persistence yet — those are later phases):
+
+- `web/lib/statement/types.ts` — shared types (`Line`, `ParsedTxn`, `SourceGroup`, etc.)
+- `web/lib/statement/columns.ts` — column-detection helpers (debit/credit/balance header matching)
+- `web/lib/statement/parse.ts` — the row parser: date/amount extraction, wrapped-narration merging,
+  split-date-line merging, column-major fallback for statements whose PDF renders each table
+  column as its own vertically-stacked block, `parseStatementLinesWithFallback` as the main entry
+  point
+- `web/lib/statement/names.ts` — sender-name extraction, title-casing, surname/maiden-name
+  matching, own-name detection, income-source identification
+- `web/lib/statement/classify.ts` — reversal/interest/internal-wallet/non-income detection,
+  amount-matched silent-reversal marking, missing-salary-month detection, sender deduping, and
+  `buildIncomeSourceBreakdown` (the top-level classifier)
+- `web/lib/statement/index.ts` — public API re-exports
+
+Functions were translated as directly as possible from `index.html` — same names, same regexes,
+same constants — specifically to avoid silently reintroducing any of the real-world bugs those
+150+ fixes addressed. Two deliberate deviations, both because this pass excludes persistence/UI
+state: `findInflowsMatchingName` and `applySenderDuplicateDecisions`/`buildIncomeSourceBreakdown`
+now take their corrections/decisions maps as parameters instead of reading module-level globals.
+
+Tests: 11 of the original Playwright DOM-driven fixture files (interest-earned narration,
+internal-wallet movement, amount-matched reversal, column-major fallback, false-positive name
+match, maiden-name self-matching, slash-date columns, split-date statements, wrapped narration,
+sender-name grouping, and the narration-classification fixture library) were rewritten as direct
+Jest unit tests against the new TypeScript functions, preserving the actual real-bank narration
+strings from the originals rather than inventing generic replacements. `npx tsc --noEmit` clean;
+`npx jest` — 14 suites, 85 tests, all passing (no regressions to existing checklist/financial
+tests).
+
+Deliberately NOT ported in this pass (later phases): PDF.js/Tesseract/SheetJS file-reading
+(`getLinesFromFile`, `getLinesFromPdf`, `linesFromWorkbook` — browser-only APIs), the upload UI,
+the two-tab dashboard (Top 10 senders, Fix Name flow, Report tab), and autosave/localStorage
+persistence.
+
 ## Fix "Auth session missing!" on Create your password (`web/`)
 
 Task #274 continued: after fixing the Resend sandbox `from` address (Vercel env var) and
