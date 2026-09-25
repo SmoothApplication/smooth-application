@@ -3,6 +3,42 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fix passport MRZ field misread on a real scan (`web/lib/passport/mrz.ts`)
+
+Found via a real applicant test upload on the live `/checklist/passport-test` page: name, date of
+birth, and passport number auto-filled correctly, but nationality showed "NG4" instead of "NGA",
+sex showed "0", and expiry date came back blank entirely.
+
+Root-caused by adding a temporary raw-OCR debug view to the test page and running the exact
+captured OCR text through the parser directly. Two distinct real-world OCR misreads, both now
+fixed:
+
+- **Country-code digit misread**: "NGA" OCR'd as "NG4" (the letter A misread as digit 4). Neither
+  the issuing-country nor nationality field had any digit-correction applied before — only the name
+  field did. Added `MRZ_COUNTRY_DIGIT_FIX`/`fixMrzCountryDigits`, the same unconditional
+  letter-lookalike correction already used for names, applied to both 3-letter country-code fields
+  (these are letters-only per ICAO 9303, so any digit found is always a misread, never genuine).
+- **Stray inserted character shifting the whole line**: Tesseract inserted one extra, non-MRZ
+  character (a ":") into line 2 right after the nationality field, where a real MRZ has no
+  separator between fields at all. That single extra character shifted every field after it (birth
+  date, sex, expiry date) one position to the right, so a fixed-width slice read garbage for all
+  three — even though nothing else about the line was misread and passport number/name (which sit
+  before the insertion point) read perfectly. `normalizeMrzLine` already handled a line being the
+  wrong LENGTH (pad/truncate at the end); it had no way to recover from a character inserted in the
+  MIDDLE. Added `reflowLine2Candidates`: when an over-length candidate line 2 contains non-MRZ
+  characters, tries removing each one (and pairs of two) and re-scores the checksums, only
+  preferring a reflowed reading over the naive one when it demonstrably passes MORE checksums —
+  never just because it produces "a" 44-character string. A clean line with no stray characters
+  never enters this path at all.
+
+Both fixes verified against the exact real OCR text from the live test upload: nationality now
+"NGA", sex now "F", expiry date now correctly recovered as 2027-10-06 (previously blank), with
+name/DOB/passport number unaffected (they were already correct). Regression test added at
+`web/lib/passport/__tests__/stray-junk-char-line-shift.test.ts`, including a guard confirming the
+new reflow logic never fires on an already-clean line.
+
+`npx tsc --noEmit` clean; `npm test` — 152/152 passing (2 new).
+
 ## Passport camera capture + OCR UI (`web/`, Phase 2)
 
 Task continued: Phase 2 of the passport scan port, on top of Phase 1's pure MRZ engine. Adds real

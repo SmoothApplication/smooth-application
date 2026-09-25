@@ -125,6 +125,79 @@ export function normalizeMrzLine(l: string, targetLen: number): string | null {
   return l.replace(/[^A-Z0-9<]/g, '<');
 }
 
+// Real-data finding, off a real Nigerian passport photo: Tesseract inserted a single stray non-MRZ
+// character (a ":" ) into the middle of an otherwise well-read 44-character line 2 — right after the
+// 3-letter nationality field, where a passport photo's MRZ has no separator at all between fields.
+// That one extra character shifts every field after it (birth date, sex, expiry date, personal
+// number) one position to the right, so a fixed-width slice at the "correct" TD3 offsets reads
+// garbage for all of them — even though nothing else about the line was misread. The only OCR defense
+// that already existed (normalizeMrzLine) only handles a line being the WRONG LENGTH by padding or
+// truncating at the very END; it has no way to recover from a single wrong character having been
+// inserted somewhere in the MIDDLE, since simply removing a character from the end doesn't undo that.
+//
+// This tries removing each non-MRZ-alphabet character found in an over-length raw line (one at a
+// time, and pairs of two, since a badly-scanned line can have more than one), and — critically — only
+// prefers a reflowed candidate over the naive left-as-is reading when it demonstrably fixes MORE
+// checksums than the original, never just because it produces "a" 44-character string. A line with no
+// stray junk characters at all (the common case) never enters this path, since there's nothing to try
+// removing — this only ever fires on a line that's already over-length AND contains characters outside
+// A-Z0-9<, which a clean read never does.
+function findJunkCharPositions(raw: string): number[] {
+  const positions: number[] = [];
+  for (let i = 0; i < raw.length; i++) {
+    if (!/[A-Z0-9<]/.test(raw[i])) positions.push(i);
+  }
+  return positions;
+}
+function removeCharsAt(raw: string, positions: number[]): string {
+  const set = new Set(positions);
+  let out = '';
+  for (let i = 0; i < raw.length; i++) if (!set.has(i)) out += raw[i];
+  return out;
+}
+/** How many of line 2's own checksums a candidate 44-char string satisfies — used only to SCORE
+ * candidate reflows against each other (see reflowLine2Candidates below), never surfaced directly;
+ * validateMrz() is the real, full checksum check applied once a line has actually been chosen. */
+function scoreLine2Checksums(line2: string): number {
+  if (line2.length !== 44) return -1;
+  const passportNum = line2.slice(0, 9);
+  const pnCheck = line2[9];
+  const birth = line2.slice(13, 19);
+  const birthCheck = line2[19];
+  const expiry = line2.slice(21, 27);
+  const expiryCheck = line2[27];
+  let score = 0;
+  if (/^\d$/.test(pnCheck) && mrzCheckDigit(passportNum) === +pnCheck) score++;
+  if (/^\d$/.test(birthCheck) && mrzDateDigitsPlausible(birth) && mrzCheckDigit(birth) === +birthCheck) score++;
+  if (/^\d$/.test(expiryCheck) && mrzDateDigitsPlausible(expiry) && mrzCheckDigit(expiry) === +expiryCheck) score++;
+  return score;
+}
+/** Returns candidate 44-char normalizations of `raw` with 1 or 2 stray junk characters removed
+ * (rather than converted to "<" and trimmed off the end, which is what normalizeMrzLine alone does),
+ * each paired with how many checksums it satisfies — sorted best-first. Capped at removing 2 of the
+ * (at most 4, to bound the search) junk positions found, since a real OCR misread inserting 3+ stray
+ * characters into one line is vanishingly unlikely and not worth the combinatorial cost of trying.
+ */
+function reflowLine2Candidates(raw: string): { line: string; score: number }[] {
+  const junk = findJunkCharPositions(raw).slice(0, 4);
+  if (!junk.length) return [];
+  const tried = new Set<string>();
+  const out: { line: string; score: number }[] = [];
+  function tryRemoval(positions: number[]) {
+    const candidate = removeCharsAt(raw, positions);
+    if (tried.has(candidate)) return;
+    tried.add(candidate);
+    const normalized = normalizeMrzLine(candidate, 44);
+    if (!normalized) return;
+    out.push({ line: normalized, score: scoreLine2Checksums(normalized) });
+  }
+  for (const p of junk) tryRemoval([p]);
+  for (let i = 0; i < junk.length; i++) {
+    for (let j = i + 1; j < junk.length; j++) tryRemoval([junk[i], junk[j]]);
+  }
+  return out.sort((a, b) => b.score - a.score);
+}
+
 // Finds the two-line MRZ block, returning both the normalized lines AND which original text-line
 // indices they came from (so other callers — see stripMrzLines below — can exclude exactly those lines
 // without re-implementing the same detection logic). Line 1 (names) is located by its distinctive "P" +
@@ -170,8 +243,20 @@ export function findMrzLinesWithIndex(text: string): MrzLinesWithIndex | null {
     if (!line1) continue;
     for (let j = i + 1; j < Math.min(i + 4, rawLines.length); j++) {
       if (rawLines[j].length < 30) continue; // skip a stray short/blank OCR line between the two
-      const line2 = normalizeMrzLine(rawLines[j], 44);
-      if (line2) return { lines: [line1, line2], indices: [i, j] };
+      const naive = normalizeMrzLine(rawLines[j], 44);
+      if (!naive) continue;
+      // Only reach for the stray-junk-character reflow when the naive reading actually contains junk
+      // AND the line was over-length (both signs something got inserted, not just badly OCR'd in
+      // place) — a normal clean read never triggers this extra work. See reflowLine2Candidates above.
+      const hadJunk = /[^A-Z0-9<]/.test(rawLines[j].slice(0, 44));
+      if (hadJunk && rawLines[j].length > 44) {
+        const naiveScore = scoreLine2Checksums(naive);
+        const reflowed = reflowLine2Candidates(rawLines[j]);
+        if (reflowed.length && reflowed[0].score > naiveScore) {
+          return { lines: [line1, reflowed[0].line], indices: [i, j] };
+        }
+      }
+      return { lines: [line1, naive], indices: [i, j] };
     }
   }
   return null;
@@ -350,6 +435,19 @@ export function fixMrzNameDigits(str: string): string {
   return str.replace(/[0-9]/g, (d) => MRZ_NAME_DIGIT_FIX[d] || d);
 }
 
+// Same reasoning as MRZ_NAME_DIGIT_FIX above, applied to the two 3-letter country-code fields
+// (issuing country on line 1, nationality on line 2) — both are letters-and-"<" filler only per
+// ICAO 9303, so any digit found there is always an OCR misread of a similar-looking letter, never a
+// genuine value. Real-data finding, off a real Nigerian passport: "NGA" OCR'd as "NG4" — a misread
+// this map alone doesn't already cover (name fields don't commonly need a 4->A fix; a country code
+// does, since "NGA"'s own "A" is exactly the letter this misread hits). Kept as its own map rather
+// than folded into MRZ_NAME_DIGIT_FIX so that map's existing, already-verified behavior for names
+// stays untouched.
+export const MRZ_COUNTRY_DIGIT_FIX: Record<string, string> = { ...MRZ_NAME_DIGIT_FIX, '4': 'A' };
+export function fixMrzCountryDigits(str: string): string {
+  return str.replace(/[0-9]/g, (d) => MRZ_COUNTRY_DIGIT_FIX[d] || d);
+}
+
 export function parseMrzFields(text: string): ParsedPassportFields | null {
   const lines = findMrzLines(text);
   if (!lines) return null;
@@ -422,12 +520,12 @@ export function parseMrzFields(text: string): ParsedPassportFields | null {
 
   return {
     docType: line1[0],
-    issuingCountry: line1.slice(2, 5).replace(/</g, ''),
+    issuingCountry: fixMrzCountryDigits(line1.slice(2, 5)).replace(/</g, ''),
     surname,
     given,
     fullName: (given ? given + ' ' : '') + surname,
     passportNumber: line2.slice(0, 9).replace(/</g, ''),
-    nationality: line2.slice(10, 13).replace(/</g, ''),
+    nationality: fixMrzCountryDigits(line2.slice(10, 13)).replace(/</g, ''),
     birthDate,
     birthDateSource,
     sex: line2[20],
