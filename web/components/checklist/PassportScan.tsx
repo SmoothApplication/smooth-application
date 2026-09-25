@@ -100,6 +100,7 @@ export default function PassportScan() {
   const [summary, setSummary] = useState<string | null>(null);
   const [autoFilled, setAutoFilled] = useState(false);
   const [fields, setFields] = useState<FieldState>({ ...EMPTY_FIELDS });
+  const [rawText, setRawText] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -203,6 +204,7 @@ export default function PassportScan() {
       const mrz = validateMrz(text);
       const summaryText = mrzCheckSummary(mrz);
       setSummary(summaryText);
+      setRawText(text);
 
       if (parsed && (parsed.fullName || parsed.passportNumber)) {
         setFields(fieldsFromParsed(parsed));
@@ -405,6 +407,17 @@ export default function PassportScan() {
               />
             </div>
           </div>
+
+          {rawText && (
+            <details className="mt-4 text-xs text-[#566a76]">
+              <summary className="cursor-pointer text-accent">
+                Show raw OCR text (debug — test page only)
+              </summary>
+              <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap rounded-lg bg-[#f7fafb] p-3 text-[11px] text-[#12232e]">
+                {rawText}
+              </pre>
+            </details>
+          )}
         </div>
       )}
     </main>
