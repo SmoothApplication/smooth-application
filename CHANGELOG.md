@@ -3,6 +3,39 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Port MRZ parsing engine to TypeScript (`web/lib/passport/`, Phase 1)
+
+Starting the port of the passport OCR scan session — applicants photograph/upload their passport's
+photo page, it's OCR'd entirely in the browser, and the MRZ (the two `<<<`-padded lines at the
+bottom of the photo page) gets parsed into full name, date of birth, passport number, nationality,
+sex, and expiry date, auto-filling the form. Smaller and more self-contained than the bank
+statement engine — no PDF/column-detection complexity — so this ports in fewer phases.
+
+Phase 1 is the pure MRZ text-parsing/correction engine, no camera/OCR/UI yet:
+
+- `web/lib/passport/mrz.ts` — ICAO 9303 checksum validation (`mrzCheckDigit`), OCR-garbling
+  correction (digit/letter confusables like 0-for-O, 3/8, 1/7 — each encodes a real misread found
+  on a real scanned passport), MRZ line detection/normalization tolerant of OCR padding drift,
+  `validateMrz` (full checksum pass with corrected-field tracking), `parseMrzFields` (the main TD3
+  structured decoder).
+- `web/lib/passport/dates.ts` — `extractDates` and printed-text fallbacks for birth/expiry dates,
+  used when the MRZ checksum doesn't pass and the app falls back to reading the printed page text
+  instead.
+- `web/lib/passport/types.ts` / `index.ts` — shared types and public API.
+
+Regexes, constants, and correction logic were translated identically from `index.html` — same
+reasoning as the statement port: these functions encode specific real-world OCR bugs already
+fixed once, and changing them even slightly risks reintroducing those bugs.
+
+Tests: 8 of the original test fixtures ported to `web/lib/passport/__tests__/`. One had an inline
+text fixture and copied directly; the other 7 were PDF-scan-driven (Playwright tests that OCR a
+real scanned passport), so representative MRZ text fixtures were hand-built to reproduce the same
+documented OCR-garbling shape each original test guards against, with checksums verified against
+the actual ported functions. UI/DOM assertions from the originals (auto-fill, field sync) were
+dropped as out of scope for this pure-logic pass.
+
+`npx tsc --noEmit` clean; `npm test` — 150/150 passing (14 new, up from 136, no regressions).
+
 ## Broaden statement-analysis regression coverage (`web/`, Phase 5)
 
 Task #244 continued: Phase 5 ports 20 more of the original ~55 Playwright-based finance2 test
