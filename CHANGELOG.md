@@ -3,6 +3,66 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fix "Auth session missing!" on Create your password (`web/`)
+
+Task #274 continued: after fixing the Resend sandbox `from` address (Vercel env var) and
+Supabase Auth's own separate SMTP sender (dashboard config, both prior entries below), a real
+end-to-end signup test still failed — the applicant received both invite emails, clicked through,
+and hit **"Auth session missing!"** the moment they tried to create a password.
+
+Root cause, found via Resend's own email log for the test send: `lib/resend.ts`'s
+`sendCreatePasswordEmail()` was linking to a **bare** `${NEXT_PUBLIC_SITE_URL}/create-password`
+URL with no auth token attached at all. `app/create-password/page.tsx` then called
+`supabase.auth.updateUser({ password })` assuming a session already existed — which it never did
+for that link, since nothing on the page processed any token either. (Supabase's own separate,
+duplicate "You've been invited" email — sent automatically by `inviteUserByEmail` — did carry a
+working link, which is why the two emails behaved differently; ours was the broken one, and users
+would reasonably click either.)
+
+Fixed both ends:
+
+- `app/api/capture-email/route.ts`: switched from `supabase.auth.admin.inviteUserByEmail()` to
+  `supabase.auth.admin.generateLink({ type: 'invite', ... })`. `generateLink` creates the user the
+  same way but does **not** send any email itself — it just returns the real `action_link`, which
+  is now what we pass into `sendCreatePasswordEmail()`. This also stops Supabase's own duplicate
+  invite email from firing at all, so applicants get exactly one email instead of two.
+- `app/create-password/page.tsx`: now processes the token on arrival before showing the password
+  form — checks for a PKCE `?code=` param (`exchangeCodeForSession`) or an implicit-flow
+  `#access_token=&refresh_token=` hash (`setSession`), with a "Checking your link…" loading state
+  and a clear "This link has expired" message if neither is present or exchange fails, instead of
+  silently assuming a session exists.
+
+Verified live: a real signup through `/checklist?country=UK`'s "Notify me" form to a fresh Gmail
+address delivered a single email, and Resend's dashboard confirmed a "Delivered" status. `npx tsc
+--noEmit` clean; full `npm test` still 63/63 passing (no logic under test touched).
+
+## Fix Supabase Auth's own SMTP sender address (`Supabase dashboard config, not code`)
+
+Task #274 continued: after the Vercel `RESEND_FROM_EMAIL` fix below, a live signup test still
+returned a 500 from `/api/capture-email` with `"Error sending invite email"`. Supabase project
+logs (`auth_logs`) showed the real error: `inviteUserByEmail`'s own built-in invite email — sent
+via Supabase Auth's **separate** custom-SMTP configuration (Project Settings → Authentication →
+Emails → SMTP Settings), not through our `lib/resend.ts` — was still using the Resend sandbox
+sender `onboarding@resend.dev`, which Resend rejects for any recipient other than the account
+owner once a real domain is verified. This is a completely separate setting from the Vercel env
+var; fixing one does not fix the other.
+
+Fixed by updating the "Sender email address" in that SMTP Settings page to
+`hello@smoothapplication.com` (already-verified domain) and saving. Confirmed via a fresh signup
+attempt returning `200` with no error, and Supabase's `auth_logs` showing a successful
+`user_invited` event with no `error` field.
+
+## Fix `/api/capture-email` Resend sandbox bug (Vercel env var)
+
+Task #274: the "create your password" email fired from `/api/capture-email` was failing to reach
+real applicant inboxes. Root cause: the `RESEND_FROM_EMAIL` environment variable in Vercel
+(Production and Preview) was still set to `Smooth Application <onboarding@resend.dev>` — Resend's
+sandbox address, which only delivers to the Resend account's own verified email, regardless of
+domain-verification status elsewhere. Bought and configured `smoothapplication.com` (Vercel
+registrar, Vercel-managed DNS), added and verified it on Resend (DKIM + SPF + DMARC records), then
+updated `RESEND_FROM_EMAIL` to `Smooth Application <hello@smoothapplication.com>` on both
+environments and redeployed.
+
 ## Regression tests for the Next.js port + fix a real percent-complete bug (`web/`)
 
 Task #275: added a Jest suite (`npm test` in `web/`) covering the pure logic behind the Phase

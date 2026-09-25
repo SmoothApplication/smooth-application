@@ -42,20 +42,29 @@ export async function POST(request: Request) {
 
   const supabase = createAdminClient();
 
-  // Find or create the auth user. inviteUserByEmail is idempotent-ish (errors if the user already
-  // exists), so check first rather than relying on the error path.
+  // Find or create the auth user. Previously used inviteUserByEmail, but that ALSO fires
+  // Supabase Auth's own built-in "invite" email (via its separate SMTP config — see CHANGELOG),
+  // duplicating our own sendCreatePasswordEmail below and, worse, giving the applicant a
+  // functional link from Supabase's email while ours pointed at a bare URL with no auth token at
+  // all (so ours could never actually sign anyone in — see CHANGELOG). generateLink creates the
+  // user (for type: 'invite', same as inviteUserByEmail) but does NOT send any email itself, so we
+  // get the real action_link to embed in our own email and Supabase's duplicate email stops firing.
   const { data: existingUsers } = await supabase.auth.admin.listUsers();
   let userId = existingUsers?.users.find((u) => u.email?.toLowerCase() === email)?.id;
   let isNewApplicant = false;
+  let actionLink: string | null = null;
 
   if (!userId) {
-    const { data: invited, error: inviteErr } = await supabase.auth.admin.inviteUserByEmail(email, {
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/create-password`,
+    const { data: generated, error: genErr } = await supabase.auth.admin.generateLink({
+      type: 'invite',
+      email,
+      options: { redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/create-password` },
     });
-    if (inviteErr || !invited?.user) {
-      return corsJson({ error: inviteErr?.message || 'Could not create account' }, { status: 500 });
+    if (genErr || !generated?.user) {
+      return corsJson({ error: genErr?.message || 'Could not create account' }, { status: 500 });
     }
-    userId = invited.user.id;
+    userId = generated.user.id;
+    actionLink = generated.properties?.action_link ?? null;
     isNewApplicant = true;
   }
 
@@ -81,7 +90,11 @@ export async function POST(request: Request) {
   }
 
   if (isNewApplicant) {
-    const setPasswordUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/create-password`;
+    // Must be the real action_link from generateLink — it carries the token that actually signs
+    // the applicant in when they land on /create-password. A bare URL to that page (the old bug)
+    // shows the form but hits "Auth session missing!" the moment they submit, since there was
+    // never a session to update. See CHANGELOG.
+    const setPasswordUrl = actionLink ?? `${process.env.NEXT_PUBLIC_SITE_URL}/create-password`;
     await sendCreatePasswordEmail({ to: email, setPasswordUrl, country, sessionLabel: sessionKey });
     await supabase.from('email_log').insert({ applicant_id: userId, email_type: 'password_setup' });
   }
