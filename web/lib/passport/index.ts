@@ -5,3 +5,4 @@
 export * from './types';
 export * from './mrz';
 export * from './dates';
+export * from './persist';

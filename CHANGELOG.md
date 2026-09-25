@@ -3,6 +3,29 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Wire passport scan into the real checklist + persistence (`web/`, Phase 3)
+
+Passport scanning continued: moves the feature out of the unlinked test route and into the real
+checklist, mirroring exactly how the bank-statement feature was wired up (same page/persistence
+pattern, same "recalled without re-doing the work" UX).
+
+- `web/app/checklist/uk/passport/page.tsx` — new real page, linked from the UK checklist's sticky
+  header as "🛂 Passport scan" alongside the existing Financial readiness calculator, Bank
+  statement check, and Reasons links. UK-only for now, matching how those other pages started.
+- `web/lib/passport/persist.ts` — `serializePassportFields`/`deserializePassportFields`, a plain
+  string-keyed shape (`fullName`, `birthDate`/`expiryDate` as `YYYY-MM-DD`, `passportNumber`,
+  `nationality`, `sex`) safe for localStorage — never the photo, never the raw OCR text, matching
+  the privacy model already established for the statement feature.
+- New localStorage key `sa_uk_passport`. `PassportScan.tsx` gained optional props
+  (`initialFields`/`onFieldsChange`/`standalone`) so the same component now serves both the
+  standalone test page (unchanged behavior) and the real embedded page. On load, if saved fields
+  exist, the page skips straight to the editable result form pre-filled from storage with a "📄
+  Details recalled from your last visit — no need to re-scan" banner, plus a "Scan a different
+  passport" action that clears storage and returns to the capture flow.
+
+`npx tsc --noEmit` clean; `npm test` — 157/157 passing (5 new). `npm run build` not run locally
+(same sandbox filesystem limitation as before) — Vercel's deploy build is the real gate.
+
 ## Fix passport MRZ field misread on a real scan (`web/lib/passport/mrz.ts`)
 
 Found via a real applicant test upload on the live `/checklist/passport-test` page: name, date of

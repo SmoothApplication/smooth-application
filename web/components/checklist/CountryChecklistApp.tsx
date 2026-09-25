@@ -44,6 +44,10 @@ export type CountryChecklistAppProps = {
    * web/app/checklist/uk/page.tsx) — left undefined for the other countries' routes, which simply
    * omits the link below rather than pointing at a page that doesn't exist for them yet. */
   statementHref?: string;
+  /** Phase 3 of the passport-MRZ port: link to the passport-scan page. UK-only for now (see
+   * web/app/checklist/uk/page.tsx), same reasoning as statementHref above — left undefined for
+   * the other countries' routes until they get their own passport-scan page. */
+  passportHref?: string;
 };
 
 export default function CountryChecklistApp({
@@ -55,6 +59,7 @@ export default function CountryChecklistApp({
   reasonsHref,
   financialHref,
   statementHref,
+  passportHref,
 }: CountryChecklistAppProps) {
   // Looked up here (inside this Client Component) rather than passed as a prop — see the comment
   // at the top of lib/checklist/all.ts for why passing ChecklistItem[] as a prop broke the build.
@@ -232,6 +237,11 @@ export default function CountryChecklistApp({
           {statementHref && (
             <Link href={statementHref} className="inline-block text-xs text-accent underline">
               🏦 Bank statement check
+            </Link>
+          )}
+          {passportHref && (
+            <Link href={passportHref} className="inline-block text-xs text-accent underline">
+              🛂 Passport scan
             </Link>
           )}
           <Link href={reasonsHref} className="inline-block text-xs text-accent underline">

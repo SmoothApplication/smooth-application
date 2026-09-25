@@ -7,40 +7,35 @@ import {
   recognizeText,
 } from '@/lib/passport/extractText';
 import { parseMrzFields, validateMrz, mrzCheckSummary, ParsedPassportFields } from '@/lib/passport';
+import { FieldState, EMPTY_PASSPORT_FIELDS, hasPassportFields } from '@/lib/passport/persist';
 
 // Phase 2 of the passport-MRZ port (see lib/passport/index.ts for Phase 1's pure parsing engine).
-// Standalone test surface only: proves camera/file capture -> OCR (Tesseract.js) -> the pure
-// parse/validate engine -> editable fields works end-to-end in a real browser, before this gets
-// wired into the actual checklist flow in a later phase. Not linked from anywhere yet; reached
-// directly at /checklist/passport-test.
+// Originally a standalone test surface only, proving camera/file capture -> OCR (Tesseract.js) ->
+// the pure parse/validate engine -> editable fields end-to-end in a real browser. Still reachable
+// directly, unlinked, at /checklist/passport-test.
+//
+// Phase 3 wires this same component into the real checklist flow at /checklist/uk/passport (see
+// that page for the localStorage persistence layer) via the optional `initialFields`/
+// `onFieldsChange`/`title`/`description`/`standalone` props below, rather than duplicating the
+// capture+OCR+parse pipeline — the call-site-reuse approach already used for the bank-statement
+// page. Passing no props at all reproduces the original test-page behavior exactly.
 //
 // Privacy: matches the promise already made on /checklist/start ("🔒 Your documents never leave
 // your device") — the photo is captured and OCR'd entirely in this tab via Tesseract.js running
 // in the browser (WebAssembly), never uploaded anywhere. The photo/canvas itself is never kept
-// past the OCR pass that reads it — only the resulting text fields are kept in memory here.
+// past the OCR pass that reads it — only the resulting text fields are kept in memory here (and,
+// from the real checklist page, in localStorage — see lib/passport/persist.ts).
 
 // Same threshold as index.html's camera-capture averageBrightness check (~line 6905): a captured
 // still whose average luminance falls below this is rejected as "too dark to bother OCRing" and
 // the applicant is asked to retake it, rather than burning a 20-30s OCR pass on an unreadable shot.
 const BRIGHTNESS_THRESHOLD = 55;
 
-interface FieldState {
-  fullName: string;
-  birthDate: string;
-  passportNumber: string;
-  nationality: string;
-  sex: string;
-  expiryDate: string;
-}
-
-const EMPTY_FIELDS: FieldState = {
-  fullName: '',
-  birthDate: '',
-  passportNumber: '',
-  nationality: '',
-  sex: '',
-  expiryDate: '',
-};
+// FieldState/EMPTY_PASSPORT_FIELDS now live in lib/passport/persist.ts (the persistence layer) so
+// there's one shared definition of "what a passport field-set looks like" between this live
+// editing UI and localStorage persistence. Aliased locally as EMPTY_FIELDS to keep the rest of
+// this file's existing references unchanged.
+const EMPTY_FIELDS: FieldState = EMPTY_PASSPORT_FIELDS;
 
 function formatDateForInput(d: Date | null): string {
   if (!d || Number.isNaN(d.getTime())) return '';
@@ -90,7 +85,37 @@ function averageBrightness(canvas: HTMLCanvasElement): number {
   return count ? total / count : 128;
 }
 
-export default function PassportScan() {
+export interface PassportScanProps {
+  /** Phase 3: pre-fill the editable fields from a previously-saved scan (see
+   * web/app/checklist/uk/passport/page.tsx), and — when it carries any actual data — skip
+   * straight to the fields view instead of showing the capture/upload prompt. Passing this is a
+   * one-time seed read at mount; changing it on a later render (without remounting via `key`)
+   * does not re-seed. */
+  initialFields?: FieldState | null;
+  /** Phase 3: fired whenever `fields` changes (auto-fill from a scan, or a manual edit), so a
+   * host page can persist it. Not called on the initial mount render itself. */
+  onFieldsChange?: (fields: FieldState) => void;
+  title?: string;
+  description?: string;
+  /** Whether this renders its own full-page <main> wrapper (the original /checklist/passport-test
+   * behavior, default true) or a plain <div> for embedding inside a host page's own <main> (used
+   * by /checklist/uk/passport, which has its own page chrome around this). */
+  standalone?: boolean;
+}
+
+const DEFAULT_TITLE = 'Passport scan (test page)';
+const DEFAULT_DESCRIPTION =
+  "Photograph or upload your passport's photo page and we'll try to read the details automatically.";
+
+export default function PassportScan({
+  initialFields = null,
+  onFieldsChange,
+  title = DEFAULT_TITLE,
+  description = DEFAULT_DESCRIPTION,
+  standalone = true,
+}: PassportScanProps = {}) {
+  const startedWithSavedFields = useRef(hasPassportFields(initialFields)).current;
+
   const [cameraSupported, setCameraSupported] = useState(true);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -98,9 +123,23 @@ export default function PassportScan() {
   const [ocrLoading, setOcrLoading] = useState(false);
   const [ocrError, setOcrError] = useState<string | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
-  const [autoFilled, setAutoFilled] = useState(false);
-  const [fields, setFields] = useState<FieldState>({ ...EMPTY_FIELDS });
+  const [autoFilled, setAutoFilled] = useState(startedWithSavedFields);
+  const [fields, setFields] = useState<FieldState>(
+    startedWithSavedFields && initialFields ? { ...EMPTY_FIELDS, ...initialFields } : { ...EMPTY_FIELDS }
+  );
   const [rawText, setRawText] = useState<string | null>(null);
+  const firstRender = useRef(true);
+
+  useEffect(() => {
+    // Skip the mount render — onFieldsChange should only fire for actual changes (an auto-fill
+    // from a scan, or a manual edit), not for the initial seed value the host page already has.
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    onFieldsChange?.(fields);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fields]);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -229,20 +268,30 @@ export default function PassportScan() {
     setFields((f) => ({ ...f, [key]: value }));
   }
 
+  const Wrapper = standalone ? 'main' : 'div';
+  const wrapperClassName = standalone
+    ? 'mx-auto flex min-h-screen max-w-4xl flex-col gap-5 p-8'
+    : 'flex flex-col gap-5';
+
   return (
-    <main className="mx-auto flex min-h-screen max-w-4xl flex-col gap-5 p-8">
-      <div>
-        <h1 className="text-xl font-semibold text-[#12232e]">Passport scan (test page)</h1>
-        <p className="mt-1 text-sm text-[#4c6270]">
-          Photograph or upload your passport's photo page and we'll try to read the details automatically.
-        </p>
-      </div>
+    <Wrapper className={wrapperClassName}>
+      {standalone && !startedWithSavedFields && (
+        <>
+          <div>
+            <h1 className="text-xl font-semibold text-[#12232e]">{title}</h1>
+            <p className="mt-1 text-sm text-[#4c6270]">{description}</p>
+          </div>
+        </>
+      )}
 
-      <span className="w-fit rounded-full bg-accent-wash px-3 py-1 text-xs font-medium text-accent">
-        🔒 Processed entirely in your browser — this photo is never uploaded anywhere, and it's
-        discarded as soon as it's read. Only the fields below are kept.
-      </span>
+      {!startedWithSavedFields && (
+        <span className="w-fit rounded-full bg-accent-wash px-3 py-1 text-xs font-medium text-accent">
+          🔒 Processed entirely in your browser — this photo is never uploaded anywhere, and it's
+          discarded as soon as it's read. Only the fields below are kept.
+        </span>
+      )}
 
+      {!startedWithSavedFields && (
       <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
         {cameraSupported && !cameraOpen && (
           <button
@@ -309,6 +358,7 @@ export default function PassportScan() {
           className="block w-full text-sm text-[#12232e] file:mr-3 file:rounded-lg file:border-0 file:bg-accent-wash file:px-3 file:py-2 file:text-sm file:font-medium file:text-accent hover:file:bg-accent/10"
         />
       </div>
+      )}
 
       {ocrLoading && (
         <div className="flex items-center gap-3 rounded-lg bg-accent-wash p-3 text-sm text-accent" role="status">
@@ -420,6 +470,6 @@ export default function PassportScan() {
           )}
         </div>
       )}
-    </main>
+    </Wrapper>
   );
 }

@@ -22,6 +22,7 @@ export default function UKChecklistPage() {
       reasonsHref="/checklist/uk/reasons"
       financialHref="/checklist/uk/financial"
       statementHref="/checklist/uk/statement"
+      passportHref="/checklist/uk/passport"
     />
   );
 }
