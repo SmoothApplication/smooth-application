@@ -121,6 +121,20 @@ export interface ApplySenderDuplicateDecisionsResult {
   pending: DuplicateSenderPair[];
 }
 
+/** One row of getTopConsistentSenders' result table — a sender ranked by how many distinct months
+ * they've paid in, then by payment count, then by total amount. */
+export interface TopConsistentSender {
+  name: string;
+  monthCount: number;
+  count: number;
+  total: number;
+}
+
+export interface TopConsistentSendersResult {
+  list: TopConsistentSender[];
+  pendingDuplicates: DuplicateSenderPair[];
+}
+
 export interface NarrationDecodePart {
   part: string;
   meaning: string;

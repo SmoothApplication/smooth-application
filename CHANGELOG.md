@@ -3,6 +3,38 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Two-tab statement analysis dashboard (`web/`, Phase 3)
+
+Task #244 continued: Phase 3 of the bank-statement analysis port, on top of Phase 1 (parsing
+engine) and Phase 2 (upload + file extraction). Adds the real Analysis/Report dashboard on the
+`/checklist/statement-test` page, replacing the flat transaction list with classified income
+sources.
+
+- `web/components/checklist/StatementDashboard.tsx` — new two-tab dashboard:
+  - **Analysis tab**: applicant name / maiden name inputs feeding `buildIncomeSourceBreakdown`
+    live; a card per income source (Salary/Business/Family/Personal/Self/Interest/Internal
+    transfer/Unclear sender, each with its own badge), an inline "Fix name" control per source so
+    a garbled or wrong extracted sender name can be corrected on the spot, collapsible transaction
+    lists (collapsed by default past 3 entries), a "Top 10 senders" ranking, and a missing-salary-
+    month banner when applicable.
+  - **Report tab**: total income identified, number of sources found, unexplained/unclear large
+    inflows (via `findUnexplainedLargeInflows`), and income/balance status pills — balance
+    adequacy is deliberately left to the existing Financial readiness calculator
+    (`/checklist/uk/financial`) rather than duplicated here.
+  - `getTopConsistentSenders` (not in Phase 1's scope) was ported into `lib/statement/classify.ts`
+    to support the Top 10 table.
+- `web/components/checklist/StatementUpload.tsx` now renders the dashboard after a successful
+  parse (the old flat list is kept, collapsed, for debugging).
+
+Deliberately out of scope for this pass (no persistence yet, tracked for a later phase): the
+sender-duplicate "same person?" merge/separate decision UI, per-transaction "explain this inflow"
+notes and their autosave, and cross-checking a declared employer/business name against statement
+text.
+
+Live-verified on a real 6-month bank statement (2,171 transactions) uploaded to the test page —
+the parse pipeline handled it without failing. `npx tsc --noEmit` clean; `npm test` — 87/87
+passing (2 new for `getTopConsistentSenders`).
+
 ## Bank-statement upload + file extraction (`web/`, Phase 2)
 
 Task #244 continued: Phase 2 of the bank-statement analysis port, on top of Phase 1's pure

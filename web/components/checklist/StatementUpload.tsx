@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { getLinesFromFile } from '@/lib/statement/extractFile';
 import { parseStatementLinesWithFallback, ParsedTxn } from '@/lib/statement';
+import StatementDashboard from '@/components/checklist/StatementDashboard';
 
 // Phase 2 of the bank-statement port (task #244-ish — see lib/statement/index.ts for Phase 1).
 // Standalone test surface only: proves file-intake (PDF text layer / spreadsheet) -> the pure
@@ -62,7 +63,7 @@ export default function StatementUpload() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-5 p-8">
+    <main className="mx-auto flex min-h-screen max-w-4xl flex-col gap-5 p-8">
       <div>
         <h1 className="text-xl font-semibold text-[#12232e]">Statement check (test page)</h1>
         <p className="mt-1 text-sm text-[#4c6270]">
@@ -106,39 +107,47 @@ export default function StatementUpload() {
       )}
 
       {txns && (
-        <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
-          <h2 className="mb-3 text-sm font-semibold text-[#12232e]">
+        <>
+          <p className="text-sm font-medium text-[#12232e]">
             Found {txns.length} transaction{txns.length === 1 ? '' : 's'}
-          </h2>
-          <div className="max-h-[60vh] overflow-y-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-black/10 text-xs uppercase tracking-wide text-[#566a76]">
-                  <th className="py-2 pr-2">Date</th>
-                  <th className="py-2 pr-2">Narration</th>
-                  <th className="py-2 pr-2 text-right">Debit</th>
-                  <th className="py-2 pr-2 text-right">Credit</th>
-                  <th className="py-2 text-right">Balance</th>
-                </tr>
-              </thead>
-              <tbody>
-                {txns.map((t, i) => (
-                  <tr key={i} className="border-b border-black/5 align-top">
-                    <td className="py-2 pr-2 whitespace-nowrap text-[#12232e]">{formatDate(t.date)}</td>
-                    <td className="py-2 pr-2 text-[#4c6270]">{t.narration || '—'}</td>
-                    <td className="py-2 pr-2 text-right text-[#12232e]">
-                      {t.debit ? formatAmount(t.debit) : '—'}
-                    </td>
-                    <td className="py-2 pr-2 text-right text-[#12232e]">
-                      {t.credit ? formatAmount(t.credit) : '—'}
-                    </td>
-                    <td className="py-2 text-right text-[#12232e]">{formatAmount(t.balance)}</td>
+          </p>
+
+          <StatementDashboard txns={txns} />
+
+          <details className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
+            <summary className="cursor-pointer text-sm font-semibold text-[#12232e]">
+              Show raw transaction list
+            </summary>
+            <div className="mt-3 max-h-[60vh] overflow-y-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-black/10 text-xs uppercase tracking-wide text-[#566a76]">
+                    <th className="py-2 pr-2">Date</th>
+                    <th className="py-2 pr-2">Narration</th>
+                    <th className="py-2 pr-2 text-right">Debit</th>
+                    <th className="py-2 pr-2 text-right">Credit</th>
+                    <th className="py-2 text-right">Balance</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                </thead>
+                <tbody>
+                  {txns.map((t, i) => (
+                    <tr key={i} className="border-b border-black/5 align-top">
+                      <td className="py-2 pr-2 whitespace-nowrap text-[#12232e]">{formatDate(t.date)}</td>
+                      <td className="py-2 pr-2 text-[#4c6270]">{t.narration || '—'}</td>
+                      <td className="py-2 pr-2 text-right text-[#12232e]">
+                        {t.debit ? formatAmount(t.debit) : '—'}
+                      </td>
+                      <td className="py-2 pr-2 text-right text-[#12232e]">
+                        {t.credit ? formatAmount(t.credit) : '—'}
+                      </td>
+                      <td className="py-2 text-right text-[#12232e]">{formatAmount(t.balance)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </details>
+        </>
       )}
     </main>
   );

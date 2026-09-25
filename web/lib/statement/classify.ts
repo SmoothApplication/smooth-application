@@ -7,6 +7,7 @@ import type {
   SourceGroups,
   DuplicateSenderPair,
   ApplySenderDuplicateDecisionsResult,
+  TopConsistentSendersResult,
 } from './types';
 import {
   BANK_NARRATION_STOPWORDS,
@@ -464,6 +465,47 @@ export function applySenderDuplicateDecisions(
     if (!merged[n]) merged[n] = namedGroups[n];
   });
   return { merged, pending };
+}
+
+// Ported from index.html's getTopConsistentSenders (~lines 13680-13717). Ranks every named sender by
+// how many DISTINCT MONTHS they've paid in first (a sender who pays a little every month for a year is
+// stronger evidence of reliable income than one who paid a lot once), then by payment count, then by
+// total amount, as a tiebreaker. Reuses the exact same sender-extraction/merge/dedupe pipeline as
+// buildIncomeSourceBreakdown (senderSideCandidates -> toTitleCase -> mergeNameVariants ->
+// applySenderDuplicateDecisions) so a name here is keyed identically to a group name there — a caller
+// applying a "Fix name" display correction can use the same correction map for both.
+//
+// Deliberately does NOT apply any name correction itself (unlike the original, which called into its
+// own UI-only displaySourceName) — that's persisted UI state out of scope for this pure-logic module;
+// callers with a correction map apply it themselves using the returned (raw, extracted) `name`.
+export function getTopConsistentSenders(
+  txns: ParsedTxn[],
+  n: number,
+  applicantName?: string | null
+): TopConsistentSendersResult {
+  let namedGroups: Record<string, ParsedTxn[]> = {};
+  txns.forEach((t) => {
+    if (!t.credit || isReversalNarration(t) || isNonIncomeChargeNarration(t.narration)) return;
+    const candidates = senderSideCandidates(t.narration, applicantName);
+    if (!candidates.length) return;
+    const name = toTitleCase(candidates.reduce((a, b) => (b.length > a.length ? b : a)));
+    (namedGroups[name] = namedGroups[name] || []).push(t);
+  });
+  namedGroups = mergeNameVariants(namedGroups);
+  const dup = applySenderDuplicateDecisions(namedGroups);
+  namedGroups = dup.merged;
+  const list = Object.keys(namedGroups).map((name) => {
+    const grpTxns = namedGroups[name];
+    const months: Record<string, boolean> = {};
+    let total = 0;
+    grpTxns.forEach((t) => {
+      months[t.date.getFullYear() + '-' + t.date.getMonth()] = true;
+      total += t.credit;
+    });
+    return { name, monthCount: Object.keys(months).length, count: grpTxns.length, total };
+  });
+  list.sort((a, b) => b.monthCount - a.monthCount || b.count - a.count || b.total - a.total);
+  return { list: list.slice(0, n || 10), pendingDuplicates: dup.pending };
 }
 
 export function summarizeSourceGroup(name: string, txnsIn: ParsedTxn[], type: string): SourceGroup {
