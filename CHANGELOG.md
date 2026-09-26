@@ -3,6 +3,36 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Port WhatsApp/email resume reminders (`web/lib/checklist/resumeReminder.ts`, `ResumeReminderLinks.tsx`)
+
+Ported index.html's "WhatsApp/email myself a reminder" (`buildResumeReminderMessage`/
+`updateResumeReminderLinks`, ~line 6441-6478) — the last of the three options offered when this
+batch of work started. Field-work finding behind it: many applicants hit the passport-scan or
+bank-statement step away from home, without the document on them, on the same phone they're using
+right now, and simply forget to come back once they're home with it. Progress already survives a
+same-device return via localStorage, so the only real gap was the reminder itself.
+
+- New `web/lib/checklist/resumeReminder.ts` (pure, no DOM): `buildResumeReminderMessage()` ported
+  verbatim (visa name, what to bring, the resume link, and the "same phone" note — deliberately
+  short, not the full end-of-checklist status dump), `buildWhatsAppReminderHref()` (a real `wa.me`
+  link with no fixed recipient — the applicant picks who to send it to, typically themselves — not
+  a JS `location.href` redirect on click, since that pattern was already found broken for
+  `mailto:` on phones with no mail app configured), and `buildEmailReminderHref()`.
+- `web/lib/checklist/__tests__/resumeReminder.test.ts`: 4 tests covering the message content, its
+  brevity, and both hrefs' encoding.
+- New `web/components/checklist/ResumeReminderLinks.tsx`: computes the resume URL from
+  `window.location` after mount (so it never renders a stale/wrong link during server render),
+  looks up the destination's `visaName` from `lib/checklist/countries.ts`'s `COUNTRIES`, and
+  renders the WhatsApp + email links. Wired into `PassportCheck.tsx` ("Need to go get your
+  passport first?") and `StatementCheck.tsx` ("Haven't downloaded your bank statements yet?") —
+  the exact two friction points the original targeted.
+- **Deliberate adaptation**: the original showed this unconditionally, regardless of scan state,
+  since its single-session HTML didn't have a separate "recalled" view. This port shows it only
+  before a scan is recalled/completed (`!recalled`) — once the applicant's passport or statement
+  is already saved, a "go get it" nudge no longer applies, which fits the Next app's own
+  recalled/not-recalled UI better than blind literalism would.
+- `npx tsc --noEmit` clean; `npx jest` — 244/244 passing across 54 suites (4 new), no regressions.
+
 ## Port Business Income Record ledger (`web/lib/statement/business.ts`, `BusinessIncomeLedger.tsx`)
 
 Ported index.html's Business Income Record (`#bizLedgerCard`, ~line 2750; JS ~12387-12631,

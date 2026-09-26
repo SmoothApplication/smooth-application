@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import PassportScan from '@/components/checklist/PassportScan';
+import ResumeReminderLinks from '@/components/checklist/ResumeReminderLinks';
+import { COUNTRIES } from '@/lib/checklist/countries';
 import {
   FieldState,
   PersistedPassportFields,
@@ -47,6 +49,7 @@ export default function PassportCheck({ countryCode }: PassportCheckProps) {
   const lowerCode = countryCode.toLowerCase();
   const storageKey = `sa_${lowerCode}_passport`;
   const backHref = `/checklist/${lowerCode}`;
+  const visaName = COUNTRIES.find((c) => c.code === countryCode.toUpperCase())?.visaName || 'visa';
 
   const [loaded, setLoaded] = useState(false);
   const [recalled, setRecalled] = useState(false);
@@ -119,6 +122,18 @@ export default function PassportCheck({ countryCode }: PassportCheckProps) {
         <div className="rounded-lg bg-accent-wash p-3 text-sm text-accent" role="status">
           📄 Details recalled from your last visit — no need to re-scan.
         </div>
+      )}
+
+      {/* Resume reminder (task #319+): only shown before the passport is scanned/recalled — once
+          the applicant already has these details saved, a "go get your passport" nudge no longer
+          applies. The original showed this unconditionally in its single-session HTML; gating it
+          here is a deliberate adaptation to the Next app's own recalled/not-recalled UI. */}
+      {!recalled && (
+        <ResumeReminderLinks
+          visaName={visaName}
+          whatToBring="my international passport"
+          prompt="Need to go get your passport first? Send yourself a reminder with the link back to this page:"
+        />
       )}
 
       <PassportScan

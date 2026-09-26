@@ -11,6 +11,8 @@ import {
   PersistedStatement,
 } from '@/lib/statement';
 import StatementDashboard from '@/components/checklist/StatementDashboard';
+import ResumeReminderLinks from '@/components/checklist/ResumeReminderLinks';
+import { COUNTRIES } from '@/lib/checklist/countries';
 
 // Generalized out of the original UK-only web/app/checklist/uk/statement/page.tsx (Phase 4 of
 // task #244) so the same bank-statement check (StatementUpload + StatementDashboard, wired
@@ -54,6 +56,7 @@ export default function StatementCheck({ countryCode }: StatementCheckProps) {
   const storageKey = `sa_${lowerCode}_statement`;
   const backHref = `/checklist/${lowerCode}`;
   const financialHref = `/checklist/${lowerCode}/financial`;
+  const visaName = COUNTRIES.find((c) => c.code === countryCode.toUpperCase())?.visaName || 'visa';
 
   const [loaded, setLoaded] = useState(false);
   const [recalled, setRecalled] = useState(false);
@@ -163,6 +166,15 @@ export default function StatementCheck({ countryCode }: StatementCheckProps) {
         <span className="w-fit rounded-full bg-accent-wash px-3 py-1 text-xs font-medium text-accent">
           🔒 Processed entirely in your browser — this file is never uploaded anywhere
         </span>
+
+        {/* Resume reminder (task #319+) — same friction point index.html flagged: the applicant
+            often hits this step away from home, without the statement downloaded yet. Only shown
+            before a statement is scanned/recalled — see the same note in PassportCheck.tsx. */}
+        <ResumeReminderLinks
+          visaName={visaName}
+          whatToBring="my last 3–6 months of bank statements"
+          prompt="Haven't downloaded your bank statements yet? Send yourself a reminder with the link back to this page:"
+        />
 
         <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
           <label className="mb-2 block text-sm font-medium text-[#12232e]" htmlFor="statement-file">
