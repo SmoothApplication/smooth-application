@@ -61,6 +61,13 @@ export default function ChecklistStartPage() {
         <label className="mb-2 block text-sm font-medium text-[#12232e]">
           Which visa are you preparing for?
         </label>
+        {/* Ported from index.html's #gateOpportunitiesLink (~line 1683) — a direct way out for
+            someone who can't yet afford a visa at all, right where they're choosing one, rather
+            than several steps into the checklist. See /opportunities for the standalone screen
+            this opens (index.html's #opportunitiesGate). */}
+        <Link href="/opportunities" className="mb-3 block text-xs text-accent underline">
+          🎓 Not applying for a visa yet? Browse funded opportunities &amp; exchange programs instead
+        </Link>
         <div className="mb-5 flex flex-col gap-2" role="listbox" aria-label="Country">
           {COUNTRIES.map((c) => (
             <button

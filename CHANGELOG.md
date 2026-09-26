@@ -3,6 +3,47 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Port funded-opportunities directory (`web/lib/opportunities`, `web/app/opportunities/page.tsx`)
+
+Ported index.html's "Funded opportunities & exchange programs" directory (`#opportunitiesGate`,
+~line 1753; `OPPORTUNITIES`/`renderOpportunities()`, ~line 12647) — a curated, static list of 10
+real scholarship/exchange/fellowship programs for an applicant who can't yet afford ANY visa and
+wants a funded alternative instead. Reached directly from the country picker, no country pick or
+consent checkbox required, same as the original.
+
+- New `web/lib/opportunities/types.ts`: all 10 `OPPORTUNITIES` entries ported verbatim (name,
+  pathway, funding, summary, eligibility note, when-to-apply, official link), the 5 `PATHWAY_META`
+  categories (semester-exchange / full-degree-scholarship / postgrad-only /
+  professional-fellowship / paid-program), and `OPPORTUNITIES_LAST_VERIFIED`.
+- New `web/lib/opportunities/store.ts` (pure logic, no DOM): `getPathwayCounts`,
+  `getVisibleFilterKeys` (ported from the filter-row-building logic — `'all'` first, then only the
+  pathways that actually have a program, in `PATHWAY_META`'s own declared order), and
+  `filterOpportunities`.
+- `web/lib/opportunities/__tests__/store.test.ts`: 10 tests, including a fixed-distribution check
+  against the real curated list (semester-exchange: 1, full-degree-scholarship: 2, postgrad-only:
+  5, professional-fellowship: 1, paid-program: 1) so a future edit to `OPPORTUNITIES` that silently
+  drops a pathway's only program gets caught.
+- **`toggleTrack`/`isTracked` are now actually wired into the UI.** These were ported into
+  `web/lib/tracker/store.ts` back when the personal application tracker shipped, but nothing in
+  this app called them yet — there was no Opportunities directory to link `programId` to. Each
+  program card's "+ Add to my tracker" button now calls `toggleTrack(entries, program.id,
+  program.name)` and flips to "✓ In my tracker" via `isTracked`, exactly the original's
+  `renderOpportunities()`/`renderTracker()` cross-wiring.
+- New `components/opportunities/TrackerCard.tsx`: the tracker's entries-list + add-custom-entry
+  form, factored out of `web/app/tracker/page.tsx` (now just a thin wrapper around it) so
+  `/opportunities` and the standalone `/tracker` page share one implementation instead of drifting
+  apart — same reasoning as `CountryChecklistApp` being shared across every country's checklist.
+- New `web/app/opportunities/page.tsx`: combines the directory (intro, scam warning, pathway
+  filter row, program cards) with the embedded `TrackerCard` on one screen — matching the
+  original's single combined `#opportunitiesGate`, rather than splitting them across two Next.js
+  routes. `entries` state is lifted to this page so a track-toggle click updates both the "✓ In my
+  tracker" button label and the tracker list below it immediately, with no reload.
+- `web/app/checklist/start/page.tsx`: added the "🎓 Not applying for a visa yet? Browse funded
+  opportunities & exchange programs instead" link (ported from `#gateOpportunitiesLink`) next to
+  the country picker, pointing to `/opportunities`.
+
+`npx tsc --noEmit` clean; `npx jest` — 193/193 passing across 50 suites (10 new), no regressions.
+
 ## Port personal application tracker (`web/lib/tracker`, `web/app/tracker/page.tsx`)
 
 Ported index.html's "Personal application tracker" (`#appTrackerCard` / `renderTracker()`, ~line
