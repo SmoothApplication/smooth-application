@@ -3,6 +3,46 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Port Travel Experience / travel history (`web/lib/checklist/travelHistory.ts`, `TravelHistory.tsx`)
+
+Ported index.html's "Travel Experience" session (`#travelExperience`, ~line 2056-2133; JS
+~4825-4944, 7005-7422) — the prerequisite feature for the "What to do next" report (task #319+
+selection "'What to do next' report"). Mid-research it became clear the full report reads travel
+history that had never been ported into this Next app at all, so this ships as its own step first,
+by the user's own choice when asked how to proceed.
+
+- New `web/lib/checklist/travelHistory.ts` (pure, no DOM): the country lists
+  (`TE_AFRICAN_COUNTRIES`, `TE_EU_COUNTRIES`, `TE_NAMED_HIGH_VALUE_COUNTRIES`, `TE_ASIAN_COUNTRIES`,
+  `TE_HIGH_SUCCESS_COUNTRIES`, `TE_COUNTRY_LIST`) ported verbatim, `TE_NO_HISTORY_GUIDES` (Ghana,
+  Kenya, Ethiopia, Morocco, South Africa — each with visa steps and, where a realistic overland
+  option exists, a road-vs-flight cost estimate, including the corrected ₦100,000 ABC Transport
+  Ghana road figure), and `computeTravelExperienceGrade()`, a pure port of
+  `updateTravelExperienceGrade()`'s graduated messaging (African-country tiers, EU-country tiers,
+  high-GDP-destination flag, high-success-without-overstay flag, overstay warning).
+- `web/lib/checklist/__tests__/travelHistory.test.ts`: 24 tests covering the country-list shape,
+  every guide's required fields (plus the Ghana/Morocco cost-estimate specifics), `parseTravelDays`,
+  and every branch of the grading logic including the overstay-suppresses-the-positive-line case.
+- New `web/components/checklist/TravelHistory.tsx` + routes
+  `web/app/checklist/uk/travel-history/page.tsx` and
+  `web/app/checklist/[country]/travel-history/page.tsx` (same UK-dedicated-route-vs-generic-route
+  split as every other per-country sub-page). Two branches: first-time "no" shows the five
+  build-history country guides; "yes" shows an editable travel-history table (country/date/reason/
+  days) and an optional overstay table, with the grade summary rendered live underneath. Persists
+  to `sa_<code>_travelhistory`. Wired into `CountryChecklistApp.tsx`'s header alongside the other
+  side-page links.
+- **Deliberately not ported** (disclosed to the user before building): the EU-specific
+  funds-readiness sub-flow (`te_euFundsBox`/`te_euSingleEntryComfort`/`te_euUkAdviceBox`) —
+  informational only, not required by the report this is feeding, and specific to a
+  European-destination framing this app's country checklists don't share; the custom searchable
+  country-combobox widget (`wireCountryCombo`) — replaced with a plain native `<select>` populated
+  from `TE_COUNTRY_LIST`, consistent with every other dropdown in this port; the country-guide
+  "steps + cost estimate" content, which the original renders into a modal
+  (`#teCountryGuideModalBody`) — rendered inline here instead, consistent with this port's existing
+  inline pattern, avoiding a new modal system; and `updateTravelExperienceReasons()` (the "Reasons"
+  tab integration) — a separate, not-yet-ported piece of the original. The grade summary also drops
+  the original's "Continue to Session 3" copy, since this Next app has no sequential session lock.
+- `npx tsc --noEmit` clean; `npx jest` — 268/268 passing across 55 suites (24 new), no regressions.
+
 ## Port WhatsApp/email resume reminders (`web/lib/checklist/resumeReminder.ts`, `ResumeReminderLinks.tsx`)
 
 Ported index.html's "WhatsApp/email myself a reminder" (`buildResumeReminderMessage`/

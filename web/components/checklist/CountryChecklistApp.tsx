@@ -398,6 +398,11 @@ export default function CountryChecklistApp({
               🧾 Business Income Record
             </Link>
           )}
+          {/* Travel Experience (task #319+ "Build travel history first, then the full report") —
+              always shown, same per-country route shape as the other side pages above. */}
+          <Link href={`/checklist/${code.toLowerCase()}/travel-history`} className="inline-block text-xs text-accent underline">
+            🌍 Travel Experience
+          </Link>
         </div>
       </div>
 
