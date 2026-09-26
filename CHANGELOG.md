@@ -3,6 +3,44 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Go-live readiness fixes: custom domain attached, real email capture wired in, legal pages added (`quiz/page.tsx`, `privacy/page.tsx` + `terms/page.tsx` new, `page.tsx`)
+
+Ahead of an in-person test session, went through the go-live readiness audit's findings one by one
+(see the previous entry below for how those were found) and fixed the ones that were actually
+fixable in the time available. Two of the four findings involved a real risk/behavior tradeoff, so
+the user was asked directly before touching either — both were answered "do it now":
+
+- **Custom domain attached.** `smoothapplication.com` was bought and DNS-verified for email months
+  ago, but had never actually been attached to the Vercel project itself — the live site was still
+  on the bare `smooth-application-five.vercel.app` URL. Since the domain is registered AND
+  DNS-managed through Vercel itself (not an external registrar), adding it via the project's
+  Domains settings needed no external DNS records at all — SSL provisioned and the domain resolved
+  within about a minute. `www.smoothapplication.com` is now the live site (apex redirects to
+  `www`, both confirmed serving the real app). No code change; a Vercel project setting.
+- **Real checklist wired into `/api/capture-email`** (`app/quiz/page.tsx`) — the audit found this
+  endpoint had existed since the original admin-platform scaffold (task #243) but nothing in the
+  real, ported checklist ever called it: the only email inputs anywhere in the app were the admin
+  sign-in and an orphaned, unreachable dev stub (`app/checklist/page.tsx`). Added the first real
+  capture point — an optional "Want this emailed to you?" field on the quiz result screen, same
+  request contract the stub already used (email/country/sessionKey/percentComplete). Deliberately
+  optional and skippable so the homepage's "no account required" promise stays true: this is a
+  perk, not a gate. Confirmed this really does provision a Supabase Auth user and send a real
+  "set your password" email via Resend — that's the whole point of turning it on, but it means the
+  admin dashboard will now show real signups from anyone who uses it, and every one of them gets a
+  real email.
+- **Privacy Policy + Terms of Use pages added** (`app/privacy/page.tsx`, `app/terms/page.tsx`, both
+  new) — no such routes existed anywhere in `web/app` before this. Written to describe only what
+  the app actually does (checked against the real code, not boilerplate): checklist data is
+  local-only, the new optional email-capture reaches Supabase + Resend, GoatCounter analytics are
+  anonymous/aggregate, no ads or data sales. Linked from the homepage footer.
+- Not fixed yet, and flagged rather than rushed: the legacy GitHub Pages `index.html` still gets
+  the real ad-driven traffic and was left alone — deciding how (or whether) to redirect it to this
+  app is a bigger call than fits in a pre-test scramble, and breaking the old site to attempt it
+  today felt like the wrong tradeoff.
+- No new tests: this batch is a Vercel config change, a small optional form, and two static
+  content pages — same "UI wiring + side effects, not new pure logic" shape as the previous batch.
+  Full suite re-run clean: 60 suites / 342 tests, 0 regressions.
+
 ## Funnel-analytics recheck follow-ups: analytics wired in, two friction points fixed (`analytics.ts`, `SituationGate.tsx`, `CountryChecklistApp.tsx`, `StatementCheck.tsx`, `quiz/page.tsx`, `checklist/start/page.tsx`)
 
 A GoatCounter funnel recheck this session turned up a hard scoping fact first: GoatCounter has only

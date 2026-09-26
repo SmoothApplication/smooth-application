@@ -11,10 +11,15 @@ import { trackEvent } from '@/lib/analytics';
 // short, low-commitment set of questions before the country picker, meant to give a directional
 // readiness read and pre-fill the real checklist's qualifying-questions form so the applicant
 // doesn't answer the same questions twice. index.html's version is considerably larger (10
-// questions across paged steps, a scored rubric, an email-capture "get full report" flow, and a
-// notify-me card) — this port keeps the same question set that actually feeds the ported
-// checklist's Answers type, and keeps the result screen honest and simple rather than inventing a
-// numeric score this version can't back up yet.
+// questions across paged steps, a scored rubric, a notify-me card) — this port keeps the same
+// question set that actually feeds the ported checklist's Answers type, and keeps the result
+// screen honest and simple rather than inventing a numeric score this version can't back up yet.
+//
+// Email capture (follow-up selection "Wire real checklist into /api/capture-email"): the result
+// screen below has an OPTIONAL "email me this" field wired to /api/capture-email — the first
+// point anywhere in the real, ported checklist flow that calls it (see that route's own comments).
+// Deliberately optional and skippable: the homepage's "no account required" promise stays true
+// either way, this is just a perk for anyone who wants a copy of their result.
 //
 // Handoff to the real checklist: answers are saved to localStorage under 'sa_quiz_prefill' (NOT
 // a country-specific key, since the quiz runs before a country is chosen) and read once by
@@ -52,7 +57,39 @@ export default function ConfidenceQuizPage() {
   const [done, setDone] = useState(false);
   const router = useRouter();
 
+  // Follow-up selection "Wire real checklist into /api/capture-email": the endpoint has existed
+  // since the original admin-platform scaffold (task #243) but the real, client-side checklist
+  // that eventually got built (task #244+) never had anywhere an applicant actually types an
+  // email — the only email inputs anywhere in the app were the admin sign-in and an orphaned,
+  // unreachable dev stub. This is the first real capture point: optional, same contract the stub
+  // already used (email/country/sessionKey/percentComplete), and deliberately NOT required to
+  // continue — the homepage's "no account required" promise stays true either way.
+  const [reportEmail, setReportEmail] = useState('');
+  const [reportEmailStatus, setReportEmailStatus] = useState<'idle' | 'saving' | 'done' | 'error'>('idle');
+
   const signals = useMemo(() => computeQuizSignals(answers), [answers]);
+
+  async function handleEmailResult(e: React.FormEvent) {
+    e.preventDefault();
+    if (!reportEmail.trim()) return;
+    setReportEmailStatus('saving');
+    trackEvent('quiz_email_result_clicked');
+    try {
+      const res = await fetch('/api/capture-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: reportEmail.trim(),
+          country: null, // no country chosen yet at the quiz-result stage
+          sessionKey: 'quiz_result',
+          percentComplete: 0,
+        }),
+      });
+      setReportEmailStatus(res.ok ? 'done' : 'error');
+    } catch {
+      setReportEmailStatus('error');
+    }
+  }
 
   function handleContinue() {
     try {
@@ -128,6 +165,38 @@ export default function ConfidenceQuizPage() {
           )}
           {signals.positives.length === 0 && signals.watchOuts.length === 0 && (
             <p className="mt-4 text-sm text-[#4c6270]">Answer a few questions and we&apos;ll show you what stands out.</p>
+          )}
+
+          {reportEmailStatus === 'done' ? (
+            <p className="mt-4 rounded-md bg-good-wash p-3 text-sm text-good">
+              ✅ Sent — check your inbox for a link to set up a free account and keep this result.
+            </p>
+          ) : (
+            <form onSubmit={handleEmailResult} className="mt-4 rounded-md border border-black/10 p-3">
+              <label htmlFor="quiz-report-email" className="mb-1 block text-xs font-medium text-[#12232e]">
+                Want this emailed to you? <span className="font-normal text-[#566a76]">(optional)</span>
+              </label>
+              <div className="flex flex-wrap gap-2">
+                <input
+                  id="quiz-report-email"
+                  type="email"
+                  value={reportEmail}
+                  onChange={(e) => setReportEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  className="min-w-0 flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm"
+                />
+                <button
+                  type="submit"
+                  disabled={!reportEmail.trim() || reportEmailStatus === 'saving'}
+                  className="rounded-md bg-accent px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {reportEmailStatus === 'saving' ? 'Sending…' : 'Email me'}
+                </button>
+              </div>
+              {reportEmailStatus === 'error' && (
+                <p className="mt-1 text-xs text-warn-text">Something went wrong — you can skip this and continue below.</p>
+              )}
+            </form>
           )}
 
           <button

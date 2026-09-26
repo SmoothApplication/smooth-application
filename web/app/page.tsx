@@ -95,6 +95,15 @@ export default function Home() {
             Admin sign in
           </Link>
         </p>
+        <p className="mt-2 text-center text-xs text-[#566a76]">
+          <Link href="/privacy" className="text-accent underline">
+            Privacy Policy
+          </Link>{' '}
+          ·{' '}
+          <Link href="/terms" className="text-accent underline">
+            Terms of Use
+          </Link>
+        </p>
       </div>
     </main>
   );
