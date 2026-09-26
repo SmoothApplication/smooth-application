@@ -3,6 +3,52 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Port personal application tracker (`web/lib/tracker`, `web/app/tracker/page.tsx`)
+
+Ported index.html's "Personal application tracker" (`#appTrackerCard` / `renderTracker()`, ~line
+12807) — described in its own comment as "Phase 2 of the same UNILAG street-test feedback that
+produced the opportunities directory". Lets an applicant keep a running list of every scholarship,
+program, or visa application they're working on — status, an optional deadline, and free-form
+notes — separate from the per-country checklist autosave, since a tracked application isn't
+scoped to one country.
+
+- New `web/lib/tracker/types.ts` + `store.ts` (pure logic, no localStorage/DOM — same split as
+  `lib/passport`): `TrackerEntry`, the 7 `TRACKER_STATUS_OPTIONS` (researching → preparing →
+  submitted → interview → accepted / not-selected / paused, verbatim from the original),
+  `normalizeTrackerEntries()` (the same defensive field-by-field rebuild as the original's
+  `loadTrackerEntries()`, so a corrupt or older-shape localStorage value can't inject anything
+  unexpected), `addCustomEntry`, `toggleTrack`/`isTracked`, `updateEntryStatus/Deadline/Notes`,
+  `removeEntry`.
+- **Deliberate scope adaptation**: the original app pairs this with a curated "Opportunities
+  directory" (10 hand-picked scholarship/program listings), where most tracker entries arrive via
+  a per-program "+ Add to my tracker" button (`toggleTrack(programId, name)`) rather than being
+  typed by hand. The Next.js app has no Opportunities-directory port yet, so every entry here is
+  added through the free-typed custom-entry form instead. The data model still carries
+  `programId` (null for every entry today) so a future directory port can link into this same
+  store with no migration of anything already saved — `toggleTrack`/`isTracked` are ported and
+  tested now for exactly that reason, even though nothing in the current UI calls them yet.
+- **Deliberate persistence adaptation**: the original manually debounced its localStorage writes
+  (400ms `setTimeout`) because vanilla JS had no batching for rapid `input`-event saves. This port
+  follows the pattern already established by every other page in this app (`CountryChecklistApp`,
+  `PassportScan`, etc.) — a plain `useEffect` writing on state change — rather than reintroducing
+  a manual debounce, since React's own batching already avoids the original's problem.
+- `web/lib/tracker/__tests__/store.test.ts`: 18 tests covering the normalization edge cases
+  (non-array input, missing/invalid fields, bad status values), add/toggle/update/remove, and that
+  unrelated entries are left alone.
+- `web/app/tracker/page.tsx`: new global `/tracker` page (not nested under `/checklist/[country]`,
+  since applicants track programs across multiple countries at once) — entry list with a status
+  dropdown, optional deadline date picker, and a notes textarea per entry, a "Remove from tracker"
+  button, an empty-state message, and the add-custom-entry form. Backed by the same
+  `smoothApplication_oppTracker_v1` localStorage key as the original, so the privacy story is
+  unchanged — nothing here is ever sent anywhere.
+- `components/checklist/CountryChecklistApp.tsx`: new optional `trackerHref` prop, rendered as a
+  "📋 My application tracker" link in the sticky header alongside the financial
+  calculator/statement/passport/reasons links. Passed as the literal `"/tracker"` from both
+  `/checklist/uk/page.tsx` and `/checklist/[country]/page.tsx` — the one href in that list that's
+  identical for every country, since the tracker itself isn't country-scoped.
+
+`npx tsc --noEmit` clean; `npx jest` — 183/183 passing across 49 suites (18 new), no regressions.
+
 ## Port passport-validity status message (`web/lib/passport/validity.ts`, `PassportScan.tsx`)
 
 The original app's "Session 1" passport page showed a Congratulations/warning message based on the

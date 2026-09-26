@@ -47,6 +47,12 @@ export type CountryChecklistAppProps = {
   /** Phase 3 of the passport-MRZ port: link to the passport-scan page. Passed by every country's
    * route as of Phase 4e — same reasoning as statementHref above. */
   passportHref?: string;
+  /** Port of index.html's personal application tracker (task #296+): link to the global /tracker
+   * page. Unlike the other hrefs above, this is the SAME path for every country (the tracker
+   * isn't country-scoped — applicants often track programs across several countries at once), so
+   * every caller passes the literal "/tracker" rather than a per-country templated path. Optional
+   * for the same reason as the others: the link simply doesn't render if a caller omits it. */
+  trackerHref?: string;
 };
 
 export default function CountryChecklistApp({
@@ -59,6 +65,7 @@ export default function CountryChecklistApp({
   financialHref,
   statementHref,
   passportHref,
+  trackerHref,
 }: CountryChecklistAppProps) {
   // Looked up here (inside this Client Component) rather than passed as a prop — see the comment
   // at the top of lib/checklist/all.ts for why passing ChecklistItem[] as a prop broke the build.
@@ -246,6 +253,11 @@ export default function CountryChecklistApp({
           <Link href={reasonsHref} className="inline-block text-xs text-accent underline">
             📖 Why these documents
           </Link>
+          {trackerHref && (
+            <Link href={trackerHref} className="inline-block text-xs text-accent underline">
+              📋 My application tracker
+            </Link>
+          )}
         </div>
       </div>
 

@@ -36,6 +36,7 @@ export default function CountryChecklistPage({ params }: { params: { country: st
       financialHref={`/checklist/${params.country}/financial`}
       statementHref={`/checklist/${params.country}/statement`}
       passportHref={`/checklist/${params.country}/passport`}
+      trackerHref="/tracker"
     />
   );
 }
