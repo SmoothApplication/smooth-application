@@ -3,6 +3,38 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Port fuller business statement analysis (`web/lib/statement/businessDrawings.ts`, `BusinessIncomeLedger.tsx`)
+
+Ported the piece deliberately deferred when the Business Income Record ledger first shipped
+(`business.ts`'s own header comment) — a follow-up selection: recurring personal-drawing detection
+off a business statement, and cross-checking those drawings against the personal statement's own
+credits (index.html's `crossCheckBusinessDrawings`/`appendCrossCheckMessage`, ~line 12398-12552).
+
+- A pleasant discovery: `findRecurringPaymentToPerson()` itself — the "does the business statement
+  show a recurring personal drawing (salary/director/remuneration, or the applicant's own name) to
+  the applicant?" half — was **already ported** in `web/lib/statement/names.ts` as part of the
+  original bank-statement-engine port (task #244), exported via the barrel, just never wired into
+  the ledger UI. No new logic needed there.
+- New `web/lib/statement/businessDrawings.ts` (pure, no DOM): `crossCheckBusinessDrawings()` ports
+  the day-window (10 days) + amount-tolerance (12%) matching verbatim, returning null when there's
+  nothing to check yet (no drawings detected, or the personal statement hasn't been scanned at all
+  — same early-return meaning as the original). `buildRecurringDrawingMessage()` and
+  `buildCrossCheckMessage()` port the three-and-two-branch messaging the original inlined into
+  `results.push(...)` calls, as pure, testable functions instead of DOM strings.
+- `web/lib/statement/__tests__/businessDrawings.test.ts`: 14 tests covering the cross-check's day/
+  amount boundaries, all three message-builder branches, and an end-to-end scenario chaining
+  `findRecurringPaymentToPerson` → `crossCheckBusinessDrawings` → `buildCrossCheckMessage` against a
+  realistic monthly-director-drawing statement.
+- `BusinessIncomeLedger.tsx` now keeps the full parsed business statement (not just its credits,
+  which is all the ledger itself needed) so the recurring-drawing check has debits to look at, and
+  persists it alongside the ledger under the same `sa_<code>_bizledger` key (old saved payloads
+  without it load fine — see `SavedBizLedger.allTxns?`). It reads the applicant's name and the
+  personal statement's own credits **read-only** from `StatementCheck`'s storage
+  (`sa_<code>_statement`) rather than asking for either again — a "💰 Personal drawing check" card
+  renders the recurring-drawing message plus either the cross-check result or a nudge to scan the
+  personal statement too, depending on whether that's happened yet.
+- `npx tsc --noEmit` clean; `npx jest` — 315/315 passing across 57 suites (14 new), no regressions.
+
 ## Port the "What to do next" report (`web/lib/checklist/nextSteps.ts`, `NextStepsReport.tsx`)
 
 Ported index.html's "What to do next" report — `renderNextStepsReport(a)`, ~line 7483-7592 — task

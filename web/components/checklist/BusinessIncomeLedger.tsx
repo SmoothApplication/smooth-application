@@ -9,6 +9,7 @@ import {
   serializeTxns,
   deserializeTxns,
   PersistedTxn,
+  PersistedStatement,
   filterBusinessCredits,
   bizLedgerEntryIsFilled,
   countFilledEntries,
@@ -16,6 +17,12 @@ import {
   countUnspecifiedRows,
   BizLedgerMap,
   inflowKey,
+  aggregateTransactions,
+  findRecurringPaymentToPerson,
+  crossCheckBusinessDrawings,
+  buildRecurringDrawingMessage,
+  buildCrossCheckMessage,
+  DateAmount,
 } from '@/lib/statement';
 
 // Port of index.html's Business Income Record (task #319 selection "Business income ledger" —
@@ -30,9 +37,13 @@ import {
 // statement — same "processed entirely in your browser" privacy story, same file-then-Analyze UI
 // as StatementCheck, so this doesn't feel like a different product bolted on.
 //
-// Deliberately not ported here: the original's recurring personal-drawing detection off this same
-// business statement, and cross-checking those drawings against the personal statement (index.html
-// ~12398-12550) — a separate, larger "business statement analysis" feature this pass doesn't build.
+// Follow-up selection "Fuller business statement analysis" added the piece deliberately deferred
+// when the ledger above first shipped: recurring personal-drawing detection off this same business
+// statement (findRecurringPaymentToPerson, already ported in lib/statement/names.ts as part of the
+// original engine port), and cross-checking those drawings against the personal statement's own
+// credits (lib/statement/businessDrawings.ts, new). The applicant's name for the drawing-keyword
+// match, and the personal statement's credits for the cross-check, are both read read-only from
+// StatementCheck's own storage (sa_<code>_statement) rather than asked for again here.
 export type BusinessIncomeLedgerProps = {
   countryCode: string;
 };
@@ -51,6 +62,10 @@ interface SavedBizLedger {
   credits: PersistedTxn[];
   ledger: BizLedgerMap;
   businessName: string;
+  // Added for the recurring-drawing detection: the full parsed statement (debits included), not
+  // just the credits the ledger itself needs. Optional so a payload saved before this feature
+  // existed still loads fine (falls back to [] — see loadSaved below).
+  allTxns?: PersistedTxn[];
 }
 
 function loadSaved(storageKey: string): SavedBizLedger | null {
@@ -59,6 +74,18 @@ function loadSaved(storageKey: string): SavedBizLedger | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as SavedBizLedger;
     if (!parsed || !Array.isArray(parsed.credits)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function loadPersonalStatement(storageKey: string): PersistedStatement | null {
+  try {
+    const raw = localStorage.getItem(storageKey);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as PersistedStatement;
+    if (!parsed || !Array.isArray(parsed.txns)) return null;
     return parsed;
   } catch {
     return null;
@@ -75,8 +102,15 @@ export default function BusinessIncomeLedger({ countryCode }: BusinessIncomeLedg
 
   // null = not scanned yet; [] = scanned, but no incoming payments found on it.
   const [credits, setCredits] = useState<ParsedTxn[] | null>(null);
+  const [allTxns, setAllTxns] = useState<ParsedTxn[]>([]);
   const [ledger, setLedger] = useState<BizLedgerMap>({});
   const [businessName, setBusinessName] = useState('');
+
+  // Read-only: the applicant's own name and personal-statement credits, both owned by
+  // StatementCheck.tsx (sa_<code>_statement). null personalCredits = that statement hasn't been
+  // scanned at all yet, matching the original's lastPersonalCredits === null distinction.
+  const [applicantName, setApplicantName] = useState('');
+  const [personalCredits, setPersonalCredits] = useState<DateAmount[] | null>(null);
 
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -87,29 +121,65 @@ export default function BusinessIncomeLedger({ countryCode }: BusinessIncomeLedg
     const saved = loadSaved(storageKey);
     if (saved) {
       setCredits(deserializeTxns(saved.credits));
+      setAllTxns(deserializeTxns(saved.allTxns || []));
       setLedger(saved.ledger || {});
       setBusinessName(saved.businessName || '');
       setRecalled(true);
     }
+
+    const personal = loadPersonalStatement(`sa_${lowerCode}_statement`);
+    if (personal) {
+      setApplicantName(personal.applicantName || '');
+      setPersonalCredits(
+        deserializeTxns(personal.txns)
+          .filter((t) => t.credit > 0)
+          .map((t) => ({ date: t.date, amount: t.credit }))
+      );
+    }
+
     setLoaded(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storageKey]);
+  }, [storageKey, lowerCode]);
 
   // Same debounce-free "save on every change, once loaded" pattern as StatementCheck.tsx — only
   // once a scan has actually happened (credits !== null), so an untouched page never writes.
   useEffect(() => {
     if (!loaded || credits === null) return;
     try {
-      const payload: SavedBizLedger = { credits: serializeTxns(credits), ledger, businessName };
+      const payload: SavedBizLedger = {
+        credits: serializeTxns(credits),
+        allTxns: serializeTxns(allTxns),
+        ledger,
+        businessName,
+      };
       localStorage.setItem(storageKey, JSON.stringify(payload));
     } catch {
       /* ignore */
     }
-  }, [credits, ledger, businessName, loaded, storageKey]);
+  }, [credits, allTxns, ledger, businessName, loaded, storageKey]);
 
   const filledCount = useMemo(() => countFilledEntries(credits || [], ledger), [credits, ledger]);
   const builtRows = useMemo(() => buildBizLedgerRows(credits || [], ledger), [credits, ledger]);
   const unspecifiedCount = useMemo(() => countUnspecifiedRows(builtRows), [builtRows]);
+
+  // Recurring personal-drawing detection (debits out of the business account matching a
+  // salary/director/drawing/remuneration keyword, or the applicant's own name) + cross-check
+  // against the personal statement's credits — ported from runBusinessStatementAnalysis/
+  // crossCheckBusinessDrawings (index.html ~12398-12552). See lib/statement/businessDrawings.ts.
+  const drawingMatch = useMemo(
+    () => (allTxns.length ? findRecurringPaymentToPerson(allTxns, { name: applicantName }) : null),
+    [allTxns, applicantName]
+  );
+  const totalMonths = useMemo(() => (allTxns.length ? aggregateTransactions(allTxns).length : 0), [allTxns]);
+  const drawingMessage = useMemo(
+    () => (drawingMatch ? buildRecurringDrawingMessage(drawingMatch, totalMonths) : null),
+    [drawingMatch, totalMonths]
+  );
+  const crossCheck = useMemo(
+    () => (drawingMatch ? crossCheckBusinessDrawings(drawingMatch.transactions, personalCredits) : null),
+    [drawingMatch, personalCredits]
+  );
+  const crossCheckMessage = useMemo(() => (crossCheck ? buildCrossCheckMessage(crossCheck) : null), [crossCheck]);
 
   function clearSaved() {
     try {
@@ -118,6 +188,7 @@ export default function BusinessIncomeLedger({ countryCode }: BusinessIncomeLedg
       /* ignore */
     }
     setCredits(null);
+    setAllTxns([]);
     setLedger({});
     setBusinessName('');
     setRecalled(false);
@@ -155,6 +226,7 @@ export default function BusinessIncomeLedger({ countryCode }: BusinessIncomeLedg
         return;
       }
       setCredits(filterBusinessCredits(result));
+      setAllTxns(result);
       setLedger({});
       setRecalled(false);
     } catch (err) {
@@ -243,6 +315,38 @@ export default function BusinessIncomeLedger({ countryCode }: BusinessIncomeLedg
       {recalled && (
         <div className="rounded-lg bg-accent-wash p-3 text-sm text-accent" role="status">
           📄 Business Income Record recalled from your last visit — no need to re-scan.
+        </div>
+      )}
+
+      {allTxns.length > 0 && drawingMessage && (
+        <div className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm">
+          <h3 className="mb-2 text-sm font-semibold text-[#12232e]">💰 Personal drawing check</h3>
+          <div
+            className={`rounded-lg p-3 text-sm ${
+              drawingMessage.status === 'ok' ? 'bg-green-50 text-green-800' : 'bg-warn-wash text-warn-text'
+            }`}
+          >
+            {drawingMessage.status === 'ok' ? '✅ ' : '⚠️ '}
+            {drawingMessage.message}
+          </div>
+          {personalCredits === null ? (
+            <div className="mt-2 rounded-lg bg-black/5 p-3 text-sm text-[#4c6270]">
+              Once you also scan your personal bank statement, this tool will automatically cross-check
+              whether these business payments actually land there — the strongest proof that you&apos;re
+              personally being paid from the business.
+            </div>
+          ) : (
+            crossCheckMessage && (
+              <div
+                className={`mt-2 rounded-lg p-3 text-sm ${
+                  crossCheckMessage.status === 'ok' ? 'bg-green-50 text-green-800' : 'bg-warn-wash text-warn-text'
+                }`}
+              >
+                {crossCheckMessage.status === 'ok' ? '✅ ' : '⚠️ '}
+                {crossCheckMessage.message}
+              </div>
+            )
+          )}
         </div>
       )}
 

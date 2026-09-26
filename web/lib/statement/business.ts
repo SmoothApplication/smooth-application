@@ -5,11 +5,13 @@
 // statement count as a payment worth noting, the applicant's own payer/purpose note per credit,
 // and the dated table the "Build" button compiles from those notes.
 //
-// Deliberately scoped to just the ledger, matching what was offered when this feature was picked:
-// NOT the fuller "business statement analysis" the original bundles this into (recurring
-// personal-drawing detection via findRecurringPaymentToPerson, and cross-checking those drawings
-// against the personal statement — index.html ~12398-12550). That's a separate, larger feature
-// this port doesn't build here.
+// Originally scoped to just the ledger, deliberately leaving out the fuller "business statement
+// analysis" the original bundles this into (recurring personal-drawing detection, and cross-
+// checking those drawings against the personal statement — index.html ~12398-12550). A follow-up
+// selection, "Fuller business statement analysis", later built that piece: the recurring-drawing
+// detection itself (findRecurringPaymentToPerson) was already ported in names.ts as part of the
+// original bank-statement-engine port; the cross-check and its messaging are new, in
+// businessDrawings.ts.
 import type { ParsedTxn } from './types';
 import { isReversalNarration, isNonIncomeChargeNarration, inflowKey } from './classify';
 
