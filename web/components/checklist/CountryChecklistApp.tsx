@@ -10,6 +10,7 @@ import {
   computeOverallPercent,
 } from '@/lib/checklist/uk';
 import { ALL_CHECKLISTS } from '@/lib/checklist/all';
+import { getSponsorRecommendation, resolveSpouseRef } from '@/lib/checklist/sponsor';
 
 // Phase 4b of task #244: the shared checklist app UI, factored out of the UK-only
 // web/app/checklist/uk/page.tsx (Phase 2) so the same profile-form + categorized-document-list
@@ -120,6 +121,32 @@ export default function CountryChecklistApp({
 
   const percent = useMemo(() => computeOverallPercent(checklist, answers, checked), [checklist, answers, checked]);
 
+  // Spouse/sponsor decision tool (task #319+, port of index.html's renderSponsorRecommendation())
+  // — "travel readiness" is the same string the two page.tsx callers already pass as `visaName`
+  // for the visa-free countries (GH/KE/MA), so it doubles here as the noVisaRequired signal
+  // without needing a new prop threaded through every route.
+  const noVisaRequired = visaName === 'travel readiness';
+  const sponsorRecommendation = useMemo(
+    () =>
+      getSponsorRecommendation({
+        spouseWilling: answers.spouseWilling,
+        spouseEmployed: answers.spouseEmployed,
+        spouseUkHistory: answers.spouseUkHistory,
+      }),
+    [answers.spouseWilling, answers.spouseEmployed, answers.spouseUkHistory]
+  );
+  const spouseRef = resolveSpouseRef(answers.spouseName);
+
+  // Mirrors the original's own auto-reset: if the underlying answers no longer support the
+  // sponsor route (e.g. spouseEmployed flips back to "no" after the box was ticked), un-tick it
+  // too, rather than leaving a stale confirmation quietly driving the required-documents list.
+  useEffect(() => {
+    if (!sponsorRecommendation?.showConfirm && answers.spouseSponsoring) {
+      setAnswers((prev) => ({ ...prev, spouseSponsoring: false }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sponsorRecommendation?.showConfirm]);
+
   function toggle(id: string) {
     setChecked((prev) => ({ ...prev, [id]: !prev[id] }));
   }
@@ -161,11 +188,115 @@ export default function CountryChecklistApp({
             <input type="checkbox" checked={answers.married} onChange={(e) => setAnswers({ ...answers, married: e.target.checked })} />
             I&apos;m married
           </label>
+          {/* Spouse/sponsor decision tool (task #319+) — port of index.html's
+              renderSponsorRecommendation(), scoped to just this 3-question advisory tool, not the
+              larger "What to do next" hard-gated report session it originally lived inside
+              (passport-validity + travel-history + finance-readiness synthesis — out of scope for
+              this port). Deliberately advisory only: answers.spouseSponsoring (the flag
+              spouseSponsorFinance's appliesIf actually reads) only changes when the applicant
+              actively ticks the confirm checkbox below, same "don't silently assume" pattern as
+              the rest of this form. */}
           {answers.married && (
-            <label className="ml-6 flex items-center gap-2 text-[#4c6270]">
-              <input type="checkbox" checked={answers.spouseSponsoring} onChange={(e) => setAnswers({ ...answers, spouseSponsoring: e.target.checked })} />
-              My spouse is sponsoring this trip
-            </label>
+            <div className="ml-6 flex flex-col gap-2 rounded-md border border-black/10 bg-[#f7fafb] p-3 text-[#4c6270]">
+              <label className="flex flex-col gap-1">
+                <span className="text-xs font-medium text-[#12232e]">Spouse&apos;s name (optional)</span>
+                <input
+                  type="text"
+                  value={answers.spouseName}
+                  onChange={(e) => setAnswers({ ...answers, spouseName: e.target.value })}
+                  placeholder="Helps personalize the guidance below"
+                  className="rounded border border-black/10 px-2 py-1 text-sm text-[#12232e]"
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-xs font-medium text-[#12232e]">Is your spouse willing to fund this trip?</span>
+                <select
+                  value={answers.spouseWilling}
+                  onChange={(e) => setAnswers({ ...answers, spouseWilling: e.target.value as Answers['spouseWilling'] })}
+                  className="rounded border border-black/10 px-2 py-1 text-sm text-[#12232e]"
+                >
+                  <option value="">Select…</option>
+                  <option value="yes">Yes</option>
+                  <option value="no">No</option>
+                </select>
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-xs font-medium text-[#12232e]">Is your spouse gainfully employed or running a business?</span>
+                <select
+                  value={answers.spouseEmployed}
+                  onChange={(e) => setAnswers({ ...answers, spouseEmployed: e.target.value as Answers['spouseEmployed'] })}
+                  className="rounded border border-black/10 px-2 py-1 text-sm text-[#12232e]"
+                >
+                  <option value="">Select…</option>
+                  <option value="yes">Yes</option>
+                  <option value="no">No / not currently</option>
+                </select>
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-xs font-medium text-[#12232e]">
+                  {noVisaRequired
+                    ? `Has your spouse travelled to ${name} before?`
+                    : `Does your spouse currently hold a ${visaName}, or have they travelled to ${name} before?`}
+                </span>
+                <select
+                  value={answers.spouseUkHistory}
+                  onChange={(e) => setAnswers({ ...answers, spouseUkHistory: e.target.value as Answers['spouseUkHistory'] })}
+                  className="rounded border border-black/10 px-2 py-1 text-sm text-[#12232e]"
+                >
+                  <option value="">Select…</option>
+                  <option value="yes">Yes</option>
+                  <option value="no">No</option>
+                </select>
+              </label>
+
+              {sponsorRecommendation?.kind === 'spouse_history' && (
+                <p className="rounded bg-accent-wash p-2 text-xs text-[#12232e]">
+                  Since {spouseRef}{' '}
+                  {noVisaRequired ? `has already travelled to ${name} before` : `already holds a ${visaName}, or has travelled to ${name} before`}
+                  , one option worth considering: framing this as {spouseRef} taking you along on their next visit. Their
+                  own travel history and proven return to Nigeria can strengthen your ties in a reviewer&apos;s eyes —
+                  make sure this is stated clearly {noVisaRequired ? 'on this checklist' : 'in your application'}, and
+                  that your marriage certificate is included as evidence of the relationship. This is a narrative choice,
+                  not a document requirement change here, so nothing else on this checklist is affected by it.
+                </p>
+              )}
+              {sponsorRecommendation?.kind === 'sponsor_eligible' && (
+                <p className="rounded bg-green-50 p-2 text-xs text-green-800">
+                  Since {spouseRef} is employed and willing, they can act as your financial sponsor instead of you
+                  self-funding. Guidance is consistent on one point: money in an account that isn&apos;t declared as a
+                  sponsor&apos;s is usually disregarded by a caseworker rather than counted in your favour — so this
+                  needs to be stated plainly, not left implicit. If you go this route you&apos;ll need {spouseRef}&apos;s
+                  own bank statements for the last 6 months, plus a signed letter from them explaining your relationship
+                  and confirming they&apos;re funding this trip. Tick the box below if this is the route you want — it
+                  adds that document to your checklist below.
+                </p>
+              )}
+              {sponsorRecommendation?.kind === 'sponsor_weak' && (
+                <p className="rounded bg-warn-wash p-2 text-xs text-warn-text">
+                  Sponsor evidence needs to show genuine, provable income of its own — if {spouseRef} doesn&apos;t
+                  currently have a steady income, their statement alone may not strengthen your case the way it&apos;s
+                  meant to. Worth considering whether combining both your finances (clearly declared as such) makes more
+                  sense, or building up your own evidence instead.
+                </p>
+              )}
+              {sponsorRecommendation?.kind === 'no_sponsor' && (
+                <p className="rounded bg-black/5 p-2 text-xs text-[#4c6270]">
+                  No changes needed — you&apos;ll continue as your own main applicant, funded by your own finances, same
+                  as the rest of this checklist already covers.
+                </p>
+              )}
+
+              {sponsorRecommendation?.showConfirm && (
+                <label className="flex items-center gap-2 text-sm text-[#12232e]">
+                  <input
+                    type="checkbox"
+                    checked={answers.spouseSponsoring}
+                    onChange={(e) => setAnswers({ ...answers, spouseSponsoring: e.target.checked })}
+                  />
+                  Yes — {spouseRef} will sponsor this trip as my financial sponsor
+                </label>
+              )}
+            </div>
           )}
           <label className="flex items-center gap-2">
             <input type="checkbox" checked={answers.hasHost} onChange={(e) => setAnswers({ ...answers, hasHost: e.target.checked })} />

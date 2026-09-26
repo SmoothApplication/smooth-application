@@ -10,6 +10,14 @@ export type Answers = {
   studentSponsor: boolean;
   married: boolean;
   spouseSponsoring: boolean;
+  /** Spouse/sponsor decision tool (task #319+, ported from index.html's rs_spouseWilling/
+   * rs_spouseEmployed/rs_spouseUkHistory + rs_spouseName) — feeds getSponsorRecommendation() in
+   * lib/checklist/sponsor.ts. spouseSponsoring above remains the one flag spouseSponsorFinance's
+   * appliesIf actually reads; these three plus the name are advisory inputs only. */
+  spouseName: string;
+  spouseWilling: '' | 'yes' | 'no';
+  spouseEmployed: '' | 'yes' | 'no';
+  spouseUkHistory: '' | 'yes' | 'no';
   hasHost: boolean;
   hostFunding: boolean;
   hasChild: boolean;
@@ -26,6 +34,10 @@ export const DEFAULT_ANSWERS: Answers = {
   studentSponsor: false,
   married: false,
   spouseSponsoring: false,
+  spouseName: '',
+  spouseWilling: '',
+  spouseEmployed: '',
+  spouseUkHistory: '',
   hasHost: false,
   hostFunding: false,
   hasChild: false,

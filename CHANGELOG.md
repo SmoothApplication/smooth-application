@@ -3,6 +3,47 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Port spouse/sponsor main-applicant decision tool (`web/lib/checklist/sponsor.ts`)
+
+Ported index.html's `renderSponsorRecommendation()` (lines 7431-7473) into the profile-form step
+every country's checklist shares. For a married applicant, "who actually applies, and whose money
+pays for it" is a real, open decision — not something the checklist should silently assume is
+always "you, self-funded". Ticking "I'm married" now expands into the same 3-question tool the
+original used: is the spouse willing to fund the trip, are they gainfully employed, and do they
+already hold a visa for (or have travel history to) the destination — each answer combination
+produces one clear recommendation instead of leaving the applicant to piece it together.
+
+- New `web/lib/checklist/sponsor.ts` (pure, no DOM): `getSponsorRecommendation()` reproduces the
+  original's exact if/else-if branch order and precedence — a spouse with visa/travel history to
+  the destination (`spouse_history`) is checked **first** and wins regardless of the other two
+  answers, then willing+employed (`sponsor_eligible`, the only branch that surfaces a confirm
+  checkbox), then willing-but-unemployed (`sponsor_weak`), then not-willing (`no_sponsor`); returns
+  `null` when nothing conclusive has been answered yet (original: recommendation box left empty).
+  `resolveSpouseRef()` ports the `spouseName.trim() || 'your spouse'` fallback.
+- `web/lib/checklist/__tests__/sponsor.test.ts`: 9 tests covering all four branches, the
+  history-wins-regardless-of-other-answers precedence, both "only one of two questions answered"
+  null cases, and the spouse-name fallback.
+- `web/lib/checklist/uk.ts`'s shared `Answers` type (reused by every country via its `appliesIf`
+  closures — ca.ts/eu.ts/za.ts/gh.ts/ke.ts/et.ts/ma.ts all import it from here) gains
+  `spouseName`/`spouseWilling`/`spouseEmployed`/`spouseUkHistory`. The existing `spouseSponsoring`
+  boolean is unchanged and is still the only field `spouseSponsorFinance`'s `appliesIf` reads —
+  these new fields are advisory inputs that feed the recommendation, not new gating logic.
+- `CountryChecklistApp.tsx`: the old plain "My spouse is sponsoring this trip" checkbox is now the
+  full tool — spouse name (optional) + the three dropdowns + the recommendation text + the confirm
+  checkbox, which only appears at all for `sponsor_eligible`. A `useEffect` un-ticks
+  `spouseSponsoring` automatically if the underlying answers stop supporting that route (e.g.
+  `spouseEmployed` flips back to "no" after ticking), matching the original's own stale-confirmation
+  cleanup rather than leaving a hidden flag driving the document list.
+- `noVisaRequired` (which changes two lines of copy — "have they travelled to X before" vs. "hold a
+  Y visa, or have travelled to X before") is derived from the same `visaName === 'travel readiness'`
+  string the two `page.tsx` route files already pass in for Ghana/Kenya/Morocco, rather than
+  threading a new prop through every route.
+- **Deliberately not ported**: the original embeds this tool inside a much larger, hard-gated "What
+  to do next" report session (`renderNextStepsReport()`) that also synthesizes passport validity,
+  travel-history strength, and finance readiness into one report. That's a separate, substantially
+  bigger feature that wasn't part of this request — only the spouse/sponsor sub-piece is built here.
+- `npx tsc --noEmit` clean; `npx jest` — 229/229 passing across 52 suites (9 new), no regressions.
+
 ## Port "Where are you in the process?" situation gate (`web/lib/situation`, `SituationGate.tsx`)
 
 Ported index.html's `#situationGate` (~line 1806) — a fork shown after the country/consent pick,
