@@ -3,6 +3,46 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Port Business Income Record ledger (`web/lib/statement/business.ts`, `BusinessIncomeLedger.tsx`)
+
+Ported index.html's Business Income Record (`#bizLedgerCard`, ~line 2750; JS ~12387-12631,
+15170-15214) for self-employed applicants. Some genuine business payments never came with a formal
+receipt — a market sale, a walk-in customer, an informal client. Rather than manufacturing
+paperwork that doesn't exist (a false-document risk under UK Home Office rules, up to a 10-year
+re-entry ban), this builds one honest, dated record in the applicant's own words explaining each
+incoming payment on their business statement — meant to be attached **alongside** that statement,
+never in place of it.
+
+- New `web/lib/statement/business.ts` (pure, no DOM): `filterBusinessCredits()` ports the exact
+  original filter (a credit that isn't a reversal and isn't a bank/network charge line), reusing
+  the already-ported `isReversalNarration`/`isNonIncomeChargeNarration`/`inflowKey` rather than
+  duplicating that logic. `bizLedgerEntryIsFilled()`, `countFilledEntries()`,
+  `buildBizLedgerRows()` (the "(not specified)" fallback for anything not yet noted, ported
+  verbatim from the "Build my Business Income Record" click handler), and `countUnspecifiedRows()`.
+- `web/lib/statement/__tests__/business.test.ts`: 11 tests covering the credit filter (genuine
+  payment / debit / reversal / non-income charge / a realistic mixed statement), the
+  both-fields-required fill check, filled-count, and the built-rows fallback + unspecified count
+  (including a whitespace-only-entry edge case).
+- New `web/components/checklist/BusinessIncomeLedger.tsx` + routes
+  `web/app/checklist/uk/business-income/page.tsx` and
+  `web/app/checklist/[country]/business-income/page.tsx` (same UK-dedicated-route-vs-generic-route
+  split as every other per-country sub-page). Its own upload step reuses the exact same parsing
+  engine as the personal statement check (`getLinesFromFile` + `parseStatementLinesWithFallback`)
+  against a **business** statement — same "processed entirely in your browser" privacy framing,
+  same file-then-scan UI as `StatementCheck.tsx`, so it doesn't feel like a different product
+  bolted on. Persists to its own `sa_<code>_bizledger` localStorage key (business name + the parsed
+  credits + the payer/purpose notes), with the same debounce-free "save on every change, once
+  loaded" pattern as `StatementCheck.tsx` — no manual timers.
+  `CountryChecklistApp.tsx`'s header gains a "🧾 Business Income Record" link, shown only when
+  `answers.selfEmployed` is true (derived from `code`, not a new caller-supplied prop, since it's
+  the one header link that's conditional rather than always shown).
+- **Deliberately not ported**: the original bundles this ledger into a larger "business statement
+  analysis" pass — detecting a recurring personal salary/drawing from the business account
+  (`findRecurringPaymentToPerson`) and cross-checking those drawings against the personal
+  statement (index.html ~12398-12550). That's a separate, substantially bigger feature; this pass
+  builds only the ledger itself, matching what was scoped when this feature was picked.
+- `npx tsc --noEmit` clean; `npx jest` — 240/240 passing across 53 suites (11 new), no regressions.
+
 ## Port spouse/sponsor main-applicant decision tool (`web/lib/checklist/sponsor.ts`)
 
 Ported index.html's `renderSponsorRecommendation()` (lines 7431-7473) into the profile-form step

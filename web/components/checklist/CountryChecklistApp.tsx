@@ -389,6 +389,15 @@ export default function CountryChecklistApp({
               📋 My application tracker
             </Link>
           )}
+          {/* Business Income Record (task #319+) — only relevant to a self-employed applicant, so
+              unlike statementHref/passportHref/trackerHref above this isn't a caller-supplied prop:
+              it's derived from `code` (same per-country route shape as statement/passport) and
+              gated on answers.selfEmployed rather than always shown. */}
+          {answers.selfEmployed && (
+            <Link href={`/checklist/${code.toLowerCase()}/business-income`} className="inline-block text-xs text-accent underline">
+              🧾 Business Income Record
+            </Link>
+          )}
         </div>
       </div>
 
