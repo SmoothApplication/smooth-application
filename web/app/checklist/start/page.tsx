@@ -30,11 +30,16 @@ export default function ChecklistStartPage() {
     // /checklist/[country] route (registry in lib/checklist/registry.ts). AU/CN/US aren't
     // selectable here (COUNTRIES marks them ready:false), so this else-branch is unreachable for
     // them, but /checklist?country=CODE stays as a safety-net fallback for any future addition.
+    //
+    // Ported situation gate (task #312+): every ready country now routes through its own
+    // /situation page first (index.html's #situationGate, shown after the consent gate and before
+    // the checklist) rather than straight to the checklist — see
+    // components/checklist/SituationGate.tsx.
     const readyPorted = ['UK', 'CA', 'EU', 'ZA', 'GH', 'KE', 'ET', 'MA'];
     if (country.code === 'UK') {
-      router.push('/checklist/uk');
+      router.push('/checklist/uk/situation');
     } else if (readyPorted.includes(country.code)) {
-      router.push(`/checklist/${country.code.toLowerCase()}`);
+      router.push(`/checklist/${country.code.toLowerCase()}/situation`);
     } else {
       router.push(`/checklist?country=${country.code}`);
     }

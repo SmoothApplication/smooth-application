@@ -3,6 +3,59 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Port "Where are you in the process?" situation gate (`web/lib/situation`, `SituationGate.tsx`)
+
+Ported index.html's `#situationGate` (~line 1806) — a fork shown after the country/consent pick,
+before the checklist itself, since an applicant who already has a refusal, or who's already paid
+the fee and filled the form, needs a different conversation than a fresh applicant. Every path
+still has a "Continue to my checklist anyway" escape hatch.
+
+- New `web/lib/situation/types.ts` + `routing.ts` (pure logic, no DOM/OCR):
+  `FINANCIAL_REFUSAL_KEYWORDS`/`refusalTextLooksFinancial`, `parseRefusalDateFromText` (wordy
+  day-first, US month-first, and plain numeric date formats, biased toward the first 1200 chars
+  where a letter's decision date normally sits), `refusalMonthsBetween`, `computeRefusalRouting`,
+  `refusalSuggestionText` — all ported verbatim from the routing block at index.html ~line
+  16344-16427, including `RECENT_REFUSAL_MONTHS = 6` and the fail-safe-toward-`finance2` behavior
+  when no date is available.
+- **The routing decision is driven only by the applicant's own two answers** (when they were
+  refused, and whether their own reading of the letter was mainly about finances) — never by this
+  app's automated reading of the letter. This mirrors a deliberate redesign in the original app
+  (see its own block comment above `#situationRefusedUpload`): OISC/RCIC "immigration advice" rules
+  turn on whether advice is tailored to one person's specific case, not on how carefully it's
+  hedged, so classifying a letter's content and picking a next step from it would cross that line
+  no matter the wording. OCR here does exactly one thing — extract the letter's text and show it
+  back, unmodified, the way a friend with good English might read it aloud.
+- New `web/lib/situation/extractLetterText.ts` (client-only): dispatches a PDF to
+  `lib/statement/extractFile`'s `getLinesFromPdf` (text-layer only, no OCR fallback — matches
+  index.html's own `scanRefusalLetterText`, since a refusal letter is virtually always a
+  text-layer PDF or a plain photo) and an image to `lib/passport/extractText`'s
+  `getImageFromFile`/`preprocessImageForOcr`/`recognizeText` (the same Tesseract.js pipeline the
+  passport scan already uses) — reusing both rather than standing up a third OCR/pdf.js wiring in
+  this codebase.
+- `web/lib/situation/__tests__/routing.test.ts`: 21 tests, ported from the original's own
+  `window.__testXxx` test hooks — keyword matching, all three date formats plus the
+  first-1200-chars/whole-document fallback, the recent/old boundary (`>`, not `>=`,
+  `RECENT_REFUSAL_MONTHS`), the null-date fail-safe, and both suggestion-text branches.
+- New `components/checklist/SituationGate.tsx`: the fresh/refused/paid option cards; the refused
+  follow-up (optional letter upload → extracted text shown as plain text → manual date + financial
+  dropdown → "Use this" → a suggestion banner with "Take me there" and "See my full checklist
+  instead" → the country/count/reason/balance fields building a WhatsApp/email message, exactly
+  as before); the paid follow-up (the same Document Review WhatsApp/email offer). "Take me there"
+  routes to the bank-statement analysis page for a `finance2` target (index.html's "finance2"
+  session **is** Income & bank statement analysis, not the financial calculator — checked against
+  `sessionLabel('finance2')` in index.html before wiring this) or the passport-scan page for
+  `restart`.
+- New routes `web/app/checklist/uk/situation/page.tsx` and
+  `web/app/checklist/[country]/situation/page.tsx` (same UK-dedicated-route-vs-generic-route split
+  as every other per-country sub-page in this app). `web/app/checklist/start/page.tsx` now routes
+  through `/situation` first instead of straight to the checklist.
+- Not ported: the original's separate South Africa onboarding screen that used to sit between the
+  consent gate and the situation gate (`#zaOnboardingGate`) — that screen was never ported to this
+  Next.js app in the first place (confirmed via search before this change), so South Africa's flow
+  here is unchanged: consent gate → situation gate → checklist, same as every other country.
+
+`npx tsc --noEmit` clean; `npx jest` — 219/219 passing across 51 suites (21 new), no regressions.
+
 ## Fix duplicate tracker entries from retyping the same program (`web/lib/tracker`, `TrackerCard.tsx`)
 
 Live-usage bug: a user's tracker ended up with both "harvard scholarships" and "Harvard
