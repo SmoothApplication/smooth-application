@@ -11,6 +11,7 @@ import {
   parseRefusalDateFromText,
 } from '@/lib/situation';
 import { extractLetterText } from '@/lib/situation/extractLetterText';
+import { trackEvent } from '@/lib/analytics';
 
 // Port of index.html's "Where are you in the process?" gate (#situationGate, ~line 1806) — shown
 // after the country/consent pick, before the checklist itself. Field/founder idea: an applicant
@@ -77,6 +78,7 @@ export default function SituationGate({
 
   function selectKind(next: SituationKind) {
     setKind(next);
+    trackEvent('situation_selected:' + next);
   }
 
   async function handleScanLetter() {
@@ -386,13 +388,34 @@ export default function SituationGate({
         </div>
       )}
 
-      {kind && (
+      {/* Follow-up selection "Fix the docs-gate drop-off": the funnel recheck found this app has no
+          direct equivalent of index.html's old docs-gate step, but this gate plays the same
+          structural role — a required screen between the country/consent pick and the real
+          checklist that every applicant must pass through. It previously rendered NO continue
+          affordance at all until one of the three options above was picked, with nothing telling
+          the applicant that picking one is what unlocks it — a silent dead end for anyone who
+          didn't realize the cards above were clickable requirements, not just descriptive text.
+          Now it always renders (matching /checklist/start's own disabled-button-plus-hint pattern
+          just one screen earlier in this same flow), so there's always a visible next step. */}
+      {kind ? (
         <Link
           href={checklistHref}
+          onClick={() => trackEvent('situation_continue')}
           className="w-full rounded-lg bg-accent px-4 py-3 text-center font-semibold text-white hover:opacity-90"
         >
           {kind === 'fresh' ? 'Continue to my checklist →' : 'Continue to my checklist anyway →'}
         </Link>
+      ) : (
+        <div>
+          <button
+            type="button"
+            disabled
+            className="w-full cursor-not-allowed rounded-lg bg-accent px-4 py-3 text-center font-semibold text-white opacity-40"
+          >
+            Continue to my checklist →
+          </button>
+          <p className="mt-2 text-center text-xs text-[#566a76]">Pick one of the options above to continue.</p>
+        </div>
       )}
       <Link href="/checklist/start" className="text-center text-xs text-accent underline">
         ← Back

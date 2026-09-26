@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { COUNTRIES } from '@/lib/checklist/countries';
+import { trackEvent } from '@/lib/analytics';
 
 // Phase 1 port of index.html's #consentGate — country picker + guidance-only disclaimer + consent
 // checkbox. Selection is kept in this browser only (localStorage), same as index.html: nothing
@@ -20,6 +21,7 @@ export default function ChecklistStartPage() {
 
   function handleContinue() {
     if (!canContinue || !country) return;
+    trackEvent('session_started:' + country.code);
     try {
       localStorage.setItem('sa_country', country.code);
     } catch {

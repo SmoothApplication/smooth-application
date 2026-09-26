@@ -3,6 +3,54 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Funnel-analytics recheck follow-ups: analytics wired in, two friction points fixed (`analytics.ts`, `SituationGate.tsx`, `CountryChecklistApp.tsx`, `StatementCheck.tsx`, `quiz/page.tsx`, `checklist/start/page.tsx`)
+
+A GoatCounter funnel recheck this session turned up a hard scoping fact first: GoatCounter has only
+ever been wired into the legacy `index.html`/GitHub Pages site, never into this Next.js app — zero
+files under `web/` referenced it. That means every feature shipped this session (name-tally checks,
+narration decoder, work-payment categorization, OCR statement support, etc.) had no real-usage data
+behind it, and the ~1,700-visit sample the recheck pulled was 100% old-site traffic. Three follow-ups
+came out of that recheck:
+
+- **Analytics wired into the new app** (`lib/analytics.ts`, new file) — ports index.html's own
+  GoatCounter block (site code, lazy script load, privacy design: anonymous aggregate event NAMES
+  only, never a filename/document/typed answer). Deliberately reuses the SAME GoatCounter account
+  (`smoothapplication`) rather than asking for a second signup, with every event prefixed `app:` so a
+  future check can tell this app's traffic apart from the legacy site's identically-named events on
+  the same dashboard. Wired into: quiz start/skip/completed (`app/quiz/page.tsx`), the country+consent
+  gate's `session_started:<CODE>` (`app/checklist/start/page.tsx`), the situation gate's
+  `situation_selected:<kind>`/`situation_continue` (`SituationGate.tsx`), `checklist_view` and every
+  header side-link's `session_view:<key>` (`CountryChecklistApp.tsx`), and
+  `statement_analysis:attempted`/`:completed` (`StatementCheck.tsx`).
+- **Docs-gate-equivalent friction fix** (`SituationGate.tsx`) — the recheck's single biggest number
+  was ~49% of UK session starts never continuing past index.html's old docs-gate step. This app has
+  no literal docs-gate page (the port simplified that step away), but `SituationGate` plays the same
+  structural role: a required screen between the country/consent pick and the real checklist. Reading
+  it turned up a concrete, independently-justified bug: it rendered **no continue affordance
+  whatsoever** until one of its three "Where are you in the process?" options was clicked, with
+  nothing on screen telling the applicant that picking one is what unlocks it — a silent dead end for
+  anyone who didn't realize the cards were clickable requirements rather than descriptive text. Fixed
+  by always rendering a Continue control (disabled + a "Pick one of the options above to continue"
+  hint before a choice is made), matching the exact disabled-button-plus-hint pattern
+  `/checklist/start` already uses one screen earlier in this same flow.
+- **finance2-to-upload gap fix** (`CountryChecklistApp.tsx`) — the recheck's second-biggest number was
+  the income/bank-statement session being the most-viewed session (66 views) but only ~half of
+  viewers ever attempting a statement upload. Once mapped onto this app's actual structure (which has
+  no unified "session" concept — each feature is its own route), the likely cause was visible in the
+  code: "🏦 Bank statement check" was one of 7 identically-styled plain text links in a thin header
+  row, no more prominent than "📋 My application tracker". Promoted "Financial readiness calculator"
+  and "Bank statement check" into their own highlighted card ("💰 Start with your financial evidence
+  — income and bank statements are the single most common reason for refusal") styled as real
+  buttons, echoing the same finance-first priority index.html's own history already established
+  (task #236, "Actually reorder finance2 to first session") — this time as visual weight rather than
+  document order, since this app has no document order to reorder.
+- Every number above is still the OLD site's traffic. None of this can be confirmed against real
+  usage of THIS app until enough traffic accumulates under the new `app:`-prefixed events — that's
+  the whole point of the first bullet.
+- No new tests: this batch is UI wiring + analytics side effects (a thin DOM/script wrapper, same as
+  index.html's own analytics block, which was likewise never unit tested) rather than new pure logic.
+  Full suite re-run clean: 60 suites / 342 tests, 0 regressions, same count as before this batch.
+
 ## Scanned/photographed statement support (`extractFile.ts`, `columns.ts`, `StatementCheck.tsx`)
 
 The bank-statement check previously only accepted a genuine text-layer PDF or an Excel/CSV export —

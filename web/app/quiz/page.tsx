@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Answers, DEFAULT_ANSWERS } from '@/lib/checklist/uk';
 import { QuizAnswers, computeQuizSignals } from '@/lib/quiz-signals';
+import { trackEvent } from '@/lib/analytics';
 
 // Phase 4d of task #244: a scoped port of index.html's pre-checklist "confidence quiz" — a
 // short, low-commitment set of questions before the country picker, meant to give a directional
@@ -76,12 +77,19 @@ export default function ConfidenceQuizPage() {
           </p>
           <button
             type="button"
-            onClick={() => setStarted(true)}
+            onClick={() => {
+              trackEvent('quiz_start');
+              setStarted(true);
+            }}
             className="mt-5 w-full rounded-lg bg-accent px-4 py-3 font-semibold text-white hover:opacity-90"
           >
             Start the quiz
           </button>
-          <Link href="/checklist/start" className="mt-3 block text-center text-xs text-accent underline">
+          <Link
+            href="/checklist/start"
+            onClick={() => trackEvent('quiz_skip')}
+            className="mt-3 block text-center text-xs text-accent underline"
+          >
             Skip — go straight to the checklist
           </Link>
         </div>
@@ -192,7 +200,10 @@ export default function ConfidenceQuizPage() {
 
       <button
         type="button"
-        onClick={() => setDone(true)}
+        onClick={() => {
+          trackEvent('quiz_completed');
+          setDone(true);
+        }}
         className="w-full rounded-lg bg-accent px-4 py-3 font-semibold text-white hover:opacity-90"
       >
         See my result

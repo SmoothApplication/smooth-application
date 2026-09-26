@@ -11,6 +11,7 @@ import {
 } from '@/lib/checklist/uk';
 import { ALL_CHECKLISTS } from '@/lib/checklist/all';
 import { getSponsorRecommendation, resolveSpouseRef } from '@/lib/checklist/sponsor';
+import { trackEvent } from '@/lib/analytics';
 
 // Phase 4b of task #244: the shared checklist app UI, factored out of the UK-only
 // web/app/checklist/uk/page.tsx (Phase 2) so the same profile-form + categorized-document-list
@@ -343,7 +344,10 @@ export default function CountryChecklistApp({
 
         <button
           type="button"
-          onClick={() => setView('checklist')}
+          onClick={() => {
+            trackEvent('checklist_view');
+            setView('checklist');
+          }}
           className="w-full rounded-lg bg-accent px-4 py-3 font-semibold text-white hover:opacity-90"
         >
           Show my checklist
@@ -367,25 +371,63 @@ export default function CountryChecklistApp({
         <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-black/10">
           <div className="h-full rounded-full bg-accent transition-all" style={{ width: `${percent}%` }} />
         </div>
-        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
-          <Link href={financialHref} className="inline-block text-xs text-accent underline">
-            💰 Financial readiness calculator
-          </Link>
-          {statementHref && (
-            <Link href={statementHref} className="inline-block text-xs text-accent underline">
-              🏦 Bank statement check
+        {/* Follow-up selection "Fix the finance2-to-upload gap": the funnel recheck found the
+            income/bank-statement session was this app's single most-viewed session, but only
+            about half of viewers ever went on to attempt a statement upload. The most likely
+            cause, once wired into the actual page: "Bank statement check" was just one of 7
+            identically-styled plain text links below, competing for attention with Passport scan,
+            Reasons, the Tracker, etc. — no visual signal that financial evidence is the single
+            most common reason for refusal (the same reason index.html's own history reordered
+            this session to be first, see task #236). Promoting it into its own highlighted card,
+            styled as real buttons, gives it the visual priority its content already deserves. */}
+        <div className="mt-3 rounded-xl border border-accent/30 bg-accent-wash p-3">
+          <p className="text-sm font-semibold text-[#12232e]">💰 Start with your financial evidence</p>
+          <p className="mt-0.5 text-xs text-[#4c6270]">
+            Income and bank statements are the single most common reason for refusal — worth checking first.
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <Link
+              href={financialHref}
+              onClick={() => trackEvent('session_view:financial')}
+              className="rounded-md bg-accent px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90"
+            >
+              💰 Financial readiness calculator
             </Link>
-          )}
+            {statementHref && (
+              <Link
+                href={statementHref}
+                onClick={() => trackEvent('session_view:statement')}
+                className="rounded-md bg-accent px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90"
+              >
+                🏦 Bank statement check
+              </Link>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
           {passportHref && (
-            <Link href={passportHref} className="inline-block text-xs text-accent underline">
+            <Link
+              href={passportHref}
+              onClick={() => trackEvent('session_view:passport')}
+              className="inline-block text-xs text-accent underline"
+            >
               🛂 Passport scan
             </Link>
           )}
-          <Link href={reasonsHref} className="inline-block text-xs text-accent underline">
+          <Link
+            href={reasonsHref}
+            onClick={() => trackEvent('session_view:reasons')}
+            className="inline-block text-xs text-accent underline"
+          >
             📖 Why these documents
           </Link>
           {trackerHref && (
-            <Link href={trackerHref} className="inline-block text-xs text-accent underline">
+            <Link
+              href={trackerHref}
+              onClick={() => trackEvent('session_view:tracker')}
+              className="inline-block text-xs text-accent underline"
+            >
               📋 My application tracker
             </Link>
           )}
@@ -394,19 +436,31 @@ export default function CountryChecklistApp({
               it's derived from `code` (same per-country route shape as statement/passport) and
               gated on answers.selfEmployed rather than always shown. */}
           {answers.selfEmployed && (
-            <Link href={`/checklist/${code.toLowerCase()}/business-income`} className="inline-block text-xs text-accent underline">
+            <Link
+              href={`/checklist/${code.toLowerCase()}/business-income`}
+              onClick={() => trackEvent('session_view:business-income')}
+              className="inline-block text-xs text-accent underline"
+            >
               🧾 Business Income Record
             </Link>
           )}
           {/* Travel Experience (task #319+ "Build travel history first, then the full report") —
               always shown, same per-country route shape as the other side pages above. */}
-          <Link href={`/checklist/${code.toLowerCase()}/travel-history`} className="inline-block text-xs text-accent underline">
+          <Link
+            href={`/checklist/${code.toLowerCase()}/travel-history`}
+            onClick={() => trackEvent('session_view:travel-history')}
+            className="inline-block text-xs text-accent underline"
+          >
             🌍 Travel Experience
           </Link>
           {/* "What to do next" report (task #319+ selection "'What to do next' report") — reads
               passport/travel-history/finance data saved elsewhere, so it's safe to reach any time,
               unlike the original's hard-gated version. */}
-          <Link href={`/checklist/${code.toLowerCase()}/next-steps`} className="inline-block text-xs text-accent underline">
+          <Link
+            href={`/checklist/${code.toLowerCase()}/next-steps`}
+            onClick={() => trackEvent('session_view:next-steps')}
+            className="inline-block text-xs text-accent underline"
+          >
             📋 What to do next
           </Link>
         </div>

@@ -16,6 +16,7 @@ import {
 import StatementDashboard from '@/components/checklist/StatementDashboard';
 import ResumeReminderLinks from '@/components/checklist/ResumeReminderLinks';
 import { COUNTRIES } from '@/lib/checklist/countries';
+import { trackEvent } from '@/lib/analytics';
 
 // Generalized out of the original UK-only web/app/checklist/uk/statement/page.tsx (Phase 4 of
 // task #244) so the same bank-statement check (StatementUpload + StatementDashboard, wired
@@ -206,6 +207,7 @@ export default function StatementCheck({ countryCode }: StatementCheckProps) {
 
   async function handleAnalyze() {
     if (!file) return;
+    trackEvent('statement_analysis:attempted');
     setUploading(true);
     setError(null);
     try {
@@ -227,6 +229,7 @@ export default function StatementCheck({ countryCode }: StatementCheckProps) {
       const fullStatementText = lines.map((l) => l.text || '').join(' ');
       setDetectedHolderName(extractAccountHolderName(fullStatementText));
       setRecalled(false);
+      trackEvent('statement_analysis:completed');
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setError(
