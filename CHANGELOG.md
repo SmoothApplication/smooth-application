@@ -3,6 +3,55 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Port the "What to do next" report (`web/lib/checklist/nextSteps.ts`, `NextStepsReport.tsx`)
+
+Ported index.html's "What to do next" report — `renderNextStepsReport(a)`, ~line 7483-7592 — task
+#319+ selection "'What to do next' report". This was the original goal of the last few batches:
+passport validity, travel history, and finance readiness, already tracked separately across this
+app, synthesized into one page with a time-to-travel prioritized breakdown and an overall verdict.
+
+- New `web/lib/checklist/nextSteps.ts` (pure, no DOM): `computePassportSection()`,
+  `computeTravelHistorySection()`, `computeFinanceSection()`, `computeTimeToTravel()`, and
+  `computeOverallVerdict()` each port their corresponding block of `renderNextStepsReport()`
+  faithfully, assembled by `buildNextStepsReport()`.
+- `web/lib/checklist/__tests__/nextSteps.test.ts`: 33 tests covering every branch of all five
+  functions plus three end-to-end `buildNextStepsReport()` scenarios (empty applicant, fully strong
+  applicant, mixed results).
+- New `web/components/checklist/NextStepsReport.tsx` + routes
+  `web/app/checklist/uk/next-steps/page.tsx` and `web/app/checklist/[country]/next-steps/page.tsx`
+  (same UK-dedicated-route-vs-generic-route split as every other per-country sub-page). Reads the
+  three already-saved localStorage records (`sa_<code>_passport`, `sa_<code>_financial`,
+  `sa_<code>_travelhistory`) and renders each section color-coded (ok/warn/info), the time-to-travel
+  breakdown when a travel date is within the original's 0-100 day window, and the overall verdict.
+  Wired into `CountryChecklistApp.tsx`'s header alongside the other side-page links.
+- **Deliberate simplification, disclosed up front**: `computeFinancials()`
+  (`lib/checklist/financial.ts`) doesn't carry the DOM-pill good/warning/critical/neutral vocabulary
+  the original reads via `readinessStatusFromPill()`, nor the unexplained-inflow count that
+  vocabulary itself depends on (`window.__lastUnexplainedInflows`, a bank-statement-scan-derived
+  signal with no equivalent in `FinancialResult`). `computeFinanceReadiness()` in `nextSteps.ts`
+  derives a 3-state proxy (missing/needs_review/looks_complete) from `FinancialResult` alone instead
+  — a "Weak - below the floor" balance and a "Needs attention - below 2x buffer" balance both just
+  read as "needs review" here, and income drops the unexplained-inflow half of the original's score
+  entirely. It's built to be honest rather than lenient: it only ever says `looks_complete` when the
+  original's own arithmetic would agree.
+- **Deliberate divergence, in the other direction**: the passport section does NOT reuse the
+  already-shipped `lib/passport/validity.ts`'s `getPassportValidityStatus()`, because that function
+  deliberately checks 6 months from *today* (it runs from the passport-scan page alone, with no
+  guaranteed travel date — see its own header comment). This report has a travel date on hand
+  whenever the financial calculator's been filled in, and the original's own report specifically
+  grades against 6 months from the *travel date* (falling back to today only when none exists yet)
+  — so `computePassportSection()` ports that exact travel-date-aware logic fresh, rather than
+  reusing the today-only checker and losing that distinction.
+- **Deliberate simplification**: `c.authority`/`c.statementsMonthsText` (index.html's per-country
+  strings, e.g. "UKVI"/"6 months") aren't part of this port's `COUNTRIES` data — same gap already
+  disclosed for the spouse/sponsor tool. This report hardcodes "the visa authority" / "6 months"
+  rather than adding country-specific copy nobody asked for yet.
+- **Deliberate adaptation**: the original hard-gates this report behind completing every earlier
+  session in sequence. This Next app has no sequential session lock (removed early in this port), so
+  the report is reachable any time from the header — each section already handles "not entered yet"
+  gracefully, so nothing breaks if the applicant opens this first.
+- `npx tsc --noEmit` clean; `npx jest` — 301/301 passing across 56 suites (33 new), no regressions.
+
 ## Port Travel Experience / travel history (`web/lib/checklist/travelHistory.ts`, `TravelHistory.tsx`)
 
 Ported index.html's "Travel Experience" session (`#travelExperience`, ~line 2056-2133; JS

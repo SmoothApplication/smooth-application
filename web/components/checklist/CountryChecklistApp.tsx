@@ -403,6 +403,12 @@ export default function CountryChecklistApp({
           <Link href={`/checklist/${code.toLowerCase()}/travel-history`} className="inline-block text-xs text-accent underline">
             🌍 Travel Experience
           </Link>
+          {/* "What to do next" report (task #319+ selection "'What to do next' report") — reads
+              passport/travel-history/finance data saved elsewhere, so it's safe to reach any time,
+              unlike the original's hard-gated version. */}
+          <Link href={`/checklist/${code.toLowerCase()}/next-steps`} className="inline-block text-xs text-accent underline">
+            📋 What to do next
+          </Link>
         </div>
       </div>
 
