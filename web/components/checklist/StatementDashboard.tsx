@@ -9,6 +9,8 @@ import {
   buildIncomeSourceBreakdown,
   getTopConsistentSenders,
   findUnexplainedLargeInflows,
+  buildPersonalNameTallyMessage,
+  SpouseSponsorDeclaration,
 } from '@/lib/statement';
 
 // Phase 3 of the bank-statement port (see lib/statement/index.ts for Phase 1, StatementUpload.tsx +
@@ -82,12 +84,20 @@ interface StatementDashboardProps {
   onApplicantNameChange?: (name: string) => void;
   onMaidenNameChange?: (name: string) => void;
   onNameCorrectionsChange?: (corrections: Record<string, string>) => void;
+  /** The account-holder name detected on this statement's own header at scan time (owned/persisted
+   * by StatementCheck.tsx, read-only here) and the applicant's declared marital/spouse-sponsor
+   * status (read-only from the checklist's own answers) — together drive the name-tally check. See
+   * lib/statement/personalNameTally.ts. Both optional so the standalone dev page keeps working. */
+  detectedHolderName?: string | null;
+  spouse?: SpouseSponsorDeclaration;
   /** Link to the Report tab's "Financial readiness calculator" cross-reference (see ReportTab
    * below). Defaults to the UK's route so the standalone /checklist/statement-test dev page
    * (StatementUpload.tsx, which doesn't pass this) keeps working unchanged; every real checklist
    * route passes its own country's href via StatementCheck.tsx. */
   financialHref?: string;
 }
+
+const DEFAULT_SPOUSE: SpouseSponsorDeclaration = { married: false, spouseSponsoring: false, spouseName: '' };
 
 export default function StatementDashboard({
   txns,
@@ -97,6 +107,8 @@ export default function StatementDashboard({
   onApplicantNameChange,
   onMaidenNameChange,
   onNameCorrectionsChange,
+  detectedHolderName = null,
+  spouse = DEFAULT_SPOUSE,
   financialHref = '/checklist/uk/financial',
 }: StatementDashboardProps) {
   const [applicantName, setApplicantName] = useState(initialApplicantName);
@@ -145,6 +157,14 @@ export default function StatementDashboard({
   );
 
   const unexplainedInflows = useMemo(() => findUnexplainedLargeInflows(txns), [txns]);
+
+  // Recomputed reactively so typing/correcting the applicant's name after the scan (the normal
+  // order of operations here) still triggers the comparison — same idea as the business ledger's
+  // own name-tally check, just with the personal-statement wording/spouse-sponsor exception.
+  const nameTallyMessage = useMemo(
+    () => buildPersonalNameTallyMessage(applicantName, detectedHolderName, spouse),
+    [applicantName, detectedHolderName, spouse]
+  );
 
   function displayName(rawName: string): string {
     const corrected = nameCorrections[rawName];
@@ -205,6 +225,16 @@ export default function StatementDashboard({
           <p className="mt-1 text-xs text-[#566a76]">
             Used to tell your own name apart from senders.
           </p>
+          {nameTallyMessage && (
+            <div
+              className={`mt-2 rounded-lg p-3 text-sm ${
+                nameTallyMessage.status === 'ok' ? 'bg-good-wash text-good' : 'bg-warn-wash text-warn-text'
+              }`}
+            >
+              {nameTallyMessage.status === 'ok' ? '✅ ' : '⚠️ '}
+              {nameTallyMessage.message}
+            </div>
+          )}
         </div>
         <div>
           <label className="mb-1 block text-xs font-medium text-[#566a76]" htmlFor="statement-maiden-name">

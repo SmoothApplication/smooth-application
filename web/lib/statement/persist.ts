@@ -26,6 +26,10 @@ export interface PersistedStatement {
   applicantName: string;
   maidenName: string;
   nameCorrections: Record<string, string>;
+  /** Added for the personal-statement name-tally check (see personalNameTally.ts): the account-
+   * holder name detected on this statement's own header at scan time, null if none was found.
+   * Optional so a payload saved before this feature existed still loads fine. */
+  detectedHolderName?: string | null;
 }
 
 export function serializeTxns(txns: ParsedTxn[]): PersistedTxn[] {

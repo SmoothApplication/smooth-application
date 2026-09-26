@@ -3,6 +3,39 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Personal-statement name-tally check (`personalNameTally.ts`, `StatementCheck.tsx`/`StatementDashboard.tsx`)
+
+Follow-up selection "Personal-statement name-tally check" — extends the name-tally idea just
+shipped for the business statement to the PERSONAL bank statement: index.html's own
+account-holder-name-vs-applicant-name check (~line 14811-14842), including its declared-spouse-
+sponsor exception.
+
+- New `web/lib/statement/personalNameTally.ts`: `buildPersonalNameTallyMessage(declaredName,
+  detectedHolderName, spouse)`. Reuses `namesLooselyMatch`/`extractAccountHolderName` from
+  `names.ts` (same primitives as the business version), but with its own wording and one extra
+  branch the business ledger has no equivalent of: a married applicant who's declared their spouse
+  as sponsor (`married && spouseSponsoring && spouseName`) is the one case where a mismatched
+  account holder is *expected*, not a red flag — confirmed as "looks right" (with a reminder to
+  attach the spouse's signed sponsor letter) rather than warned. A genuine mismatch otherwise points
+  the applicant toward sponsor documentation, since a third-party statement is a real, valid path
+  here via a sponsor letter — unlike the business ledger, where there's no equivalent "someone
+  else's" path for a business name.
+- Same deliberate scope note as the business version, disclosed again here since it's a separate
+  decision point: excludes the original's coarser "does the applicant's name appear anywhere in the
+  statement text" fallback for when no account-holder header is detected. This app never persists
+  raw statement text, and the applicant's name field can be edited after scanning just like the
+  business ledger's "Business name" field — reproducing the fallback would mean keeping raw text
+  around specifically to make that later re-check possible.
+- `StatementCheck.tsx` now also extracts the account-holder name from the scanned lines at scan
+  time (persisted as `detectedHolderName` in `sa_<code>_statement`, backward-compatible with older
+  saved payloads) and reads `married`/`spouseSponsoring`/`spouseName` read-only from the checklist's
+  own `sa_<code>_answers`. `StatementDashboard.tsx` computes the tally message reactively (so
+  correcting the typed name after scanning still catches a mismatch) and renders it directly under
+  the "Applicant's full name" field.
+- `web/lib/statement/__tests__/personalNameTally.test.ts`: 8 tests covering the match/mismatch/
+  partial/no-data branches plus all three spouse-sponsor-declaration permutations.
+- `npx tsc --noEmit` clean; `npx jest` — 328/328 passing across 58 suites (8 new), no regressions.
+
 ## Wire Travel History into the Reasons tab (`ReasonsView.tsx`)
 
 Follow-up selection "Wire travel history into the Reasons tab" — the one piece of the Travel

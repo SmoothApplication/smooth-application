@@ -9,6 +9,8 @@ import {
   serializeTxns,
   deserializeTxns,
   PersistedStatement,
+  extractAccountHolderName,
+  SpouseSponsorDeclaration,
 } from '@/lib/statement';
 import StatementDashboard from '@/components/checklist/StatementDashboard';
 import ResumeReminderLinks from '@/components/checklist/ResumeReminderLinks';
@@ -26,6 +28,13 @@ import { COUNTRIES } from '@/lib/checklist/countries';
 // plain-data reduction of the parsed transactions (see lib/statement/persist.ts) plus the applicant
 // name / maiden name / "Fix name" corrections - all under one localStorage key,
 // sa_<countryCode>_statement. No raw file bytes and no original file are ever stored.
+//
+// Follow-up selection "Personal-statement name-tally check": also extracts and persists just the
+// detected account-holder NAME (not the raw text it was found in) at scan time — see
+// lib/statement/personalNameTally.ts for the matching/messaging logic and its own note on why the
+// original's coarser text-search fallback is deliberately not reproduced here (same reasoning as
+// the business-statement version). married/spouseSponsoring/spouseName are read read-only from the
+// checklist's own answers key (sa_<countryCode>_answers) for the declared-spouse-sponsor exception.
 //
 // Only a plain string (`countryCode`) crosses the Server -> Client boundary from the page files
 // that render this component — see the comment at the top of lib/checklist/all.ts for why a
@@ -65,6 +74,12 @@ export default function StatementCheck({ countryCode }: StatementCheckProps) {
   const [applicantName, setApplicantName] = useState('');
   const [maidenName, setMaidenName] = useState('');
   const [nameCorrections, setNameCorrections] = useState<Record<string, string>>({});
+  const [detectedHolderName, setDetectedHolderName] = useState<string | null>(null);
+  const [spouse, setSpouse] = useState<SpouseSponsorDeclaration>({
+    married: false,
+    spouseSponsoring: false,
+    spouseName: '',
+  });
 
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -80,11 +95,29 @@ export default function StatementCheck({ countryCode }: StatementCheckProps) {
       setApplicantName(saved.applicantName || '');
       setMaidenName(saved.maidenName || '');
       setNameCorrections(saved.nameCorrections || {});
+      setDetectedHolderName(saved.detectedHolderName ?? null);
       setRecalled(true);
     }
+
+    // Read-only, same pattern as ReasonsView's own Travel History read: the checklist's own answers
+    // key owns married/spouseSponsoring/spouseName, this component just reads them.
+    try {
+      const raw = localStorage.getItem(`sa_${lowerCode}_answers`);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        setSpouse({
+          married: !!parsed?.married,
+          spouseSponsoring: !!parsed?.spouseSponsoring,
+          spouseName: parsed?.spouseName || '',
+        });
+      }
+    } catch {
+      /* nothing saved yet */
+    }
+
     setLoaded(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storageKey]);
+  }, [storageKey, lowerCode]);
 
   // Save on every change, once loaded - same debounce-free pattern as
   // web/components/checklist/FinancialCalculator.tsx. Only saves once there's a parsed statement
@@ -97,12 +130,13 @@ export default function StatementCheck({ countryCode }: StatementCheckProps) {
         applicantName,
         maidenName,
         nameCorrections,
+        detectedHolderName,
       };
       localStorage.setItem(storageKey, JSON.stringify(payload));
     } catch {
       /* ignore */
     }
-  }, [loaded, txns, applicantName, maidenName, nameCorrections, storageKey]);
+  }, [loaded, txns, applicantName, maidenName, nameCorrections, detectedHolderName, storageKey]);
 
   function clearSaved() {
     try {
@@ -114,6 +148,7 @@ export default function StatementCheck({ countryCode }: StatementCheckProps) {
     setApplicantName('');
     setMaidenName('');
     setNameCorrections({});
+    setDetectedHolderName(null);
     setRecalled(false);
     setFile(null);
     setError(null);
@@ -139,6 +174,8 @@ export default function StatementCheck({ countryCode }: StatementCheckProps) {
         return;
       }
       setTxns(result);
+      const fullStatementText = lines.map((l) => l.text || '').join(' ');
+      setDetectedHolderName(extractAccountHolderName(fullStatementText));
       setRecalled(false);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -246,6 +283,8 @@ export default function StatementCheck({ countryCode }: StatementCheckProps) {
         onApplicantNameChange={setApplicantName}
         onMaidenNameChange={setMaidenName}
         onNameCorrectionsChange={setNameCorrections}
+        detectedHolderName={detectedHolderName}
+        spouse={spouse}
         financialHref={financialHref}
       />
 
