@@ -212,7 +212,7 @@ export default function StatementCheck({ countryCode }: StatementCheckProps) {
       const lines = await getLinesFromFile(file);
       if (!lines.length) {
         setError(
-          "We couldn't find any readable text in that file. If it's a scanned or photographed statement, this quick check doesn't support those yet — a regular PDF or spreadsheet export from your bank works best."
+          "We tried reading that file — including on-device OCR for a scanned or photographed statement — but couldn't make out any readable text in it. Try a clearer photo/scan (good lighting, holding it flat and steady), or a regular PDF/spreadsheet export from your bank."
         );
         return;
       }
@@ -245,8 +245,8 @@ export default function StatementCheck({ countryCode }: StatementCheckProps) {
         <div>
           <h1 className="text-xl font-semibold text-[#12232e]">🏦 Bank statement check</h1>
           <p className="mt-1 text-sm text-[#4c6270]">
-            Upload a bank statement (PDF or Excel export) to see who&apos;s paying you, and whether a
-            reviewer would find any gaps.
+            Upload a bank statement (PDF, Excel export, or a clear photo/scan) to see who&apos;s
+            paying you, and whether a reviewer would find any gaps.
           </p>
         </div>
 
@@ -270,7 +270,7 @@ export default function StatementCheck({ countryCode }: StatementCheckProps) {
           <input
             id="statement-file"
             type="file"
-            accept=".pdf,.xlsx,.xls"
+            accept=".pdf,.xlsx,.xls,image/*"
             onChange={(e) => {
               setFile(e.target.files?.[0] ?? null);
               setError(null);
@@ -285,6 +285,13 @@ export default function StatementCheck({ countryCode }: StatementCheckProps) {
           >
             {uploading ? 'Analyzing…' : 'Analyze'}
           </button>
+          {uploading && (
+            <p className="mt-2 text-xs text-[#566a76]">
+              This can take a few minutes for a scanned or photographed statement — it&apos;s read
+              entirely on this device (on-device OCR), so a longer statement or a lower-quality photo
+              takes longer.
+            </p>
+          )}
         </div>
 
         {error && (

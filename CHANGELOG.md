@@ -3,6 +3,53 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Scanned/photographed statement support (`extractFile.ts`, `columns.ts`, `StatementCheck.tsx`)
+
+The bank-statement check previously only accepted a genuine text-layer PDF or an Excel/CSV export —
+`getLinesFromFile` threw "Unsupported file type" for a photo, and a scanned/image PDF's near-empty
+text layer just silently produced "found 0 transactions". index.html's original flow DID support
+both cases (a per-page OCR fallback for a scanned PDF, and direct photo upload via Tesseract.js), so
+this closes that gap in the Next.js port rather than leaving it as a permanent limitation.
+
+- No new OCR wiring was needed — the exact same on-device Tesseract.js pipeline already built for
+  passport scans (`getImageFromFile`/`preprocessImageForOcr`/`recognizeText`,
+  `lib/passport/extractText.ts`) is reused here, the same way the refusal-letter reading aid
+  (`lib/situation/extractLetterText.ts`) already reuses it. Nothing new was added to that shared
+  module.
+- `linesFromPlainText` (`lib/statement/columns.ts`) turns OCR's plain text into the same `Line[]`
+  shape every downstream parsing function already consumes (wrapped with empty `parts`, since OCR
+  gives no per-word x-position — the parser's existing order/keyword/balance-delta fallback handles
+  that shape, same as it always could). This function was actually ported into the codebase back in
+  Phase 1 of the original bank-statement-engine port (task #244) but sat completely unused until now
+  — this follow-up is what finally calls it.
+- New in `lib/statement/extractFile.ts`: `getLinesFromImageFile()` (a photographed statement page,
+  OCR'd directly) and `getLinesFromPdfWithOcrFallback()` (tries the text layer first via the existing
+  `getLinesFromPdf`; if it comes back with well under 200 characters of text — index.html's own
+  threshold for "this doesn't look like a real text layer" — it's almost certainly a scanned/image
+  PDF, so each page (capped at 20, matching index.html's own `MAX_OCR_PAGES`) is rendered to a canvas
+  via pdf.js and OCR'd in turn). Pages are processed one at a time, not in parallel, since each
+  `Tesseract.recognize()` call is itself expensive — a 20-page scanned statement can genuinely take a
+  couple of minutes, same as it did in the original.
+- Deliberately did NOT change `getLinesFromPdf` itself (the plain text-layer reader) to add an
+  automatic OCR fallback — `lib/situation/extractLetterText.ts` calls it directly and depends on it
+  staying OCR-free for a refusal letter, matching index.html's own behavior there. The new fallback
+  lives in a separate wrapper function that only the bank-statement dispatcher calls.
+- `getLinesFromFile`'s dispatcher now also recognizes image files (`image/*` or a
+  `.jpg/.jpeg/.png/.heic/.heif/.webp/.bmp/.gif` extension) and routes them through
+  `getLinesFromImageFile`; a PDF now goes through the new OCR-fallback wrapper instead of the
+  plain text-only reader.
+- `StatementCheck.tsx`: the file input now accepts images too, the intro copy mentions "a clear
+  photo/scan" as a third option alongside PDF/Excel, a busy note appears under the Analyze button
+  while uploading ("This can take a few minutes for a scanned or photographed statement…"), and the
+  "couldn't find any readable text" error message no longer claims scanned/photographed statements
+  aren't supported — it now reflects that OCR was actually attempted.
+- `web/lib/statement/__tests__/linesFromPlainText.test.ts` (new): 3 tests covering the OCR-text-to-
+  `Line[]` conversion directly — one line per non-blank source line with empty `parts`, blank/
+  whitespace-only lines dropped, and empty/null input handled. The new browser-API-dependent
+  functions themselves (`getLinesFromImageFile`, `getLinesFromPdfWithOcrFallback`) are verified live
+  instead, same testing boundary already established for every other pdf.js/Tesseract-touching
+  function in this codebase (none of those have unit tests either — they need a real browser).
+
 ## Bank-code narration decoder + work-payment reason categorization (`StatementDashboard.tsx`, `classify.ts`, `workNameCheck.ts`)
 
 Follow-up selection "1 & 2", after a sweep for other deferred pieces turned up two more pure-logic

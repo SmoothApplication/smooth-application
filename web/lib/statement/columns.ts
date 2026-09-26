@@ -1,7 +1,9 @@
 // Column/text-extraction helpers, ported from index.html (~lines 10746-10981).
 // PDF.js/Tesseract/XLSX-dependent functions (pdfPageToCanvas, getLinesFromPdf, linesFromWorkbook,
-// getLinesFromFile) are intentionally NOT ported here — they call browser-only APIs and belong to
-// a later UI-integration pass. isSpreadsheetFile is pure enough to keep.
+// getLinesFromFile) are intentionally NOT ported here — they call browser-only APIs and live in
+// lib/statement/extractFile.ts instead. linesFromPlainText and isSpreadsheetFile are pure enough to
+// keep here; linesFromPlainText sat unused until the "Scanned/photographed statement support"
+// follow-up wired an OCR path into extractFile.ts that produces this exact shape.
 
 import type { Line, ColumnOccurrence, ColumnPositions } from './types';
 
