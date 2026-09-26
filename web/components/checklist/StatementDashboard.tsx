@@ -11,6 +11,9 @@ import {
   findUnexplainedLargeInflows,
   buildPersonalNameTallyMessage,
   SpouseSponsorDeclaration,
+  computeWorkNameCheck,
+  buildWorkNameCheckMessages,
+  WorkNameCheckResult,
 } from '@/lib/statement';
 
 // Phase 3 of the bank-statement port (see lib/statement/index.ts for Phase 1, StatementUpload.tsx +
@@ -24,6 +27,16 @@ import {
 // web/app/checklist/uk/statement/page.tsx. Tab choice still resets on reload; that stays local UI
 // state. Nothing here talks to the network; everything runs on the ParsedTxn[] already produced
 // client-side by extractFile.ts.
+//
+// Follow-up selection "Narration-based employer/business name check": index.html's own
+// "namesToCheck" mechanism (~line 14844-14953) — does the applicant's declared employer/business
+// name actually show up as the SENDER on real credit transactions, not just somewhere in the
+// document. findInflowsMatchingName/extractNarrationReason/canonicalizeNarrationReason were already
+// ported (task #244); this adds the employer/business name inputs themselves (gated on
+// employed/selfEmployed, read read-only from the checklist's own answers — same pattern as
+// personalNameTally's spouse fields) and the synthesis/messaging in
+// lib/statement/workNameCheck.ts. Rendered in the Report tab, where index.html's own later
+// restructuring (task #179) already moved this kind of matched-income detail.
 
 function formatAmount(n: number): string {
   if (!n) return '₦0.00';
@@ -90,6 +103,19 @@ interface StatementDashboardProps {
    * lib/statement/personalNameTally.ts. Both optional so the standalone dev page keeps working. */
   detectedHolderName?: string | null;
   spouse?: SpouseSponsorDeclaration;
+  /** Whether the applicant declared themselves employed/self-employed (read-only from the
+   * checklist's own answers) — gates whether the employer/business name input is shown at all,
+   * same as index.html's own namesToCheck construction. */
+  employed?: boolean;
+  selfEmployed?: boolean;
+  employerName?: string;
+  employerAltName?: string;
+  businessName?: string;
+  businessAltName?: string;
+  onEmployerNameChange?: (name: string) => void;
+  onEmployerAltNameChange?: (name: string) => void;
+  onBusinessNameChange?: (name: string) => void;
+  onBusinessAltNameChange?: (name: string) => void;
   /** Link to the Report tab's "Financial readiness calculator" cross-reference (see ReportTab
    * below). Defaults to the UK's route so the standalone /checklist/statement-test dev page
    * (StatementUpload.tsx, which doesn't pass this) keeps working unchanged; every real checklist
@@ -109,10 +135,24 @@ export default function StatementDashboard({
   onNameCorrectionsChange,
   detectedHolderName = null,
   spouse = DEFAULT_SPOUSE,
+  employed = false,
+  selfEmployed = false,
+  employerName: initialEmployerName = '',
+  employerAltName: initialEmployerAltName = '',
+  businessName: initialBusinessName = '',
+  businessAltName: initialBusinessAltName = '',
+  onEmployerNameChange,
+  onEmployerAltNameChange,
+  onBusinessNameChange,
+  onBusinessAltNameChange,
   financialHref = '/checklist/uk/financial',
 }: StatementDashboardProps) {
   const [applicantName, setApplicantName] = useState(initialApplicantName);
   const [maidenName, setMaidenName] = useState(initialMaidenName);
+  const [employerName, setEmployerName] = useState(initialEmployerName);
+  const [employerAltName, setEmployerAltName] = useState(initialEmployerAltName);
+  const [businessName, setBusinessName] = useState(initialBusinessName);
+  const [businessAltName, setBusinessAltName] = useState(initialBusinessAltName);
   const [tab, setTab] = useState<'analysis' | 'report'>('analysis');
 
   // Keyed by the RAW extracted name (same key buildIncomeSourceBreakdown and getTopConsistentSenders
@@ -139,6 +179,22 @@ export default function StatementDashboard({
     onNameCorrectionsChange?.(nameCorrections);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nameCorrections]);
+  useEffect(() => {
+    onEmployerNameChange?.(employerName);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [employerName]);
+  useEffect(() => {
+    onEmployerAltNameChange?.(employerAltName);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [employerAltName]);
+  useEffect(() => {
+    onBusinessNameChange?.(businessName);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [businessName]);
+  useEffect(() => {
+    onBusinessAltNameChange?.(businessAltName);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [businessAltName]);
   const [editingName, setEditingName] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
 
@@ -164,6 +220,21 @@ export default function StatementDashboard({
   const nameTallyMessage = useMemo(
     () => buildPersonalNameTallyMessage(applicantName, detectedHolderName, spouse),
     [applicantName, detectedHolderName, spouse]
+  );
+
+  const employerCheck = useMemo(
+    () =>
+      employed && employerName.trim()
+        ? computeWorkNameCheck({ label: 'employer', name: employerName, altName: employerAltName }, txns)
+        : null,
+    [employed, employerName, employerAltName, txns]
+  );
+  const businessCheck = useMemo(
+    () =>
+      selfEmployed && businessName.trim()
+        ? computeWorkNameCheck({ label: 'business', name: businessName, altName: businessAltName }, txns)
+        : null,
+    [selfEmployed, businessName, businessAltName, txns]
   );
 
   function displayName(rawName: string): string {
@@ -293,6 +364,18 @@ export default function StatementDashboard({
           incomeSourceCount={incomeSourceCount}
           unexplainedInflows={unexplainedInflows}
           financialHref={financialHref}
+          employed={employed}
+          selfEmployed={selfEmployed}
+          employerName={employerName}
+          setEmployerName={setEmployerName}
+          employerAltName={employerAltName}
+          setEmployerAltName={setEmployerAltName}
+          businessName={businessName}
+          setBusinessName={setBusinessName}
+          businessAltName={businessAltName}
+          setBusinessAltName={setBusinessAltName}
+          employerCheck={employerCheck}
+          businessCheck={businessCheck}
         />
       )}
     </div>
@@ -509,10 +592,10 @@ function SourceGroupCard({
 
 // Simplified adaptation of index.html's readinessStatusMeta/computeReadinessReportRows/
 // renderReadinessReport (~lines 13489-13632). The original cross-checked employer/business name
-// declarations and a cash-flow calculator's closing-balance verdict - neither of those is wired up
-// yet in this phase (that's a separate existing feature at /checklist/uk/financial), so this reports
-// only what this pass can actually see: how much income was identified from this statement, and
-// whether any large inflows still have no clear explanation.
+// declarations and a cash-flow calculator's closing-balance verdict - the closing-balance side is a
+// separate existing feature at /checklist/uk/financial, not reproduced here; the employer/business
+// name cross-check (the "namesToCheck" mechanism, ~14844-14953) is now wired in below (follow-up
+// selection "Narration-based employer/business name check") via WorkNameCard.
 function statusPill(status: 'good' | 'warn' | 'neutral', label: string) {
   const cls =
     status === 'good'
@@ -533,11 +616,35 @@ function ReportTab({
   incomeSourceCount,
   unexplainedInflows,
   financialHref,
+  employed,
+  selfEmployed,
+  employerName,
+  setEmployerName,
+  employerAltName,
+  setEmployerAltName,
+  businessName,
+  setBusinessName,
+  businessAltName,
+  setBusinessAltName,
+  employerCheck,
+  businessCheck,
 }: {
   totalIncomeIdentified: number;
   incomeSourceCount: number;
   unexplainedInflows: ParsedTxn[];
   financialHref: string;
+  employed: boolean;
+  selfEmployed: boolean;
+  employerName: string;
+  setEmployerName: (v: string) => void;
+  employerAltName: string;
+  setEmployerAltName: (v: string) => void;
+  businessName: string;
+  setBusinessName: (v: string) => void;
+  businessAltName: string;
+  setBusinessAltName: (v: string) => void;
+  employerCheck: WorkNameCheckResult | null;
+  businessCheck: WorkNameCheckResult | null;
 }) {
   const unexplainedTotal = unexplainedInflows.reduce((s, t) => s + t.credit, 0);
   const incomeStatus: 'good' | 'warn' = unexplainedInflows.length === 0 ? 'good' : 'warn';
@@ -594,6 +701,122 @@ function ReportTab({
           </div>
         </div>
       </div>
+
+      {(employed || selfEmployed) && (
+        <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
+          <h2 className="mb-1 text-sm font-semibold text-[#12232e]">Employer/business income match</h2>
+          <p className="mb-4 text-xs text-[#566a76]">
+            Does the employer/business you declared under &quot;Work status&quot; actually show up as the
+            sender on real credits in this statement - stronger evidence than its name just appearing
+            somewhere on the page.
+          </p>
+          <div className="flex flex-col gap-4">
+            {employed && (
+              <WorkNameFields
+                label="Employer"
+                name={employerName}
+                setName={setEmployerName}
+                altName={employerAltName}
+                setAltName={setEmployerAltName}
+                check={employerCheck}
+              />
+            )}
+            {selfEmployed && (
+              <WorkNameFields
+                label="Business"
+                name={businessName}
+                setName={setBusinessName}
+                altName={businessAltName}
+                setAltName={setBusinessAltName}
+                check={businessCheck}
+              />
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function WorkNameFields({
+  label,
+  name,
+  setName,
+  altName,
+  setAltName,
+  check,
+}: {
+  label: string;
+  name: string;
+  setName: (v: string) => void;
+  altName: string;
+  setAltName: (v: string) => void;
+  check: WorkNameCheckResult | null;
+}) {
+  const idBase = `statement-${label.toLowerCase()}-name`;
+  const messages = check ? buildWorkNameCheckMessages(check) : [];
+  return (
+    <div className="rounded-xl border border-black/10 p-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div>
+          <label className="mb-1 block text-xs font-medium text-[#566a76]" htmlFor={idBase}>
+            {label} name
+          </label>
+          <input
+            id={idBase}
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={`As you entered under "Work status"`}
+            className="w-full rounded-lg border border-black/10 px-3 py-2 text-sm text-[#12232e]"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-[#566a76]" htmlFor={`${idBase}-alt`}>
+            Also known as <span className="font-normal">(optional)</span>
+          </label>
+          <input
+            id={`${idBase}-alt`}
+            type="text"
+            value={altName}
+            onChange={(e) => setAltName(e.target.value)}
+            placeholder="A shorter name/acronym the bank might use instead"
+            className="w-full rounded-lg border border-black/10 px-3 py-2 text-sm text-[#12232e]"
+          />
+        </div>
+      </div>
+
+      {messages.map((m, i) => (
+        <div
+          key={i}
+          className={`mt-2 rounded-lg p-3 text-sm ${
+            m.status === 'ok'
+              ? 'bg-good-wash text-good'
+              : m.status === 'warn'
+              ? 'bg-warn-wash text-warn-text'
+              : 'bg-red-50 text-red-800'
+          }`}
+        >
+          {m.status === 'ok' ? '✅ ' : m.status === 'warn' ? '⚠️ ' : '❌ '}
+          {m.message}
+        </div>
+      ))}
+
+      {check && check.inflowMatches.length > 0 && (
+        <div className="mt-2">
+          <p className="mb-1 text-xs font-medium text-[#12232e]">
+            Matched payment{check.inflowMatches.length === 1 ? '' : 's'} ({check.inflowMatches.length})
+          </p>
+          <ul className="flex flex-col gap-1">
+            {check.inflowMatches.map((t, i) => (
+              <li key={i} className="text-xs text-[#4c6270]">
+                {formatDate(t.date)} — {formatAmount(t.credit)}
+                {t.narration ? ` ("${t.narration}")` : ' (no narration)'}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

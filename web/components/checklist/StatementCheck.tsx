@@ -36,6 +36,12 @@ import { COUNTRIES } from '@/lib/checklist/countries';
 // the business-statement version). married/spouseSponsoring/spouseName are read read-only from the
 // checklist's own answers key (sa_<countryCode>_answers) for the declared-spouse-sponsor exception.
 //
+// Follow-up selection "Narration-based employer/business name check": employed/selfEmployed are
+// ALSO read read-only from the same answers key, to decide which of the employer/business name
+// inputs to show (see StatementDashboard.tsx's ReportTab) — mirroring index.html's own
+// namesToCheck gating. The employer/business name + "also known as" fields themselves are owned and
+// persisted here, same pattern as applicantName/maidenName.
+//
 // Only a plain string (`countryCode`) crosses the Server -> Client boundary from the page files
 // that render this component — see the comment at the top of lib/checklist/all.ts for why a
 // function-bearing prop broke the production build previously.
@@ -80,6 +86,12 @@ export default function StatementCheck({ countryCode }: StatementCheckProps) {
     spouseSponsoring: false,
     spouseName: '',
   });
+  const [employed, setEmployed] = useState(false);
+  const [selfEmployed, setSelfEmployed] = useState(false);
+  const [employerName, setEmployerName] = useState('');
+  const [employerAltName, setEmployerAltName] = useState('');
+  const [businessName, setBusinessName] = useState('');
+  const [businessAltName, setBusinessAltName] = useState('');
 
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -96,11 +108,16 @@ export default function StatementCheck({ countryCode }: StatementCheckProps) {
       setMaidenName(saved.maidenName || '');
       setNameCorrections(saved.nameCorrections || {});
       setDetectedHolderName(saved.detectedHolderName ?? null);
+      setEmployerName(saved.employerName || '');
+      setEmployerAltName(saved.employerAltName || '');
+      setBusinessName(saved.businessName || '');
+      setBusinessAltName(saved.businessAltName || '');
       setRecalled(true);
     }
 
     // Read-only, same pattern as ReasonsView's own Travel History read: the checklist's own answers
-    // key owns married/spouseSponsoring/spouseName, this component just reads them.
+    // key owns married/spouseSponsoring/spouseName/employed/selfEmployed, this component just reads
+    // them.
     try {
       const raw = localStorage.getItem(`sa_${lowerCode}_answers`);
       if (raw) {
@@ -110,6 +127,8 @@ export default function StatementCheck({ countryCode }: StatementCheckProps) {
           spouseSponsoring: !!parsed?.spouseSponsoring,
           spouseName: parsed?.spouseName || '',
         });
+        setEmployed(!!parsed?.employed);
+        setSelfEmployed(!!parsed?.selfEmployed);
       }
     } catch {
       /* nothing saved yet */
@@ -131,12 +150,28 @@ export default function StatementCheck({ countryCode }: StatementCheckProps) {
         maidenName,
         nameCorrections,
         detectedHolderName,
+        employerName,
+        employerAltName,
+        businessName,
+        businessAltName,
       };
       localStorage.setItem(storageKey, JSON.stringify(payload));
     } catch {
       /* ignore */
     }
-  }, [loaded, txns, applicantName, maidenName, nameCorrections, detectedHolderName, storageKey]);
+  }, [
+    loaded,
+    txns,
+    applicantName,
+    maidenName,
+    nameCorrections,
+    detectedHolderName,
+    employerName,
+    employerAltName,
+    businessName,
+    businessAltName,
+    storageKey,
+  ]);
 
   function clearSaved() {
     try {
@@ -149,6 +184,10 @@ export default function StatementCheck({ countryCode }: StatementCheckProps) {
     setMaidenName('');
     setNameCorrections({});
     setDetectedHolderName(null);
+    setEmployerName('');
+    setEmployerAltName('');
+    setBusinessName('');
+    setBusinessAltName('');
     setRecalled(false);
     setFile(null);
     setError(null);
@@ -285,6 +324,16 @@ export default function StatementCheck({ countryCode }: StatementCheckProps) {
         onNameCorrectionsChange={setNameCorrections}
         detectedHolderName={detectedHolderName}
         spouse={spouse}
+        employed={employed}
+        selfEmployed={selfEmployed}
+        employerName={employerName}
+        employerAltName={employerAltName}
+        businessName={businessName}
+        businessAltName={businessAltName}
+        onEmployerNameChange={setEmployerName}
+        onEmployerAltNameChange={setEmployerAltName}
+        onBusinessNameChange={setBusinessName}
+        onBusinessAltNameChange={setBusinessAltName}
         financialHref={financialHref}
       />
 

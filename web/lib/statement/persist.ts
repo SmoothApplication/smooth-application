@@ -30,6 +30,13 @@ export interface PersistedStatement {
    * holder name detected on this statement's own header at scan time, null if none was found.
    * Optional so a payload saved before this feature existed still loads fine. */
   detectedHolderName?: string | null;
+  /** Added for the narration-based employer/business name check (see workNameCheck.ts): the
+   * applicant's declared employer/business name + optional "also known as" alt name. Optional for
+   * the same backward-compat reason as detectedHolderName. */
+  employerName?: string;
+  employerAltName?: string;
+  businessName?: string;
+  businessAltName?: string;
 }
 
 export function serializeTxns(txns: ParsedTxn[]): PersistedTxn[] {

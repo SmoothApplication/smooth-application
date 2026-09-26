@@ -3,6 +3,44 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Narration-based employer/business name check (`workNameCheck.ts`, `StatementDashboard.tsx`)
+
+Follow-up selection "Narration-based employer/business name check" — index.html's own "namesToCheck"
+mechanism (~line 14844-14953): does the applicant's declared employer/business name actually show up
+as the SENDER on real credit transactions in their personal statement, not just somewhere in the
+document. Stronger, more specific evidence than a name merely appearing on the page — a reviewer
+wants to see money genuinely arriving from the employer/business the applicant says pays them.
+
+- A pleasant discovery: the hardest part was already done. `findInflowsMatchingName`,
+  `extractNarrationReason`, and `canonicalizeNarrationReason` were all ported into
+  `lib/statement/classify.ts` as part of the original bank-statement-engine port (task #244),
+  exported via the barrel — never wired into any UI component until now.
+- New `web/lib/statement/workNameCheck.ts`: `computeWorkNameCheck()` assembles those primitives into
+  one result (matched inflows + total, the most common narration "reason" like "February Salary",
+  how many are explicitly narrated "Salary", how many distinct months), and
+  `buildWorkNameCheckMessages()` ports the message-building index.html inlined into its own
+  `results.push(...)` calls: an error when the name can't be found anywhere, a success message with
+  narration-consistency and 6-month-threshold follow-ups when it's found as a direct sender, or a
+  neutral note when it's only found in passing narration text. An optional "also known as" alt name
+  is folded into the same match, same as the original — a bank's own narration commonly shortens a
+  name to initials or an acronym that never spells out the full name typed above.
+- Unlike the two earlier name-tally checks (business statement's account holder, personal
+  statement's account holder), this one needed no privacy trade-off: it only searches already-parsed
+  transaction narrations, which `StatementCheck.tsx` persists anyway for the dashboard's own analysis
+  tab, never the statement's raw text.
+- `StatementDashboard.tsx`'s Report tab now shows an "Employer/business income match" card — an
+  Employer name field (shown when the applicant declared themselves employed) and a Business name
+  field (shown when self-employed, distinct from the separate Business Income Record ledger's own
+  "Business name" field — different feature, different storage key), each with an optional alt-name
+  field, the resulting messages, and the individually-listed matched payments. `employed`/
+  `selfEmployed` are read read-only from the checklist's own answers (`sa_<code>_answers`), same
+  pattern as the spouse fields; the name/alt-name text itself is owned and persisted by
+  `StatementCheck.tsx` alongside the rest of `sa_<code>_statement`.
+- `web/lib/statement/__tests__/workNameCheck.test.ts`: 7 tests covering not-found, found-only-in-
+  passing-text, a fully consistent 6-month match, an inconsistent-salary-narration warning, a
+  fewer-than-6-months warning, the alt-name fold-in, and a single-word name (e.g. "GTB").
+- `npx tsc --noEmit` clean; `npx jest` — 335/335 passing across 59 suites (7 new), no regressions.
+
 ## Personal-statement name-tally check (`personalNameTally.ts`, `StatementCheck.tsx`/`StatementDashboard.tsx`)
 
 Follow-up selection "Personal-statement name-tally check" — extends the name-tally idea just

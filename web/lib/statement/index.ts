@@ -10,3 +10,4 @@ export * from './persist';
 export * from './business';
 export * from './businessDrawings';
 export * from './personalNameTally';
+export * from './workNameCheck';
