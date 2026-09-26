@@ -3,6 +3,47 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Bank-code narration decoder + work-payment reason categorization (`StatementDashboard.tsx`, `classify.ts`, `workNameCheck.ts`)
+
+Follow-up selection "1 & 2", after a sweep for other deferred pieces turned up two more pure-logic
+functions ported as part of the original bank-statement-engine port (task #244) but never wired into
+any UI: `decodeNarration()`/`BANK_NARRATION_GLOSSARY` (`names.ts`) and `detectWorkPaymentCategory()`/
+`NARRATION_REASON_TO_WORK_CATEGORY` (`classify.ts`).
+
+- **Narration decoder.** A small reusable `<NarrationDecoder narration={...}>` component (new, in
+  `StatementDashboard.tsx`) renders an expandable "🔍 What does this narration mean?" detail — a
+  table of each slash-delimited segment of a transaction's narration next to its plain-English
+  meaning (e.g. "NIP" → NIBSS Instant Payment, "RVSL" → a reversal, not new income), same treatment as
+  index.html's own `renderNarrationDecodeHtml()` (~11699-11705). Renders nothing when
+  `decodeNarration()` finds nothing worth explaining. Wired into every per-transaction line this file
+  already lists: `SourceGroupCard`'s expanded payment list (Analysis tab) and the employer/business
+  match card's matched-payments list (Report tab) — two places, one component.
+- **Work-payment reason categorization.** `WORK_PAYMENT_REASON_CATEGORIES` (the `{value,label}` list
+  index.html's own matched-inflow "Fix reason" `<select>` populates itself from — Salary, Allowance,
+  Transport/Housing/Car/Fuel/Wardrobe/Subsidy/13th Month/Medical Allowance, Others) was ported
+  verbatim into `classify.ts` — only the pattern-matching function that maps a narration to one of
+  these values existed before now, not the list itself. `workNameCheck.ts`'s `computeWorkNameCheck()`
+  now also returns `inflowCategoryHints`, a parallel array to `inflowMatches` giving each individual
+  matched payment its own narration-derived category guess (a single employer can pay plain salary
+  most months and, some months, a separate housing allowance — one hint per payment, not one for the
+  whole check).
+- New `WorkCategoryChoice`/`WorkCategoryMap` types (`workNameCheck.ts`) hold the applicant's own
+  confirmed/corrected category per matched payment, keyed by `inflowKey(t)` — same stable-key pattern
+  as the Business Income Record ledger's own `BizLedgerMap`. `resolveWorkCategoryChoice()` picks the
+  saved choice when there is one, else the narration hint, else blank ("Choose a reason…"). Kept as
+  two separate maps (`employerCategoryChoices`/`businessCategoryChoices`), not index.html's one shared
+  global `inflowExplanations` store, since this port has no single global store all matched-inflow
+  cards already share, and an applicant can be both employed and self-employed with different
+  payments/categories for each.
+- Each matched payment in the "Employer/business income match" card now shows the narration decoder
+  plus a category `<select>` (pre-selected from the hint, editable) and, when "Others" is chosen, a
+  free-text "What was this payment for?" detail field — persisted in `sa_<code>_statement` via two new
+  optional `PersistedStatement` fields, `employerCategoryChoices`/`businessCategoryChoices`.
+- `web/lib/statement/__tests__/work-payment-reason-categories.test.ts`: 2 new tests covering the
+  ported category list's values/labels and the label lookup's fallback for an unrecognised value.
+  `web/lib/statement/__tests__/workNameCheck.test.ts`: 2 new tests covering the per-payment
+  `inflowCategoryHints` array and `resolveWorkCategoryChoice`'s saved-choice/hint/blank precedence.
+
 ## Narration-based employer/business name check (`workNameCheck.ts`, `StatementDashboard.tsx`)
 
 Follow-up selection "Narration-based employer/business name check" — index.html's own "namesToCheck"

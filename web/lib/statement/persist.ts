@@ -6,6 +6,7 @@
 // the one internal flag the UI actually reads) - never the original file or its raw bytes.
 
 import type { ParsedTxn } from './types';
+import type { WorkCategoryMap } from './workNameCheck';
 
 /** The plain-data shape a ParsedTxn is reduced to for localStorage. Field names intentionally
  * differ slightly from ParsedTxn (dateISO instead of date, amountMatchedReversal instead of the
@@ -37,6 +38,13 @@ export interface PersistedStatement {
   employerAltName?: string;
   businessName?: string;
   businessAltName?: string;
+  /** Added for the work-payment reason categorization follow-up (see workNameCheck.ts's
+   * WorkCategoryMap): the applicant's own confirmed/corrected category per matched employer/
+   * business payment, keyed by inflowKey(t). Kept as two separate maps, not one, since the same
+   * applicant can be both employed and self-employed with different payments/categories for each.
+   * Optional for the same backward-compat reason as detectedHolderName. */
+  employerCategoryChoices?: WorkCategoryMap;
+  businessCategoryChoices?: WorkCategoryMap;
 }
 
 export function serializeTxns(txns: ParsedTxn[]): PersistedTxn[] {

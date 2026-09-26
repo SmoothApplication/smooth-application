@@ -354,6 +354,30 @@ export function detectWorkPaymentCategory(narrationReason: string | null | undef
   return null;
 }
 
+// Ported verbatim from index.html (~line 14113-14125) — the {value,label} list the original's
+// matched-inflow "Fix reason" <select> populates itself from, for a payment matched to a declared
+// EMPLOYER/business. detectWorkPaymentCategory above only ever returns one of these `value`s (or
+// null); this is what turns that value into the human-readable label shown next to/inside the
+// dropdown. Follow-up selection "Work-payment reason categorization" (see workNameCheck.ts).
+export const WORK_PAYMENT_REASON_CATEGORIES: { value: string; label: string }[] = [
+  { value: 'salary', label: 'Salary' },
+  { value: 'allowance', label: 'Allowance' },
+  { value: 'transport_allowance', label: 'Transport Allowance' },
+  { value: 'housing_allowance', label: 'Housing Allowance' },
+  { value: 'car_allowance', label: 'Car Allowance' },
+  { value: 'fuel_allowance', label: 'Fuel Allowance' },
+  { value: 'wardrobe_allowance', label: 'Wardrobe Allowance' },
+  { value: 'subsidy_allowance', label: 'Subsidy Allowance' },
+  { value: '13th_month_allowance', label: '13th Month Allowance' },
+  { value: 'medical_allowance', label: 'Medical Allowance' },
+  { value: 'others', label: 'Others' },
+];
+
+export function workPaymentCategoryLabel(value: string | null | undefined): string {
+  const found = WORK_PAYMENT_REASON_CATEGORIES.filter((c) => c.value === value)[0];
+  return found ? found.label : value || '';
+}
+
 // User instruction: "N50,000 is less than 30 pounds. The visa needs to see consistent quality inflows
 // above N50,000." A flat, visa-officer-realistic floor is easier to explain and safer to under-flag on.
 export const UNEXPLAINED_INFLOW_MIN_AMOUNT = 50000;

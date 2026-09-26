@@ -11,6 +11,7 @@ import {
   PersistedStatement,
   extractAccountHolderName,
   SpouseSponsorDeclaration,
+  WorkCategoryMap,
 } from '@/lib/statement';
 import StatementDashboard from '@/components/checklist/StatementDashboard';
 import ResumeReminderLinks from '@/components/checklist/ResumeReminderLinks';
@@ -92,6 +93,8 @@ export default function StatementCheck({ countryCode }: StatementCheckProps) {
   const [employerAltName, setEmployerAltName] = useState('');
   const [businessName, setBusinessName] = useState('');
   const [businessAltName, setBusinessAltName] = useState('');
+  const [employerCategoryChoices, setEmployerCategoryChoices] = useState<WorkCategoryMap>({});
+  const [businessCategoryChoices, setBusinessCategoryChoices] = useState<WorkCategoryMap>({});
 
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -112,6 +115,8 @@ export default function StatementCheck({ countryCode }: StatementCheckProps) {
       setEmployerAltName(saved.employerAltName || '');
       setBusinessName(saved.businessName || '');
       setBusinessAltName(saved.businessAltName || '');
+      setEmployerCategoryChoices(saved.employerCategoryChoices || {});
+      setBusinessCategoryChoices(saved.businessCategoryChoices || {});
       setRecalled(true);
     }
 
@@ -154,6 +159,8 @@ export default function StatementCheck({ countryCode }: StatementCheckProps) {
         employerAltName,
         businessName,
         businessAltName,
+        employerCategoryChoices,
+        businessCategoryChoices,
       };
       localStorage.setItem(storageKey, JSON.stringify(payload));
     } catch {
@@ -170,6 +177,8 @@ export default function StatementCheck({ countryCode }: StatementCheckProps) {
     employerAltName,
     businessName,
     businessAltName,
+    employerCategoryChoices,
+    businessCategoryChoices,
     storageKey,
   ]);
 
@@ -188,6 +197,8 @@ export default function StatementCheck({ countryCode }: StatementCheckProps) {
     setEmployerAltName('');
     setBusinessName('');
     setBusinessAltName('');
+    setEmployerCategoryChoices({});
+    setBusinessCategoryChoices({});
     setRecalled(false);
     setFile(null);
     setError(null);
@@ -334,6 +345,10 @@ export default function StatementCheck({ countryCode }: StatementCheckProps) {
         onEmployerAltNameChange={setEmployerAltName}
         onBusinessNameChange={setBusinessName}
         onBusinessAltNameChange={setBusinessAltName}
+        employerCategoryChoices={employerCategoryChoices}
+        businessCategoryChoices={businessCategoryChoices}
+        onEmployerCategoryChoicesChange={setEmployerCategoryChoices}
+        onBusinessCategoryChoicesChange={setBusinessCategoryChoices}
         financialHref={financialHref}
       />
 

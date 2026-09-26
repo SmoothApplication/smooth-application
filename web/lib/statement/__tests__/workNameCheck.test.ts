@@ -1,5 +1,6 @@
 // Ported scenarios from index.html's namesToCheck mechanism (~line 14844-14953).
-import { computeWorkNameCheck, buildWorkNameCheckMessages } from '../workNameCheck';
+import { computeWorkNameCheck, buildWorkNameCheckMessages, resolveWorkCategoryChoice } from '../workNameCheck';
+import { inflowKey } from '../classify';
 import { txn } from './testHelpers';
 
 describe('computeWorkNameCheck + buildWorkNameCheckMessages', () => {
@@ -101,5 +102,30 @@ describe('computeWorkNameCheck + buildWorkNameCheckMessages', () => {
     const txns = [txn({ narration: 'NIP TRF/GTB SALARY/REF001', credit: 100000, dateISO: '2026-01-10' })];
     const result = computeWorkNameCheck({ label: 'employer', name: 'GTB' }, txns);
     expect(result.inflowMatches).toHaveLength(1);
+  });
+
+  // Follow-up selection "Work-payment reason categorization" - each matched payment gets its OWN
+  // category hint, not one hint for the whole check (a single employer can pay both plain salary
+  // and, some months, a separate housing allowance).
+  test('inflowCategoryHints is a parallel array, one hint per matched payment', () => {
+    const txns = [
+      txn({ narration: 'NIP TRF/ACME CORP/JANUARY SALARY/REF001', credit: 300000, dateISO: '2026-01-25' }),
+      txn({ narration: 'NIP TRF/ACME CORP/HOUSING ALLOWANCE/REF002', credit: 50000, dateISO: '2026-01-28' }),
+      txn({ narration: 'NIP TRF/ACME CORP/PAYMENT/REF003', credit: 20000, dateISO: '2026-02-01' }),
+    ];
+    const result = computeWorkNameCheck({ label: 'employer', name: 'Acme Corp' }, txns);
+    expect(result.inflowMatches).toHaveLength(3);
+    expect(result.inflowCategoryHints).toEqual(['salary', 'housing_allowance', null]);
+  });
+
+  test('resolveWorkCategoryChoice prefers a saved choice over the hint, falls back to the hint, then to blank', () => {
+    const t = txn({ narration: 'NIP TRF/ACME CORP/JANUARY SALARY/REF001', credit: 300000, dateISO: '2026-01-25' });
+    expect(resolveWorkCategoryChoice(t, 'salary', {})).toEqual({ category: 'salary' });
+    expect(resolveWorkCategoryChoice(t, null, {})).toEqual({ category: '' });
+    const saved = { [inflowKey(t)]: { category: 'others', detail: 'Reimbursement for a work trip' } };
+    expect(resolveWorkCategoryChoice(t, 'salary', saved)).toEqual({
+      category: 'others',
+      detail: 'Reimbursement for a work trip',
+    });
   });
 });

@@ -21,7 +21,13 @@
 // targeted than the original.
 import type { ParsedTxn } from './types';
 import { nameAppearsInStatementText, toTitleCase } from './names';
-import { findInflowsMatchingName, extractNarrationReason, canonicalizeNarrationReason } from './classify';
+import {
+  findInflowsMatchingName,
+  extractNarrationReason,
+  canonicalizeNarrationReason,
+  detectWorkPaymentCategory,
+  inflowKey,
+} from './classify';
 import { fmtN } from '../checklist/financial';
 
 export type WorkNameLabel = 'employer' | 'business';
@@ -43,7 +49,28 @@ export interface WorkNameCheckResult {
   salaryLabeledCount: number;
   distinctMonthsCount: number;
   narrationConsistencyPct: number;
+  /** Parallel array to inflowMatches (same index for the same payment): this one payment's own
+   * narration-derived reason mapped to a WORK_PAYMENT_REASON_CATEGORIES value (classify.ts's
+   * detectWorkPaymentCategory), or null when the narration didn't confidently say. Used to pre-
+   * select each matched payment's own category in the UI - see workPaymentCategory.ts's sibling,
+   * WorkCategoryMap, for where the applicant's own (possibly corrected) choice is persisted. */
+  inflowCategoryHints: (string | null)[];
 }
+
+/** The applicant's own confirmed/corrected category for ONE matched employer/business payment -
+ * pre-selected from inflowCategoryHints above but editable, same "detected but overridable" pattern
+ * as nameCorrections elsewhere in this engine. `detail` is only meaningful when category is
+ * 'others' (a short free-text note), mirroring index.html's own "others" free-text field. */
+export interface WorkCategoryChoice {
+  category: string;
+  detail?: string;
+}
+
+/** inflowKey(t) -> WorkCategoryChoice, same stable-key pattern as BizLedgerMap (business.ts) so a
+ * choice survives a re-scan of the same statement. Employer and business matches are kept in two
+ * separate maps (see persist.ts) rather than one shared store, since an applicant can be both
+ * employed and self-employed at once with genuinely different payments/categories for each. */
+export type WorkCategoryMap = Record<string, WorkCategoryChoice>;
 
 /** Ported from the nameChecks.map(...) body (index.html ~14859-14914). `matchName` folds the
  * optional "also known as" alt name into the same word-matching pass as the full name (a bank
@@ -92,6 +119,10 @@ export function computeWorkNameCheck(input: WorkNameCheckInput, txns: ParsedTxn[
     ? Math.round((salaryLabeledCount / inflowMatches.length) * 100)
     : 0;
 
+  const inflowCategoryHints = inflowMatches.map((t) =>
+    detectWorkPaymentCategory(extractNarrationReason(t.narration, words))
+  );
+
   return {
     label: input.label,
     name: input.name,
@@ -103,7 +134,21 @@ export function computeWorkNameCheck(input: WorkNameCheckInput, txns: ParsedTxn[
     salaryLabeledCount,
     distinctMonthsCount,
     narrationConsistencyPct,
+    inflowCategoryHints,
   };
+}
+
+/** The category to show as pre-selected for one matched payment: the applicant's own saved choice
+ * if they've made one, otherwise this payment's own narration-derived hint, otherwise '' (no
+ * confident guess - "Choose a reason..." in the UI). */
+export function resolveWorkCategoryChoice(
+  t: ParsedTxn,
+  hint: string | null,
+  choices: WorkCategoryMap
+): WorkCategoryChoice {
+  const saved = choices[inflowKey(t)];
+  if (saved) return saved;
+  return { category: hint || '' };
 }
 
 export type WorkNameMessageStatus = 'ok' | 'warn' | 'err';

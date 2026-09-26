@@ -14,6 +14,12 @@ import {
   computeWorkNameCheck,
   buildWorkNameCheckMessages,
   WorkNameCheckResult,
+  decodeNarration,
+  inflowKey,
+  WORK_PAYMENT_REASON_CATEGORIES,
+  WorkCategoryMap,
+  resolveWorkCategoryChoice,
+  workPaymentCategoryLabel,
 } from '@/lib/statement';
 
 // Phase 3 of the bank-statement port (see lib/statement/index.ts for Phase 1, StatementUpload.tsx +
@@ -37,6 +43,20 @@ import {
 // personalNameTally's spouse fields) and the synthesis/messaging in
 // lib/statement/workNameCheck.ts. Rendered in the Report tab, where index.html's own later
 // restructuring (task #179) already moved this kind of matched-income detail.
+//
+// Follow-up selection "1 & 2" (bank-code narration decoder + work-payment reason categorization):
+// two more pure-logic pieces from the original bank-statement-engine port (task #244) that were
+// never wired into any UI. decodeNarration()/BANK_NARRATION_GLOSSARY (names.ts) power the small
+// <NarrationDecoder> below, reused on every per-transaction line in both this file's transaction
+// lists (SourceGroupCard's expanded list, and WorkNameFields' matched-payments list) — same
+// "🔍 What does this narration mean?" expandable treatment as index.html's own
+// renderNarrationDecodeHtml (~11699-11705). detectWorkPaymentCategory/WORK_PAYMENT_REASON_CATEGORIES
+// (classify.ts) power the category <select> next to each of WorkNameFields' matched payments,
+// pre-selected from that payment's own narration (workNameCheck.ts's inflowCategoryHints) but
+// editable and persisted (workNameCheck.ts's WorkCategoryMap) — a scoped-down version of index.html's
+// own shared "inflowExplanations" store (~13272-13306): two separate maps here (employer vs
+// business), since this port has no single global store all matched-inflow cards share, and an
+// applicant can be both employed and self-employed at once with different payments for each.
 
 function formatAmount(n: number): string {
   if (!n) return '₦0.00';
@@ -65,6 +85,32 @@ const SOURCE_TYPE_BADGE: Record<string, { label: string; className: string }> = 
 
 function sourceTypeBadge(type: string) {
   return SOURCE_TYPE_BADGE[type] || SOURCE_TYPE_BADGE.other;
+}
+
+// Small reusable expandable "what does this mean" detail for one transaction's narration — ported
+// UI treatment from index.html's renderNarrationDecodeHtml (~11699-11705), reused wherever this file
+// lists individual transactions. Renders nothing when decodeNarration finds nothing worth explaining
+// (e.g. a blank or already-plain-English narration), same as the original.
+function NarrationDecoder({ narration }: { narration: string }) {
+  const parts = decodeNarration(narration);
+  if (!parts.length) return null;
+  return (
+    <details className="mt-0.5">
+      <summary className="cursor-pointer text-[11px] font-medium text-accent">
+        🔍 What does this narration mean?
+      </summary>
+      <table className="mt-1 w-full border-collapse text-left text-[11px]">
+        <tbody>
+          {parts.map((p, i) => (
+            <tr key={i} className="align-top">
+              <td className="whitespace-nowrap py-0.5 pr-2 font-mono text-[#12232e]">{p.part}</td>
+              <td className="py-0.5 text-[#566a76]">{p.meaning}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </details>
+  );
 }
 
 // Same idea as index.html's sourceNameIsEditable() (~line 14157) — only a genuinely-extracted sender
@@ -116,6 +162,13 @@ interface StatementDashboardProps {
   onEmployerAltNameChange?: (name: string) => void;
   onBusinessNameChange?: (name: string) => void;
   onBusinessAltNameChange?: (name: string) => void;
+  /** The applicant's own confirmed/corrected category per matched employer/business payment (see
+   * workNameCheck.ts's WorkCategoryMap) - owned/persisted by the parent page, same uncontrolled-
+   * seed-plus-callback pattern as everything else in this props list. */
+  employerCategoryChoices?: WorkCategoryMap;
+  businessCategoryChoices?: WorkCategoryMap;
+  onEmployerCategoryChoicesChange?: (choices: WorkCategoryMap) => void;
+  onBusinessCategoryChoicesChange?: (choices: WorkCategoryMap) => void;
   /** Link to the Report tab's "Financial readiness calculator" cross-reference (see ReportTab
    * below). Defaults to the UK's route so the standalone /checklist/statement-test dev page
    * (StatementUpload.tsx, which doesn't pass this) keeps working unchanged; every real checklist
@@ -145,6 +198,10 @@ export default function StatementDashboard({
   onEmployerAltNameChange,
   onBusinessNameChange,
   onBusinessAltNameChange,
+  employerCategoryChoices: initialEmployerCategoryChoices,
+  businessCategoryChoices: initialBusinessCategoryChoices,
+  onEmployerCategoryChoicesChange,
+  onBusinessCategoryChoicesChange,
   financialHref = '/checklist/uk/financial',
 }: StatementDashboardProps) {
   const [applicantName, setApplicantName] = useState(initialApplicantName);
@@ -153,6 +210,12 @@ export default function StatementDashboard({
   const [employerAltName, setEmployerAltName] = useState(initialEmployerAltName);
   const [businessName, setBusinessName] = useState(initialBusinessName);
   const [businessAltName, setBusinessAltName] = useState(initialBusinessAltName);
+  const [employerCategoryChoices, setEmployerCategoryChoices] = useState<WorkCategoryMap>(
+    initialEmployerCategoryChoices || {}
+  );
+  const [businessCategoryChoices, setBusinessCategoryChoices] = useState<WorkCategoryMap>(
+    initialBusinessCategoryChoices || {}
+  );
   const [tab, setTab] = useState<'analysis' | 'report'>('analysis');
 
   // Keyed by the RAW extracted name (same key buildIncomeSourceBreakdown and getTopConsistentSenders
@@ -195,6 +258,14 @@ export default function StatementDashboard({
     onBusinessAltNameChange?.(businessAltName);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [businessAltName]);
+  useEffect(() => {
+    onEmployerCategoryChoicesChange?.(employerCategoryChoices);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [employerCategoryChoices]);
+  useEffect(() => {
+    onBusinessCategoryChoicesChange?.(businessCategoryChoices);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [businessCategoryChoices]);
   const [editingName, setEditingName] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
 
@@ -376,6 +447,10 @@ export default function StatementDashboard({
           setBusinessAltName={setBusinessAltName}
           employerCheck={employerCheck}
           businessCheck={businessCheck}
+          employerCategoryChoices={employerCategoryChoices}
+          setEmployerCategoryChoices={setEmployerCategoryChoices}
+          businessCategoryChoices={businessCategoryChoices}
+          setBusinessCategoryChoices={setBusinessCategoryChoices}
         />
       )}
     </div>
@@ -581,6 +656,7 @@ function SourceGroupCard({
               <li key={i} className="text-xs text-[#4c6270]">
                 {formatDate(t.date)} — {formatAmount(t.credit)}
                 {t.narration ? ` ("${t.narration}")` : ' (no narration)'}
+                {t.narration && <NarrationDecoder narration={t.narration} />}
               </li>
             ))}
           </ul>
@@ -628,6 +704,10 @@ function ReportTab({
   setBusinessAltName,
   employerCheck,
   businessCheck,
+  employerCategoryChoices,
+  setEmployerCategoryChoices,
+  businessCategoryChoices,
+  setBusinessCategoryChoices,
 }: {
   totalIncomeIdentified: number;
   incomeSourceCount: number;
@@ -645,6 +725,10 @@ function ReportTab({
   setBusinessAltName: (v: string) => void;
   employerCheck: WorkNameCheckResult | null;
   businessCheck: WorkNameCheckResult | null;
+  employerCategoryChoices: WorkCategoryMap;
+  setEmployerCategoryChoices: (updater: (prev: WorkCategoryMap) => WorkCategoryMap) => void;
+  businessCategoryChoices: WorkCategoryMap;
+  setBusinessCategoryChoices: (updater: (prev: WorkCategoryMap) => WorkCategoryMap) => void;
 }) {
   const unexplainedTotal = unexplainedInflows.reduce((s, t) => s + t.credit, 0);
   const incomeStatus: 'good' | 'warn' = unexplainedInflows.length === 0 ? 'good' : 'warn';
@@ -719,6 +803,8 @@ function ReportTab({
                 altName={employerAltName}
                 setAltName={setEmployerAltName}
                 check={employerCheck}
+                categoryChoices={employerCategoryChoices}
+                setCategoryChoices={setEmployerCategoryChoices}
               />
             )}
             {selfEmployed && (
@@ -729,6 +815,8 @@ function ReportTab({
                 altName={businessAltName}
                 setAltName={setBusinessAltName}
                 check={businessCheck}
+                categoryChoices={businessCategoryChoices}
+                setCategoryChoices={setBusinessCategoryChoices}
               />
             )}
           </div>
@@ -745,6 +833,8 @@ function WorkNameFields({
   altName,
   setAltName,
   check,
+  categoryChoices,
+  setCategoryChoices,
 }: {
   label: string;
   name: string;
@@ -752,9 +842,18 @@ function WorkNameFields({
   altName: string;
   setAltName: (v: string) => void;
   check: WorkNameCheckResult | null;
+  categoryChoices: WorkCategoryMap;
+  setCategoryChoices: (updater: (prev: WorkCategoryMap) => WorkCategoryMap) => void;
 }) {
   const idBase = `statement-${label.toLowerCase()}-name`;
   const messages = check ? buildWorkNameCheckMessages(check) : [];
+
+  function setCategory(key: string, category: string) {
+    setCategoryChoices((prev) => ({ ...prev, [key]: { ...prev[key], category } }));
+  }
+  function setCategoryDetail(key: string, detail: string) {
+    setCategoryChoices((prev) => ({ ...prev, [key]: { category: prev[key]?.category || 'others', detail } }));
+  }
   return (
     <div className="rounded-xl border border-black/10 p-4">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -805,15 +904,52 @@ function WorkNameFields({
       {check && check.inflowMatches.length > 0 && (
         <div className="mt-2">
           <p className="mb-1 text-xs font-medium text-[#12232e]">
-            Matched payment{check.inflowMatches.length === 1 ? '' : 's'} ({check.inflowMatches.length})
+            Matched payment{check.inflowMatches.length === 1 ? '' : 's'} ({check.inflowMatches.length}) — confirm
+            or correct what each one was for:
           </p>
-          <ul className="flex flex-col gap-1">
-            {check.inflowMatches.map((t, i) => (
-              <li key={i} className="text-xs text-[#4c6270]">
-                {formatDate(t.date)} — {formatAmount(t.credit)}
-                {t.narration ? ` ("${t.narration}")` : ' (no narration)'}
-              </li>
-            ))}
+          <ul className="flex flex-col gap-2">
+            {check.inflowMatches.map((t, i) => {
+              const key = inflowKey(t);
+              const hint = check.inflowCategoryHints[i];
+              const choice = resolveWorkCategoryChoice(t, hint, categoryChoices);
+              return (
+                <li key={key} className="rounded-lg border border-black/10 p-2 text-xs text-[#4c6270]">
+                  <div>
+                    {formatDate(t.date)} — {formatAmount(t.credit)}
+                    {t.narration ? ` ("${t.narration}")` : ' (no narration)'}
+                  </div>
+                  {t.narration && <NarrationDecoder narration={t.narration} />}
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                    <select
+                      value={choice.category}
+                      onChange={(e) => setCategory(key, e.target.value)}
+                      className="rounded-lg border border-black/10 px-2 py-1 text-xs text-[#12232e]"
+                    >
+                      <option value="">Choose a reason…</option>
+                      {WORK_PAYMENT_REASON_CATEGORIES.map((c) => (
+                        <option key={c.value} value={c.value}>
+                          {c.label}
+                        </option>
+                      ))}
+                    </select>
+                    {!choice.category && hint && (
+                      <span className="text-[10px] text-[#566a76]">
+                        (looks like it might be &quot;{workPaymentCategoryLabel(hint)}&quot;, from the narration)
+                      </span>
+                    )}
+                  </div>
+                  {choice.category === 'others' && (
+                    <input
+                      type="text"
+                      value={choice.detail || ''}
+                      onChange={(e) => setCategoryDetail(key, e.target.value)}
+                      placeholder="What was this payment for?"
+                      className="mt-1 w-full rounded-lg border border-black/10 px-2 py-1 text-xs text-[#12232e]"
+                    />
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}
