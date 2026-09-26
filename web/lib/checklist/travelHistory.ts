@@ -14,9 +14,13 @@
 //   - The country-guide "steps + cost estimate" content rendering into a modal
 //     (#teCountryGuideModalBody) — rendered inline instead, consistent with this port's existing
 //     <details>/inline pattern, avoiding introducing a new modal system.
-//   - updateTravelExperienceReasons() (the "Reasons" tab integration) — that tab's architecture is
-//     a separate, not-yet-ported piece of the original; the grading logic below returns its info
-//     lines directly to the caller instead of pushing them into a shared REASONS array.
+//
+// updateTravelExperienceReasons() (the "Reasons" tab integration) — originally deferred here, since
+// that tab's architecture (a shared, mutable REASONS array) doesn't exist in this port — was wired
+// in via a follow-up selection, "Wire travel history into the Reasons tab": ReasonsView.tsx reads
+// this module's own storage key read-only and re-runs computeTravelExperienceGrade() itself,
+// rather than routing through any shared array. The grading logic below still just returns its
+// info lines directly to the caller, unchanged.
 
 // ---------------- Country lists ----------------
 // Small curated lists (not exhaustive) — only need to support the specific grading rules below.

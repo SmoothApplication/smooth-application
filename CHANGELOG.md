@@ -3,6 +3,30 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Wire Travel History into the Reasons tab (`ReasonsView.tsx`)
+
+Follow-up selection "Wire travel history into the Reasons tab" — the one piece of the Travel
+History port explicitly deferred at the time (see `travelHistory.ts`'s own header comment):
+`updateTravelExperienceReasons()`, which pushes the section's "positive factor" info lines
+(3+ African countries visited, EU travel history, a major/high-GDP destination, South
+Africa/Morocco/Kenya without overstaying) into index.html's shared, mutable `REASONS` array so
+they surface in that tab alongside the document-by-document explanations.
+
+- This port has no equivalent shared `REASONS` array — each side feature reads whatever storage it
+  needs read-only instead (the same pattern `NextStepsReport.tsx` and `BusinessIncomeLedger.tsx`
+  already use). `ReasonsView.tsx` now also reads Travel History's own `sa_<code>_travelhistory` key
+  and re-runs the exact same, already-tested `computeTravelExperienceGrade()` pure function Travel
+  History itself uses — no new logic, no new tests needed for the grading itself.
+- Renders as a new "✈️ Your travel history" section on the Reasons page, only when there's
+  something to show (matching the original's behavior of clearing the section when there's no
+  travel history entered yet or the applicant answered "no" to having any).
+- Deliberately excludes the overstay caution line ("An overstay on your record is a real concern…")
+  from this page — the original never pushed that into `REASONS` either; it only ever appeared as
+  standalone feedback on the Travel History page itself, which this port also keeps separate.
+- `npx tsc --noEmit` clean; `npx jest` — 320/320 passing across 57 suites, no regressions (no new
+  tests needed, since the grading logic being reused already has full coverage from when Travel
+  History itself shipped).
+
 ## Business name-tally check on the scanned business statement (`businessDrawings.ts`, `BusinessIncomeLedger.tsx`)
 
 User feedback after testing the "fuller business statement analysis" feature live with a real

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Answers, DEFAULT_ANSWERS, ChecklistItem, itemApplies } from '@/lib/checklist/uk';
 import { ALL_CHECKLISTS } from '@/lib/checklist/all';
+import { TravelHistoryRow, OverstayRow, computeTravelExperienceGrade } from '@/lib/checklist/travelHistory';
 
 // Phase 4c of task #244: a simplified port of index.html's "Reasons" tab/modal — the end-of-flow
 // explanation of WHY each document is asked for. index.html's version sweeps a much wider set of
@@ -12,6 +13,14 @@ import { ALL_CHECKLISTS } from '@/lib/checklist/all';
 // ported so far — every checklist item's own "Why?" tip, grouped by category, filtered to the
 // items that currently apply to the applicant's answers (same itemApplies() used by the checklist
 // body) so it reads as a personal explanation, not a generic dump of every possible document.
+//
+// Follow-up selection "Wire travel history into the Reasons tab": index.html's
+// updateTravelExperienceGrade() pushes its "positive factor" info lines straight into the shared
+// REASONS array as they're computed (session: 'travelExperience', dynamic: true) — see
+// lib/checklist/travelHistory.ts's own header comment, which flagged this specific piece as
+// deliberately not yet wired. Ported here the same read-only way every other side feature feeds
+// this page: read Travel History's own storage (sa_<code>_travelhistory) and re-run the exact same
+// pure grading function it already uses, rather than routing through any shared reasons array.
 export type ReasonsViewProps = {
   code: string;
   flag: string;
@@ -29,6 +38,9 @@ export default function ReasonsView({ code, flag, name, visaName, answersKey, ch
   const [answers, setAnswers] = useState<Answers>(DEFAULT_ANSWERS);
   const [checked, setChecked] = useState<Record<string, boolean>>({});
   const [loaded, setLoaded] = useState(false);
+  const [travelHistoryRows, setTravelHistoryRows] = useState<TravelHistoryRow[]>([]);
+  const [overstayRows, setOverstayRows] = useState<OverstayRow[]>([]);
+  const [hasOverstayed, setHasOverstayed] = useState(false);
 
   useEffect(() => {
     try {
@@ -39,8 +51,28 @@ export default function ReasonsView({ code, flag, name, visaName, answersKey, ch
     } catch {
       /* nothing saved yet */
     }
+
+    // Read-only, same as every other side feature that feeds this page (StatementCheck's own
+    // storage read by BusinessIncomeLedger, etc.) — Travel History owns this key entirely.
+    try {
+      const raw = localStorage.getItem(`sa_${code.toLowerCase()}_travelhistory`);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        setTravelHistoryRows(Array.isArray(parsed?.historyRows) ? parsed.historyRows : []);
+        setOverstayRows(Array.isArray(parsed?.overstayRows) ? parsed.overstayRows : []);
+        setHasOverstayed(!!parsed?.hasOverstayed);
+      }
+    } catch {
+      /* nothing saved yet */
+    }
+
     setLoaded(true);
-  }, [answersKey, checkedKey]);
+  }, [answersKey, checkedKey, code]);
+
+  const travelHistoryInfoLines = useMemo(
+    () => computeTravelExperienceGrade(travelHistoryRows, hasOverstayed ? overstayRows : [])?.infoLines || [],
+    [travelHistoryRows, overstayRows, hasOverstayed]
+  );
 
   const grouped = useMemo(() => {
     return catOrder
@@ -71,6 +103,21 @@ export default function ReasonsView({ code, flag, name, visaName, answersKey, ch
         <div className="rounded-lg border border-black/10 bg-white p-4 text-sm text-[#4c6270]">
           Fill in your qualifying questions on the checklist first — this page explains the documents once they apply to you.
         </div>
+      )}
+
+      {travelHistoryInfoLines.length > 0 && (
+        <section className="rounded-lg border border-black/10 bg-white">
+          <h2 className="border-b border-black/10 px-4 py-3 text-sm font-semibold text-[#12232e]">
+            ✈️ Your travel history
+          </h2>
+          <ul className="divide-y divide-black/5">
+            {travelHistoryInfoLines.map((line, i) => (
+              <li key={i} className="px-4 py-3 text-sm text-good">
+                {line}
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       {grouped.map((g) => (
