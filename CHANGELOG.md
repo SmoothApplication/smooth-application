@@ -3,6 +3,33 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fix duplicate tracker entries from retyping the same program (`web/lib/tracker`, `TrackerCard.tsx`)
+
+Live-usage bug: a user's tracker ended up with both "harvard scholarships" and "Harvard
+Scholarships" as two separate rows — nothing told them the first custom-entry submit had already
+worked, so they retyped it. `addCustomEntry` had no duplicate check at all (a gap from the original
+port — index.html's own `btnAddCustomTracker` handler didn't have one either, but it wasn't
+exercised there in practice since most entries came from the curated directory's programId-keyed
+`toggleTrack`, not free typing).
+
+- New `web/lib/tracker/store.ts`: `isDuplicateTrackerName(entries, name)` — case-insensitive,
+  trimmed name match against existing entries. `addCustomEntry` itself is unchanged (still a pure
+  no-duplicate-check add); the UI checks first and only calls it when there's no match, so the
+  distinction between "silently do nothing" (empty input, ported behavior) and "warn, don't add"
+  (duplicate name, new behavior) stays visible at the call site rather than collapsed into one
+  function.
+- `components/opportunities/TrackerCard.tsx`: `handleAddCustom` now checks
+  `isDuplicateTrackerName` before adding, and shows "You're already tracking something with that
+  name — check the list above instead of adding it twice." instead of creating a second row. The
+  warning clears as soon as the input changes.
+- `web/lib/tracker/__tests__/store.test.ts`: 5 new tests for `isDuplicateTrackerName`, including
+  the exact case-insensitive scenario that caused the live bug.
+- Not addressed here: the two existing duplicate rows already in that user's own browser
+  localStorage — this only prevents new ones. Removing one of the two is a manual "Remove from
+  tracker" click, same as removing any other entry.
+
+`npx tsc --noEmit` clean; `npx jest` — 198/198 passing across 50 suites (5 new), no regressions.
+
 ## Port funded-opportunities directory (`web/lib/opportunities`, `web/app/opportunities/page.tsx`)
 
 Ported index.html's "Funded opportunities & exchange programs" directory (`#opportunitiesGate`,

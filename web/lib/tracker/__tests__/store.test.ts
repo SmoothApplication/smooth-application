@@ -7,6 +7,7 @@ import {
   isTracked,
   toggleTrack,
   addCustomEntry,
+  isDuplicateTrackerName,
   updateEntryStatus,
   updateEntryDeadline,
   updateEntryNotes,
@@ -106,6 +107,39 @@ describe('addCustomEntry', () => {
     const entries: TrackerEntry[] = [];
     expect(addCustomEntry(entries, '')).toBe(entries);
     expect(addCustomEntry(entries, '   ')).toBe(entries);
+  });
+});
+
+describe('isDuplicateTrackerName', () => {
+  const existing: TrackerEntry = {
+    id: 'trk_1',
+    programId: null,
+    name: 'Harvard Scholarships',
+    status: 'researching',
+    deadline: '',
+    notes: '',
+  };
+
+  test('matches case-insensitively — the exact real-world bug this guards against', () => {
+    expect(isDuplicateTrackerName([existing], 'harvard scholarships')).toBe(true);
+    expect(isDuplicateTrackerName([existing], 'HARVARD SCHOLARSHIPS')).toBe(true);
+  });
+
+  test('matches with surrounding whitespace trimmed on both sides', () => {
+    expect(isDuplicateTrackerName([existing], '  Harvard Scholarships  ')).toBe(true);
+  });
+
+  test('a genuinely different name is not a duplicate', () => {
+    expect(isDuplicateTrackerName([existing], 'Chevening Scholarship')).toBe(false);
+  });
+
+  test('empty/whitespace-only input is never treated as a duplicate', () => {
+    expect(isDuplicateTrackerName([existing], '')).toBe(false);
+    expect(isDuplicateTrackerName([existing], '   ')).toBe(false);
+  });
+
+  test('an empty tracker has no duplicates', () => {
+    expect(isDuplicateTrackerName([], 'Harvard Scholarships')).toBe(false);
   });
 });
 

@@ -50,8 +50,20 @@ export function toggleTrack(entries: TrackerEntry[], programId: string, name: st
   return [...entries, newEntry(programId, name)];
 }
 
+/** Case-insensitive, trimmed name match against the tracker's existing entries — added after a
+ * live user ended up with both "harvard scholarships" and "Harvard Scholarships" as two separate
+ * rows (retyping the same program because nothing told them it was already tracked). Whitespace-
+ * only/empty `name` is never treated as a duplicate — that's `addCustomEntry`'s own no-op case. */
+export function isDuplicateTrackerName(entries: TrackerEntry[], name: string): boolean {
+  const trimmed = name.trim().toLowerCase();
+  if (!trimmed) return false;
+  return entries.some((e) => e.name.trim().toLowerCase() === trimmed);
+}
+
 /** Ported from the btnAddCustomTracker click handler. Returns `entries` unchanged if `name` is
- * empty/whitespace-only, matching the original's silent no-op. */
+ * empty/whitespace-only, matching the original's silent no-op. Does NOT itself check for
+ * duplicates — that's `isDuplicateTrackerName`, called by the UI first so it can show a warning
+ * instead of silently adding a second row for the same program. */
 export function addCustomEntry(entries: TrackerEntry[], name: string): TrackerEntry[] {
   const trimmed = name.trim();
   if (!trimmed) return entries;

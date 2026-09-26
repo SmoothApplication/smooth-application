@@ -6,6 +6,7 @@ import {
   TrackerStatus,
   TRACKER_STATUS_OPTIONS,
   addCustomEntry,
+  isDuplicateTrackerName,
   updateEntryStatus,
   updateEntryDeadline,
   updateEntryNotes,
@@ -29,10 +30,20 @@ export function TrackerCard({
   setEntries: Dispatch<SetStateAction<TrackerEntry[]>>;
 }) {
   const [customName, setCustomName] = useState('');
+  const [duplicateWarning, setDuplicateWarning] = useState(false);
 
   function handleAddCustom() {
+    // Checked BEFORE adding, against the same trimmed/case-insensitive name — a live user ended
+    // up with both "harvard scholarships" and "Harvard Scholarships" as two separate rows because
+    // nothing told them the first attempt had already worked. Warn instead of silently adding a
+    // second row for what's almost certainly the same program.
+    if (isDuplicateTrackerName(entries, customName)) {
+      setDuplicateWarning(true);
+      return;
+    }
     setEntries((prev) => addCustomEntry(prev, customName));
     setCustomName('');
+    setDuplicateWarning(false);
   }
 
   return (
@@ -66,7 +77,10 @@ export function TrackerCard({
         <input
           type="text"
           value={customName}
-          onChange={(e) => setCustomName(e.target.value)}
+          onChange={(e) => {
+            setCustomName(e.target.value);
+            if (duplicateWarning) setDuplicateWarning(false);
+          }}
           onKeyDown={(e) => {
             if (e.key === 'Enter') handleAddCustom();
           }}
@@ -81,6 +95,11 @@ export function TrackerCard({
           + Add to my tracker
         </button>
       </div>
+      {duplicateWarning && (
+        <p className="mt-2 text-xs text-warn-text">
+          You&apos;re already tracking something with that name — check the list above instead of adding it twice.
+        </p>
+      )}
     </div>
   );
 }
