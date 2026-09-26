@@ -3,6 +3,30 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Broaden passport-scan regression coverage (`web/lib/passport/__tests__`)
+
+Same kind of sweep already done for bank statements (Phase 5): audited the original app's historical
+passport/MRZ test fixtures (`tests/*.test.js` + `tests/fixtures/*.pdf`) against what's already
+ported to `web/lib/passport/__tests__` (10 fixture-based test files, covering digit misreads, letter
+misreads, given-name noise, line-1 garbling, low-end-phone OCR, the stray-junk-char line shift, and
+more). Most of the original Playwright tests turned out to be DOM/UI-flow tests specific to the old
+single-page app (camera open/cancel wiring, a "verified in Session 1" status line, a footer-refresh
+timing bug) that don't apply to the Next.js port's architecture or don't have an equivalent feature
+yet — not test-coverage gaps to port.
+
+One genuine gap found: `expiry-unrecoverable-fixture.pdf` (a real fixture where the MRZ expiry field
+is non-digit noise — "XXXXXX" — and the bio page prints a "Date of Issue" line but no "Date of
+Expiry" line at all) had no equivalent pure-function test, even though the underlying fallback logic
+(`extractPrintedExpiryDate` in `dates.ts`) is already ported. Added
+`expiry-unrecoverable-fixture.test.ts`: extracted the fixture's real text directly via `pdftotext`
+(it's a text-layer PDF, not a scanned image, so this is the exact text the app's own PDF-extraction
+path reads) and asserts `parseMrzFields` correctly leaves `expiryDate: null` — a genuine dead end,
+not a bug — while every other field (name, passport number, nationality, sex, birth date) still
+parses correctly from the same page, isolating that the "failure" is scoped to the one truly
+unrecoverable field.
+
+`npx tsc --noEmit` clean; `npx jest` — 160/160 passing across 47 suites (3 new), no regressions.
+
 ## Extend financial calculator, bank statement, and passport scan to all 8 countries (`web/`)
 
 The financial readiness calculator, bank-statement analysis, and passport scan were UK-only since
