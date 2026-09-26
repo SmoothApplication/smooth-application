@@ -40,7 +40,7 @@ export default function StatementUpload() {
       const lines = await getLinesFromFile(file);
       if (!lines.length) {
         setError(
-          "We couldn't find any readable text in that file. If it's a scanned or photographed statement, this quick check doesn't support those yet — a regular PDF or spreadsheet export from your bank works best."
+          "We tried reading that file — including on-device OCR for a scanned or photographed statement — but couldn't make out any readable text in it. Try a clearer photo/scan, or a regular PDF/spreadsheet export from your bank."
         );
         return;
       }
@@ -67,7 +67,8 @@ export default function StatementUpload() {
       <div>
         <h1 className="text-xl font-semibold text-[#12232e]">Statement check (test page)</h1>
         <p className="mt-1 text-sm text-[#4c6270]">
-          Upload a bank statement (PDF or Excel export) to see what we can read from it.
+          Upload a bank statement (PDF, Excel export, or a clear photo/scan) to see what we can read
+          from it.
         </p>
       </div>
 
@@ -82,7 +83,7 @@ export default function StatementUpload() {
         <input
           id="statement-file"
           type="file"
-          accept=".pdf,.xlsx,.xls"
+          accept=".pdf,.xlsx,.xls,image/*"
           onChange={(e) => {
             setFile(e.target.files?.[0] ?? null);
             setTxns(null);
@@ -98,6 +99,11 @@ export default function StatementUpload() {
         >
           {loading ? 'Analyzing…' : 'Analyze'}
         </button>
+        {loading && (
+          <p className="mt-2 text-xs text-[#566a76]">
+            This can take a few minutes for a scanned or photographed statement (on-device OCR).
+          </p>
+        )}
       </div>
 
       {error && (

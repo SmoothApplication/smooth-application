@@ -49,6 +49,15 @@ this closes that gap in the Next.js port rather than leaving it as a permanent l
   functions themselves (`getLinesFromImageFile`, `getLinesFromPdfWithOcrFallback`) are verified live
   instead, same testing boundary already established for every other pdf.js/Tesseract-touching
   function in this codebase (none of those have unit tests either — they need a real browser).
+- Live-verified on the deployed site: uploaded a synthetic photographed statement (a canvas-drawn
+  PNG, not a real file) through the actual file input, and the real Tesseract.js OCR pipeline ran in
+  the browser end-to-end — "Found 2 transactions", correct sender/amount/date. No console errors.
+- Follow-up catch: `StatementUpload.tsx` (the standalone `/checklist/statement-test` dev page, not
+  linked from anywhere real users reach) calls the same shared `getLinesFromFile` but had been missed
+  in the first pass — it still had the old `.pdf,.xlsx,.xls`-only `accept` and the stale "doesn't
+  support scanned statements yet" copy. Brought in line with `StatementCheck.tsx`'s update (image
+  accept, updated error/intro copy, a busy note) for consistency, even though no real applicant sees
+  this page.
 
 ## Bank-code narration decoder + work-payment reason categorization (`StatementDashboard.tsx`, `classify.ts`, `workNameCheck.ts`)
 
