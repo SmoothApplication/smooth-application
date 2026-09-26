@@ -6,6 +6,7 @@ import {
   crossCheckBusinessDrawings,
   buildRecurringDrawingMessage,
   buildCrossCheckMessage,
+  buildNameTallyMessage,
   CROSSCHECK_DAY_WINDOW,
 } from '../businessDrawings';
 import { findRecurringPaymentToPerson } from '../names';
@@ -102,6 +103,40 @@ describe('buildCrossCheckMessage', () => {
     const result = buildCrossCheckMessage({ matched: 3, total: 3 });
     expect(result.status).toBe('ok');
     expect(result.message).toContain('all 3 of 3');
+  });
+});
+
+describe('buildNameTallyMessage', () => {
+  test('null when no business name has been entered', () => {
+    expect(buildNameTallyMessage('', 'Ade Bello Ventures')).toBeNull();
+    expect(buildNameTallyMessage('   ', 'Ade Bello Ventures')).toBeNull();
+  });
+
+  test('null when no account holder name was detected on the statement', () => {
+    expect(buildNameTallyMessage('Ade Bello Ventures', null)).toBeNull();
+  });
+
+  test('warn when the detected holder name does not match the declared business name', () => {
+    const result = buildNameTallyMessage('Ade Bello Ventures', 'Chidinma Okafor');
+    expect(result).not.toBeNull();
+    expect(result!.status).toBe('warn');
+    expect(result!.message).toContain('Chidinma Okafor');
+    expect(result!.message).toContain('Ade Bello Ventures');
+    expect(result!.message).toContain('upload a bank statement');
+  });
+
+  test('ok when the detected holder name matches the declared business name', () => {
+    const result = buildNameTallyMessage('Ade Bello Ventures', 'Ade Bello Ventures');
+    expect(result).not.toBeNull();
+    expect(result!.status).toBe('ok');
+    expect(result!.message).toContain('matches the business name');
+  });
+
+  test('null (silent) on a partial match, same as the original', () => {
+    // Shares some but not all name words - namesLooselyMatch's 'partial' bucket
+    // ("ade" found, "bello" not found).
+    const result = buildNameTallyMessage('Ade Bello', 'Ade Chukwu Ventures Ltd');
+    expect(result).toBeNull();
   });
 });
 

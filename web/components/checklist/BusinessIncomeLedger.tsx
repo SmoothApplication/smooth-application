@@ -22,6 +22,8 @@ import {
   crossCheckBusinessDrawings,
   buildRecurringDrawingMessage,
   buildCrossCheckMessage,
+  buildNameTallyMessage,
+  extractAccountHolderName,
   DateAmount,
 } from '@/lib/statement';
 
@@ -66,6 +68,11 @@ interface SavedBizLedger {
   // just the credits the ledger itself needs. Optional so a payload saved before this feature
   // existed still loads fine (falls back to [] — see loadSaved below).
   allTxns?: PersistedTxn[];
+  // Added for the name-tally check: the account-holder name detected on the business statement's
+  // own header at scan time (null if none was found), re-compared against businessName on every
+  // render rather than re-run from raw text, since raw statement text is never persisted. Optional
+  // for the same backward-compat reason as allTxns.
+  detectedHolderName?: string | null;
 }
 
 function loadSaved(storageKey: string): SavedBizLedger | null {
@@ -105,6 +112,9 @@ export default function BusinessIncomeLedger({ countryCode }: BusinessIncomeLedg
   const [allTxns, setAllTxns] = useState<ParsedTxn[]>([]);
   const [ledger, setLedger] = useState<BizLedgerMap>({});
   const [businessName, setBusinessName] = useState('');
+  // null = no "Account Name:"-style header found on the scanned statement (or not scanned yet) —
+  // see extractAccountHolderName's own conservative-by-design note.
+  const [detectedHolderName, setDetectedHolderName] = useState<string | null>(null);
 
   // Read-only: the applicant's own name and personal-statement credits, both owned by
   // StatementCheck.tsx (sa_<code>_statement). null personalCredits = that statement hasn't been
@@ -124,6 +134,7 @@ export default function BusinessIncomeLedger({ countryCode }: BusinessIncomeLedg
       setAllTxns(deserializeTxns(saved.allTxns || []));
       setLedger(saved.ledger || {});
       setBusinessName(saved.businessName || '');
+      setDetectedHolderName(saved.detectedHolderName ?? null);
       setRecalled(true);
     }
 
@@ -151,12 +162,13 @@ export default function BusinessIncomeLedger({ countryCode }: BusinessIncomeLedg
         allTxns: serializeTxns(allTxns),
         ledger,
         businessName,
+        detectedHolderName,
       };
       localStorage.setItem(storageKey, JSON.stringify(payload));
     } catch {
       /* ignore */
     }
-  }, [credits, allTxns, ledger, businessName, loaded, storageKey]);
+  }, [credits, allTxns, ledger, businessName, detectedHolderName, loaded, storageKey]);
 
   const filledCount = useMemo(() => countFilledEntries(credits || [], ledger), [credits, ledger]);
   const builtRows = useMemo(() => buildBizLedgerRows(credits || [], ledger), [credits, ledger]);
@@ -181,6 +193,15 @@ export default function BusinessIncomeLedger({ countryCode }: BusinessIncomeLedg
   );
   const crossCheckMessage = useMemo(() => (crossCheck ? buildCrossCheckMessage(crossCheck) : null), [crossCheck]);
 
+  // Name-tally check — recomputed reactively so typing into the "Business name" field after the
+  // scan (the normal order of operations) still triggers the comparison. See
+  // lib/statement/businessDrawings.ts's buildNameTallyMessage for the scope note on why this only
+  // checks the statement's own account-holder header, not a coarser text-search fallback.
+  const nameTallyMessage = useMemo(
+    () => buildNameTallyMessage(businessName, detectedHolderName),
+    [businessName, detectedHolderName]
+  );
+
   function clearSaved() {
     try {
       localStorage.removeItem(storageKey);
@@ -191,6 +212,7 @@ export default function BusinessIncomeLedger({ countryCode }: BusinessIncomeLedg
     setAllTxns([]);
     setLedger({});
     setBusinessName('');
+    setDetectedHolderName(null);
     setRecalled(false);
     setFile(null);
     setError(null);
@@ -228,6 +250,8 @@ export default function BusinessIncomeLedger({ countryCode }: BusinessIncomeLedg
       setCredits(filterBusinessCredits(result));
       setAllTxns(result);
       setLedger({});
+      const fullStatementText = lines.map((l) => l.text || '').join(' ');
+      setDetectedHolderName(extractAccountHolderName(fullStatementText));
       setRecalled(false);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -364,6 +388,16 @@ export default function BusinessIncomeLedger({ countryCode }: BusinessIncomeLedg
               placeholder="my business"
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
             />
+            {nameTallyMessage && (
+              <div
+                className={`mt-2 rounded-lg p-3 text-sm ${
+                  nameTallyMessage.status === 'ok' ? 'bg-green-50 text-green-800' : 'bg-warn-wash text-warn-text'
+                }`}
+              >
+                {nameTallyMessage.status === 'ok' ? '✅ ' : '⚠️ '}
+                {nameTallyMessage.message}
+              </div>
+            )}
           </div>
 
           <p className="text-sm text-[#4c6270]">

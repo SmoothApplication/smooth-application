@@ -13,6 +13,7 @@
 // than DOM strings.
 import { fmtN } from '../checklist/financial';
 import type { RecurringPaymentToPersonResult } from './types';
+import { namesLooselyMatch } from './names';
 
 /** A bank-to-bank transfer can take a few days to land — same window the original used. */
 export const CROSSCHECK_DAY_WINDOW = 10;
@@ -79,6 +80,41 @@ export function buildRecurringDrawingMessage(
     message:
       "Couldn't find a clear, recurring personal payment from the business to you. Under UK immigration rules, a business is a separate legal entity from its director - the business having money is not the same as you having money. If you're not yet drawing a regular salary or dividend, start doing so and keep records, and make sure that payment also shows up on your own personal bank statement above.",
   };
+}
+
+// User feedback: "once you scan pick the name and verify if it tallies with the name inputted...
+// if it does not tally tell the applicant to upload a bank statement bearing the name inputted."
+// Ports the account-holder-name half of the original's own-statement check (index.html
+// ~14811-14842, `extractAccountHolderName`/`namesLooselyMatch`), applied here to the BUSINESS
+// name typed into the ledger rather than the applicant's personal name — the same primitives,
+// already ported (and already tested) in names.ts, just never wired into any UI component yet.
+//
+// Deliberately narrower than the original in one respect: the original falls back to a coarser
+// "does this name appear ANYWHERE in the statement" check when no "Account Name:"-style header is
+// found. Reproducing that fallback here would mean keeping the statement's raw text around after
+// the scan so it can be re-checked whenever the business name field changes (it's typically typed
+// AFTER scanning, not before) — this app has never persisted raw statement text anywhere, by
+// design (see every other component's own privacy notes), so this check only runs when a precise
+// account-holder-name header is actually detected, and stays silent otherwise rather than keeping
+// text around just to make the fallback possible.
+export function buildNameTallyMessage(declaredName: string, detectedHolderName: string | null): DrawingMessage | null {
+  if (!declaredName || !declaredName.trim() || !detectedHolderName) return null;
+  const match = namesLooselyMatch(declaredName, detectedHolderName);
+  if (match === 'fail') {
+    return {
+      status: 'warn',
+      message: `This statement's account holder appears to be "${detectedHolderName}", which doesn't match the business name you entered ("${declaredName}"). Double-check you've uploaded the right file, or upload a bank statement that's actually in "${declaredName}"'s name.`,
+    };
+  }
+  if (match === 'ok') {
+    return {
+      status: 'ok',
+      message: `Account holder name detected as "${detectedHolderName}" - matches the business name you entered, a good sign this is the right statement.`,
+    };
+  }
+  // 'partial' — some but not all name words matched. Same as the original: no message either way,
+  // rather than raising an alarm (or false reassurance) off a partial, ambiguous match.
+  return null;
 }
 
 /** Ported verbatim from appendCrossCheckMessage's three branches (index.html ~12419-12424). Only

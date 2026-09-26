@@ -3,6 +3,39 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Business name-tally check on the scanned business statement (`businessDrawings.ts`, `BusinessIncomeLedger.tsx`)
+
+User feedback after testing the "fuller business statement analysis" feature live with a real
+100-transaction statement: *"once you scan pick the name and verify if it tally's with the name
+inputted from work place. if it does not tally tell the applicant to upload a bank statement
+bearing the name inputted under workplace."* Interpreted "the name inputted" as the ledger's own
+"Business name" field, since that's what was visible on the page being tested.
+
+- Another pleasant discovery: the account-holder-name-vs-typed-name check this needed —
+  `extractAccountHolderName()` (reads an "Account Name:"/"Customer Name:"/"Name of Account
+  Holder:"/"A/C Name:" header off a statement) and `namesLooselyMatch()` (tolerant word-overlap
+  comparison) — was **already ported** in `web/lib/statement/names.ts`, with its own pre-existing
+  passing test file (`account-holder-name-check.test.ts`), as part of the original bank-statement-
+  engine port. Never wired into any UI component until now.
+- New `buildNameTallyMessage(declaredName, detectedHolderName)` in `businessDrawings.ts`: warns when
+  the detected holder name doesn't match the typed business name and tells the applicant to upload
+  a statement in that name instead; confirms when it does; stays silent on a partial match (some
+  but not all name words overlap) or when nothing was declared/detected yet — same as the original.
+- Deliberately narrower than the original in one respect, disclosed in the function's own header
+  comment: the original falls back to a coarser "does this name appear anywhere in the statement
+  text" check when no account-holder header is found. Reproducing that would mean keeping the
+  statement's raw text around after scanning (the business name is typically typed *after* the
+  scan, so the fallback would need to be re-run later) — this app has never persisted raw statement
+  text anywhere, by design, so this check only runs when a precise header is actually detected.
+- `BusinessIncomeLedger.tsx`: `handleAnalyze` now also extracts the account-holder name from the
+  scanned lines and stores it (`detectedHolderName`, persisted alongside the rest of the ledger,
+  backward-compatible with older saved payloads). The tally message recomputes reactively as the
+  applicant types the business name, so it still catches a mismatch typed in after the scan
+  finished. Rendered directly under the "Business name" field.
+- `web/lib/statement/__tests__/businessDrawings.test.ts`: +5 tests for `buildNameTallyMessage`'s
+  fail/ok/partial/null branches.
+- `npx tsc --noEmit` clean; `npx jest` — 320/320 passing across 57 suites (5 new), no regressions.
+
 ## Port fuller business statement analysis (`web/lib/statement/businessDrawings.ts`, `BusinessIncomeLedger.tsx`)
 
 Ported the piece deliberately deferred when the Business Income Record ledger first shipped
