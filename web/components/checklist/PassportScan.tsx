@@ -6,7 +6,13 @@ import {
   preprocessImageForOcr,
   recognizeText,
 } from '@/lib/passport/extractText';
-import { parseMrzFields, validateMrz, mrzCheckSummary, ParsedPassportFields } from '@/lib/passport';
+import {
+  parseMrzFields,
+  validateMrz,
+  mrzCheckSummary,
+  ParsedPassportFields,
+  getPassportValidityStatus,
+} from '@/lib/passport';
 import { FieldState, EMPTY_PASSPORT_FIELDS, hasPassportFields } from '@/lib/passport/persist';
 
 // Phase 2 of the passport-MRZ port (see lib/passport/index.ts for Phase 1's pure parsing engine).
@@ -268,6 +274,12 @@ export default function PassportScan({
     setFields((f) => ({ ...f, [key]: value }));
   }
 
+  // Checked against 6 months from today, not the trip's travel date — see the comment in
+  // lib/passport/validity.ts for why (this page runs before the applicant necessarily reaches a
+  // trip-details step, so there's no travel date to check against yet). Recomputed on every render,
+  // so editing the expiry field (whether auto-filled or typed by hand) updates this immediately.
+  const validity = getPassportValidityStatus(fields.expiryDate);
+
   const Wrapper = standalone ? 'main' : 'div';
   const wrapperClassName = standalone
     ? 'mx-auto flex min-h-screen max-w-4xl flex-col gap-5 p-8'
@@ -457,6 +469,31 @@ export default function PassportScan({
               />
             </div>
           </div>
+
+          {validity && validity.level === 'ok' && (
+            <div className="mt-4 rounded-lg bg-accent-wash p-3 text-sm text-accent" role="status">
+              🎉 <b>Congratulations</b> — your passport has more than 6 months&apos; validity
+              remaining, which is enough for a visa application.
+            </div>
+          )}
+
+          {validity && validity.level === 'warn' && (
+            <div className="mt-4 rounded-lg bg-warn-wash p-3 text-sm text-warn-text" role="alert">
+              ⚠️ Your passport {validity.expired ? 'has expired' : "has less than 6 months' validity remaining"}{' '}
+              — most visa applications need at least 6 months left, so renewing it should be a
+              priority.{' '}
+              <a
+                href="https://passport.immigration.gov.ng/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline"
+              >
+                Start your renewal on the official Nigeria Immigration Service site ↗
+              </a>{' '}
+              You can still continue with the rest of your checklist while you sort renewal out in
+              parallel — none of that work goes to waste.
+            </div>
+          )}
 
           {rawText && (
             <details className="mt-4 text-xs text-[#566a76]">

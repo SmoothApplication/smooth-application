@@ -3,6 +3,31 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Port passport-validity status message (`web/lib/passport/validity.ts`, `PassportScan.tsx`)
+
+The original app's "Session 1" passport page showed a Congratulations/warning message based on the
+scanned expiry date vs. 6 months from today (most visa applications need at least 6 months'
+validity remaining) — this never got ported when the passport-scan feature moved to Next.js, so it
+was silently missing from every country's passport page.
+
+- New `web/lib/passport/validity.ts`: `getPassportValidityStatus(expiryDate)`, ported from
+  index.html's `updatePassportValidateStatus`. Pure logic only (`{ level: 'ok' | 'warn', expired:
+  boolean }`) — checked against 6 months from *today*, not the trip's travel date, same as the
+  original, since the applicant may not have reached a trip-details step yet when they scan their
+  passport. Copy/rendering deliberately kept out of this module, same split already used for
+  `dates.ts`.
+- `web/lib/passport/__tests__/validity-status.test.ts`: ported the exact 3 scenarios from
+  `tests/passport-validate-status.test.js` (far-future date → ok, 1-month-out → warn/not expired,
+  past date → warn/expired) as relative-date pure-function tests, plus null/invalid-date guards.
+- `PassportScan.tsx`: renders the status directly below the editable fields, recomputed on every
+  edit (auto-filled or typed by hand) so correcting the expiry date updates it live. Copy adapted
+  from the original for the new checklist-based flow (dropped the "Session 2: Travel Experience"
+  reference, which doesn't apply here) but kept the renewal link to the official Nigeria Immigration
+  Service site and the "keep going in parallel, nothing is wasted" reassurance. Shows on every
+  country's passport page (`/checklist/<country>/passport`) via the shared component, not just UK.
+
+`npx tsc --noEmit` clean; `npx jest` — 165/165 passing across 48 suites (5 new), no regressions.
+
 ## Broaden passport-scan regression coverage (`web/lib/passport/__tests__`)
 
 Same kind of sweep already done for bank statements (Phase 5): audited the original app's historical
