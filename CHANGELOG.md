@@ -3,6 +3,17 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Remove country-picker trust pills (`app/checklist/start/page.tsx`)
+
+Direct request: drop "🔒 Your documents never leave your device" and "🆓 Free, always" from the
+country-picker screen — the "always free" framing doesn't fit now that monetization is planned. The
+privacy point ("documents never leave your device") is a factual, still-true claim about how the
+checklist works technically, not a pricing promise, but it was removed as asked rather than
+reworded, since it was requested alongside the pricing pill and the disclaimer box below already
+covers what the tool does and doesn't do.
+
+`npx tsc --noEmit`: clean. `npx jest`: 61 suites / 365 tests passing, 0 regressions.
+
 ## Fix: Reasons unreachable from Session 1/2 (`components/checklist/SessionShell.tsx`)
 
 Direct follow-up ("reasom is missing") to the session-pagination slice below: Reasons ("Why these

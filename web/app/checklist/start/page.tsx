@@ -54,16 +54,7 @@ export default function ChecklistStartPage() {
           🛂
         </div>
         <h1 className="text-xl font-semibold text-[#12232e]">Smooth Application</h1>
-        <p className="mb-4 text-sm text-[#4c6270]">A personal document-readiness checklist.</p>
-
-        <div className="mb-5 flex flex-wrap gap-2">
-          <span className="rounded-full bg-accent-wash px-3 py-1 text-xs font-medium text-accent">
-            🔒 Your documents never leave your device
-          </span>
-          <span className="rounded-full bg-accent-wash px-3 py-1 text-xs font-medium text-accent">
-            🆓 Free, always
-          </span>
-        </div>
+        <p className="mb-5 text-sm text-[#4c6270]">A personal document-readiness checklist.</p>
 
         <label className="mb-2 block text-sm font-medium text-[#12232e]">
           Which visa are you preparing for?
