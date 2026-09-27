@@ -3,6 +3,22 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Simplify the landing card + reword the quiz-result email capture (`app/quiz/page.tsx`)
+
+Two direct pieces of user feedback on the merged landing/quiz-intro screen:
+
+- The three trust-badge pills (🔒 runs in your browser / 🆓 free, always / 🇳🇬 built for Nigerian
+  applicants) and the "the source code is public" line were cluttering the main card above the fold
+  (marked up with an arrow on a screenshot). Moved all four into the existing "What you need to
+  know" collapsible instead of deleting the information outright — each now has its own line there,
+  alongside the privacy/approval-predictor/why-a-quick-check-first points already there.
+- The quiz-result email capture ("Want this emailed to you? (optional)" / "Email me") undersold
+  what's actually sent. Reworded to "Add your email to get the comprehensive report" / "Get full
+  report" — matching the original's own wording for this exact capture point (`index.html`'s
+  "Add your email to get the full report" / "Get full report").
+
+`npx tsc --noEmit`: clean. `npx jest`: 61 suites / 365 tests passing, 0 regressions.
+
 ## Phase 1: checklist sidebar dashboard — Readiness scores, Still missing, Save your progress (`components/checklist/ChecklistSidebar.tsx`, `lib/checklist/uk.ts`, `lib/checklist/financial.ts`, `components/checklist/CountryChecklistApp.tsx`)
 
 User compared the live checklist against the original GitHub Pages site's real "session 1 of 14"

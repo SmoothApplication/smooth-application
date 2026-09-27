@@ -135,31 +135,6 @@ export default function ConfidenceQuizPage() {
               .
             </p>
 
-            <div className="mb-3 flex flex-wrap gap-2">
-              <span className="rounded-full bg-accent-wash px-3 py-1 text-xs font-medium text-accent">
-                🔒 Runs in your browser — nothing you upload is ever sent to a server
-              </span>
-              <span className="rounded-full bg-accent-wash px-3 py-1 text-xs font-medium text-accent">
-                🆓 Free, always
-              </span>
-              <span className="rounded-full bg-accent-wash px-3 py-1 text-xs font-medium text-accent">
-                🇳🇬 Built for Nigerian applicants
-              </span>
-            </div>
-
-            <p className="mb-5 text-xs text-[#566a76]">
-              Don&apos;t take our word for it —{' '}
-              <a
-                href="https://github.com/SmoothApplication/smooth-application"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-accent underline"
-              >
-                the source code is public
-              </a>
-              .
-            </p>
-
             <button
               type="button"
               onClick={() => {
@@ -175,8 +150,26 @@ export default function ConfidenceQuizPage() {
               <summary className="cursor-pointer font-medium text-[#12232e]">What you need to know</summary>
               <div className="mt-2 flex flex-col gap-2">
                 <p>
-                  <b>Your privacy:</b> your documents and files are scanned entirely in your browser and never
-                  uploaded anywhere. No account required to use the checklist, no ads, no catch.
+                  <b>Your privacy:</b> 🔒 runs in your browser — your documents and files are scanned entirely
+                  there and never uploaded anywhere. No account required to use the checklist, no ads, no catch.
+                </p>
+                <p>
+                  <b>Cost:</b> 🆓 free, always.
+                </p>
+                <p>
+                  <b>Who it&apos;s for:</b> 🇳🇬 built for Nigerian applicants.
+                </p>
+                <p>
+                  <b>Don&apos;t take our word for it:</b>{' '}
+                  <a
+                    href="https://github.com/SmoothApplication/smooth-application"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-accent underline"
+                  >
+                    the source code is public
+                  </a>
+                  .
                 </p>
                 <p>
                   <b>Not an approval predictor:</b> this is guidance, not immigration advice — it checks how
@@ -240,7 +233,7 @@ export default function ConfidenceQuizPage() {
           ) : (
             <form onSubmit={handleEmailResult} className="mt-4 rounded-md border border-black/10 p-3">
               <label htmlFor="quiz-report-email" className="mb-1 block text-xs font-medium text-[#12232e]">
-                Want this emailed to you? <span className="font-normal text-[#566a76]">(optional)</span>
+                Add your email to get the comprehensive report
               </label>
               <div className="flex flex-wrap gap-2">
                 <input
@@ -256,7 +249,7 @@ export default function ConfidenceQuizPage() {
                   disabled={!reportEmail.trim() || reportEmailStatus === 'saving'}
                   className="rounded-md bg-accent px-3 py-2 text-sm font-semibold text-white transition-all duration-150 hover:bg-[#0e5a80] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  {reportEmailStatus === 'saving' ? 'Sending…' : 'Email me'}
+                  {reportEmailStatus === 'saving' ? 'Sending…' : 'Get full report'}
                 </button>
               </div>
               {reportEmailStatus === 'error' && (
