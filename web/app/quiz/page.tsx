@@ -9,7 +9,7 @@ import {
   QUIZ_TIER_COPY,
   QuizAnswers,
   quizAnswersToChecklistPrefill,
-  quizGapMessages,
+  quizResultCards,
   quizScore,
 } from '@/lib/quiz-score';
 import { trackEvent } from '@/lib/analytics';
@@ -81,7 +81,10 @@ export default function ConfidenceQuizPage() {
   const [reportEmailStatus, setReportEmailStatus] = useState<'idle' | 'saving' | 'done' | 'error'>('idle');
 
   const result = useMemo(() => quizScore(answers), [answers]);
-  const gapMessages = useMemo(() => quizGapMessages(answers), [answers]);
+  // Task #397: fixed 4-card breakdown (Finance / Travel history / Ties to home country / Savings
+  // for trip) shown on the result screen, replacing the old variable-length gap-message bullet
+  // list — see lib/quiz-score.ts's quizResultCards() for the full rationale.
+  const resultCards = useMemo(() => quizResultCards(answers), [answers]);
   const tierCopy = QUIZ_TIER_COPY[result.tier];
 
   function set<K extends keyof QuizAnswers>(key: K, value: QuizAnswers[K]) {
@@ -217,7 +220,7 @@ export default function ConfidenceQuizPage() {
       // Same fix as the !started screen above (task #392) — vertically center this short result
       // card too, instead of pinning it near the top with a large blank gap underneath.
       <main className="flex min-h-screen items-center justify-center bg-[#f7fafb] p-6">
-        <div className="card-surface w-full max-w-md p-8">
+        <div className="card-surface w-full max-w-2xl p-8">
           <h1 className="text-xl font-semibold text-[#12232e]">Here&apos;s what we noticed</h1>
           <p className="mt-1 text-sm text-[#4c6270]">
             Not a prediction of your outcome — just a first read on your situation before the full checklist.
@@ -228,18 +231,19 @@ export default function ConfidenceQuizPage() {
             {tierCopy.label}
           </div>
 
-          {gapMessages.length > 0 ? (
-            <div className="mt-3 rounded-md bg-warn-wash p-3 text-sm text-warn-text">
-              <p className="font-medium">Biggest things to work on</p>
-              <ul className="mt-1 list-disc space-y-1 pl-4">
-                {gapMessages.map((m) => (
-                  <li key={m}>{m}</li>
-                ))}
-              </ul>
-            </div>
-          ) : (
-            <p className="mt-4 text-sm text-[#4c6270]">Nothing major stands out — the full checklist will confirm the details.</p>
-          )}
+          {/* Task #397 (direct request, 2 annotated screenshots): "design page 2 to look like the
+              landing page. 4 boxes" — a 2x2 grid of white stat-style cards (same `card-surface`
+              pattern as the homepage's stat cards), one per topic, always all 4 regardless of
+              whether that answer was a strength or a gap — unlike the old bullet list, which only
+              spoke up about problems and capped at 3. */}
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {resultCards.map((c) => (
+              <div key={c.label} className="card-surface p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-[#566a76]">{c.label}</p>
+                <p className="mt-1 text-sm text-[#12232e]">{c.message}</p>
+              </div>
+            ))}
+          </div>
 
           {reportEmailStatus === 'done' ? (
             <p className="mt-4 rounded-md bg-good-wash p-3 text-sm text-good">

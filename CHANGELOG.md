@@ -3,6 +3,32 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Quiz result screen: fixed 4-card breakdown styled like the homepage
+
+Direct request with 2 annotated screenshots: "design page 2 to look like the landing page. 4
+boxes" — one short line each on Finance, Travel history, Ties to home country, and Savings for
+trip.
+
+**New pure function (`lib/quiz-score.ts`): `quizResultCards(a)`.** The result screen previously
+showed `quizGapMessages(a)` — a variable-length (0-3), priority-ordered bullet list that only spoke
+up about problems (best-case answers showed nothing at all). The new function always returns
+exactly 4 cards in a fixed order (Finance → Travel history → Ties to home country → Savings for
+trip), with the message adapting to whichever answer was given, including a neutral "not answered
+yet" prompt for a skipped question — since "Continue" doesn't require every field filled in.
+`quizGapMessages()` itself is untouched (still exported, still tested) — this is an addition
+alongside it, not a replacement in the library; only the result screen's rendering switched over.
+
+**Result screen (`app/quiz/page.tsx`):** replaced the single warn-colored bullet-list box with a
+2x2 grid (`sm:grid-cols-2`) of `card-surface` mini-cards — the same white rounded-card pattern the
+new homepage (task #395) uses for its stat cards — each with a small uppercase label and one line
+of message underneath. Widened the result screen's outer card from `max-w-md` to `max-w-2xl` so
+the grid has room to breathe at 2 columns instead of cramming into a narrow single-column card.
+
+Verified: `npx tsc --noEmit` clean, `npx jest` — added 5 new tests for `quizResultCards()`
+(fixed 4-card order, positive-case messages, all-blank-case messages, thin-savings wording, and
+that a "few ties"/"no income" combo produces distinct messages from the strong/steady case) —
+suite now 62 suites / 374 tests passing, 0 regressions.
+
 ## Homepage whitespace + quiz-flow reorder (direct request, 3 annotated screenshots)
 
 Direct request following the new stats landing page: reduce the large blank gap above the header,

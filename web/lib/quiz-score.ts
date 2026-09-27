@@ -129,6 +129,59 @@ export function quizGapMessages(a: QuizAnswers): string[] {
   return out;
 }
 
+export type QuizResultCard = { label: string; message: string };
+
+// Task #397 (direct request, 2 annotated screenshots): the result screen's "Biggest things to
+// work on" section — a variable-length (0-3), priority-ordered bullet list drawn from
+// QUIZ_GAP_CHECKS above — gets replaced ON THE RESULT SCREEN by a fixed 2x2 grid of 4 cards
+// styled like the homepage's stat cards, one per topic requested: Finance, Travel history, Ties
+// to home country, Savings for trip. Unlike quizGapMessages() (which only speaks up about
+// problems, and only shows the top 3), this always shows all 4, with the message adapting to
+// whichever answer was actually given — including a neutral prompt when a question was skipped,
+// since "Continue" is reachable without answering everything. quizGapMessages() itself is left
+// untouched (still exported, still tested) — this is a new, separate function alongside it, not
+// a replacement of it in lib/quiz-score.ts, only in how the result screen renders.
+export function quizResultCards(a: QuizAnswers): QuizResultCard[] {
+  const finance =
+    a.income === 'steady'
+      ? 'Steady income — a solid foundation for this application.'
+      : a.income === 'none'
+      ? 'No steady income — lean on a strong, well-explained savings history instead.'
+      : "Not answered yet — it's one of the first things a reviewer checks.";
+
+  const travelHistory =
+    a.travel === 'yes'
+      ? "You've travelled internationally before — that history works in your favor."
+      : a.travel === 'no'
+      ? 'This would be your first trip abroad — first-time travellers often face extra scrutiny, so the rest of your documents matter more.'
+      : 'Not answered yet — travel history affects how closely other documents get checked.';
+
+  const ties =
+    a.ties === 'strong'
+      ? "Property or strong family ties in Nigeria — solid evidence you'll return."
+      : a.ties === 'few'
+      ? 'Limited documented ties to Nigeria — worth strengthening with property, family, or employment evidence.'
+      : "Not answered yet — ties to Nigeria are core evidence you'll return.";
+
+  const savings =
+    a.savings === 'over5m'
+      ? 'Over ₦5,000,000 saved — comfortably covers most trip budgets.'
+      : a.savings === 'to5m'
+      ? '₦2,000,000–₦5,000,000 saved — likely enough; the Financial calculator further in the checklist will confirm.'
+      : a.savings === 'to2m'
+      ? "₦500,000–₦2,000,000 saved — whether it's enough depends on trip length and destination; check the Financial calculator."
+      : a.savings === 'under500k'
+      ? 'This looks thin for most trip costs — worth building up before you apply.'
+      : 'Not answered yet — savings are one of the first things a reviewer checks.';
+
+  return [
+    { label: 'Finance', message: finance },
+    { label: 'Travel history', message: travelHistory },
+    { label: 'Ties to home country', message: ties },
+    { label: 'Savings for trip', message: savings },
+  ];
+}
+
 // Verbatim port of applyQuizPrefillToChecklist()'s scope: only work status, refusal, and
 // host/host-funding carry over onto the real checklist form. Travel history is deliberately left
 // out — the original's own comment explains that pre-answering it read as "the tool deciding for

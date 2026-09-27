@@ -2,6 +2,7 @@ import {
   DEFAULT_QUIZ_ANSWERS,
   quizAnswersToChecklistPrefill,
   quizGapMessages,
+  quizResultCards,
   quizScore,
   QuizAnswers,
 } from '../../quiz-score';
@@ -87,6 +88,47 @@ describe('quizGapMessages', () => {
   it('falls back to the work-status prompt when nothing else applies', () => {
     const gaps = quizGapMessages({ ...BEST, work: '' });
     expect(gaps.some((g) => g.includes('work status'))).toBe(true);
+  });
+});
+
+describe('quizResultCards', () => {
+  it('always returns exactly 4 cards, in Finance/Travel history/Ties/Savings order', () => {
+    const cards = quizResultCards(BEST);
+    expect(cards).toHaveLength(4);
+    expect(cards.map((c) => c.label)).toEqual([
+      'Finance',
+      'Travel history',
+      'Ties to home country',
+      'Savings for trip',
+    ]);
+  });
+
+  it('gives a positive message for each topic on the best-case answers', () => {
+    const [finance, travel, ties, savings] = quizResultCards(BEST);
+    expect(finance.message).toContain('Steady income');
+    expect(travel.message).toContain("travelled internationally before");
+    expect(ties.message).toContain("strong family ties");
+    expect(savings.message).toContain('Over ₦5,000,000');
+  });
+
+  it('gives a constructive message for each topic on the worst-case (blank) answers', () => {
+    const cards = quizResultCards(DEFAULT_QUIZ_ANSWERS);
+    for (const c of cards) {
+      expect(c.message).toContain('Not answered yet');
+    }
+  });
+
+  it('flags a thin savings cushion for the under500k band specifically', () => {
+    const [, , , savings] = quizResultCards({ ...BEST, savings: 'under500k' });
+    expect(savings.message).toContain('looks thin');
+  });
+
+  it('flags limited ties and no steady income distinctly from the strong/steady case', () => {
+    const cards = quizResultCards({ ...BEST, ties: 'few', income: 'none' });
+    const finance = cards.find((c) => c.label === 'Finance')!;
+    const ties = cards.find((c) => c.label === 'Ties to home country')!;
+    expect(finance.message).toContain('No steady income');
+    expect(ties.message).toContain('Limited documented ties');
   });
 });
 
