@@ -3,6 +3,26 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Quiz result cards: match the homepage's font, size, and colours, not just background
+
+Direct follow-up after the entry below: "this is not the colour theme of the 4 boxes in the home
+page. Make reference to the font, the size and the background colour of each box." The first pass
+only swapped in the homepage's two background colours (white / dark navy) — the message text
+itself stayed small (`text-sm font-medium`), so the cards didn't actually read like the homepage's
+boxes, which put their colour on a large `text-4xl`/`text-3xl font-extrabold` headline, not on body
+text.
+
+**`app/quiz/page.tsx`:** each card's message now renders as `text-xl font-extrabold` (scaled down
+from the homepage's 4xl/3xl since this is a full sentence, not a 4-6 character stat, but the same
+weight and the same headline role) in `text-good` (white card) or `text-warn` (`bg-[#12232e]`
+card) — the exact colour tokens the homepage's own numbers use. The label above it now uses the
+homepage's exact classes too: `text-xs font-medium uppercase tracking-wide`, `text-[#4c6270]` on
+white / `text-white/60` on navy (previously `text-[#566a76]` / `font-semibold` — a close but not
+identical match). Padding matches the homepage's `p-6` (was `p-4`).
+
+No logic changed — `quizResultCards()`'s tone/message logic from the entry below is untouched, this
+is a Tailwind-class-only fix. Full suite still 62/378 passing.
+
 ## Quiz result cards: reuse the homepage's own box colours
 
 Direct request, with 2 screenshots (the quiz result grid + the homepage) side by side: "use the

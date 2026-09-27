@@ -235,22 +235,28 @@ export default function ConfidenceQuizPage() {
               landing page. 4 boxes" — a 2x2 grid of stat-style cards, one per topic, always all 4
               regardless of whether that answer was a strength or a gap — unlike the old bullet
               list, which only spoke up about problems and capped at 3.
-              Task #398 (direct request: "use the same colour of the boxes in the home page for
-              the 4 boxes"): reuses the homepage's own two box treatments verbatim instead of one
-              flat white style — white card-surface + text-good accent for a strong answer
-              (c.tone === 'good'), dark navy card + text-warn accent for a gap, exactly like the
-              homepage's white stat cards vs. its dark "money lost" cards. */}
+              Task #398, revised (direct follow-up: "this is not the colour theme of the 4 boxes
+              in the home page. Make reference to the font, the size and the background colour of
+              each box") — the first pass only matched the two background colours; the homepage's
+              own boxes (app/page.tsx) put their colour on a large `font-extrabold` headline, not
+              on small body text, so this now copies that treatment line for line: same label
+              classes (`text-xs font-medium uppercase tracking-wide`, `text-[#4c6270]` on white /
+              `text-white/60` on navy — the exact classes app/page.tsx uses), same `p-6` padding,
+              and the message itself rendered as a bold headline (`text-xl font-extrabold`, wrapped
+              since it's a sentence rather than a 4-6 character stat, not truncated) in `text-good`
+              on the white card or `text-warn` on the `bg-[#12232e]` card — the same two colour
+              tokens the homepage's own numbers use. */}
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {resultCards.map((c) =>
               c.tone === 'good' ? (
-                <div key={c.label} className="card-surface p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-[#566a76]">{c.label}</p>
-                  <p className="mt-1 text-sm font-medium text-good">{c.message}</p>
+                <div key={c.label} className="card-surface p-6">
+                  <p className="text-xs font-medium uppercase tracking-wide text-[#4c6270]">{c.label}</p>
+                  <p className="mt-2 text-xl font-extrabold leading-snug text-good">{c.message}</p>
                 </div>
               ) : (
-                <div key={c.label} className="rounded-2xl bg-[#12232e] p-4 text-white">
+                <div key={c.label} className="rounded-2xl bg-[#12232e] p-6 text-white">
                   <p className="text-xs font-medium uppercase tracking-wide text-white/60">{c.label}</p>
-                  <p className="mt-1 text-sm font-medium text-warn">{c.message}</p>
+                  <p className="mt-2 text-xl font-extrabold leading-snug text-warn">{c.message}</p>
                 </div>
               ),
             )}
