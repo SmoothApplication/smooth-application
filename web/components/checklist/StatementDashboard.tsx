@@ -218,6 +218,21 @@ export default function StatementDashboard({
   );
   const [tab, setTab] = useState<'analysis' | 'report'>('analysis');
 
+  // Task follow-up: "it is not extracting name from bank statement" -- detectedHolderName was
+  // already being computed (extractAccountHolderName in lib/statement/names.ts) but only ever fed
+  // into buildPersonalNameTallyMessage as a cross-check against a manually-typed name; a
+  // successful detection was silently discarded instead of ever reaching the applicant's own
+  // "Full name" field. This seeds the field from the detected name the first time one becomes
+  // available, but only while the field is still empty -- never overwrites something the
+  // applicant already typed (including a typed name that was there before analysis ran), and
+  // still leaves the tally-check logic in buildPersonalNameTallyMessage untouched below.
+  useEffect(() => {
+    if (detectedHolderName && !applicantName.trim()) {
+      setApplicantName(detectedHolderName);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detectedHolderName]);
+
   // Keyed by the RAW extracted name (same key buildIncomeSourceBreakdown and getTopConsistentSenders
   // both produce via senderSideCandidates -> toTitleCase -> mergeNameVariants), so one correction
   // shows up consistently in both the source cards and the Top 10 senders table - same approach as

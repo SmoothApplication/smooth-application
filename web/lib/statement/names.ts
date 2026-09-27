@@ -356,6 +356,17 @@ export const ACCOUNT_NAME_LABEL_RE = [
   /customer\s*name\s*[:\-]\s*([A-Za-z][A-Za-z.,'\-\s]{3,60})/i,
   /name\s*of\s*(?:account\s*)?holder\s*[:\-]\s*([A-Za-z][A-Za-z.,'\-\s]{3,60})/i,
   /a\/?c\s*name\s*[:\-]\s*([A-Za-z][A-Za-z.,'\-\s]{3,60})/i,
+  // User report: "it is not extracting name from bank statement" -- these 4 original labels don't
+  // cover every bank's header wording, so a real statement can go through with no match at all.
+  // Adding a few more common phrasings seen on Nigerian bank statement headers/first pages, kept to
+  // the same conservative shape (a clear label immediately followed by the name) so this still never
+  // guesses on ambiguous text.
+  /client\s*name\s*[:\-]\s*([A-Za-z][A-Za-z.,'\-\s]{3,60})/i,
+  /account\s*title\s*[:\-]\s*([A-Za-z][A-Za-z.,'\-\s]{3,60})/i,
+  /name\s*of\s*customer\s*[:\-]\s*([A-Za-z][A-Za-z.,'\-\s]{3,60})/i,
+  // "Full Name:" is common on statement cover/summary pages, but bare "Name:" is too generic (matches
+  // unrelated fields like "Bank Name:", "Branch Name:", "Company Name:") to add safely on its own.
+  /full\s*name\s*[:\-]\s*([A-Za-z][A-Za-z.,'\-\s]{3,60})/i,
 ];
 
 export function extractAccountHolderName(text: string): string | null {

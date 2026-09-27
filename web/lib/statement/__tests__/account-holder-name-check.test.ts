@@ -30,6 +30,13 @@ test('recognises "Customer Name" / "Name of holder" / "A/C Name" label variants 
   expect(extractAccountHolderName('A/C Name: MARY JONES\nCurrency: NGN')).toMatch(/MARY JONES/i);
 });
 
+test('recognises "Client Name" / "Account Title" / "Name of Customer" / "Full Name" label variants (user report: name not being extracted)', () => {
+  expect(extractAccountHolderName('Client Name: DAVID OYELARAN\nAccount No: 222')).toMatch(/DAVID OYELARAN/i);
+  expect(extractAccountHolderName('Account Title: CHIOMA NWACHUKWU\nSort Code: 123')).toMatch(/CHIOMA NWACHUKWU/i);
+  expect(extractAccountHolderName('Name of Customer: BOLA SHOWUNMI\nBranch: Ikeja')).toMatch(/BOLA SHOWUNMI/i);
+  expect(extractAccountHolderName('Full Name: TOLU ADEBAYO\nStatement Period: 01/01/2026')).toMatch(/TOLU ADEBAYO/i);
+});
+
 test('returns null (no check performed) when the statement format is not recognised at all', () => {
   expect(extractAccountHolderName('SOME RANDOM STATEMENT TEXT WITH NO RECOGNISED LABEL')).toBeNull();
   // Guard: with no applicant name typed in, there is nothing to cross-check against, so the caller

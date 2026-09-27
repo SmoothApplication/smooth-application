@@ -3,6 +3,30 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fix: bank statement account-holder name not surfacing (`StatementDashboard.tsx`, `lib/statement/names.ts`)
+
+User report: "it is not extracting name from bank statement" — the applicant's full name field
+stayed empty after analyzing a real bank statement. Two causes, both addressed:
+
+1. `detectedHolderName` (from `extractAccountHolderName()`) was already being computed correctly in
+   some cases, but was only ever used as a silent cross-check inside `buildPersonalNameTallyMessage`
+   (which itself only runs once a name has already been typed) — a successful detection never reached
+   the empty "Applicant's full name" field itself. Added a `useEffect` in `StatementDashboard.tsx`
+   that seeds `applicantName` from `detectedHolderName` the first time one is available, but only
+   while the field is still empty — never overwrites a name the applicant already typed.
+2. `ACCOUNT_NAME_LABEL_RE` in `lib/statement/names.ts` only recognised 4 header phrasings ("Account
+   Name:", "Customer Name:", "Name of (account) holder:", "A/C Name:"), so a statement using
+   different wording never matched at all. Added 4 more common phrasings seen on Nigerian bank
+   statement headers: "Client Name:", "Account Title:", "Name of Customer:", "Full Name:" — kept to
+   the same conservative label-followed-by-name shape (no bare "Name:" — too generic, would match
+   "Bank Name:"/"Branch Name:" etc.) so this still never guesses on ambiguous text.
+
+Not yet confirmed whether the user's specific statement's header wording is now covered — if the
+name still doesn't populate on their next upload, the next step is seeing the exact label text their
+bank prints so it can be added precisely.
+
+`npx tsc --noEmit`: clean. `npx jest`: 61 suites / 366 tests passing (1 new test), 0 regressions.
+
 ## Remove country-picker trust pills (`app/checklist/start/page.tsx`)
 
 Direct request: drop "🔒 Your documents never leave your device" and "🆓 Free, always" from the
