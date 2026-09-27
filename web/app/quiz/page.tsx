@@ -127,14 +127,6 @@ export default function ConfidenceQuizPage() {
               </span>
             </div>
 
-            <p className="mb-4 text-sm leading-relaxed text-[#4c6270]">
-              A free document checklist for{' '}
-              <b className="text-[#12232e]">
-                UK, Canada, Schengen, South Africa, Ghana, Kenya, Ethiopia &amp; Morocco visitor visas
-              </b>
-              .
-            </p>
-
             <button
               type="button"
               onClick={() => {
@@ -150,8 +142,8 @@ export default function ConfidenceQuizPage() {
               <summary className="cursor-pointer font-medium text-[#12232e]">What you need to know</summary>
               <div className="mt-2 flex flex-col gap-2">
                 <p>
-                  <b>Your privacy:</b> 🔒 runs in your browser — your documents and files are scanned entirely
-                  there and never uploaded anywhere. No account required to use the checklist, no ads, no catch.
+                  <b>Your privacy:</b> your documents and files are scanned entirely in your browser and never
+                  uploaded anywhere. No account required to use the checklist, no ads, no catch.
                 </p>
                 <p>
                   <b>Cost:</b> 🆓 free, always.

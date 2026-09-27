@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import {
   FinancialInputs,
   DEFAULT_FINANCIAL_INPUTS,
@@ -9,6 +8,8 @@ import {
   computeFinancials,
   fmtN,
 } from '@/lib/checklist/financial';
+import SessionShell from '@/components/checklist/SessionShell';
+import { COUNTRIES } from '@/lib/checklist/countries';
 
 // Generalized out of the original UK-only web/app/checklist/uk/financial/page.tsx (Phase 3 of
 // task #244) so the same financial readiness calculator can be reused for every supported
@@ -34,7 +35,7 @@ function numOrZero(v: string): number {
 export default function FinancialCalculator({ countryCode }: FinancialCalculatorProps) {
   const lowerCode = countryCode.toLowerCase();
   const storageKey = `sa_${lowerCode}_financial`;
-  const backHref = `/checklist/${lowerCode}`;
+  const countryName = COUNTRIES.find((c) => c.code === countryCode.toUpperCase())?.name || countryCode;
 
   const [inputs, setInputs] = useState<FinancialInputs>(DEFAULT_FINANCIAL_INPUTS);
   const [loaded, setLoaded] = useState(false);
@@ -111,7 +112,7 @@ export default function FinancialCalculator({ countryCode }: FinancialCalculator
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-5 p-6 pb-16">
+    <SessionShell code={countryCode} name={countryName} session="financial">
       <div>
         <h1 className="text-xl font-semibold text-[#12232e]">💰 Financial readiness calculator</h1>
         <p className="mt-1 text-sm text-[#4c6270]">
@@ -280,11 +281,7 @@ export default function FinancialCalculator({ countryCode }: FinancialCalculator
           </div>
         )}
       </section>
-
-      <Link href={backHref} className="text-center text-xs text-accent underline">
-        ← Back to checklist
-      </Link>
-    </main>
+    </SessionShell>
   );
 }
 

@@ -3,6 +3,57 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Phase 2 (first slice): real session pagination — Income & bank statement analysis is Session 1 (`lib/checklist/sessions.ts`, `lib/checklist/useChecklistState.ts`, `components/checklist/SessionShell.tsx`, `components/checklist/StatementCheck.tsx`, `components/checklist/FinancialCalculator.tsx`, `components/checklist/CountryChecklistApp.tsx`)
+
+Direct follow-up to the earlier "session 1" screenshot feedback: the promoted "Start with your
+financial evidence" card (shipped earlier) was still just a link sitting inside the flat document
+checklist — not an actual first session an applicant lands on, the way the original's real
+"Session 1 of 14: Income & bank statement analysis" screen works. This ships the first real slice
+of that architecture (task #381).
+
+- Added `lib/checklist/sessions.ts`: a 3-session order (statement → financial → checklist) with
+  `href`/`prevSessionHref`/`nextSessionHref` helpers. **Scope, disclosed rather than silently
+  partial**: the original interleaves 14 sessions (including passport, business ledger, travel
+  history, next steps, reasons, and a final review) in one single-page app. This port is still
+  several separate Next.js routes, so only the 3 biggest, most-requested pieces are in the numbered
+  flow so far — passport scan, business ledger, travel history, next steps, and reasons remain
+  reachable as plain links from the document-checklist session, same as before. Full parity is the
+  rest of Phase 2.
+- Built `SessionShell.tsx`: the shared "Session X of N" nav (progress pills + Back/Next) plus the
+  Phase 1 sidebar, wrapping whichever session's own content is passed as children.
+- Wired it into `StatementCheck.tsx` (now Session 1), `FinancialCalculator.tsx` (Session 2), and
+  `CountryChecklistApp.tsx`'s checklist view (Session 3) — each page's own content is unchanged,
+  only the page-level wrapper around it changed.
+- The qualifying-questions form's "Show my checklist" button now routes straight to the statement
+  session (`/checklist/<code>/statement`) instead of showing the flat category list directly, so a
+  first-time applicant's very first screen after answering the profile questions is the income/bank
+  statement session — matching "income analysis comes 1st" from the original feedback. A returning
+  applicant who bookmarks `/checklist/<code>` directly still lands on the document-checklist session
+  itself, unchanged.
+- Added `lib/checklist/useChecklistState.ts`: a read-only mirror of the answers/checked localStorage
+  keys, so the statement and financial pages (not just `CountryChecklistApp`) can feed the sidebar's
+  Documents-readiness score.
+
+`npx tsc --noEmit`: clean. `npx jest`: 61 suites / 365 tests passing, 0 regressions. (`next build`
+itself couldn't be run in this sandbox — no network access to fetch Google Fonts — verification
+here is tsc + jest only, consistent with this project's established pattern.)
+
+## Strip the landing card down further — drop the tagline and "runs in your browser" phrasing (`app/quiz/page.tsx`)
+
+Follow-up to the pill/badge cleanup below: direct feedback to also remove the "A free document
+checklist for UK, Canada, Schengen..." tagline paragraph and the "runs in your browser" phrasing
+entirely, not just move them into "What you need to know".
+
+- Removed the tagline paragraph outright. **Note**: this was the only place on this screen that
+  named the 8 covered countries — none of "What you need to know"'s bullets mention them, so an
+  applicant landing here no longer sees the country list until they reach `/checklist/start`. Not
+  restored elsewhere since it wasn't asked for, but flagging it in case that's not what was wanted.
+- Reworded the privacy bullet to drop the "🔒 runs in your browser —" lead-in, keeping only the
+  underlying fact ("your documents and files are scanned entirely in your browser and never
+  uploaded anywhere...").
+
+`npx tsc --noEmit`: clean. `npx jest`: 61 suites / 365 tests passing, 0 regressions.
+
 ## Simplify the landing card + reword the quiz-result email capture (`app/quiz/page.tsx`)
 
 Two direct pieces of user feedback on the merged landing/quiz-intro screen:

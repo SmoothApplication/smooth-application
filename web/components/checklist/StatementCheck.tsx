@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { getLinesFromFile } from '@/lib/statement/extractFile';
 import {
   parseStatementLinesWithFallback,
@@ -15,6 +14,7 @@ import {
 } from '@/lib/statement';
 import StatementDashboard from '@/components/checklist/StatementDashboard';
 import ResumeReminderLinks from '@/components/checklist/ResumeReminderLinks';
+import SessionShell from '@/components/checklist/SessionShell';
 import { COUNTRIES } from '@/lib/checklist/countries';
 import { trackEvent } from '@/lib/analytics';
 
@@ -71,9 +71,10 @@ function loadSaved(storageKey: string): PersistedStatement | null {
 export default function StatementCheck({ countryCode }: StatementCheckProps) {
   const lowerCode = countryCode.toLowerCase();
   const storageKey = `sa_${lowerCode}_statement`;
-  const backHref = `/checklist/${lowerCode}`;
   const financialHref = `/checklist/${lowerCode}/financial`;
-  const visaName = COUNTRIES.find((c) => c.code === countryCode.toUpperCase())?.visaName || 'visa';
+  const countryInfo = COUNTRIES.find((c) => c.code === countryCode.toUpperCase());
+  const visaName = countryInfo?.visaName || 'visa';
+  const countryName = countryInfo?.name || countryCode;
 
   const [loaded, setLoaded] = useState(false);
   const [recalled, setRecalled] = useState(false);
@@ -244,7 +245,7 @@ export default function StatementCheck({ countryCode }: StatementCheckProps) {
 
   if (!txns) {
     return (
-      <main className="mx-auto flex min-h-screen max-w-4xl flex-col gap-5 p-6 pb-16">
+      <SessionShell code={countryCode} name={countryName} session="statement">
         <div>
           <h1 className="text-xl font-semibold text-[#12232e]">🏦 Bank statement check</h1>
           <p className="mt-1 text-sm text-[#4c6270]">
@@ -302,16 +303,12 @@ export default function StatementCheck({ countryCode }: StatementCheckProps) {
             {error}
           </div>
         )}
-
-        <Link href={backHref} className="text-center text-xs text-accent underline">
-          ← Back to checklist
-        </Link>
-      </main>
+      </SessionShell>
     );
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-4xl flex-col gap-5 p-6 pb-16">
+    <SessionShell code={countryCode} name={countryName} session="statement">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <h1 className="text-xl font-semibold text-[#12232e]">🏦 Bank statement check</h1>
@@ -361,10 +358,6 @@ export default function StatementCheck({ countryCode }: StatementCheckProps) {
         onBusinessCategoryChoicesChange={setBusinessCategoryChoices}
         financialHref={financialHref}
       />
-
-      <Link href={backHref} className="text-center text-xs text-accent underline">
-        ← Back to checklist
-      </Link>
-    </main>
+    </SessionShell>
   );
 }
