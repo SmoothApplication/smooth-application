@@ -3,6 +3,40 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Expand the quiz to the original's 10 questions with real scoring — "the test in the github is 10 questions" (`lib/quiz-score.ts` new, `lib/quiz-signals.ts` removed, `app/quiz/page.tsx`)
+
+Direct feedback: the Next.js `/quiz` was a scaled-down stand-in for index.html's "confidence quiz" —
+8 checkboxes + 1 dropdown, no real score, just two lists of freeform sentences. The original is 10
+questions across 2 paged steps with a point-scored rubric (`quizScore()`), a capped 3-item gap list,
+and a 🟢/🟡/🔴 tier badge. Asked the user whether to keep the smaller scope or expand to match —
+they chose "expand to match the original 10 questions".
+
+- **`lib/quiz-score.ts`** (new, replaces `lib/quiz-signals.ts`): a verbatim port of index.html's
+  `quizScore()` (same point values, same 13/7 tier cutoffs, same savings-based cap that stops a
+  thin-savings answer from being fully offset by unrelated strengths), `QUIZ_GAP_CHECKS`/
+  `quizGapMessages()` (priority-ordered, capped at 3), and `QUIZ_TIER_COPY`. Also carries
+  `quizAnswersToChecklistPrefill()`, a verbatim port of `applyQuizPrefillToChecklist()`'s narrow
+  scope: only work status, refusal, and host/host-funding prefill onto the real checklist form —
+  travel history is deliberately left for the applicant to answer fresh (matching the original's
+  own reasoning), and married/hasChild/translation were never part of the original quiz either.
+- **Scope call on the 10th question:** the original's 10 questions are 1 country question + 9
+  readiness questions. This app already has a dedicated country picker (`/checklist/start`)
+  immediately after the quiz, so re-asking country here would duplicate a question the applicant
+  answers again one screen later. Kept the "main purpose of your trip" question the Next.js quiz
+  already had in its place instead — it's not part of the original's scoring, but it unlocks a real
+  "Purpose-specific" checklist category (see `Answers.purpose` in `lib/checklist/uk.ts`), so it's
+  worth keeping as the 10th question rather than dropping.
+- **`app/quiz/page.tsx`**: rebuilt as a 2-page form (5 questions each, with a step indicator) using
+  the same dropdown-based inputs and shared design-system classes (`card-surface`, `field-input`,
+  `btn-primary`) as the rest of the site. Result screen now shows the real tier badge and up to 3
+  gap messages (falling back to "Nothing major stands out" when none apply). The optional
+  email-capture form (wired to `/api/capture-email`, already proven delivering via Resend) is
+  unchanged.
+- Added `lib/checklist/__tests__/quiz-score.test.ts` (11 tests covering scoring, the tier cap, gap
+  priority/cap, and the prefill mapping) in place of the old `quiz-signals.test.ts` (9 tests).
+
+`npx tsc --noEmit`: clean. `npx jest`: 60 suites / 353 tests passing, 0 regressions.
+
 ## First design-system pass — "this site needs a UI/UX designer" (`app/layout.tsx`, `tailwind.config.ts`, `app/globals.css`, `app/page.tsx`, `app/checklist/start/page.tsx`, `app/quiz/page.tsx`)
 
 Direct feedback, live screenshot: the site had never had an actual visual design pass — every page
