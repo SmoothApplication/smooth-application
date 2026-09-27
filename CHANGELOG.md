@@ -3,6 +3,37 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Country picker → a single dropdown (`app/checklist/start/page.tsx`)
+
+More live feedback, this time on `/checklist/start`: the 10 countries (7 ready + 3 coming-soon)
+were each a full-width stacked button, filling most of the screen before a user even reached the
+disclaimer or Continue button. Replaced the button list with a single native `<select>` — same
+data (`COUNTRIES` from `lib/checklist/countries.ts`), same disabled-for-not-ready behavior (native
+`disabled` on the `<option>`), same "(Coming soon)" labeling, same `country` state driving the
+disclaimer box and Continue button below it. No logic changed, just the picker's markup — a native
+select is also free accessibility (keyboard, screen reader) that the button-list needed manual
+ARIA roles to approximate.
+
+No test file exercises this page's DOM directly (its logic — `COUNTRIES`, disclaimer text — lives
+in already-tested `lib/checklist/countries.ts`), so nothing needed updating there. `npx tsc
+--noEmit` clean; full `npx jest` still 60 suites / 342 tests, 0 regressions.
+
+## Simplify homepage — "too busy for a front page" (`app/page.tsx`)
+
+Direct feedback off a live screenshot: the homepage had four separate blocks of copy stacked above
+the CTA (subtitle, three pill badges, a "source code is public" line) plus two stacked footer
+lines — a lot to scan before the one button that matters. Trimmed without losing any information:
+
+- The three separate pill badges (browser-only, free always, built for Nigerian applicants) are
+  now one plain trust line instead of three visually-competing chips.
+- The "source code is public" line moved into the existing "What you need to know" details
+  (already collapsed by default) — still findable, no longer a fourth line of copy before the CTA.
+- The two stacked footer lines (admin sign-in, then privacy/terms) merged into one small line:
+  `Admin sign in · Privacy Policy · Terms of Use`.
+
+No content removed, no new routes touched — pure layout/copy consolidation. `npx tsc --noEmit`
+clean; full `npx jest` still 60 suites / 342 tests, 0 regressions (no logic under test touched).
+
 ## Go-live readiness fixes: custom domain attached, real email capture wired in, legal pages added (`quiz/page.tsx`, `privacy/page.tsx` + `terms/page.tsx` new, `page.tsx`)
 
 Ahead of an in-person test session, went through the go-live readiness audit's findings one by one

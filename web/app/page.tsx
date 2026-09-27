@@ -12,6 +12,12 @@ import Link from 'next/link';
 //
 // Copy note: index.html's subtitle still says "UK, Canada, Schengen & South Africa" — stale by
 // the time this was ported (Ghana, Kenya, Ethiopia and Morocco all shipped since). Corrected here.
+//
+// Simplified per user feedback ("too busy for a front page", live screenshot): collapsed the
+// three separate pill badges into one plain trust line, dropped the "source code is public"
+// paragraph (moved the same link into the "What you need to know" details, so it's still findable
+// but no longer a fourth line of copy before the CTA), and merged the admin-sign-in and legal
+// links into one small footer line instead of two stacked ones.
 export default function Home() {
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#f7fafb] p-6">
@@ -34,29 +40,8 @@ export default function Home() {
           travel.
         </p>
 
-        <div className="mb-3 flex flex-wrap gap-2">
-          <span className="rounded-full bg-accent-wash px-3 py-1 text-xs font-medium text-accent">
-            🔒 Runs in your browser — nothing you upload is ever sent to a server
-          </span>
-          <span className="rounded-full bg-accent-wash px-3 py-1 text-xs font-medium text-accent">
-            🆓 Free, always
-          </span>
-          <span className="rounded-full bg-accent-wash px-3 py-1 text-xs font-medium text-accent">
-            🇳🇬 Built for Nigerian applicants
-          </span>
-        </div>
-
-        <p className="mb-5 text-xs text-[#566a76]">
-          Don&apos;t take our word for it —{' '}
-          <a
-            href="https://github.com/SmoothApplication/smooth-application"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-accent underline"
-          >
-            the source code is public
-          </a>
-          .
+        <p className="mb-5 rounded-lg bg-accent-wash px-3 py-2 text-xs font-medium text-accent">
+          🔒 Runs entirely in your browser, free always, built for Nigerian applicants
         </p>
 
         <Link
@@ -86,16 +71,26 @@ export default function Home() {
               South Africa, Ghana, Kenya, Ethiopia and Morocco are all live. United States, Australia and China
               are coming soon.
             </p>
+            <p>
+              Don&apos;t take our word for it —{' '}
+              <a
+                href="https://github.com/SmoothApplication/smooth-application"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-accent underline"
+              >
+                the source code is public
+              </a>
+              .
+            </p>
           </div>
         </details>
 
         <p className="mt-6 text-center text-xs text-[#566a76]">
-          Work at Smooth Application?{' '}
           <Link href="/login" className="text-accent underline">
             Admin sign in
-          </Link>
-        </p>
-        <p className="mt-2 text-center text-xs text-[#566a76]">
+          </Link>{' '}
+          ·{' '}
           <Link href="/privacy" className="text-accent underline">
             Privacy Policy
           </Link>{' '}

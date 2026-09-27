@@ -75,30 +75,22 @@ export default function ChecklistStartPage() {
         <Link href="/opportunities" className="mb-3 block text-xs text-accent underline">
           🎓 Not applying for a visa yet? Browse funded opportunities &amp; exchange programs instead
         </Link>
-        <div className="mb-5 flex flex-col gap-2" role="listbox" aria-label="Country">
+        <select
+          aria-label="Country"
+          value={selected ?? ''}
+          onChange={(e) => setSelected(e.target.value || null)}
+          className="mb-5 w-full rounded-lg border border-black/10 bg-white px-3 py-2.5 text-sm text-[#12232e]"
+        >
+          <option value="" disabled>
+            Select a country…
+          </option>
           {COUNTRIES.map((c) => (
-            <button
-              key={c.code}
-              type="button"
-              role="option"
-              aria-selected={selected === c.code}
-              disabled={!c.ready}
-              onClick={() => setSelected(c.code)}
-              className={`flex items-center justify-between rounded-lg border px-3 py-2.5 text-left text-sm transition ${
-                selected === c.code
-                  ? 'border-accent bg-accent-wash'
-                  : c.ready
-                  ? 'border-black/10 hover:border-accent/50'
-                  : 'cursor-not-allowed border-black/10 opacity-50'
-              }`}
-            >
-              <span>
-                {c.flag} {c.name} — {c.visaName}
-              </span>
-              {!c.ready && <span className="text-xs text-[#566a76]">Coming soon</span>}
-            </button>
+            <option key={c.code} value={c.code} disabled={!c.ready}>
+              {c.flag} {c.name} — {c.visaName}
+              {!c.ready ? ' (Coming soon)' : ''}
+            </option>
           ))}
-        </div>
+        </select>
 
         <div className="mb-4 flex gap-2 rounded-lg bg-accent-wash p-3 text-sm text-[#12232e]">
           <span aria-hidden>ℹ️</span>
