@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { Answers, DEFAULT_ANSWERS, ChecklistItem, itemApplies } from '@/lib/checklist/uk';
 import { ALL_CHECKLISTS } from '@/lib/checklist/all';
 import { TravelHistoryRow, OverstayRow, computeTravelExperienceGrade } from '@/lib/checklist/travelHistory';
+import SessionShell from '@/components/checklist/SessionShell';
 
 // Phase 4c of task #244: a simplified port of index.html's "Reasons" tab/modal — the end-of-flow
 // explanation of WHY each document is asked for. index.html's version sweeps a much wider set of
@@ -28,10 +28,9 @@ export type ReasonsViewProps = {
   visaName: string;
   answersKey: string;
   checkedKey: string;
-  backHref: string;
 };
 
-export default function ReasonsView({ code, flag, name, visaName, answersKey, checkedKey, backHref }: ReasonsViewProps) {
+export default function ReasonsView({ code, flag, name, visaName, answersKey, checkedKey }: ReasonsViewProps) {
   // Looked up here (inside this Client Component) rather than passed as a prop — see the comment
   // at the top of lib/checklist/all.ts for why passing ChecklistItem[] as a prop broke the build.
   const { catOrder, checklist } = ALL_CHECKLISTS[code] ?? { catOrder: [], checklist: [] as ChecklistItem[] };
@@ -89,7 +88,7 @@ export default function ReasonsView({ code, flag, name, visaName, answersKey, ch
   const totalChecked = checklist.filter((it) => itemApplies(it, answers) && checked[it.id]).length;
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-5 p-6 pb-16">
+    <SessionShell code={code} name={name} session="reasons">
       <div>
         <h1 className="text-xl font-semibold text-[#12232e]">
           📖 {flag} Why these documents
@@ -146,9 +145,6 @@ export default function ReasonsView({ code, flag, name, visaName, answersKey, ch
         </section>
       ))}
 
-      <Link href={backHref} className="text-center text-xs text-accent underline">
-        ← Back to checklist
-      </Link>
-    </main>
+    </SessionShell>
   );
 }

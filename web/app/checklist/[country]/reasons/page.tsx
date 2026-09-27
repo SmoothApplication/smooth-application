@@ -29,7 +29,6 @@ export default function CountryReasonsPage({ params }: { params: { country: stri
       visaName={visaNameByCode[data.code] ?? 'checklist'}
       answersKey={`sa_${data.code.toLowerCase()}_answers`}
       checkedKey={`sa_${data.code.toLowerCase()}_checked`}
-      backHref={`/checklist/${params.country}`}
     />
   );
 }

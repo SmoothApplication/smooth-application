@@ -74,16 +74,19 @@ export default function SessionShell({ code, name, session, children }: SessionS
       <ChecklistSidebar code={code} name={name} checklist={checklist} answers={answers} checked={checked} />
 
       {/* Reasons was only ever reachable from the checklist session's own header row before this
-          shell existed — now that Statement/Financial are earlier sessions in the same flow, an
-          applicant landing on Session 1 had no way to reach it at all. Matches the original's own
+          shell existed — now that every other session shares this same shell, an applicant landing
+          on any earlier session had no way to reach it at all. Matches the original's own
           persistent floating "Reasons" tab, visible from every session regardless of scroll
-          position. */}
-      <Link
-        href={`/checklist/${code.toLowerCase()}/reasons`}
-        className="fixed bottom-5 right-5 z-20 rounded-full bg-[#12232e] px-4 py-2.5 text-sm font-semibold text-white shadow-lg hover:opacity-90"
-      >
-        📖 Why these documents
-      </Link>
+          position. Suppressed on the Reasons session itself — no point floating a link to the page
+          already on screen. */}
+      {session !== 'reasons' && (
+        <Link
+          href={`/checklist/${code.toLowerCase()}/reasons`}
+          className="fixed bottom-5 right-5 z-20 rounded-full bg-[#12232e] px-4 py-2.5 text-sm font-semibold text-white shadow-lg hover:opacity-90"
+        >
+          📖 Why these documents
+        </Link>
+      )}
     </main>
   );
 }

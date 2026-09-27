@@ -3,6 +3,36 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Phase 2 continued: real session order + 4 more sessions folded into the numbered flow
+
+Direct request: "move it according to each sessions, move from session 1 to session 14 as it is on"
+the original. Earlier task history in this repo ("actually reorder finance2 to first session")
+turned out to be stale — pulled the REAL, current session order directly off the live original's
+own session pills (smoothapplication.github.io/smooth-application), confirmed by stepping through
+its actual pill-button accessible names:
+
+1 Validate your International Passport · 2 Travel Experience · 3 Your responsibilities · 4 Your
+trip details · 5 Income & bank statement analysis · 6 Financial readiness calculator · 7 What to do
+next · 8-12 the document checklist split into one session per `CAT_ORDER_UK` category (Identity &
+application, Financial evidence, Ties to Nigeria, Accommodation & UK host, Travel details) · 13
+Final review (declaration) · 14 Reasons.
+
+This port doesn't yet split sessions 3/4 (still one combined qualifying-questions form) or 8-13
+(still one combined document-checklist screen, and no separate "Final review/declaration" feature
+exists at all yet) — real, disclosed follow-up work, not silently dropped (see
+`lib/checklist/sessions.ts`'s own header comment for the full note). What shipped now: folded
+Passport (`PassportCheck.tsx`), Travel Experience (`TravelHistory.tsx`), What to do next
+(`NextStepsReport.tsx`), and Reasons (`ReasonsView.tsx`) into the same `SessionShell` nav already
+used by Statement/Financial/Checklist, and reordered `SESSION_ORDER` to the real relative order:
+Passport, Travel Experience, Income & bank statement, Financial calculator, What to do next, the
+still-combined checklist screen, Reasons. Every entry point that used to land on the checklist body
+first (the situation gate's "fresh application" continue, and the qualifying-questions form's "Show
+my checklist" button) now lands on Session 1 (Passport) instead. `SessionShell`'s floating "Why
+these documents" link is suppressed on the Reasons page itself now, since it would otherwise point
+to the page already on screen.
+
+`npx tsc --noEmit`: clean. `npx jest`: 61 suites / 366 tests passing, 0 regressions.
+
 ## Fix: entry point skipped straight to Session 3 (Document checklist)
 
 User report, with a live screenshot: landing on `/checklist/uk` was showing "Session 3 of 3:

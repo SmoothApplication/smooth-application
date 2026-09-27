@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import {
   TE_COUNTRY_LIST,
   TE_NO_HISTORY_GUIDES,
@@ -9,6 +8,8 @@ import {
   OverstayRow,
   computeTravelExperienceGrade,
 } from '@/lib/checklist/travelHistory';
+import SessionShell from '@/components/checklist/SessionShell';
+import { COUNTRIES } from '@/lib/checklist/countries';
 
 // Port of index.html's "Travel Experience" session (task #319+ selection "Build travel history
 // first, then the full report"). See lib/checklist/travelHistory.ts for the ported country lists,
@@ -66,7 +67,7 @@ function loadSaved(storageKey: string): SavedTravelHistory | null {
 export default function TravelHistory({ countryCode }: TravelHistoryProps) {
   const lowerCode = countryCode.toLowerCase();
   const storageKey = `sa_${lowerCode}_travelhistory`;
-  const backHref = `/checklist/${lowerCode}`;
+  const countryName = COUNTRIES.find((c) => c.code === countryCode.toUpperCase())?.name || countryCode;
 
   const [loaded, setLoaded] = useState(false);
   const [firstTimeAnswer, setFirstTimeAnswer] = useState<FirstTimeAnswer>('');
@@ -127,7 +128,7 @@ export default function TravelHistory({ countryCode }: TravelHistoryProps) {
   if (!loaded) return null;
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-5 p-6 pb-16">
+    <SessionShell code={countryCode} name={countryName} session="travel-history">
       <div>
         <h1 className="text-xl font-semibold text-[#12232e]">🌍 Travel Experience</h1>
         <p className="mt-1 text-sm text-[#4c6270]">
@@ -350,10 +351,7 @@ export default function TravelHistory({ countryCode }: TravelHistoryProps) {
         </div>
       )}
 
-      <Link href={backHref} className="text-center text-xs text-accent underline">
-        ← Back to checklist
-      </Link>
-    </main>
+    </SessionShell>
   );
 }
 

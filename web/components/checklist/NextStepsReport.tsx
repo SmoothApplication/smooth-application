@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import {
   DEFAULT_FINANCIAL_INPUTS,
   FinancialInputs,
@@ -11,6 +10,7 @@ import { deserializePassportFields, PersistedPassportFields } from '@/lib/passpo
 import { TravelHistoryRow, OverstayRow } from '@/lib/checklist/travelHistory';
 import { buildNextStepsReport, NextStepsReport as ReportResult, SectionStatus } from '@/lib/checklist/nextSteps';
 import { COUNTRIES } from '@/lib/checklist/countries';
+import SessionShell from '@/components/checklist/SessionShell';
 
 // Port of index.html's "What to do next" report — renderNextStepsReport() (~line 7483-7592) —
 // task #319+ selection "'What to do next' report", the last of the three prerequisite features
@@ -59,9 +59,10 @@ function sectionIcon(status: SectionStatus): string {
 
 export default function NextStepsReport({ countryCode }: NextStepsReportProps) {
   const lowerCode = countryCode.toLowerCase();
-  const backHref = `/checklist/${lowerCode}`;
   const upperCode = countryCode.toUpperCase();
-  const visaShortLabel = COUNTRIES.find((c) => c.code === upperCode)?.visaName || 'visa';
+  const countryInfo = COUNTRIES.find((c) => c.code === upperCode);
+  const visaShortLabel = countryInfo?.visaName || 'visa';
+  const countryName = countryInfo?.name || countryCode;
 
   const [loaded, setLoaded] = useState(false);
   const [passportExpiry, setPassportExpiry] = useState('');
@@ -102,7 +103,7 @@ export default function NextStepsReport({ countryCode }: NextStepsReportProps) {
   if (!loaded) return null;
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-5 p-6 pb-16">
+    <SessionShell code={countryCode} name={countryName} session="next-steps">
       <div>
         <h1 className="text-xl font-semibold text-[#12232e]">📋 What to do next</h1>
         <p className="mt-1 text-sm text-[#4c6270]">
@@ -135,10 +136,7 @@ export default function NextStepsReport({ countryCode }: NextStepsReportProps) {
         {report.overall.message}
       </div>
 
-      <Link href={backHref} className="text-center text-xs text-accent underline">
-        ← Back to checklist
-      </Link>
-    </main>
+    </SessionShell>
   );
 }
 

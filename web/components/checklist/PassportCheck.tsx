@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
 import PassportScan from '@/components/checklist/PassportScan';
 import ResumeReminderLinks from '@/components/checklist/ResumeReminderLinks';
+import SessionShell from '@/components/checklist/SessionShell';
 import { COUNTRIES } from '@/lib/checklist/countries';
 import {
   FieldState,
@@ -48,8 +48,9 @@ function loadSaved(storageKey: string): FieldState | null {
 export default function PassportCheck({ countryCode }: PassportCheckProps) {
   const lowerCode = countryCode.toLowerCase();
   const storageKey = `sa_${lowerCode}_passport`;
-  const backHref = `/checklist/${lowerCode}`;
-  const visaName = COUNTRIES.find((c) => c.code === countryCode.toUpperCase())?.visaName || 'visa';
+  const countryInfo = COUNTRIES.find((c) => c.code === countryCode.toUpperCase());
+  const visaName = countryInfo?.visaName || 'visa';
+  const countryName = countryInfo?.name || countryCode;
 
   const [loaded, setLoaded] = useState(false);
   const [recalled, setRecalled] = useState(false);
@@ -102,7 +103,7 @@ export default function PassportCheck({ countryCode }: PassportCheckProps) {
   if (!loaded) return null;
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-4xl flex-col gap-5 p-6 pb-16">
+    <SessionShell code={countryCode} name={countryName} session="passport">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <h1 className="text-xl font-semibold text-[#12232e]">🛂 Passport scan</h1>
@@ -145,9 +146,6 @@ export default function PassportCheck({ countryCode }: PassportCheckProps) {
         standalone={false}
       />
 
-      <Link href={backHref} className="text-center text-xs text-accent underline">
-        ← Back to checklist
-      </Link>
-    </main>
+    </SessionShell>
   );
 }
