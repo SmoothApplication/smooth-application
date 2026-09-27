@@ -362,11 +362,11 @@ export default function CountryChecklistApp({
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-5 p-6 pb-16">
       <div className="sticky top-0 z-10 -mx-6 border-b border-black/10 bg-[#f7fafb]/95 px-6 py-3 backdrop-blur">
-        <div className="flex items-center justify-between text-sm">
-          <span className="font-semibold text-[#12232e]">
+        <div className="flex items-center justify-between gap-2 text-sm">
+          <span className="min-w-0 truncate font-semibold text-[#12232e]">
             {flag} {name} {visaName} checklist
           </span>
-          <span className="font-medium text-accent">{percent}% ready</span>
+          <span className="shrink-0 font-medium text-accent">{percent}% ready</span>
         </div>
         <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-black/10">
           <div className="h-full rounded-full bg-accent transition-all" style={{ width: `${percent}%` }} />

@@ -16,7 +16,7 @@ export default async function AccountPage() {
     .maybeSingle();
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-lg flex-col justify-center gap-4 p-8">
+    <main className="mx-auto flex min-h-screen max-w-lg flex-col gap-4 p-8 pt-14 sm:pt-24">
       <h1 className="text-xl font-semibold">Welcome back</h1>
       {profile ? (
         <div className="rounded-lg border border-gray-200 bg-white p-4 text-sm">

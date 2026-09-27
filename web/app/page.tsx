@@ -23,14 +23,21 @@ import Link from 'next/link';
 // hover:opacity-90 button for the new .card-surface / .btn-primary classes (globals.css) — real
 // depth on the card, a proper hover/press state on the button — plus a very subtle radial accent
 // glow behind the card so the page doesn't read as a flat gray rectangle.
+//
+// Whitespace pass ("too much white space on the pages"): this used to vertically center the card
+// with `items-center` inside `min-h-screen` — on a short card that's a lot of dead gray margin
+// above and below on every screen, phones included (a fixed 375x812 viewport left roughly 40% of
+// the height empty on both sides). Anchored near the top instead, with the glow now scoped to a
+// wrapper around the card itself (rather than the viewport centre) so it still lines up.
 export default function Home() {
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#f7fafb] p-6">
-      <div
-        className="pointer-events-none absolute left-1/2 top-1/2 h-[36rem] w-[36rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent/10 blur-3xl"
-        aria-hidden
-      />
-      <div className="card-surface relative w-full max-w-md p-8">
+    <main className="relative flex min-h-screen justify-center overflow-hidden bg-[#f7fafb] p-6 pt-14 sm:pt-24">
+      <div className="relative w-full max-w-md">
+        <div
+          className="pointer-events-none absolute left-1/2 top-1/2 h-[36rem] w-[36rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent/10 blur-3xl"
+          aria-hidden
+        />
+        <div className="card-surface relative w-full max-w-md p-8">
         <div className="mb-5 flex flex-wrap items-center gap-2">
           <span className="grid h-9 w-9 place-items-center rounded-full bg-accent-wash text-lg" aria-hidden>
             ⚡
@@ -105,6 +112,7 @@ export default function Home() {
             Terms of Use
           </Link>
         </p>
+        </div>
       </div>
     </main>
   );

@@ -48,7 +48,7 @@ export default function ChecklistStartPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#f7fafb] p-6">
+    <main className="flex min-h-screen justify-center bg-[#f7fafb] p-6 pt-14 sm:pt-24">
       <div className="card-surface w-full max-w-md p-8">
         <div className="mb-4 grid h-10 w-10 place-items-center rounded-full bg-accent-wash text-xl" aria-hidden>
           🛂

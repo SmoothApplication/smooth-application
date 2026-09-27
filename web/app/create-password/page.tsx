@@ -95,64 +95,70 @@ export default function CreatePasswordPage() {
 
   if (done) {
     return (
-      <main className="mx-auto flex min-h-screen max-w-sm flex-col items-center justify-center p-8 text-center">
-        <p className="text-lg font-medium">Password set — taking you to your checklist…</p>
+      <main className="mx-auto flex min-h-screen max-w-sm flex-col items-center p-8 pt-20 text-center sm:pt-32">
+        <div className="card-surface w-full p-6">
+          <p className="text-lg font-medium text-[#12232e]">Password set — taking you to your checklist…</p>
+        </div>
       </main>
     );
   }
 
   if (sessionState === 'checking') {
     return (
-      <main className="mx-auto flex min-h-screen max-w-sm flex-col items-center justify-center p-8 text-center">
-        <p className="text-sm text-gray-600">Checking your link…</p>
+      <main className="mx-auto flex min-h-screen max-w-sm flex-col items-center p-8 pt-20 text-center sm:pt-32">
+        <p className="text-sm text-[#4c6270]">Checking your link…</p>
       </main>
     );
   }
 
   if (sessionState === 'invalid') {
     return (
-      <main className="mx-auto flex min-h-screen max-w-sm flex-col items-center justify-center p-8 text-center">
-        <h1 className="mb-2 text-xl font-semibold">This link has expired</h1>
-        <p className="text-sm text-gray-600">
-          Invite links only work once and expire after a while. Go back to the checklist and drop
-          your email in again — we&apos;ll send a fresh one.
-        </p>
+      <main className="mx-auto flex min-h-screen max-w-sm flex-col items-center p-8 pt-20 text-center sm:pt-32">
+        <div className="card-surface w-full p-6">
+          <h1 className="mb-2 text-xl font-semibold text-[#12232e]">This link has expired</h1>
+          <p className="text-sm text-[#4c6270]">
+            Invite links only work once and expire after a while. Go back to the checklist and drop
+            your email in again — we&apos;ll send a fresh one.
+          </p>
+        </div>
       </main>
     );
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center p-8">
-      <h1 className="mb-2 text-xl font-semibold">Create your password</h1>
-      <p className="mb-6 text-sm text-gray-600">
-        This is so you can come back and view your saved progress — we still only keep your email and which step you&apos;ve reached, nothing else.
-      </p>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-        <input
-          type={visible ? 'text' : 'password'}
-          required
-          placeholder="New password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="rounded-md border border-gray-300 px-3 py-2"
-        />
-        <input
-          type={visible ? 'text' : 'password'}
-          required
-          placeholder="Confirm password"
-          value={confirm}
-          onChange={(e) => setConfirm(e.target.value)}
-          className="rounded-md border border-gray-300 px-3 py-2"
-        />
-        <label className="flex items-center gap-2 text-sm text-gray-600">
-          <input type="checkbox" checked={visible} onChange={(e) => setVisible(e.target.checked)} />
-          Show password
-        </label>
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        <button type="submit" className="rounded-md bg-brand px-4 py-2 font-medium text-white hover:bg-brand-dark">
-          Create password
-        </button>
-      </form>
+    <main className="mx-auto flex min-h-screen max-w-sm flex-col p-8 pt-14 sm:pt-24">
+      <div className="card-surface p-6">
+        <h1 className="mb-2 text-xl font-semibold text-[#12232e]">Create your password</h1>
+        <p className="mb-6 text-sm text-[#4c6270]">
+          This is so you can come back and view your saved progress — we still only keep your email and which step you&apos;ve reached, nothing else.
+        </p>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+          <input
+            type={visible ? 'text' : 'password'}
+            required
+            placeholder="New password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="field-input"
+          />
+          <input
+            type={visible ? 'text' : 'password'}
+            required
+            placeholder="Confirm password"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            className="field-input"
+          />
+          <label className="flex items-center gap-2 text-sm text-[#4c6270]">
+            <input type="checkbox" checked={visible} onChange={(e) => setVisible(e.target.checked)} />
+            Show password
+          </label>
+          {error && <p className="text-sm text-warn-text">{error}</p>}
+          <button type="submit" className="btn-primary">
+            Create password
+          </button>
+        </form>
+      </div>
     </main>
   );
 }

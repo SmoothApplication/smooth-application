@@ -40,7 +40,7 @@ function ChecklistStubContent() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-lg flex-col justify-center gap-5 p-8">
+    <main className="mx-auto flex min-h-screen max-w-lg flex-col gap-5 p-8 pt-14 sm:pt-24">
       <div>
         <h1 className="text-xl font-semibold text-[#12232e]">
           {country ? `${country.flag} ${country.name} checklist` : 'Your checklist'}

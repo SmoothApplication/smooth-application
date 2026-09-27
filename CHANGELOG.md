@@ -3,6 +3,38 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Reduce dead whitespace on gate/form pages — "we have too much white spaces on the pages" (`app/page.tsx`, `app/quiz/page.tsx`, `app/checklist/start/page.tsx`, `app/checklist/page.tsx`, `app/account/page.tsx`, `app/login/page.tsx`, `app/create-password/page.tsx`, `components/checklist/CountryChecklistApp.tsx`)
+
+Direct feedback. Live-checked every "gate" screen at a real 375×812 phone size first rather than
+guessing: the home page, `/checklist/start`, and all three `/quiz` screens vertically centered a
+short card inside a `min-h-screen` flex container. On a short card that leaves a lot of dead gray
+margin above and below — at true mobile width it measured out to roughly 40% of the screen height
+empty on both sides, worse on a laptop.
+
+- **Top-anchored instead of dead-centered.** Home, `/quiz` (all 3 screens), `/checklist/start`,
+  the `/checklist` stub, `/account`, `/login`, and `/create-password` (all 4 states) now sit near
+  the top of the viewport with sensible padding instead of floating in the vertical centre. This is
+  a one-line class change per screen (`justify-center` → top padding), so it carries no logic risk.
+- **Home page's background glow** used to be centered on the whole viewport, which would have
+  drifted away from the card once the card moved off dead-centre — rescoped it to a wrapper around
+  the card itself so it still lines up regardless of where the card sits.
+- **Brought `/login` and `/create-password` onto the shared design system** (`card-surface`,
+  `field-input`, `btn-primary` from `globals.css`) — these two were missed in the earlier
+  design-system pass and were still on the old plain `border-gray-300` inputs and a different blue
+  (`bg-brand`). `/create-password` in particular is a real, tested part of the applicant flow (the
+  "create your password" email link), not a stub, so it's worth it matching the rest of the site.
+- **Bonus fix found while live-checking this**, unrelated to whitespace: the sticky checklist
+  header (`CountryChecklistApp`) could let a long "🇬🇧 United Kingdom Standard Visitor visa
+  checklist" title crowd out or run past the "% ready" pill on narrow screens, since neither span
+  had room to shrink or truncate. Added `truncate`/`min-w-0` to the title and `shrink-0` to the
+  percent so the ready-percentage is always visible.
+
+Not changed in this pass: the checklist body itself (categories/items) and the situation gate
+already read as reasonably dense on a live phone-width check — no dead space found there, so left
+alone rather than fixed on spec.
+
+`npx tsc --noEmit`: clean. `npx jest`: 60 suites / 353 tests passing, 0 regressions.
+
 ## Expand the quiz to the original's 10 questions with real scoring — "the test in the github is 10 questions" (`lib/quiz-score.ts` new, `lib/quiz-signals.ts` removed, `app/quiz/page.tsx`)
 
 Direct feedback: the Next.js `/quiz` was a scaled-down stand-in for index.html's "confidence quiz" —

@@ -34,38 +34,36 @@ function LoginForm() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center p-8">
-      <h1 className="mb-6 text-xl font-semibold">Sign in</h1>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-        <input
-          type="email"
-          required
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="rounded-md border border-gray-300 px-3 py-2"
-        />
-        <input
-          type={visible ? 'text' : 'password'}
-          required
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="rounded-md border border-gray-300 px-3 py-2"
-        />
-        <label className="flex items-center gap-2 text-sm text-gray-600">
-          <input type="checkbox" checked={visible} onChange={(e) => setVisible(e.target.checked)} />
-          Show password
-        </label>
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        <button
-          type="submit"
-          disabled={loading}
-          className="rounded-md bg-brand px-4 py-2 font-medium text-white hover:bg-brand-dark disabled:opacity-60"
-        >
-          {loading ? 'Signing in…' : 'Sign in'}
-        </button>
-      </form>
+    <main className="mx-auto flex min-h-screen max-w-sm flex-col p-8 pt-14 sm:pt-24">
+      <div className="card-surface p-6">
+        <h1 className="mb-4 text-xl font-semibold text-[#12232e]">Sign in</h1>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+          <input
+            type="email"
+            required
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="field-input"
+          />
+          <input
+            type={visible ? 'text' : 'password'}
+            required
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="field-input"
+          />
+          <label className="flex items-center gap-2 text-sm text-[#4c6270]">
+            <input type="checkbox" checked={visible} onChange={(e) => setVisible(e.target.checked)} />
+            Show password
+          </label>
+          {error && <p className="text-sm text-warn-text">{error}</p>}
+          <button type="submit" disabled={loading} className="btn-primary">
+            {loading ? 'Signing in…' : 'Sign in'}
+          </button>
+        </form>
+      </div>
     </main>
   );
 }
