@@ -235,20 +235,23 @@ export default function ConfidenceQuizPage() {
               landing page. 4 boxes" — a 2x2 grid of stat-style cards, one per topic, always all 4
               regardless of whether that answer was a strength or a gap — unlike the old bullet
               list, which only spoke up about problems and capped at 3.
-              Task #398, revised (direct follow-up: "this is not the colour theme of the 4 boxes
-              in the home page. Make reference to the font, the size and the background colour of
-              each box") — the first pass only matched the two background colours; the homepage's
-              own boxes (app/page.tsx) put their colour on a large `font-extrabold` headline, not
-              on small body text, so this now copies that treatment line for line: same label
-              classes (`text-xs font-medium uppercase tracking-wide`, `text-[#4c6270]` on white /
-              `text-white/60` on navy — the exact classes app/page.tsx uses), same `p-6` padding,
-              and the message itself rendered as a bold headline (`text-xl font-extrabold`, wrapped
-              since it's a sentence rather than a 4-6 character stat, not truncated) in `text-good`
-              on the white card or `text-warn` on the `bg-[#12232e]` card — the same two colour
-              tokens the homepage's own numbers use. */}
+              Task #398 matched the font/size/padding to the homepage's headline treatment
+              (`text-xl font-extrabold`, `text-[#4c6270]`/`text-white/60` labels, `p-6`) — that part
+              is unchanged below.
+              Task #399 (direct follow-up, screenshot of the all-blank case rendering as 4 solid
+              dark boxes, captioned "the above is wrong"): the previous pass coloured each card by
+              a per-answer `tone` (good/warn), so a bad set of answers could turn all 4 boxes dark.
+              Re-checking the homepage itself: its white-vs-navy split is a fixed LAYOUT position,
+              not a sentiment signal — the top two white boxes show refusal counts (bad news) in
+              green, the bottom two navy boxes show money lost (also bad news) in orange. So this
+              now colours by fixed index instead of content: cards 0-1 (Finance, Travel history)
+              are always the white/text-good treatment, cards 2-3 (Ties to home country, Savings
+              for trip) are always the dark navy/text-warn treatment — a literal, always-the-same
+              2-white-then-2-dark match to the homepage's own layout, regardless of what was
+              answered. quizResultCards() no longer computes a tone at all (see lib/quiz-score.ts). */}
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {resultCards.map((c) =>
-              c.tone === 'good' ? (
+            {resultCards.map((c, i) =>
+              i < 2 ? (
                 <div key={c.label} className="card-surface p-6">
                   <p className="text-xs font-medium uppercase tracking-wide text-[#4c6270]">{c.label}</p>
                   <p className="mt-2 text-xl font-extrabold leading-snug text-good">{c.message}</p>

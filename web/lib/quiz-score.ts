@@ -129,8 +129,7 @@ export function quizGapMessages(a: QuizAnswers): string[] {
   return out;
 }
 
-export type QuizResultCardTone = 'good' | 'warn';
-export type QuizResultCard = { label: string; message: string; tone: QuizResultCardTone };
+export type QuizResultCard = { label: string; message: string };
 
 // Task #397 (direct request, 2 annotated screenshots): the result screen's "Biggest things to
 // work on" section — a variable-length (0-3), priority-ordered bullet list drawn from
@@ -143,12 +142,18 @@ export type QuizResultCard = { label: string; message: string; tone: QuizResultC
 // untouched (still exported, still tested) — this is a new, separate function alongside it, not
 // a replacement of it in lib/quiz-score.ts, only in how the result screen renders.
 //
-// Task #398 (direct request, "use the same colour of the boxes in the home page for the 4
-// boxes"): each card now also carries a `tone` so the result screen can reuse the homepage's own
-// two box treatments verbatim — white card-surface with a text-good accent for a strong answer,
-// dark navy card with a text-warn accent for a gap — instead of one flat white style for all 4.
-// An unanswered question is scored as 'warn' (same as the homepage's own "money lost" framing:
-// something the applicant still needs to address, not a neutral non-answer).
+// Task #398 attempted a per-answer `tone` ('good' for a strong answer, 'warn' for a gap) so the
+// result screen's box colour would track whether that specific answer was a strength or a gap.
+// Task #399 (direct follow-up, with a screenshot of the all-blank-answers case rendering as 4
+// solid dark-navy boxes, captioned "the above is wrong"): re-examining the homepage itself shows
+// its own box colour has nothing to do with whether the number is "good" or "bad" news — the top
+// two white boxes show refusal COUNTS (unambiguously bad news) in green, and the bottom two dark
+// boxes show money LOST (also bad news) in orange. The homepage's white/navy split is a fixed
+// POSITION in its layout, not a sentiment indicator. So quizResultCards() no longer computes a
+// tone at all — the result screen (app/quiz/page.tsx) now colours by fixed position instead:
+// first two cards (Finance, Travel history) always white+text-good, last two (Ties to home
+// country, Savings for trip) always dark navy+text-warn, regardless of what was answered. This
+// is the literal, position-for-position match to the homepage's own 2-white/2-dark layout.
 export function quizResultCards(a: QuizAnswers): QuizResultCard[] {
   const finance =
     a.income === 'steady'
@@ -156,7 +161,6 @@ export function quizResultCards(a: QuizAnswers): QuizResultCard[] {
       : a.income === 'none'
       ? 'No steady income — lean on a strong, well-explained savings history instead.'
       : "Not answered yet — it's one of the first things a reviewer checks.";
-  const financeTone: QuizResultCardTone = a.income === 'steady' ? 'good' : 'warn';
 
   const travelHistory =
     a.travel === 'yes'
@@ -164,7 +168,6 @@ export function quizResultCards(a: QuizAnswers): QuizResultCard[] {
       : a.travel === 'no'
       ? 'This would be your first trip abroad — first-time travellers often face extra scrutiny, so the rest of your documents matter more.'
       : 'Not answered yet — travel history affects how closely other documents get checked.';
-  const travelTone: QuizResultCardTone = a.travel === 'yes' ? 'good' : 'warn';
 
   const ties =
     a.ties === 'strong'
@@ -172,7 +175,6 @@ export function quizResultCards(a: QuizAnswers): QuizResultCard[] {
       : a.ties === 'few'
       ? 'Limited documented ties to Nigeria — worth strengthening with property, family, or employment evidence.'
       : "Not answered yet — ties to Nigeria are core evidence you'll return.";
-  const tiesTone: QuizResultCardTone = a.ties === 'strong' ? 'good' : 'warn';
 
   const savings =
     a.savings === 'over5m'
@@ -184,13 +186,12 @@ export function quizResultCards(a: QuizAnswers): QuizResultCard[] {
       : a.savings === 'under500k'
       ? 'This looks thin for most trip costs — worth building up before you apply.'
       : 'Not answered yet — savings are one of the first things a reviewer checks.';
-  const savingsTone: QuizResultCardTone = a.savings === 'over5m' || a.savings === 'to5m' ? 'good' : 'warn';
 
   return [
-    { label: 'Finance', message: finance, tone: financeTone },
-    { label: 'Travel history', message: travelHistory, tone: travelTone },
-    { label: 'Ties to home country', message: ties, tone: tiesTone },
-    { label: 'Savings for trip', message: savings, tone: savingsTone },
+    { label: 'Finance', message: finance },
+    { label: 'Travel history', message: travelHistory },
+    { label: 'Ties to home country', message: ties },
+    { label: 'Savings for trip', message: savings },
   ];
 }
 

@@ -3,6 +3,34 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Quiz result cards: colour by fixed position, not per-answer sentiment
+
+Direct follow-up, with a screenshot of the all-blank-answers case rendering as 4 solid dark-navy
+boxes, captioned "the above is wrong, please correct." The previous two entries below gave each
+card a `tone` ('good'/'warn') based on whether that specific answer was a strength or a gap, so a
+weak set of answers turned all 4 boxes dark — visually nothing like the homepage, which always
+shows exactly 2 white boxes then 2 dark ones.
+
+Re-examining the homepage confirmed the tone logic's premise was wrong: its own white-vs-navy
+split isn't a "good news/bad news" signal at all. The top two white boxes show refusal counts
+(1.13M refusals, 38.65% refusal rate — bad news) in green; the bottom two dark boxes show money
+lost (also bad news) in orange. The colour is tied to a fixed position in the layout, not to
+whether the number is encouraging.
+
+**`lib/quiz-score.ts`:** `quizResultCards()` no longer computes a `tone` at all — reverted to the
+plain `{ label, message }` shape from the task #397 entry below it. The 4 tone-specific tests added
+for task #398 are removed along with it.
+
+**`app/quiz/page.tsx`:** the result grid now colours by array index instead of content — cards 0-1
+(Finance, Travel history) always render as the white/`text-good` card, cards 2-3 (Ties to home
+country, Savings for trip) always render as the dark navy/`text-warn` card — regardless of what
+was actually answered. This is a literal, always-the-same 2-white-then-2-dark match to the
+homepage's fixed layout. The font/size/padding fix from the entry below (headline-weight
+`text-xl font-extrabold` message, homepage-exact label classes, `p-6` padding) is unchanged.
+
+Full suite: 62/374 passing (back down from 378 — the 4 tone tests are gone, no new tests needed
+since the colouring is now a pure `i < 2` index check with no new branching logic to cover).
+
 ## Quiz result cards: match the homepage's font, size, and colours, not just background
 
 Direct follow-up after the entry below: "this is not the colour theme of the 4 boxes in the home
