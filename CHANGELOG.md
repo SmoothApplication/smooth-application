@@ -3,6 +3,29 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Merge the homepage into the mandatory quiz-intro screen — "the site is not the way i arranged it" (`app/page.tsx`, `app/quiz/page.tsx`)
+
+User compared the live site against the original GitHub Pages site directly (side-by-side
+screenshots) and asked to match it. Root cause: our port had split the original's single front
+door into two things — a separate marketing homepage (with its own, different copy) offering a
+"skip the quiz" fast path straight to the checklist, plus a shorter quiz-intro screen at `/quiz`.
+In the original, there's no separate homepage at all: the quiz-intro screen (`#quizIntro`) *is*
+the front door — same brand header, one mandatory "Start the quick check" button, no skip link
+(a comment in the original's own code explains the skip link was deliberately removed so every
+applicant gets a real preview of what's ahead before committing).
+
+- Rebuilt `/quiz`'s not-started screen to match: visible trust badges (🔒/🆓/🇳🇬, no longer
+  collapsed), the "source code is public" line, a "What you need to know" collapsible, and the
+  "Start the quick check" button — with no skip-to-checklist link.
+- `app/page.tsx` now re-exports the same component (`export { default } from './quiz/page'`), so
+  `/` and `/quiz` show the identical screen — no duplicated markup to drift out of sync later.
+- One deliberate deviation from the literal original wording: the country list says all 8 countries
+  actually live today, not the original's older "UK, Canada, Schengen & South Africa" text (which
+  predates Ghana/Kenya/Ethiopia/Morocco shipping) — reverting to the stale list would misinform
+  applicants about what's covered.
+
+`npx tsc --noEmit`: clean. `npx jest`: 60 suites / 353 tests passing, 0 regressions.
+
 ## Trim duplicated homepage copy, drop the public admin link (`app/page.tsx`)
 
 Direct feedback on the homepage: the country list appeared twice (once in the main tagline, again
