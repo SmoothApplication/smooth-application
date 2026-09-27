@@ -29,6 +29,16 @@ import Link from 'next/link';
 // above and below on every screen, phones included (a fixed 375x812 viewport left roughly 40% of
 // the height empty on both sides). Anchored near the top instead, with the glow now scoped to a
 // wrapper around the card itself (rather than the viewport centre) so it still lines up.
+//
+// Second copy trim ("remove or shorten the word... put all these information in what you need to
+// know... why is Admin sign in exposed"): the tagline was repeating the same country list that
+// "What you need to know" already spells out under "Countries covered" — shortened it to one line
+// and moved the specifics (and "built for Nigerian applicants") down into that bullet instead of
+// stating it twice. Folded "free, always" into the privacy bullet the same way, so the standalone
+// trust pill above the button was no longer pulling its weight and got removed rather than kept as
+// a fourth near-duplicate of what the collapsible already says. Also removed the public "Admin
+// sign in" link — it served staff, not applicants, and had no reason to be advertised on the page
+// everyone sees; admins can still reach /login directly.
 export default function Home() {
   return (
     <main className="relative flex min-h-screen justify-center overflow-hidden bg-[#f7fafb] p-6 pt-14 sm:pt-24">
@@ -48,16 +58,8 @@ export default function Home() {
           </span>
         </div>
 
-        <p className="mb-4 text-sm leading-relaxed text-[#4c6270]">
-          A free document checklist for{' '}
-          <b className="text-[#12232e]">
-            UK, Canada, Schengen, South Africa, Ghana, Kenya, Ethiopia &amp; Morocco
-          </b>{' '}
-          travel.
-        </p>
-
-        <p className="mb-5 rounded-lg bg-accent-wash px-3 py-2 text-xs font-medium text-accent">
-          🔒 Runs entirely in your browser, free always, built for Nigerian applicants
+        <p className="mb-5 text-sm leading-relaxed text-[#4c6270]">
+          A free, step-by-step document checklist for your visa application.
         </p>
 
         <Link href="/checklist/start" className="btn-primary block">
@@ -72,7 +74,7 @@ export default function Home() {
           <div className="mt-2 flex flex-col gap-2">
             <p>
               <b>Your privacy:</b> your documents and files are scanned entirely in your browser and never
-              uploaded anywhere. No account required to use the checklist, no ads, no catch.
+              uploaded anywhere. No account required to use the checklist, no ads, no catch — free, always.
             </p>
             <p>
               <b>Not an approval predictor:</b> this is guidance, not immigration advice — it checks how ready
@@ -80,9 +82,9 @@ export default function Home() {
               decides that.
             </p>
             <p>
-              <b>Countries covered:</b> UK Standard Visitor, Canada visitor (TRV), Schengen short-stay (Type C),
-              South Africa, Ghana, Kenya, Ethiopia and Morocco are all live. United States, Australia and China
-              are coming soon.
+              <b>Countries covered:</b> built for Nigerian applicants, covering UK Standard Visitor, Canada
+              visitor (TRV), Schengen short-stay (Type C), South Africa, Ghana, Kenya, Ethiopia and Morocco —
+              all live. United States, Australia and China are coming soon.
             </p>
             <p>
               Don&apos;t take our word for it —{' '}
@@ -100,10 +102,6 @@ export default function Home() {
         </details>
 
         <p className="mt-6 text-center text-xs text-[#566a76]">
-          <Link href="/login" className="text-accent underline">
-            Admin sign in
-          </Link>{' '}
-          ·{' '}
           <Link href="/privacy" className="text-accent underline">
             Privacy Policy
           </Link>{' '}

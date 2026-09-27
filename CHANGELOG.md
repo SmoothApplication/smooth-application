@@ -3,6 +3,23 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Trim duplicated homepage copy, drop the public admin link (`app/page.tsx`)
+
+Direct feedback on the homepage: the country list appeared twice (once in the main tagline, again
+under "What you need to know" → Countries covered), the standalone trust pill ("🔒 Runs entirely in
+your browser, free always, built for Nigerian applicants") repeated ground the collapsible's privacy
+bullet already covered, and "Admin sign in" — a staff-only link — was sitting in the public footer
+for no reason an applicant would need it.
+
+- Shortened the tagline to one line ("A free, step-by-step document checklist for your visa
+  application.") and removed the trust pill entirely, folding "free, always" into the privacy
+  bullet and "built for Nigerian applicants" into the countries-covered bullet inside "What you need
+  to know" instead of stating each twice.
+- Removed the public "Admin sign in" link from the footer. It served staff, not applicants, and had
+  no reason to be advertised on the page everyone lands on; admins can still reach `/login` directly.
+
+`npx tsc --noEmit`: clean. `npx jest`: 60 suites / 353 tests passing, 0 regressions.
+
 ## Reduce dead whitespace on gate/form pages — "we have too much white spaces on the pages" (`app/page.tsx`, `app/quiz/page.tsx`, `app/checklist/start/page.tsx`, `app/checklist/page.tsx`, `app/account/page.tsx`, `app/login/page.tsx`, `app/create-password/page.tsx`, `components/checklist/CountryChecklistApp.tsx`)
 
 Direct feedback. Live-checked every "gate" screen at a real 375×812 phone size first rather than
