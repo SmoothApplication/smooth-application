@@ -25,6 +25,12 @@ export type Answers = {
   translation: boolean;
   readyToSubmit: boolean;
   purpose: '' | 'tourism' | 'business' | 'conference' | 'medical' | 'family' | 'wedding' | 'academic' | 'training';
+  /** Task #386 (Final review/declaration session): port of index.html's decl_name/decl_date/
+   * decl_confirm fields (~line 6470, function updateDeclaration()) — the applicant's own signed-off
+   * statement that everything entered is accurate, shown on the last real session before Reasons. */
+  declarationName: string;
+  declarationDate: string;
+  declarationConfirmed: boolean;
 };
 
 export const DEFAULT_ANSWERS: Answers = {
@@ -45,6 +51,9 @@ export const DEFAULT_ANSWERS: Answers = {
   translation: false,
   readyToSubmit: false,
   purpose: '',
+  declarationName: '',
+  declarationDate: '',
+  declarationConfirmed: false,
 };
 
 export type ChecklistItem = {

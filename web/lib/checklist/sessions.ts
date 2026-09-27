@@ -36,9 +36,12 @@ import { ALL_CHECKLISTS } from '@/lib/checklist/all';
 // read/write the exact same sa_<code>_answers key, so answers filled in one place show up in the
 // other.
 //
-// Not yet built: a dedicated "Final review / declaration" session (13) — no such feature exists in
-// this port yet at all (no name/date/confirm-checkbox screen). Real, disclosed follow-up work, not
-// silently dropped.
+// Session 13, "Final review" (task #386): built directly off the original's own markup/JS (the
+// "review" session key) rather than guessed — it bundles three cards: an "Are you ready?" required-
+// documents summary (verbatim reuse of missingRequiredItems/computeRequiredPercent from
+// lib/checklist/uk.ts), a static "Documents best avoided as sole evidence" note, and the Declaration
+// form itself (full name / date / confirm-checkbox, ported as Answers.declarationName/
+// declarationDate/declarationConfirmed). See components/checklist/FinalReviewSession.tsx.
 export type SessionKey =
   | 'passport'
   | 'travel-history'
@@ -48,6 +51,7 @@ export type SessionKey =
   | 'financial'
   | 'next-steps'
   | `checklist:${number}`
+  | 'final-review'
   | 'reasons';
 
 export type SessionDescriptor = {
@@ -77,6 +81,7 @@ export function buildSessionOrder(code: string): SessionDescriptor[] {
     });
   });
 
+  order.push({ key: 'final-review', label: 'Final review', href: (c) => `/checklist/${c.toLowerCase()}/final-review` });
   order.push({ key: 'reasons', label: 'Reasons', href: (c) => `/checklist/${c.toLowerCase()}/reasons` });
 
   return order;

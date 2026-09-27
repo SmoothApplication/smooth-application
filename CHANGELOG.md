@@ -3,6 +3,37 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Phase 2 complete: Final review/declaration session (13) — real 14-session order now fully built
+
+Direct request: "Only piece left from the original 14-session roadmap: the 'Final review/
+declaration' feature... Want me to scope and build that next?" — yes. This closes out the last gap
+disclosed across the last three CHANGELOG entries: every session in the ground-truth order (session
+sequence confirmed directly off the live original's own markup/JS, not guessed) now has a real,
+numbered page in this port.
+
+Researched the original's actual "review" session (session 13, key `review`) directly from its
+markup and JS rather than assuming a shape: it bundles three cards — an "Are you ready?" summary of
+required documents still missing (with an "Email myself this summary" mailto draft), a static
+"Documents best avoided as sole evidence" note, and the Declaration form itself (`decl_name`/
+`decl_date`/`decl_confirm` in the original, with a live "Declared by X on Y" message once all three
+are filled).
+
+Built `components/checklist/FinalReviewSession.tsx` matching all three, reusing existing helpers
+rather than reimplementing them: `missingRequiredItems`/`computeRequiredPercent` from
+`lib/checklist/uk.ts` (the same ones `ChecklistSidebar.tsx`'s own "Still missing" card already uses,
+so the two can't drift apart), and the same real-`mailto:`-link pattern `lib/checklist/
+resumeReminder.ts` already established (a plain `<a href="mailto:...">`, not a `location.href` click
+handler — that pattern was already found broken on phones with no mail app configured). Added
+`declarationName`/`declarationDate`/`declarationConfirmed` to the shared `Answers` type (`lib/
+checklist/uk.ts`) and `DEFAULT_ANSWERS`; `declarationDate` defaults to today's date on first load,
+same as the original's `todayStr()`. New routes: `app/checklist/uk/final-review/page.tsx` and the
+generic `app/checklist/[country]/final-review/page.tsx`. Wired into `buildSessionOrder`
+(`lib/checklist/sessions.ts`) as `'final-review'`, sitting between the last document-checklist
+category session and Reasons, matching the original's real position.
+
+`npx tsc --noEmit`: clean. `npx jest`: 62 suites / 369 tests passing, 0 regressions (updated
+`lib/checklist/__tests__/sessions.test.ts` for the new session slot).
+
 ## Phase 2 continued: split qualifying-questions form into Sessions 3 and 4
 
 User report, with a live screenshot: `/checklist/uk/statement` was showing "Session 3 of 15", but

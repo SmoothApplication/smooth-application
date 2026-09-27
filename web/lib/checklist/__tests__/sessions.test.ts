@@ -21,8 +21,10 @@ test('places the fixed pre-checklist sessions in the real order, followed by one
     'financial',
     'next-steps',
   ]);
+  // Task #386 added 'final-review' between the last category session and 'reasons'.
   expect(keys[keys.length - 1]).toBe('reasons');
-  expect(keys.length).toBe(7 + catCount + 1);
+  expect(keys[keys.length - 2]).toBe('final-review');
+  expect(keys.length).toBe(7 + catCount + 2);
 
   // Every category from CAT_ORDER_UK gets its own session, in the same order, with its own href.
   ALL_CHECKLISTS.UK.catOrder.forEach((cat, i) => {
@@ -38,7 +40,7 @@ test('builds a different-length session list for a country with a different catO
   const ukOrder = buildSessionOrder('UK');
   const ghOrder = buildSessionOrder('GH');
   expect(ghOrder.length).not.toBe(ukOrder.length);
-  expect(ghOrder.length).toBe(7 + ALL_CHECKLISTS.GH.catOrder.length + 1);
+  expect(ghOrder.length).toBe(7 + ALL_CHECKLISTS.GH.catOrder.length + 2);
 });
 
 test('sessionHref/sessionIndex/prevSessionHref/nextSessionHref agree with buildSessionOrder', () => {
@@ -54,9 +56,13 @@ test('sessionHref/sessionIndex/prevSessionHref/nextSessionHref agree with buildS
   expect(nextSessionHref('UK', 'responsibilities')).toBe('/checklist/uk/trip-details');
   expect(nextSessionHref('UK', 'trip-details')).toBe('/checklist/uk/statement');
 
-  // Reasons is always last — no "Next" from there, and "Back" goes to the final category session.
+  // Reasons is always last — no "Next" from there, and "Back" goes to Final review. Final review
+  // itself sits between the last category session and Reasons.
   const lastCatIndex = ALL_CHECKLISTS.UK.catOrder.length - 1;
-  expect(prevSessionHref('UK', 'reasons')).toBe(`/checklist/uk/checklist/${lastCatIndex}`);
+  expect(sessionHref('UK', 'final-review')).toBe('/checklist/uk/final-review');
+  expect(prevSessionHref('UK', 'final-review')).toBe(`/checklist/uk/checklist/${lastCatIndex}`);
+  expect(nextSessionHref('UK', 'final-review')).toBe('/checklist/uk/reasons');
+  expect(prevSessionHref('UK', 'reasons')).toBe('/checklist/uk/final-review');
   expect(nextSessionHref('UK', 'reasons')).toBeNull();
 
   // A checklist:N session's neighbours are checklist:N-1/checklist:N+1 (or the fixed sessions/
