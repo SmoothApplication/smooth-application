@@ -130,6 +130,32 @@ describe('quizResultCards', () => {
     expect(finance.message).toContain('No steady income');
     expect(ties.message).toContain('Limited documented ties');
   });
+
+  // Task #398 (direct request: "use the same colour of the boxes in the home page for the 4
+  // boxes") — each card carries a tone that drives which of the homepage's two box styles the
+  // result screen reuses (white/text-good vs. dark navy/text-warn).
+  it('tones every card "good" on the best-case answers', () => {
+    const cards = quizResultCards(BEST);
+    expect(cards.every((c) => c.tone === 'good')).toBe(true);
+  });
+
+  it('tones every card "warn" on the worst-case (blank) answers', () => {
+    const cards = quizResultCards(DEFAULT_QUIZ_ANSWERS);
+    expect(cards.every((c) => c.tone === 'warn')).toBe(true);
+  });
+
+  it('tones savings "good" for the to5m band, but "warn" for to2m and under500k', () => {
+    expect(quizResultCards({ ...BEST, savings: 'to5m' })[3].tone).toBe('good');
+    expect(quizResultCards({ ...BEST, savings: 'to2m' })[3].tone).toBe('warn');
+    expect(quizResultCards({ ...BEST, savings: 'under500k' })[3].tone).toBe('warn');
+  });
+
+  it('tones finance and ties "warn" when income is none and ties are few', () => {
+    const cards = quizResultCards({ ...BEST, ties: 'few', income: 'none' });
+    expect(cards.find((c) => c.label === 'Finance')!.tone).toBe('warn');
+    expect(cards.find((c) => c.label === 'Ties to home country')!.tone).toBe('warn');
+    expect(cards.find((c) => c.label === 'Travel history')!.tone).toBe('good');
+  });
 });
 
 describe('quizAnswersToChecklistPrefill', () => {

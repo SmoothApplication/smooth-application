@@ -232,17 +232,28 @@ export default function ConfidenceQuizPage() {
           </div>
 
           {/* Task #397 (direct request, 2 annotated screenshots): "design page 2 to look like the
-              landing page. 4 boxes" — a 2x2 grid of white stat-style cards (same `card-surface`
-              pattern as the homepage's stat cards), one per topic, always all 4 regardless of
-              whether that answer was a strength or a gap — unlike the old bullet list, which only
-              spoke up about problems and capped at 3. */}
+              landing page. 4 boxes" — a 2x2 grid of stat-style cards, one per topic, always all 4
+              regardless of whether that answer was a strength or a gap — unlike the old bullet
+              list, which only spoke up about problems and capped at 3.
+              Task #398 (direct request: "use the same colour of the boxes in the home page for
+              the 4 boxes"): reuses the homepage's own two box treatments verbatim instead of one
+              flat white style — white card-surface + text-good accent for a strong answer
+              (c.tone === 'good'), dark navy card + text-warn accent for a gap, exactly like the
+              homepage's white stat cards vs. its dark "money lost" cards. */}
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {resultCards.map((c) => (
-              <div key={c.label} className="card-surface p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-[#566a76]">{c.label}</p>
-                <p className="mt-1 text-sm text-[#12232e]">{c.message}</p>
-              </div>
-            ))}
+            {resultCards.map((c) =>
+              c.tone === 'good' ? (
+                <div key={c.label} className="card-surface p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[#566a76]">{c.label}</p>
+                  <p className="mt-1 text-sm font-medium text-good">{c.message}</p>
+                </div>
+              ) : (
+                <div key={c.label} className="rounded-2xl bg-[#12232e] p-4 text-white">
+                  <p className="text-xs font-medium uppercase tracking-wide text-white/60">{c.label}</p>
+                  <p className="mt-1 text-sm font-medium text-warn">{c.message}</p>
+                </div>
+              ),
+            )}
           </div>
 
           {reportEmailStatus === 'done' ? (

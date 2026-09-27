@@ -3,6 +3,28 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Quiz result cards: reuse the homepage's own box colours
+
+Direct request, with 2 screenshots (the quiz result grid + the homepage) side by side: "use the
+same colour of the boxes in the home page for the 4 boxes of the result page of the Quiz." The
+4-card grid shipped in the entry below this one used one flat white `card-surface` style for all 4
+cards regardless of content — this makes it reuse the homepage's actual two box treatments.
+
+**`lib/quiz-score.ts`: `QuizResultCard` gains a `tone: 'good' | 'warn'` field.** Each of the 4
+topics is scored the same way it already reads (steady income / travelled before / strong ties /
+savings ≥ ₦2,000,000 → `'good'`; everything else, including an unanswered question, → `'warn'`) —
+this mirrors the homepage's own "money lost" framing, where an unanswered question is treated as
+something to still address rather than a neutral non-answer.
+
+**`app/quiz/page.tsx`: result grid now renders two card styles instead of one**, matching the
+homepage's white stat cards (`card-surface` + `text-good`) and dark "money lost" cards (`bg-
+[#12232e]` + `text-warn`) verbatim — same classes, same colour tokens, just applied per-card based
+on `tone` instead of picking one style for the whole grid.
+
+**Tests:** `lib/checklist/__tests__/quiz-score.test.ts` — 4 new cases covering all-good (best-case
+answers), all-warn (blank answers), the `to5m`/`to2m`/`under500k` savings-tone boundary, and one
+mixed case (steady income but weak ties). Full suite: 62/378 passing (up from 374).
+
 ## Quiz result screen: fixed 4-card breakdown styled like the homepage
 
 Direct request with 2 annotated screenshots: "design page 2 to look like the landing page. 4
