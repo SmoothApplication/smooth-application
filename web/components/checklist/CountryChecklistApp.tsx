@@ -13,7 +13,7 @@ import {
 import { ALL_CHECKLISTS } from '@/lib/checklist/all';
 import { getSponsorRecommendation, resolveSpouseRef } from '@/lib/checklist/sponsor';
 import { trackEvent } from '@/lib/analytics';
-import SessionShell from '@/components/checklist/SessionShell';
+import ChecklistSidebar from '@/components/checklist/ChecklistSidebar';
 import { sessionHref } from '@/lib/checklist/sessions';
 
 // Phase 4b of task #244: the shared checklist app UI, factored out of the UK-only
@@ -355,7 +355,7 @@ export default function CountryChecklistApp({
             // the original's real session order (confirmed directly off the live original's own
             // session pills), rather than the flat document checklist — see
             // lib/checklist/sessions.ts for the full scope note.
-            router.push(sessionHref('passport', code));
+            router.push(sessionHref(code, 'passport'));
           }}
           className="w-full rounded-lg bg-accent px-4 py-3 font-semibold text-white hover:opacity-90"
         >
@@ -368,8 +368,18 @@ export default function CountryChecklistApp({
     );
   }
 
+  // Task #383 ("start with the document-checklist split"): the original's sessions 8-13 are one
+  // session per document-checklist category (see lib/checklist/sessions.ts's header comment) —
+  // ChecklistCategorySession.tsx + its routes are the real numbered path into this same data now,
+  // reached via SessionShell's own Back/Next nav starting from "What to do next" (session 7).
+  // Nothing in the numbered flow points at this combined view anymore (SESSION_ORDER has no plain
+  // 'checklist' key), so this stays reachable only by a direct visit to /checklist/<code> — a
+  // fallback "everything on one page" view rather than a session in its own right, which is why it
+  // no longer goes through SessionShell (that session-nav bar would have nothing correct to show:
+  // this page spans every category at once, not any one of the 8-13 slots individually).
   return (
-    <SessionShell code={code} name={name} session="checklist">
+    <main className="mx-auto flex min-h-screen max-w-5xl flex-col gap-5 p-6 pb-16 lg:flex-row lg:items-start">
+      <div className="flex min-w-0 flex-1 flex-col gap-5">
       <div className="rounded-lg border border-black/10 bg-[#f7fafb] px-6 py-3">
         <div className="flex items-center justify-between gap-2 text-sm">
           <span className="min-w-0 truncate font-semibold text-[#12232e]">
@@ -510,11 +520,14 @@ export default function CountryChecklistApp({
       <button type="button" onClick={() => setView('profile')} className="text-center text-xs text-accent underline">
         ← Edit your answers
       </button>
-    </SessionShell>
+      </div>
+
+      <ChecklistSidebar code={code} name={name} checklist={checklist} answers={answers} checked={checked} />
+    </main>
   );
 }
 
-function ChecklistRow({
+export function ChecklistRow({
   item,
   checked,
   onToggle,

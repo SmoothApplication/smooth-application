@@ -3,6 +3,36 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Phase 2 continued: document-checklist split into one session per category (8-13)
+
+Direct request: "start with the document-checklist split (sessions 8-13, the bigger payoff) now" —
+the follow-up work disclosed (and not silently dropped) in the previous entry below.
+
+The document checklist was one combined screen showing every category at once; the original
+splits it into one session per category (sessions 8-13 of the real 14, per that entry's ground-truth
+research). Replaced the old fixed `SESSION_ORDER` array with `buildSessionOrder(code)`
+(`lib/checklist/sessions.ts`), which builds the session list per country from that country's own
+`catOrder` (UK has 9 categories; the other 7 ready countries — CA/EU/ZA/GH/KE/ET/MA — have their own,
+shorter, differently-named category lists), so no country's session count/labels are hardcoded to
+UK's shape. `SessionKey` now also accepts `` `checklist:${number}` `` for a category session.
+
+New: `lib/checklist/useEditableChecklistState.ts` (writable localStorage-backed answers/checked
+state, alongside the existing read-only `useChecklistState.ts`), `components/checklist/
+ChecklistCategorySession.tsx` (renders one category via the same `ChecklistRow` markup
+`CountryChecklistApp.tsx` uses, now exported for reuse), and routes `app/checklist/uk/checklist/
+[catIndex]/page.tsx` + `app/checklist/[country]/checklist/[catIndex]/page.tsx` (one static route per
+category per country, `generateStaticParams()` driven by each country's own `catOrder` length).
+`CountryChecklistApp.tsx`'s own combined checklist view is no longer linked from the numbered
+session flow — kept only as a fallback "everything at once" view for direct visits to
+`/checklist/<code>`, since `'checklist'` is no longer a valid `SessionKey` on its own.
+
+Still not done (see `lib/checklist/sessions.ts`'s header comment): sessions 3/4 (qualifying-questions
+form still one combined screen) and the "Final review/declaration" feature for session 13, which
+doesn't exist anywhere in this port yet — tracked as separate follow-up work.
+
+`npx tsc --noEmit`: clean. `npx jest`: 62 suites / 369 tests passing, 0 regressions (3 new tests in
+`lib/checklist/__tests__/sessions.test.ts` covering `buildSessionOrder`'s per-country shape).
+
 ## Phase 2 continued: real session order + 4 more sessions folded into the numbered flow
 
 Direct request: "move it according to each sessions, move from session 1 to session 14 as it is on"

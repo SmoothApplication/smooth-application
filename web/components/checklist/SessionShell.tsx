@@ -4,7 +4,7 @@ import { ReactNode } from 'react';
 import Link from 'next/link';
 import ChecklistSidebar from '@/components/checklist/ChecklistSidebar';
 import { useChecklistState } from '@/lib/checklist/useChecklistState';
-import { SESSION_ORDER, SessionKey, sessionIndex, prevSessionHref, nextSessionHref } from '@/lib/checklist/sessions';
+import { buildSessionOrder, SessionKey, prevSessionHref, nextSessionHref } from '@/lib/checklist/sessions';
 
 // The shared shell for the 3-session flow added in task #381 (see lib/checklist/sessions.ts for the
 // full scope note): a "Session X of N" nav bar with progress pills and Back/Next, the persistent
@@ -21,10 +21,14 @@ export type SessionShellProps = {
 
 export default function SessionShell({ code, name, session, children }: SessionShellProps) {
   const { checklist, answers, checked } = useChecklistState(code);
-  const idx = sessionIndex(session);
-  const total = SESSION_ORDER.length;
-  const prev = prevSessionHref(session, code);
-  const next = nextSessionHref(session, code);
+  // Built fresh per render from this country's own catOrder length (task #383 — sessions 8-13 are
+  // now real per-category sessions, and every country's category list is a different length/set of
+  // names, so this can't be a fixed array — see lib/checklist/sessions.ts).
+  const order = buildSessionOrder(code);
+  const idx = order.findIndex((s) => s.key === session);
+  const total = order.length;
+  const prev = prevSessionHref(code, session);
+  const next = nextSessionHref(code, session);
 
   return (
     <main className="mx-auto flex min-h-screen max-w-5xl flex-col gap-5 p-6 pb-16 lg:flex-row lg:items-start">
@@ -32,10 +36,10 @@ export default function SessionShell({ code, name, session, children }: SessionS
         <div className="sticky top-0 z-10 -mx-6 border-b border-black/10 bg-[#f7fafb]/95 px-6 py-3 backdrop-blur lg:mx-0 lg:rounded-lg lg:border">
           <p className="text-xs font-medium text-[#566a76]">
             Session {idx + 1} of {total}:{' '}
-            <span className="font-semibold text-[#12232e]">{SESSION_ORDER[idx]?.label}</span>
+            <span className="font-semibold text-[#12232e]">{order[idx]?.label}</span>
           </p>
           <div className="mt-2 flex gap-1.5">
-            {SESSION_ORDER.map((s, i) => (
+            {order.map((s, i) => (
               <Link
                 key={s.key}
                 href={s.href(code)}
