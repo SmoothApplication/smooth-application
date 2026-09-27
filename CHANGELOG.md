@@ -10,18 +10,21 @@ are not busy." The subtitle under "Here's what we noticed" ("Not a prediction of
 just a first read on your situation before the full checklist.") was the first thing competing with
 the actual result for attention, right under the heading.
 
-**`app/quiz/page.tsx`:** that sentence is gone from the main card. In its place, a small fixed
-`bottom-4 right-4` pill labelled "📖 Reasons" opens a one-line popover with the same text — the same
+**`app/quiz/page.tsx`:** that sentence is gone from the main card. In its place, a small "📖 Reasons"
+pill in the bottom-right of the result card opens a one-line popover with the same text — the same
 declutter-by-tucking-explanations-away idea already used by the checklist flow's own "Why these
 documents"/Reasons page (`components/checklist/ReasonsView.tsx`), scaled down to a single sentence
-since there's nothing else to explain here. The result card got `mb-16` added so the Continue
-button always has clearance above the fixed tab — `SessionShell.tsx` (task #391) found that a fixed
-bottom-right pill can overlap other interactive elements when long content scrolls past that corner,
-but this page's result card is short and centred, so the tab only ever sits near the card's own
-bottom edge, and the margin guarantees clearance instead of relying on it.
+since there's nothing else to explain here.
+
+First pass used `fixed bottom-4 right-4` (the literal reading of "bottom right"). Live-verification
+on the deployed page caught it sitting on top of the dark "Ties to home country" card while scrolling
+past that screen corner — the identical overlap bug `SessionShell.tsx` (task #391) already hit and
+fixed the same way. Switched to an in-flow, right-aligned button placed right after the Continue
+button instead: still visually "bottom right" of the result card, but as part of the page's own
+layout it can never sit on top of anything else, on any viewport width.
 
 Typecheck clean, full suite still 62 suites / 374 tests passing (no test referenced the moved
-sentence).
+sentence). Live-verified on the deployed site after both the original push and this follow-up fix.
 
 ## Trust/privacy card: 2 bullet paragraphs → 4 stat-style boxes + "Pick Your Country" heading
 

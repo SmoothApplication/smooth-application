@@ -86,11 +86,12 @@ export default function ConfidenceQuizPage() {
   // same declutter-by-tucking-explanations-away idea as the checklist flow's own "Why these
   // documents"/Reasons page (components/checklist/ReasonsView.tsx), scaled down to a one-line popover
   // since there's only one sentence to explain here, not a whole per-document breakdown.
-  // NOTE on positioning: SessionShell.tsx (task #391 mobile audit) found that a `fixed bottom-right`
-  // pill overlapped OTHER interactive elements because content kept scrolling past that screen
-  // corner underneath it. This page doesn't have that problem — the result card is short, centered,
-  // and the tab only ever sits near the card's own bottom edge (the Continue button), so the card
-  // gets extra bottom margin (mb-16 below) to guarantee clearance instead of relying on luck.
+  // NOTE on positioning: the first version of this used `fixed bottom-4 right-4`, matching the
+  // literal "bottom right" of the request — live-verification on the deployed page caught it sitting
+  // on top of the dark "Ties to home country" card while scrolling past that corner, the same
+  // overlap bug SessionShell.tsx (task #391) already hit and fixed. Switched to an in-flow,
+  // right-aligned button placed after the Continue button instead (see the `done` block below) —
+  // still visually "bottom right" of the result card, but it can never sit on top of anything else.
   const [reasonsOpen, setReasonsOpen] = useState(false);
 
   const result = useMemo(() => quizScore(answers), [answers]);
@@ -255,8 +256,8 @@ export default function ConfidenceQuizPage() {
     return (
       // Same fix as the !started screen above (task #392) — vertically center this short result
       // card too, instead of pinning it near the top with a large blank gap underneath.
-      <main className="relative flex min-h-screen items-center justify-center bg-[#f7fafb] p-6">
-        <div className="card-surface mb-16 w-full max-w-2xl p-8">
+      <main className="flex min-h-screen items-center justify-center bg-[#f7fafb] p-6">
+        <div className="card-surface w-full max-w-2xl p-8">
           <h1 className="text-xl font-semibold text-[#12232e]">Here&apos;s what we noticed</h1>
 
           <div className="mt-3 flex items-center gap-2 rounded-lg bg-accent-wash px-3 py-2.5 text-sm font-semibold text-[#12232e]">
@@ -336,17 +337,25 @@ export default function ConfidenceQuizPage() {
           <button type="button" onClick={() => setShowTrust(true)} className="btn-primary mt-5 w-full">
             Continue →
           </button>
-        </div>
 
-        {/* Task #402: small corner tab holding the "not a prediction" caveat — see the state
-            declaration above for why this is safe to fix-position on this particular page. */}
-        <button
-          type="button"
-          onClick={() => setReasonsOpen(true)}
-          className="fixed bottom-4 right-4 z-30 rounded-full bg-[#12232e] px-3.5 py-2 text-xs font-semibold text-white shadow-lg hover:opacity-90"
-        >
-          📖 Reasons
-        </button>
+          {/* Task #402: small "Reasons" tab holding the "not a prediction" caveat, in the
+              bottom-right corner AS REQUESTED — but in normal document flow, not `fixed`. A `fixed`
+              bottom-right pill sits over whatever content is currently in that screen corner at the
+              CURRENT scroll position, not just the final one — confirmed live on this exact page,
+              where it landed on top of the dark "Ties to home country" card while scrolling past it.
+              This is the identical bug SessionShell.tsx (task #391) already hit and fixed the same
+              way: put it in the page's own flow, right-aligned, so it only ever appears once, after
+              the Continue button, and never overlaps anything else. */}
+          <div className="mt-3 flex justify-end">
+            <button
+              type="button"
+              onClick={() => setReasonsOpen(true)}
+              className="rounded-full bg-[#12232e] px-3.5 py-2 text-xs font-semibold text-white hover:opacity-90"
+            >
+              📖 Reasons
+            </button>
+          </div>
+        </div>
 
         {reasonsOpen && (
           <div
