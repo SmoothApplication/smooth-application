@@ -3,6 +3,40 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Homepage whitespace + quiz-flow reorder (direct request, 3 annotated screenshots)
+
+Direct request following the new stats landing page: reduce the large blank gap above the header,
+have the "CLICK HERE BEFORE YOU APPLY" CTA drop straight into the quiz questions instead of another
+intro screen, and relocate that intro screen (brand header, FREE badge, trust bullets, "What you
+need to know" details) to after the quiz result instead of before the quiz.
+
+**Homepage top whitespace (`app/page.tsx`):** `py-10 sm:py-16` on the outer `<main>` was applied
+symmetrically, so there was as much empty space above "Smooth Application" as below the last card —
+confirmed in the annotated screenshot marking that gap. Changed to `pt-6 sm:pt-8` / `pb-10 sm:pb-16`
+— small top gap, same comfortable bottom spacing.
+
+**Quiz flow reorder (`app/quiz/page.tsx`):** this screen used to gate entry with an intro card
+(`!started`) before showing any quiz questions — a holdover from when this same component doubled
+as the homepage (task #379). Now that the homepage is its own dedicated page with its own
+trust-building framing (the stats), asking the applicant to read a second intro card before
+question 1 was redundant. Removed the `started` state entirely, so the quiz questions are what
+render by default — clicking the homepage CTA now lands directly on "Step 1 of 2", not another
+card to click through.
+
+The old intro card's content wasn't deleted, though — it was relocated to run right after the quiz
+result screen, gated by a new `showTrust` state: result screen's "Continue" button now opens this
+card (rather than navigating away directly), and the card's own button (relabeled "Continue to pick
+your country →", since "Start the quick check" no longer applies at this point) is what actually
+calls `handleContinue()` into `/checklist/start`. Rationale: the trust/privacy reassurance (device-
+only processing, no submission to government systems) matters most right before the applicant is
+about to hand over a passport photo and bank statements in the real checklist — arguably more than
+before five multiple-choice questions with no document upload involved at all.
+
+Verified: `npx tsc --noEmit` clean, `npx jest` — 62 suites / 369 tests passing, 0 regressions (no
+existing test covered the removed `started` state's branch or the relocated card, so nothing needed
+updating — this repo has no component-level tests for `app/quiz/page.tsx`, only for the pure
+scoring logic in `lib/quiz-score.ts`, which this change didn't touch).
+
 ## New front door: visa-refusal stats landing page ('/', replaces quiz-intro-as-homepage)
 
 Direct request with a supplied screenshot: replace whatever renders at www.smoothapplication.com

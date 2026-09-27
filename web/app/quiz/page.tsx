@@ -31,19 +31,28 @@ import { trackEvent } from '@/lib/analytics';
 // host/funding, plus purpose — see that function's comment), saved to localStorage under
 // 'sa_quiz_prefill' and read once by CountryChecklistApp on first visit to a country's checklist.
 //
-// Landing screen merge ("the site is not the way i arranged it" — user compared the live homepage
-// against the original GitHub Pages site): in the original, this quiz-intro screen (#quizIntro) IS
-// the site's front door — same brand header, tagline, visible trust badges, "source code is
-// public" line, and a single "Start the quick check" button with no skip-to-checklist link (a code
-// comment in index.html explains the skip link was deliberately removed so every applicant sees a
-// real preview before committing). Our earlier port had split this into two things: a separate
-// marketing homepage (app/page.tsx) offering a direct "skip the quiz" path, plus this screen with
-// its own, shorter copy. Restored as one mandatory landing+quiz screen matching the original's
-// structure; app/page.tsx now renders this same component so '/' and '/quiz' show the same thing.
-// One deliberate deviation from the literal original text: the country list here says all 8
-// countries actually live today (UK/Canada/Schengen/South Africa/Ghana/Kenya/Ethiopia/Morocco)
-// rather than the original's older "UK, Canada, Schengen & South Africa" wording, which predates
-// the other four shipping — reverting to that would misinform applicants about what's covered.
+// Landing screen merge — SUPERSEDED by task #395/#396, kept here for history: the original port
+// (task #379) had this quiz-intro screen (#quizIntro) double as the site's front door, reasoning
+// that the original GitHub Pages site's homepage IS its quiz-intro. Task #395 replaced app/page.tsx
+// with a dedicated stats-led landing page (real UK/Schengen refusal data), so this screen is no
+// longer the front door — it's reached only via that page's "Click here before you apply" CTA.
+//
+// Task #396 (direct request, with 3 annotated screenshots): once the homepage already exists as its
+// own screen with its own trust-building framing (the stats), asking a freshly-arrived applicant to
+// read ANOTHER intro card before they even see a question felt like a redundant gate — so the old
+// `!started` intro screen (brand header, FREE badge, trust bullets, "Start the quick check" button)
+// no longer gates entry: clicking the homepage CTA now drops the applicant straight into quiz
+// question 1. That same card's content didn't get deleted, though — it got relocated to AFTER the
+// quiz result (see the `showTrust` state below), on the reasoning that the trust/privacy reassurance
+// matters most right before the applicant is asked to hand over a passport photo and bank
+// statements in the real checklist, not before five multiple-choice questions with no document
+// upload at all. The button on that relocated card changed from "Start the quick check" (no longer
+// applicable — the quiz is already done) to "Continue to pick your country →", taking over the job
+// the result screen's own continue button used to do directly.
+//
+// One deliberate deviation from the literal original text, unchanged from before: the country list
+// implied by this card's copy covers all 8 countries actually live today (UK/Canada/Schengen/South
+// Africa/Ghana/Kenya/Ethiopia/Morocco).
 const QUIZ_PREFILL_KEY = 'sa_quiz_prefill';
 const QUIZ_PAGE_COUNT = 2;
 
@@ -60,10 +69,12 @@ const PURPOSE_OPTIONS: { value: Answers['purpose']; label: string }[] = [
 ];
 
 export default function ConfidenceQuizPage() {
-  const [started, setStarted] = useState(false);
   const [page, setPage] = useState(1);
   const [answers, setAnswers] = useState<QuizAnswers>(DEFAULT_QUIZ_ANSWERS);
   const [done, setDone] = useState(false);
+  // Task #396: gates the relocated trust/privacy card (see the file-level comment above) — shown
+  // after the result screen's own "Continue" click, before handing off to /checklist/start.
+  const [showTrust, setShowTrust] = useState(false);
   const router = useRouter();
 
   const [reportEmail, setReportEmail] = useState('');
@@ -108,14 +119,10 @@ export default function ConfidenceQuizPage() {
     router.push('/checklist/start');
   }
 
-  if (!started) {
+  if (done && showTrust) {
     return (
-      // Task #392 (UI/UX audit — "overall look and feel"): this used to be `justify-center` (which
-      // only centers horizontally in a row flexbox) with a top-heavy `pt-14 sm:pt-24`, so the card
-      // sat pinned near the top of a `min-h-screen` canvas with a large, un-designed-looking blank
-      // gap below it — confirmed on both desktop and mobile widths, worst on mobile where over half
-      // the viewport was empty. `items-center` centers the single card vertically too, so the
-      // leftover space splits evenly above/below instead of piling up at the bottom.
+      // Relocated from the old pre-quiz `!started` gate (task #396 — see file-level comment).
+      // Layout/centering unchanged from task #392's fix.
       <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#f7fafb] p-6">
         <div className="relative w-full max-w-md">
           <div
@@ -137,12 +144,9 @@ export default function ConfidenceQuizPage() {
                 two-sentence description of this site (no login, passport scanner, bank statement
                 analyzer) flagged trust/privacy as their single biggest hesitation, and a second
                 group weren't sure what the site does itself vs. elsewhere (e.g. whether "tracking"
-                talks to the actual visa system). The real reassurance for both already existed here
-                — it was just sitting inside the collapsed "What you need to know" details below,
-                which a scanning cold visitor has no reason to open. Promoted the two load-bearing
-                lines to always-visible text right under the brand header, before any click is
-                needed. The details section below is unchanged/still available for anyone who wants
-                the fuller explanation. */}
+                talks to the actual visa system). Now shown right before the applicant is asked to
+                hand over a passport photo and bank statements in the real checklist (task #396),
+                which is arguably where this reassurance carries the most weight anyway. */}
             <div className="mb-5 flex flex-col gap-1.5 rounded-lg bg-accent-wash p-3 text-xs text-[#12232e]">
               <p>
                 <span aria-hidden>🔒</span> Everything runs on your device — your passport photo and
@@ -154,15 +158,8 @@ export default function ConfidenceQuizPage() {
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                trackEvent('quiz_start');
-                setStarted(true);
-              }}
-              className="btn-primary w-full"
-            >
-              Start the quick check
+            <button type="button" onClick={handleContinue} className="btn-primary w-full">
+              Continue to pick your country →
             </button>
 
             <details className="mt-5 rounded-lg border border-black/10 p-3 text-sm text-[#4c6270]">
@@ -196,11 +193,6 @@ export default function ConfidenceQuizPage() {
                   <b>Not an approval predictor:</b> this is guidance, not immigration advice — it checks how
                   ready your documents and evidence look, not your chances of approval. Only the consulate or
                   embassy decides that.
-                </p>
-                <p>
-                  <b>Why a quick check first:</b> a couple of minutes of questions gives you a real preview of
-                  what the full checklist will ask, plus a directional read on where you stand, before you
-                  commit to it.
                 </p>
               </div>
             </details>
@@ -281,8 +273,11 @@ export default function ConfidenceQuizPage() {
             </form>
           )}
 
-          <button type="button" onClick={handleContinue} className="btn-primary mt-5 w-full">
-            Continue to pick your country →
+          {/* Task #396: this used to call handleContinue() directly. Now opens the relocated
+              trust/privacy card (above) as one more screen before actually navigating away — see
+              the file-level comment for why that card moved here. */}
+          <button type="button" onClick={() => setShowTrust(true)} className="btn-primary mt-5 w-full">
+            Continue →
           </button>
         </div>
       </main>

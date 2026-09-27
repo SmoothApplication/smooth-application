@@ -23,7 +23,12 @@ import Link from 'next/link';
 //   exactly 1,127,088 × £115, so it's internally consistent, just anchored to a since-superseded fee.
 export default function HomePage() {
   return (
-    <main className="min-h-screen bg-[#f7fafb] px-4 py-10 sm:py-16">
+    // Task #396 (direct request, annotated screenshot): the original py-10 sm:py-16 top padding left
+    // a large blank gap between the browser chrome and the "Smooth Application" header before any
+    // content appeared — cut to a small top gap (pt-6) while keeping comfortable bottom breathing
+    // room (pb-10 sm:pb-16), so the stat cards start higher up the viewport instead of being pushed
+    // down by unused space.
+    <main className="min-h-screen bg-[#f7fafb] px-4 pb-10 pt-6 sm:pb-16 sm:pt-8">
       <div className="mx-auto flex max-w-3xl flex-col gap-6">
         <div className="flex items-center gap-2">
           <span className="grid h-9 w-9 place-items-center rounded-full bg-accent-wash text-lg" aria-hidden>
