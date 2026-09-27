@@ -3,6 +3,30 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fix: entry point skipped straight to Session 3 (Document checklist)
+
+User report, with a live screenshot: landing on `/checklist/uk` was showing "Session 3 of 3:
+Document checklist" directly, instead of "Session 1: Income & bank statement analysis" — the
+original always opens on Session 1 first, whether the visit is fresh or returning.
+
+Root cause: `SituationGate`'s `checklistHref` — the "fresh application" default continue-target
+reached from `/checklist/<code>/situation` — pointed at the bare `/checklist/<code>` route, which
+is this app's Session 3 URL (`CountryChecklistApp`, the document-checklist body). Anyone routed
+there with an already-saved profile (this browser having answered the qualifying questions before)
+landed straight on Session 3, skipping Sessions 1 and 2 entirely on every re-entry.
+
+Fixed both `web/app/checklist/uk/situation/page.tsx` and
+`web/app/checklist/[country]/situation/page.tsx` (the other 7 ready countries) to point
+`checklistHref` at Session 1 (`/checklist/<code>/statement`) instead.
+
+Not yet done: the user separately asked for the full Session 1-of-14 reorder to match the
+original's real session list exactly (this port currently only covers 3 of 14 — see
+`lib/checklist/sessions.ts`'s own scope note). That needs the definitive 14-session list/order
+from the original, which couldn't be reliably pulled this round (browser tooling was degraded and
+the fetched source snapshot was incomplete) — flagged to the user as its own follow-up.
+
+`npx tsc --noEmit`: clean. `npx jest`: 61 suites / 366 tests passing, 0 regressions.
+
 ## Fix: bank statement account-holder name not surfacing (`StatementDashboard.tsx`, `lib/statement/names.ts`)
 
 User report: "it is not extracting name from bank statement" — the applicant's full name field
