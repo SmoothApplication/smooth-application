@@ -3,6 +3,26 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Quiz result: caveat sentence moved into a bottom-right "Reasons" tab
+
+Direct request, screenshot of the result screen: "the goal is to make the webpages on this website
+are not busy." The subtitle under "Here's what we noticed" ("Not a prediction of your outcome —
+just a first read on your situation before the full checklist.") was the first thing competing with
+the actual result for attention, right under the heading.
+
+**`app/quiz/page.tsx`:** that sentence is gone from the main card. In its place, a small fixed
+`bottom-4 right-4` pill labelled "📖 Reasons" opens a one-line popover with the same text — the same
+declutter-by-tucking-explanations-away idea already used by the checklist flow's own "Why these
+documents"/Reasons page (`components/checklist/ReasonsView.tsx`), scaled down to a single sentence
+since there's nothing else to explain here. The result card got `mb-16` added so the Continue
+button always has clearance above the fixed tab — `SessionShell.tsx` (task #391) found that a fixed
+bottom-right pill can overlap other interactive elements when long content scrolls past that corner,
+but this page's result card is short and centred, so the tab only ever sits near the card's own
+bottom edge, and the margin guarantees clearance instead of relying on it.
+
+Typecheck clean, full suite still 62 suites / 374 tests passing (no test referenced the moved
+sentence).
+
 ## Trust/privacy card: 2 bullet paragraphs → 4 stat-style boxes + "Pick Your Country" heading
 
 Direct request, numbered breakdown of the two trust-copy sentences into 4 shorter lines: "convert

@@ -79,6 +79,19 @@ export default function ConfidenceQuizPage() {
 
   const [reportEmail, setReportEmail] = useState('');
   const [reportEmailStatus, setReportEmailStatus] = useState<'idle' | 'saving' | 'done' | 'error'>('idle');
+  // Task #402 (direct request, screenshot of the result screen): "make the webpages... not busy" —
+  // the caveat sentence under the "Here's what we noticed" heading (this isn't a prediction, just a
+  // first read) is real, useful context, but it was the first thing under the heading, competing with
+  // the actual result for attention. Moved into a small "Reasons" tab in the bottom-right corner —
+  // same declutter-by-tucking-explanations-away idea as the checklist flow's own "Why these
+  // documents"/Reasons page (components/checklist/ReasonsView.tsx), scaled down to a one-line popover
+  // since there's only one sentence to explain here, not a whole per-document breakdown.
+  // NOTE on positioning: SessionShell.tsx (task #391 mobile audit) found that a `fixed bottom-right`
+  // pill overlapped OTHER interactive elements because content kept scrolling past that screen
+  // corner underneath it. This page doesn't have that problem — the result card is short, centered,
+  // and the tab only ever sits near the card's own bottom edge (the Continue button), so the card
+  // gets extra bottom margin (mb-16 below) to guarantee clearance instead of relying on luck.
+  const [reasonsOpen, setReasonsOpen] = useState(false);
 
   const result = useMemo(() => quizScore(answers), [answers]);
   // Task #397: fixed 4-card breakdown (Finance / Travel history / Ties to home country / Savings
@@ -242,14 +255,11 @@ export default function ConfidenceQuizPage() {
     return (
       // Same fix as the !started screen above (task #392) — vertically center this short result
       // card too, instead of pinning it near the top with a large blank gap underneath.
-      <main className="flex min-h-screen items-center justify-center bg-[#f7fafb] p-6">
-        <div className="card-surface w-full max-w-2xl p-8">
+      <main className="relative flex min-h-screen items-center justify-center bg-[#f7fafb] p-6">
+        <div className="card-surface mb-16 w-full max-w-2xl p-8">
           <h1 className="text-xl font-semibold text-[#12232e]">Here&apos;s what we noticed</h1>
-          <p className="mt-1 text-sm text-[#4c6270]">
-            Not a prediction of your outcome — just a first read on your situation before the full checklist.
-          </p>
 
-          <div className="mt-4 flex items-center gap-2 rounded-lg bg-accent-wash px-3 py-2.5 text-sm font-semibold text-[#12232e]">
+          <div className="mt-3 flex items-center gap-2 rounded-lg bg-accent-wash px-3 py-2.5 text-sm font-semibold text-[#12232e]">
             <span aria-hidden>{tierCopy.icon}</span>
             {tierCopy.label}
           </div>
@@ -327,6 +337,43 @@ export default function ConfidenceQuizPage() {
             Continue →
           </button>
         </div>
+
+        {/* Task #402: small corner tab holding the "not a prediction" caveat — see the state
+            declaration above for why this is safe to fix-position on this particular page. */}
+        <button
+          type="button"
+          onClick={() => setReasonsOpen(true)}
+          className="fixed bottom-4 right-4 z-30 rounded-full bg-[#12232e] px-3.5 py-2 text-xs font-semibold text-white shadow-lg hover:opacity-90"
+        >
+          📖 Reasons
+        </button>
+
+        {reasonsOpen && (
+          <div
+            className="fixed inset-0 z-40 flex items-end justify-end bg-black/30 p-4"
+            onClick={() => setReasonsOpen(false)}
+          >
+            <div
+              className="w-full max-w-sm rounded-xl border border-black/10 bg-white p-4 shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-sm font-semibold text-[#12232e]">Why this isn&apos;t a prediction</p>
+                <button
+                  type="button"
+                  onClick={() => setReasonsOpen(false)}
+                  aria-label="Close"
+                  className="shrink-0 rounded-full px-2 text-[#566a76] hover:bg-black/5"
+                >
+                  ✕
+                </button>
+              </div>
+              <p className="mt-2 text-sm text-[#4c6270]">
+                Not a prediction of your outcome — just a first read on your situation before the full checklist.
+              </p>
+            </div>
+          </div>
+        )}
       </main>
     );
   }
