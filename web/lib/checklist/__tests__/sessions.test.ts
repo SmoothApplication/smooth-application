@@ -10,15 +10,25 @@ test('places the fixed pre-checklist sessions in the real order, followed by one
   const keys = order.map((s) => s.key);
   const catCount = ALL_CHECKLISTS.UK.catOrder.length;
 
-  expect(keys.slice(0, 5)).toEqual(['passport', 'travel-history', 'statement', 'financial', 'next-steps']);
+  // Task #382 split sessions 3/4 (the old combined qualifying-questions form) into their own real
+  // 'responsibilities'/'trip-details' slots — 7 fixed sessions ahead of the checklist run now, not 5.
+  expect(keys.slice(0, 7)).toEqual([
+    'passport',
+    'travel-history',
+    'responsibilities',
+    'trip-details',
+    'statement',
+    'financial',
+    'next-steps',
+  ]);
   expect(keys[keys.length - 1]).toBe('reasons');
-  expect(keys.length).toBe(5 + catCount + 1);
+  expect(keys.length).toBe(7 + catCount + 1);
 
   // Every category from CAT_ORDER_UK gets its own session, in the same order, with its own href.
   ALL_CHECKLISTS.UK.catOrder.forEach((cat, i) => {
-    expect(order[5 + i].key).toBe(`checklist:${i}`);
-    expect(order[5 + i].label).toBe(cat);
-    expect(order[5 + i].href('UK')).toBe(`/checklist/uk/checklist/${i}`);
+    expect(order[7 + i].key).toBe(`checklist:${i}`);
+    expect(order[7 + i].label).toBe(cat);
+    expect(order[7 + i].href('UK')).toBe(`/checklist/uk/checklist/${i}`);
   });
 });
 
@@ -28,7 +38,7 @@ test('builds a different-length session list for a country with a different catO
   const ukOrder = buildSessionOrder('UK');
   const ghOrder = buildSessionOrder('GH');
   expect(ghOrder.length).not.toBe(ukOrder.length);
-  expect(ghOrder.length).toBe(5 + ALL_CHECKLISTS.GH.catOrder.length + 1);
+  expect(ghOrder.length).toBe(7 + ALL_CHECKLISTS.GH.catOrder.length + 1);
 });
 
 test('sessionHref/sessionIndex/prevSessionHref/nextSessionHref agree with buildSessionOrder', () => {
@@ -36,6 +46,13 @@ test('sessionHref/sessionIndex/prevSessionHref/nextSessionHref agree with buildS
   expect(sessionHref('UK', 'passport')).toBe('/checklist/uk/passport');
   expect(prevSessionHref('UK', 'passport')).toBeNull();
   expect(nextSessionHref('UK', 'passport')).toBe('/checklist/uk/travel-history');
+
+  // Sessions 3/4 sit between Travel Experience and the statement session.
+  expect(sessionHref('UK', 'responsibilities')).toBe('/checklist/uk/responsibilities');
+  expect(sessionHref('UK', 'trip-details')).toBe('/checklist/uk/trip-details');
+  expect(prevSessionHref('UK', 'responsibilities')).toBe('/checklist/uk/travel-history');
+  expect(nextSessionHref('UK', 'responsibilities')).toBe('/checklist/uk/trip-details');
+  expect(nextSessionHref('UK', 'trip-details')).toBe('/checklist/uk/statement');
 
   // Reasons is always last — no "Next" from there, and "Back" goes to the final category session.
   const lastCatIndex = ALL_CHECKLISTS.UK.catOrder.length - 1;

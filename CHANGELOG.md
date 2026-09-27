@@ -3,6 +3,31 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Phase 2 continued: split qualifying-questions form into Sessions 3 and 4
+
+User report, with a live screenshot: `/checklist/uk/statement` was showing "Session 3 of 15", but
+Session 3 in the real order is "Your responsibilities" — Income & bank statement analysis is Session
+5. This was a real ordering bug, not a labeling mismatch: `buildSessionOrder` still had the old
+combined qualifying-questions form's slot (`statement`) sitting directly after Travel Experience,
+because sessions 3/4 hadn't been split out of that form yet (disclosed as pending work in the
+previous two CHANGELOG entries below).
+
+Split `CountryChecklistApp.tsx`'s old flat `view==='profile'` form into two real numbered sessions,
+matching the ground-truth order: `ResponsibilitiesSession.tsx` (session 3, "Your responsibilities" —
+employed/self-employed/student, married + the spouse/sponsor decision tool, host, child) and
+`TripDetailsSession.tsx` (session 4, "Your trip details" — trip purpose, past refusal, translation
+need, application-started status). Both read/write the exact same `sa_<code>_answers` localStorage
+key via `useEditableChecklistState` (from the previous entry), so they stay in sync with
+`CountryChecklistApp`'s own flat profile view, which is unchanged and still reachable only as a
+fallback via a direct visit to the bare `/checklist/<code>` route — same treatment already given to
+its combined checklist view. New routes: `app/checklist/uk/{responsibilities,trip-details}/page.tsx`
+and the generic `app/checklist/[country]/{responsibilities,trip-details}/page.tsx` for the other 7
+ready countries. `buildSessionOrder` now has 7 fixed sessions ahead of the per-category checklist run
+(was 5) — `statement` correctly sits at position 5, not 3.
+
+`npx tsc --noEmit`: clean. `npx jest`: 62 suites / 369 tests passing, 0 regressions (updated
+`lib/checklist/__tests__/sessions.test.ts` for the new 7-slot fixed prefix).
+
 ## Phase 2 continued: document-checklist split into one session per category (8-13)
 
 Direct request: "start with the document-checklist split (sessions 8-13, the bigger payoff) now" —

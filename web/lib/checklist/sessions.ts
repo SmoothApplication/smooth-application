@@ -25,14 +25,25 @@ import { ALL_CHECKLISTS } from '@/lib/checklist/all';
 // lib/checklist/all.ts) — buildSessionOrder(code) below builds the real, country-specific list on
 // demand from ALL_CHECKLISTS[code].catOrder, rather than assuming every country matches UK's shape.
 //
-// Not yet split: sessions 3/4 (still one combined "qualifying questions" form, reached via the
-// bare /checklist/<code> route — CountryChecklistApp's own view='profile') and a dedicated "Final
-// review / declaration" session (13) — no such feature exists in this port yet at all (no
-// name/date/confirm-checkbox screen). Both are real, disclosed follow-up work, not silently
-// dropped — see task #382.
+// Sessions 3/4 (task #382, "split qualifying-questions form into Sessions 3 and 4"): the old
+// combined "qualifying questions" form (CountryChecklistApp's view==='profile') is now split into
+// ResponsibilitiesSession.tsx (session 3, "Your responsibilities" — employment/marital/spouse-
+// sponsor/host/child fields) and TripDetailsSession.tsx (session 4, "Your trip details" — purpose,
+// refusal history, translation need, application-started status), each with its own real numbered
+// route/session slot below. CountryChecklistApp's own flat profile view is unchanged and still
+// reachable by a direct visit to the bare /checklist/<code> route (same "fallback, not linked from
+// the numbered flow" treatment already given to its combined checklist view in task #383) — both
+// read/write the exact same sa_<code>_answers key, so answers filled in one place show up in the
+// other.
+//
+// Not yet built: a dedicated "Final review / declaration" session (13) — no such feature exists in
+// this port yet at all (no name/date/confirm-checkbox screen). Real, disclosed follow-up work, not
+// silently dropped.
 export type SessionKey =
   | 'passport'
   | 'travel-history'
+  | 'responsibilities'
+  | 'trip-details'
   | 'statement'
   | 'financial'
   | 'next-steps'
@@ -51,6 +62,8 @@ export function buildSessionOrder(code: string): SessionDescriptor[] {
   const order: SessionDescriptor[] = [
     { key: 'passport', label: 'Validate your International Passport', href: (c) => `/checklist/${c.toLowerCase()}/passport` },
     { key: 'travel-history', label: 'Travel Experience', href: (c) => `/checklist/${c.toLowerCase()}/travel-history` },
+    { key: 'responsibilities', label: 'Your responsibilities', href: (c) => `/checklist/${c.toLowerCase()}/responsibilities` },
+    { key: 'trip-details', label: 'Your trip details', href: (c) => `/checklist/${c.toLowerCase()}/trip-details` },
     { key: 'statement', label: 'Income & bank statement analysis', href: (c) => `/checklist/${c.toLowerCase()}/statement` },
     { key: 'financial', label: 'Financial readiness calculator', href: (c) => `/checklist/${c.toLowerCase()}/financial` },
     { key: 'next-steps', label: 'What to do next', href: (c) => `/checklist/${c.toLowerCase()}/next-steps` },
