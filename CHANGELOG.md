@@ -3,6 +3,19 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fix: Reasons unreachable from Session 1/2 (`components/checklist/SessionShell.tsx`)
+
+Direct follow-up ("reasom is missing") to the session-pagination slice below: Reasons ("Why these
+documents") was only ever reachable from the checklist session's own header row. Once Statement and
+Financial became earlier sessions in the same flow, an applicant landing on Session 1 had no way to
+reach it without clicking all the way to Session 3 first.
+
+- Added a persistent floating "📖 Why these documents" link to `SessionShell`, visible on every
+  session (bottom-right, fixed position) — matches the original's own persistent floating Reasons
+  tab, reachable regardless of scroll position or which session you're on.
+
+`npx tsc --noEmit`: clean. `npx jest`: 61 suites / 365 tests passing, 0 regressions.
+
 ## Phase 2 (first slice): real session pagination — Income & bank statement analysis is Session 1 (`lib/checklist/sessions.ts`, `lib/checklist/useChecklistState.ts`, `components/checklist/SessionShell.tsx`, `components/checklist/StatementCheck.tsx`, `components/checklist/FinancialCalculator.tsx`, `components/checklist/CountryChecklistApp.tsx`)
 
 Direct follow-up to the earlier "session 1" screenshot feedback: the promoted "Start with your
