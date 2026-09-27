@@ -127,12 +127,12 @@ export default function ConfidenceQuizPage() {
       // Relocated from the old pre-quiz `!started` gate (task #396 — see file-level comment).
       // Layout/centering unchanged from task #392's fix.
       <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#f7fafb] p-6">
-        <div className="relative w-full max-w-md">
+        <div className="relative w-full max-w-2xl">
           <div
             className="pointer-events-none absolute left-1/2 top-1/2 h-[36rem] w-[36rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent/10 blur-3xl"
             aria-hidden
           />
-          <div className="card-surface relative w-full max-w-md p-8">
+          <div className="card-surface relative w-full max-w-2xl p-8">
             <div className="mb-5 flex flex-wrap items-center gap-2">
               <span className="grid h-9 w-9 place-items-center rounded-full bg-accent-wash text-lg" aria-hidden>
                 ⚡
@@ -149,17 +149,40 @@ export default function ConfidenceQuizPage() {
                 group weren't sure what the site does itself vs. elsewhere (e.g. whether "tracking"
                 talks to the actual visa system). Now shown right before the applicant is asked to
                 hand over a passport photo and bank statements in the real checklist (task #396),
-                which is arguably where this reassurance carries the most weight anyway. */}
-            <div className="mb-5 flex flex-col gap-1.5 rounded-lg bg-accent-wash p-3 text-xs text-[#12232e]">
-              <p>
-                <span aria-hidden>🔒</span> Everything runs on your device — your passport photo and
-                bank statements are never uploaded anywhere, and there&apos;s no account or login.
-              </p>
-              <p>
-                <span aria-hidden>📋</span> This is a personal prep tool, not the government&apos;s
-                system — it doesn&apos;t submit your application or check its official status for you.
-              </p>
+                which is arguably where this reassurance carries the most weight anyway.
+                Task #400 (direct request, numbered breakdown of the two trust sentences into 4
+                shorter lines): "convert these ... lines of statement into boxes like the home
+                page" — the two paragraphs above became a 2x2 grid of 4 stat-style cards, reusing
+                the exact same treatment as the quiz result grid (task #397-#399): first two cards
+                white/`text-good`, last two dark navy/`text-warn`, fixed by position, same
+                `text-xl font-extrabold` headline weight, same `p-6` padding. "under it add 'Pick
+                Your Country'" is the heading directly below the grid, introducing the existing
+                Continue button (unchanged). */}
+            <div className="mb-5 grid gap-3 sm:grid-cols-2">
+              <div className="card-surface p-6">
+                <p className="text-xl font-extrabold leading-snug text-good">
+                  <span aria-hidden>🔒</span> Everything runs on your device
+                </p>
+              </div>
+              <div className="card-surface p-6">
+                <p className="text-xl font-extrabold leading-snug text-good">
+                  Your passport photo and bank statements are never uploaded anywhere
+                </p>
+              </div>
+              <div className="rounded-2xl bg-[#12232e] p-6 text-white">
+                <p className="text-xl font-extrabold leading-snug text-warn">
+                  <span aria-hidden>📋</span> This is a personal prep tool, not the government&apos;s
+                  system
+                </p>
+              </div>
+              <div className="rounded-2xl bg-[#12232e] p-6 text-white">
+                <p className="text-xl font-extrabold leading-snug text-warn">
+                  It doesn&apos;t submit your application or check its official status for you
+                </p>
+              </div>
             </div>
+
+            <p className="mb-2 text-center text-lg font-semibold text-[#12232e]">Pick Your Country</p>
 
             <button type="button" onClick={handleContinue} className="btn-primary w-full">
               Continue to pick your country →

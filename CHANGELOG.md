@@ -3,6 +3,25 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Trust/privacy card: 2 bullet paragraphs → 4 stat-style boxes + "Pick Your Country" heading
+
+Direct request, numbered breakdown of the two trust-copy sentences into 4 shorter lines: "convert
+these ... lines of statement into boxes like the home page. under it add 'Pick Your Country'."
+
+**`app/quiz/page.tsx` (the relocated trust/privacy card shown after the quiz result, task #396):**
+the two bulleted `<p>` paragraphs ("🔒 Everything runs on your device — ...", "📋 This is a personal
+prep tool ...") are replaced with a 2x2 grid of 4 cards, reusing the exact same treatment just
+established on the quiz result grid (entries below): first two cards white `card-surface` +
+`text-good`, last two dark navy `bg-[#12232e]` + `text-warn`, `text-xl font-extrabold` headline
+weight, `p-6` padding — fixed by position, not sentiment (there's no "good/bad" here anyway, just 4
+short reassurances). The outer card widened from `max-w-md` to `max-w-2xl` (matching the result
+screen's own widening in task #397) so the 2-column grid has room. A new "Pick Your Country"
+heading sits directly under the grid, right above the unchanged "Continue to pick your country →"
+button.
+
+No logic changed, no existing test referenced the old bullet copy — typecheck clean, full suite
+still 62/374 passing.
+
 ## Quiz result cards: colour by fixed position, not per-answer sentiment
 
 Direct follow-up, with a screenshot of the all-blank-answers case rendering as 4 solid dark-navy
