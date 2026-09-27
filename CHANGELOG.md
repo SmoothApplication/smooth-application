@@ -3,6 +3,106 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## New front door: visa-refusal stats landing page ('/', replaces quiz-intro-as-homepage)
+
+Direct request with a supplied screenshot: replace whatever renders at www.smoothapplication.com
+with a stats-led landing page (four cards: UK cumulative refusals, UK refusal rate, and two
+"money lost on non-refundable fees" cards for UK and Schengen), plus a "CLICK HERE BEFORE YOU
+APPLY" call-to-action underneath.
+
+**Before shipping real statistics to a live public page, verified each figure against public
+sources** (this being a real product real people will read and act on, not internal copy):
+- 1.13M UK visitor-visa refusals for Nigerian applicants (2005–Q1 2026) and the 38.65% refusal
+  rate (year ending March 2026) both check out against UK Home Office Immigration System
+  Statistics as reported by multiple independent outlets — the Home Office release cited is 1.34M
+  total refusals across all visa types over the same period, of which 1,127,088 (83.8%) were
+  visitor visas specifically — that's the 1.13M in the card.
+- Schengen 2024 figures (50,376 of 111,201 Nigerian applications refused, 45.9%) check out against
+  EU Commission/consulate-reported Schengen visa statistics for 2024, corroborated across multiple
+  outlets.
+- **One stale input, flagged rather than silently changed:** the UK money-lost card's "£115 base
+  fee" was the standard 6-month visitor visa fee for most of the period these figures cover, but the
+  fee rose in April 2026 to somewhere between £127–£135 depending on the source. The NGN 246bn+ /
+  £129.6M figure is exactly 1,127,088 × £115, so it's internally consistent — just anchored to a fee
+  that's since increased. Shipped as supplied; flagged to the user for a call on whether to
+  recompute with the current fee.
+
+**Implementation (`app/page.tsx`):** this route previously re-exported `app/quiz/page.tsx` (task
+#379 — "the homepage IS the quiz-intro screen"). Replaced it with its own dedicated component: the
+four stat cards (styled with the existing `card-surface`/`good`/`warn` tokens already used
+elsewhere, so this doesn't introduce a new color palette), a small sourced-footnote line, and the
+CTA linking into `/quiz` — which is unchanged and still reachable directly at that route, so the
+quiz-intro screen (with its own trust copy fixed earlier this session) and everything downstream of
+it (10-question quiz → country picker → full checklist) is untouched, just reached one screen later
+than before.
+
+Verified: `npx tsc --noEmit` clean, `npx jest` — 62 suites / 369 tests passing, 0 regressions (no
+existing test referenced `/` re-exporting the quiz page, so none needed updating). `next build`
+fails in this sandbox only because it has no network access to fetch Google Fonts — unrelated to
+this change and consistent with why every prior CHANGELOG entry in this repo verifies via
+tsc+jest rather than a full production build.
+
+## Landing-page trust copy: promoted out of collapsed details (PickFu cold-tester poll)
+
+Direct request: after the UI/UX audit fixes shipped, ran a free PickFu mini-poll (5 US-based
+respondents, open-ended, $0) showing cold testers a two-sentence description of Smooth Application
+(no-login, passport scanner, bank statement analyzer, tracker) and asking what they'd expect and
+what gives them pause — no assumptions, real reactions from people with zero prior exposure.
+
+**What came back:** all 5 responses independently flagged trust/privacy as their biggest hesitation
+— skepticism specifically about the "no-login" claim for anything touching passports and bank
+statements. A second recurring theme: people weren't sure which tasks happen on the site itself vs.
+elsewhere (e.g. whether the tracker talks to the actual visa system, what the bank statement
+analyzer is actually checking for). Pricing/business-model transparency came up as a third, smaller
+theme. PickFu's AI summary ranked "clarify what the site does" and "privacy concerns block trust" as
+the top two actionable fixes.
+
+**Root cause once traced back to the real site (`app/quiz/page.tsx`, the landing/quiz-intro
+screen):** the two load-bearing reassurances — "your documents never leave your device" and "no
+account required" — already existed, but were sitting inside a collapsed `<details>`/`<summary>`
+("What you need to know") below the Start button. A cold visitor scanning the page for a few
+seconds has no reason to click that open, so the poll's finding maps directly onto the real UX, not
+just onto the two-sentence description we handed PickFu.
+
+**Fix:** promoted the two load-bearing lines to an always-visible box right under the brand header,
+before any click is required — (1) everything runs on-device, nothing is ever uploaded, no account;
+(2) this is a personal prep tool, not the government's system, and doesn't submit anything on the
+applicant's behalf. Replaced the now-redundant "Your privacy" bullet inside the still-present
+`<details>` with a concrete one-line description of what the checklist/passport reader/bank
+statement reader each actually check for, directly answering the poll's second theme. No layout or
+component structure changed — text-only, same card, same collapsed-details pattern for the fuller
+explanation.
+
+Verified: `npx tsc --noEmit` clean, `npx jest` — 62 suites / 369 tests passing, 0 regressions (no
+existing test asserted on this collapsed-details copy, so none needed updating).
+
+## UI/UX audit fixes: floating-button overlap + landing-page whitespace
+
+Direct request: "i am not happy with the UI/UX of this website" — asked which aspect, user picked
+"overall look and feel" + "mobile experience." Audited the live site (desktop + mobile viewport)
+rather than guessing, found two real, fixable issues.
+
+**Mobile overlap bug (`components/checklist/SessionShell.tsx`):** the floating "📖 Why these
+documents" pill was `fixed bottom-5 right-5`, which only clears the very LAST scroll position on a
+page (padding at the bottom of `<main>` doesn't help while scrolling past it) — confirmed it
+covering the sidebar's "Still missing" list, "Export progress" button, and readiness score bar on
+both mobile width and a narrower desktop width, at every scroll position where the sidebar's
+bottom-right corner coincided with the fixed pill. Moved it into the sticky top session-nav bar's own
+row instead (next to the "Session X of N" label) — still visible at every scroll position (the bar
+itself is `sticky top-0`), but as part of that row's normal flow, so it can't cover another
+interactive element on any viewport width.
+
+**Landing-page/gate-screen whitespace (`app/quiz/page.tsx`'s `!started`/`done` screens,
+`app/checklist/start/page.tsx`):** these small centered cards used `justify-center` (only centers
+horizontally in a row flexbox) with a top-heavy `pt-14 sm:pt-24`, so each card sat pinned near the
+top of a `min-h-screen` canvas with a large, undesigned-looking blank gap below — worst on mobile,
+where over half the viewport was empty. Added `items-center` (and dropped the now-unneeded top
+padding) so the leftover space splits evenly above/below instead of piling up at the bottom.
+
+`npx tsc --noEmit`: clean. `npx jest`: 62 suites / 369 tests passing, 0 regressions (no test
+coverage on these className-only fixes — no existing test referenced the removed floating link or
+the padding classes).
+
 ## Phase 2 complete: Final review/declaration session (13) — real 14-session order now fully built
 
 Direct request: "Only piece left from the original 14-session roadmap: the 'Final review/

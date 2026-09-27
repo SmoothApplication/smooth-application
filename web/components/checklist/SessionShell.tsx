@@ -34,10 +34,32 @@ export default function SessionShell({ code, name, session, children }: SessionS
     <main className="mx-auto flex min-h-screen max-w-5xl flex-col gap-5 p-6 pb-16 lg:flex-row lg:items-start">
       <div className="flex min-w-0 flex-1 flex-col gap-5">
         <div className="sticky top-0 z-10 -mx-6 border-b border-black/10 bg-[#f7fafb]/95 px-6 py-3 backdrop-blur lg:mx-0 lg:rounded-lg lg:border">
-          <p className="text-xs font-medium text-[#566a76]">
-            Session {idx + 1} of {total}:{' '}
-            <span className="font-semibold text-[#12232e]">{order[idx]?.label}</span>
-          </p>
+          <div className="flex items-start justify-between gap-3">
+            <p className="text-xs font-medium text-[#566a76]">
+              Session {idx + 1} of {total}:{' '}
+              <span className="font-semibold text-[#12232e]">{order[idx]?.label}</span>
+            </p>
+            {/* Task #391 (mobile audit): this used to be a `fixed bottom-5 right-5` pill that stayed
+                on screen during scroll, matching the original's own persistent floating "Reasons"
+                tab — but "fixed" meant it sat over whatever content happened to be in that screen
+                corner at any scroll position, not just the very end of the page (padding at the
+                bottom of <main> only helps the LAST scroll position, not the ones passing through).
+                Confirmed overlapping the sidebar's "Still missing" list, "Export progress" button,
+                and readiness score bar on both mobile and narrower desktop widths, where the sidebar
+                sits directly under this same bottom-right corner. Moved into this sticky top bar's
+                own row instead: still visible at every scroll position (the bar itself is
+                `sticky top-0`), but as part of the row's normal flow rather than floating over
+                whatever's beneath it — so it can never cover another interactive element again,
+                on any viewport width. */}
+            {session !== 'reasons' && (
+              <Link
+                href={`/checklist/${code.toLowerCase()}/reasons`}
+                className="shrink-0 whitespace-nowrap rounded-full bg-[#12232e] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90"
+              >
+                📖 Why these documents
+              </Link>
+            )}
+          </div>
           <div className="mt-2 flex gap-1.5">
             {order.map((s, i) => (
               <Link
@@ -76,21 +98,6 @@ export default function SessionShell({ code, name, session, children }: SessionS
       </div>
 
       <ChecklistSidebar code={code} name={name} checklist={checklist} answers={answers} checked={checked} />
-
-      {/* Reasons was only ever reachable from the checklist session's own header row before this
-          shell existed — now that every other session shares this same shell, an applicant landing
-          on any earlier session had no way to reach it at all. Matches the original's own
-          persistent floating "Reasons" tab, visible from every session regardless of scroll
-          position. Suppressed on the Reasons session itself — no point floating a link to the page
-          already on screen. */}
-      {session !== 'reasons' && (
-        <Link
-          href={`/checklist/${code.toLowerCase()}/reasons`}
-          className="fixed bottom-5 right-5 z-20 rounded-full bg-[#12232e] px-4 py-2.5 text-sm font-semibold text-white shadow-lg hover:opacity-90"
-        >
-          📖 Why these documents
-        </Link>
-      )}
     </main>
   );
 }

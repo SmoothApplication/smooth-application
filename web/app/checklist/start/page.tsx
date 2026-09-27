@@ -48,7 +48,10 @@ export default function ChecklistStartPage() {
   }
 
   return (
-    <main className="flex min-h-screen justify-center bg-[#f7fafb] p-6 pt-14 sm:pt-24">
+    // Task #392 (UI/UX audit): same fix as the quiz-intro/result screens (app/quiz/page.tsx) —
+    // `items-center` vertically centers this short card instead of leaving it pinned near the top
+    // of a `min-h-screen` canvas with a large blank gap below.
+    <main className="flex min-h-screen items-center justify-center bg-[#f7fafb] p-6">
       <div className="card-surface w-full max-w-md p-8">
         <div className="mb-4 grid h-10 w-10 place-items-center rounded-full bg-accent-wash text-xl" aria-hidden>
           🛂

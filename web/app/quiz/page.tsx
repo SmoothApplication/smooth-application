@@ -110,7 +110,13 @@ export default function ConfidenceQuizPage() {
 
   if (!started) {
     return (
-      <main className="relative flex min-h-screen justify-center overflow-hidden bg-[#f7fafb] p-6 pt-14 sm:pt-24">
+      // Task #392 (UI/UX audit — "overall look and feel"): this used to be `justify-center` (which
+      // only centers horizontally in a row flexbox) with a top-heavy `pt-14 sm:pt-24`, so the card
+      // sat pinned near the top of a `min-h-screen` canvas with a large, un-designed-looking blank
+      // gap below it — confirmed on both desktop and mobile widths, worst on mobile where over half
+      // the viewport was empty. `items-center` centers the single card vertically too, so the
+      // leftover space splits evenly above/below instead of piling up at the bottom.
+      <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#f7fafb] p-6">
         <div className="relative w-full max-w-md">
           <div
             className="pointer-events-none absolute left-1/2 top-1/2 h-[36rem] w-[36rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent/10 blur-3xl"
@@ -125,6 +131,27 @@ export default function ConfidenceQuizPage() {
               <span className="rounded-full bg-good-wash px-2 py-0.5 text-xs font-bold tracking-wide text-good">
                 FREE
               </span>
+            </div>
+
+            {/* Task #393 (PickFu cold-tester poll — see CHANGELOG): 5/5 respondents who only saw a
+                two-sentence description of this site (no login, passport scanner, bank statement
+                analyzer) flagged trust/privacy as their single biggest hesitation, and a second
+                group weren't sure what the site does itself vs. elsewhere (e.g. whether "tracking"
+                talks to the actual visa system). The real reassurance for both already existed here
+                — it was just sitting inside the collapsed "What you need to know" details below,
+                which a scanning cold visitor has no reason to open. Promoted the two load-bearing
+                lines to always-visible text right under the brand header, before any click is
+                needed. The details section below is unchanged/still available for anyone who wants
+                the fuller explanation. */}
+            <div className="mb-5 flex flex-col gap-1.5 rounded-lg bg-accent-wash p-3 text-xs text-[#12232e]">
+              <p>
+                <span aria-hidden>🔒</span> Everything runs on your device — your passport photo and
+                bank statements are never uploaded anywhere, and there&apos;s no account or login.
+              </p>
+              <p>
+                <span aria-hidden>📋</span> This is a personal prep tool, not the government&apos;s
+                system — it doesn&apos;t submit your application or check its official status for you.
+              </p>
             </div>
 
             <button
@@ -142,8 +169,10 @@ export default function ConfidenceQuizPage() {
               <summary className="cursor-pointer font-medium text-[#12232e]">What you need to know</summary>
               <div className="mt-2 flex flex-col gap-2">
                 <p>
-                  <b>Your privacy:</b> your documents and files are scanned entirely in your browser and never
-                  uploaded anywhere. No account required to use the checklist, no ads, no catch.
+                  <b>What&apos;s actually in here:</b> a readiness checklist per country, a passport
+                  photo-page reader, and a bank statement reader that flags gaps a visa reviewer might
+                  question (irregular deposits, thin balances) — all just checks against your own
+                  documents, not a submission to anyone.
                 </p>
                 <p>
                   <b>Cost:</b> 🆓 free, always.
@@ -193,7 +222,9 @@ export default function ConfidenceQuizPage() {
 
   if (done) {
     return (
-      <main className="flex min-h-screen justify-center bg-[#f7fafb] p-6 pt-14 sm:pt-24">
+      // Same fix as the !started screen above (task #392) — vertically center this short result
+      // card too, instead of pinning it near the top with a large blank gap underneath.
+      <main className="flex min-h-screen items-center justify-center bg-[#f7fafb] p-6">
         <div className="card-surface w-full max-w-md p-8">
           <h1 className="text-xl font-semibold text-[#12232e]">Here&apos;s what we noticed</h1>
           <p className="mt-1 text-sm text-[#4c6270]">
