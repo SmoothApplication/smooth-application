@@ -18,10 +18,19 @@ import Link from 'next/link';
 // paragraph (moved the same link into the "What you need to know" details, so it's still findable
 // but no longer a fourth line of copy before the CTA), and merged the admin-sign-in and legal
 // links into one small footer line instead of two stacked ones.
+//
+// Design pass ("this site needs a UI/UX designer"): swapped the flat shadow-sm card and
+// hover:opacity-90 button for the new .card-surface / .btn-primary classes (globals.css) — real
+// depth on the card, a proper hover/press state on the button — plus a very subtle radial accent
+// glow behind the card so the page doesn't read as a flat gray rectangle.
 export default function Home() {
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#f7fafb] p-6">
-      <div className="w-full max-w-md rounded-2xl border border-black/10 bg-white p-8 shadow-sm">
+      <div
+        className="pointer-events-none absolute left-1/2 top-1/2 h-[36rem] w-[36rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent/10 blur-3xl"
+        aria-hidden
+      />
+      <div className="card-surface relative w-full max-w-md p-8">
         <div className="mb-5 flex flex-wrap items-center gap-2">
           <span className="grid h-9 w-9 place-items-center rounded-full bg-accent-wash text-lg" aria-hidden>
             ⚡
@@ -44,10 +53,7 @@ export default function Home() {
           🔒 Runs entirely in your browser, free always, built for Nigerian applicants
         </p>
 
-        <Link
-          href="/checklist/start"
-          className="block w-full rounded-lg bg-accent px-4 py-3 text-center font-semibold text-white hover:opacity-90"
-        >
+        <Link href="/checklist/start" className="btn-primary block">
           Start your free checklist
         </Link>
         <Link href="/quiz" className="mt-2 block text-center text-xs text-accent underline">

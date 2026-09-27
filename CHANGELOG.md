@@ -3,6 +3,48 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## First design-system pass — "this site needs a UI/UX designer" (`app/layout.tsx`, `tailwind.config.ts`, `app/globals.css`, `app/page.tsx`, `app/checklist/start/page.tsx`, `app/quiz/page.tsx`)
+
+Direct feedback, live screenshot: the site had never had an actual visual design pass — every page
+was hand-rolled Tailwind utility classes with no shared typeface, no consistent card/button/input
+treatment, and unstyled native checkboxes. Asked the user whether this should be a one-off fix,
+an ongoing "flag it as you see it" pattern, or a real design-system pass — they chose the design
+pass. Scoped to two layers:
+
+**Sitewide (affects every page automatically, no per-page edits needed):**
+- **Real typeface.** The app never set a font anywhere — every page silently fell back to the
+  browser's default system sans. Added Inter via `next/font/google` (self-hosted at build time,
+  no external request at runtime) in `app/layout.tsx`, wired into Tailwind's `font-sans` (so the
+  existing `font-sans`/default text everywhere now resolves to Inter instead of system-ui).
+- **Checkbox theming.** Every checkbox in the app (quiz, checklist qualifying questions, consent
+  boxes) was an unstyled browser-default checkbox next to an otherwise branded blue/teal UI. One
+  `accent-color` rule in `globals.css`'s base layer fixes every checkbox in the app at once.
+- **Visible focus states.** Several controls had no visible focus ring at all (an accessibility
+  gap as much as a polish one) — added one globally for buttons, links, inputs, and selects.
+- **Three reusable classes** (`.card-surface`, `.btn-primary`, `.field-input` in `globals.css`)
+  replacing the inconsistent mix that had crept in across pages (`shadow-sm` vs no shadow,
+  `border-black/10` vs `border-gray-300`, `hover:opacity-90` vs no hover state at all). Not a full
+  component library rewrite — just names for the patterns already in use, so pages converge
+  instead of drifting further apart.
+
+**Applied this round** to the three highest-traffic screens (home, country picker, the full quiz
+flow — intro/questions/result): real card depth via `.card-surface` instead of flat `shadow-sm`,
+`.btn-primary` for every primary CTA (adds a real hover + press state), `.field-input` replacing
+the mixed border colors on selects/inputs, hover backgrounds on the quiz's checkbox rows, and a
+very subtle radial accent glow behind the homepage card so it doesn't read as a flat gray
+rectangle.
+
+**Deliberately out of scope this round**: the deeper feature screens (statement analysis
+dashboard, business income ledger, tracker, admin dashboards) still use the old inline patterns —
+they inherit the sitewide font/checkbox/focus fixes for free, but their cards/buttons haven't been
+converted to the new shared classes yet. Flagged here rather than attempting all of it in one
+pass; the three new classes make that follow-up straightforward whenever it's next.
+
+No logic touched anywhere — purely markup/class changes. `npx tsc --noEmit` clean; full `npx jest`
+still 60 suites / 342 tests, 0 regressions. `next build` not run locally (`next/font/google`
+fetches font files at build time, which needs network access this dev sandbox doesn't have) —
+Vercel's own build, which does have real internet access, is the actual gate here as always.
+
 ## Country picker → a single dropdown (`app/checklist/start/page.tsx`)
 
 More live feedback, this time on `/checklist/start`: the 10 countries (7 ready + 3 coming-soon)

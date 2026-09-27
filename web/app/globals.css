@@ -1,3 +1,49 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Design pass (user feedback: "this site needs a UI/UX designer"). Two kinds of change below:
+   - @layer base: fixes that should apply everywhere with zero per-page edits — native checkboxes
+     were unstyled browser defaults (looked out of place next to the branded accent color used
+     everywhere else), and focus states were invisible on several controls (an accessibility gap,
+     not just a look-and-feel one).
+   - @layer components: small reusable classes so pages stop hand-rolling slightly-different
+     versions of the same card/button (border-black/10 vs border-gray-300, shadow-sm vs nothing).
+     Not a full component library rewrite — just names for the patterns already used everywhere,
+     so new and edited pages converge on one version instead of drifting further apart. */
+
+@layer base {
+  input[type='checkbox'] {
+    accent-color: #12699a;
+    width: 1rem;
+    height: 1rem;
+  }
+
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+    box-shadow: 0 0 0 3px rgba(18, 105, 154, 0.35);
+  }
+}
+
+@layer components {
+  /* The rounded-2xl white card every page centers its content in. */
+  .card-surface {
+    @apply rounded-2xl border border-black/5 bg-white shadow-[0_8px_30px_-6px_rgba(18,35,46,0.10)];
+  }
+
+  /* The solid accent CTA button used for every "primary" action (Continue, Start, Email me…). */
+  .btn-primary {
+    @apply rounded-lg bg-accent px-4 py-3 text-center font-semibold text-white transition-all duration-150 hover:bg-[#0e5a80] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100;
+  }
+
+  /* Text inputs and selects — one consistent border/radius/padding instead of the mix of
+     border-gray-300 and border-black/10 that had crept in across pages. */
+  .field-input {
+    @apply w-full rounded-md border border-black/10 px-3 py-2 text-sm transition-colors focus:border-accent;
+  }
+}

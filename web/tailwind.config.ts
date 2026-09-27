@@ -4,6 +4,12 @@ const config: Config = {
   content: ['./app/**/*.{ts,tsx}', './components/**/*.{ts,tsx}'],
   theme: {
     extend: {
+      fontFamily: {
+        // Wired to the CSS variable next/font/google sets on <html> in app/layout.tsx — makes
+        // Tailwind's own `font-sans` (the default on <body>, and Tailwind's implicit default
+        // everywhere else) resolve to Inter instead of the browser's system font stack.
+        sans: ['var(--font-inter)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+      },
       colors: {
         // Admin-dashboard accent — kept separate from `accent` (the actual index.html checklist
         // brand color, --accent below) since the admin panel was scaffolded independently.

@@ -49,7 +49,7 @@ export default function ChecklistStartPage() {
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#f7fafb] p-6">
-      <div className="w-full max-w-md rounded-2xl border border-black/10 bg-white p-8 shadow-sm">
+      <div className="card-surface w-full max-w-md p-8">
         <div className="mb-4 grid h-10 w-10 place-items-center rounded-full bg-accent-wash text-xl" aria-hidden>
           🛂
         </div>
@@ -79,7 +79,7 @@ export default function ChecklistStartPage() {
           aria-label="Country"
           value={selected ?? ''}
           onChange={(e) => setSelected(e.target.value || null)}
-          className="mb-5 w-full rounded-lg border border-black/10 bg-white px-3 py-2.5 text-sm text-[#12232e]"
+          className="field-input mb-5 bg-white py-2.5 text-[#12232e]"
         >
           <option value="" disabled>
             Select a country…
@@ -126,12 +126,7 @@ export default function ChecklistStartPage() {
           <span>I understand this is guidance only, not immigration advice — full details are in the disclaimer above.</span>
         </label>
 
-        <button
-          type="button"
-          onClick={handleContinue}
-          disabled={!canContinue}
-          className="w-full rounded-lg bg-accent px-4 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
-        >
+        <button type="button" onClick={handleContinue} disabled={!canContinue} className="btn-primary w-full">
           Continue
         </button>
         <p className="mt-2 text-center text-xs text-[#566a76]">

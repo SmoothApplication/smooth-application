@@ -103,7 +103,7 @@ export default function ConfidenceQuizPage() {
   if (!started) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#f7fafb] p-6">
-        <div className="w-full max-w-md rounded-2xl border border-black/10 bg-white p-8 text-center shadow-sm">
+        <div className="card-surface w-full max-w-md p-8 text-center">
           <div className="mx-auto mb-4 grid h-10 w-10 place-items-center rounded-full bg-accent-wash text-xl" aria-hidden>
             🧭
           </div>
@@ -118,7 +118,7 @@ export default function ConfidenceQuizPage() {
               trackEvent('quiz_start');
               setStarted(true);
             }}
-            className="mt-5 w-full rounded-lg bg-accent px-4 py-3 font-semibold text-white hover:opacity-90"
+            className="btn-primary mt-5 w-full"
           >
             Start the quiz
           </button>
@@ -137,7 +137,7 @@ export default function ConfidenceQuizPage() {
   if (done) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#f7fafb] p-6">
-        <div className="w-full max-w-md rounded-2xl border border-black/10 bg-white p-8 shadow-sm">
+        <div className="card-surface w-full max-w-md p-8">
           <h1 className="text-xl font-semibold text-[#12232e]">Here&apos;s what we noticed</h1>
           <p className="mt-1 text-sm text-[#4c6270]">
             Not a score or a prediction — just a first read on your situation before the full checklist.
@@ -183,12 +183,12 @@ export default function ConfidenceQuizPage() {
                   value={reportEmail}
                   onChange={(e) => setReportEmail(e.target.value)}
                   placeholder="you@example.com"
-                  className="min-w-0 flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm"
+                  className="field-input min-w-0 flex-1"
                 />
                 <button
                   type="submit"
                   disabled={!reportEmail.trim() || reportEmailStatus === 'saving'}
-                  className="rounded-md bg-accent px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
+                  className="rounded-md bg-accent px-3 py-2 text-sm font-semibold text-white transition-all duration-150 hover:bg-[#0e5a80] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {reportEmailStatus === 'saving' ? 'Sending…' : 'Email me'}
                 </button>
@@ -199,11 +199,7 @@ export default function ConfidenceQuizPage() {
             </form>
           )}
 
-          <button
-            type="button"
-            onClick={handleContinue}
-            className="mt-5 w-full rounded-lg bg-accent px-4 py-3 font-semibold text-white hover:opacity-90"
-          >
+          <button type="button" onClick={handleContinue} className="btn-primary mt-5 w-full">
             Continue to pick your country →
           </button>
         </div>
@@ -212,51 +208,51 @@ export default function ConfidenceQuizPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-lg flex-col gap-5 p-8">
+    <main className="mx-auto flex min-h-screen max-w-lg flex-col justify-center gap-5 bg-[#f7fafb] p-8">
       <div>
         <h1 className="text-xl font-semibold text-[#12232e]">A few quick questions</h1>
         <p className="mt-1 text-sm text-[#4c6270]">We&apos;ll carry these straight into your checklist.</p>
       </div>
 
-      <div className="flex flex-col gap-3 rounded-lg border border-black/10 bg-white p-4 text-sm">
-        <label className="flex items-center gap-2">
+      <div className="card-surface flex flex-col gap-1 p-2 text-sm">
+        <label className="flex items-center gap-2 rounded-lg px-3 py-2 transition-colors hover:bg-accent-wash/40">
           <input type="checkbox" checked={answers.employed} onChange={(e) => setAnswers({ ...answers, employed: e.target.checked })} />
           I&apos;m employed
         </label>
-        <label className="flex items-center gap-2">
+        <label className="flex items-center gap-2 rounded-lg px-3 py-2 transition-colors hover:bg-accent-wash/40">
           <input type="checkbox" checked={answers.selfEmployed} onChange={(e) => setAnswers({ ...answers, selfEmployed: e.target.checked })} />
           I&apos;m self-employed / run a business
         </label>
-        <label className="flex items-center gap-2">
+        <label className="flex items-center gap-2 rounded-lg px-3 py-2 transition-colors hover:bg-accent-wash/40">
           <input type="checkbox" checked={answers.student} onChange={(e) => setAnswers({ ...answers, student: e.target.checked })} />
           I&apos;m a student
         </label>
-        <label className="flex items-center gap-2">
+        <label className="flex items-center gap-2 rounded-lg px-3 py-2 transition-colors hover:bg-accent-wash/40">
           <input type="checkbox" checked={answers.married} onChange={(e) => setAnswers({ ...answers, married: e.target.checked })} />
           I&apos;m married
         </label>
-        <label className="flex items-center gap-2">
+        <label className="flex items-center gap-2 rounded-lg px-3 py-2 transition-colors hover:bg-accent-wash/40">
           <input type="checkbox" checked={answers.hasHost} onChange={(e) => setAnswers({ ...answers, hasHost: e.target.checked })} />
           I&apos;ll be staying with a host (not a hotel)
         </label>
-        <label className="flex items-center gap-2">
+        <label className="flex items-center gap-2 rounded-lg px-3 py-2 transition-colors hover:bg-accent-wash/40">
           <input type="checkbox" checked={answers.hasChild} onChange={(e) => setAnswers({ ...answers, hasChild: e.target.checked })} />
           A child is travelling with me
         </label>
-        <label className="flex items-center gap-2">
+        <label className="flex items-center gap-2 rounded-lg px-3 py-2 transition-colors hover:bg-accent-wash/40">
           <input type="checkbox" checked={answers.hasRefusal} onChange={(e) => setAnswers({ ...answers, hasRefusal: e.target.checked })} />
           I&apos;ve had a visa refused before
         </label>
-        <label className="flex items-center gap-2">
+        <label className="flex items-center gap-2 rounded-lg px-3 py-2 transition-colors hover:bg-accent-wash/40">
           <input type="checkbox" checked={answers.translation} onChange={(e) => setAnswers({ ...answers, translation: e.target.checked })} />
           Some of my documents aren&apos;t in English
         </label>
-        <div>
+        <div className="px-3 py-2">
           <label className="mb-1 block text-xs font-medium text-[#12232e]">Main purpose of your trip</label>
           <select
             value={answers.purpose}
             onChange={(e) => setAnswers({ ...answers, purpose: e.target.value as Answers['purpose'] })}
-            className="w-full rounded-md border border-gray-300 px-3 py-2"
+            className="field-input"
           >
             {PURPOSE_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
@@ -273,7 +269,7 @@ export default function ConfidenceQuizPage() {
           trackEvent('quiz_completed');
           setDone(true);
         }}
-        className="w-full rounded-lg bg-accent px-4 py-3 font-semibold text-white hover:opacity-90"
+        className="btn-primary w-full"
       >
         See my result
       </button>
