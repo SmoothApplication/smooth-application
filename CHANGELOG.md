@@ -3,6 +3,44 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Phase 1: checklist sidebar dashboard — Readiness scores, Still missing, Save your progress (`components/checklist/ChecklistSidebar.tsx`, `lib/checklist/uk.ts`, `lib/checklist/financial.ts`, `components/checklist/CountryChecklistApp.tsx`)
+
+User compared the live checklist against the original GitHub Pages site's real "session 1 of 14"
+screen and pointed out it has a persistent sidebar this port never had — a Readiness scores card
+(Documents % and Finances % scored separately), a collapsible "Still missing" list of
+required-but-unchecked items, and a "Save your progress" panel. Scoped as Phase 1 of the larger
+rebuild toward the original's numbered-session architecture (Phase 2, not started yet): this ships
+the sidebar itself, self-contained, on top of today's still-single-page checklist layout.
+
+- Added three verbatim ports of `index.html`'s `updateScore()` (~line 6328) to `lib/checklist/uk.ts`:
+  `computeRequiredPercent()` (Documents score — required items only, unlike the broader
+  required+recommended denominator `computeOverallPercent()` already used for the top progress bar),
+  `requiredStatus()` (the same 5-tier status-pill thresholds/copy: "Getting started" → "Just getting
+  going" → "Making progress" → "Almost there" → "All required documents ready"), and
+  `missingRequiredItems()` (the "Still missing" list source).
+- Added `computeFinanceReadiness()` to `lib/checklist/financial.ts`: a verbatim port of the
+  Finances score (~line 8303) — funds vs. a 2x cost buffer, capped at 100, then capped again at 50
+  unless there's real evidence behind a self-typed closing balance.
+  **Disclosed gap**: the original treats a balance as "verified" two ways — cross-checked against
+  an uploaded/OCR'd bank statement, OR at least 2 months of typed cash-flow data. Only the
+  cash-flow half is wired up here; the statement cross-check lives on a separate route with no
+  shared state yet. Wiring the two together is exactly the kind of cross-page state-sharing Phase 2
+  (the real session-flow rebuild) is meant to solve properly.
+- Built `ChecklistSidebar.tsx`: renders the two readiness scores with meter bars and status pills
+  (reading the financial calculator's own `sa_${code}_financial` localStorage key so it stays in
+  sync without any new plumbing on that page), the collapsible Still-missing list (jump-links to
+  `#item_<id>` anchors added on each `ChecklistRow`), and a Save-progress panel (autosave timestamp,
+  "Save full report as PDF" via print, "Export progress (.json)" download).
+- Wired the sidebar into `CountryChecklistApp.tsx`'s checklist view: two-column on large screens,
+  stacked below the checklist on mobile.
+- Deliberately NOT ported yet (disclosed, not faked): dark mode, Import progress, and the
+  WhatsApp/email waitlist card — none of these are part of what the user actually pointed at, and
+  each is either sitewide (dark mode) or already shipped elsewhere (the waitlist feature).
+
+`npx tsc --noEmit`: clean. `npx jest`: 61 suites / 365 tests passing (12 new, testing
+`computeRequiredPercent`/`requiredStatus`/`missingRequiredItems`/`computeFinanceReadiness`
+directly), 0 regressions.
+
 ## Merge the homepage into the mandatory quiz-intro screen — "the site is not the way i arranged it" (`app/page.tsx`, `app/quiz/page.tsx`)
 
 User compared the live site against the original GitHub Pages site directly (side-by-side

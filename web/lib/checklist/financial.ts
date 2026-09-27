@@ -172,3 +172,29 @@ export function computeFinancials(inputs: FinancialInputs): FinancialResult {
     timingRealityCheck,
   };
 }
+
+export type FinanceReadiness = {
+  percent: number;
+  capped: boolean;
+};
+
+// Verbatim port of the sidebar's "Finances" score (index.html ~line 8303-8318): how much of the
+// recommended 2x cost buffer the applicant's total funds cover, capped at 100 — then capped again
+// at 50 unless there's real evidence behind the self-typed closing balance (at least 2 months of
+// cash-flow data entered). Session/sidebar rebuild (task #380).
+//
+// Known gap, disclosed rather than silently approximated: the original ALSO treats a closing
+// balance as "verified" when it's been cross-checked against an uploaded, OCR'd bank statement
+// (statementClosingVerified) — that cross-check lives on a separate route/page in this port (the
+// bank-statement checker) with no shared state wired to this calculator yet, so that half of
+// "evidenceBehindScore" isn't ported here. Only the cash-flow-data half is. Wiring the two
+// together is exactly the kind of cross-session state-sharing Phase 2 (the real session-flow
+// rebuild) is meant to solve properly, rather than bolting on a one-off read of another page's
+// localStorage here.
+export function computeFinanceReadiness(result: FinancialResult): FinanceReadiness {
+  const { totalCost, recommendedFunds, totalFunds, hasCashFlowData } = result;
+  const rawPercent = totalCost > 0 && recommendedFunds > 0 ? Math.max(0, Math.min(100, Math.round((totalFunds / recommendedFunds) * 100))) : 0;
+  const evidenceBehindScore = hasCashFlowData;
+  const capped = rawPercent > 50 && !evidenceBehindScore;
+  return { percent: capped ? 50 : rawPercent, capped };
+}

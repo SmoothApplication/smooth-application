@@ -349,3 +349,32 @@ export function computeOverallPercent(checklist: ChecklistItem[], a: Answers, ch
   const done = applicable.filter((it) => checked[it.id]).length;
   return Math.round((done / applicable.length) * 100);
 }
+
+// Verbatim port of index.html's updateScore() "Documents" readiness score (~line 6328): required
+// items ONLY, not required+recommended like computeOverallPercent above. Session/sidebar rebuild
+// (task #380, matching the original's "Readiness scores" card) — the original's single Documents
+// score has always been required-only, so recommended-but-unchecked items don't quietly drag it
+// down the way computeOverallPercent's broader denominator does.
+export function computeRequiredPercent(checklist: ChecklistItem[], a: Answers, checked: Record<string, boolean>): number {
+  const required = checklist.filter((it) => it.weight === 'required' && itemApplies(it, a));
+  if (!required.length) return 0;
+  const done = required.filter((it) => checked[it.id]).length;
+  return Math.round((done / required.length) * 100);
+}
+
+export type RequiredStatus = { label: string; tone: 'neutral' | 'critical' | 'serious' | 'warning' | 'good' };
+
+// Verbatim port of updateScore()'s statusPill thresholds/copy.
+export function requiredStatus(pct: number): RequiredStatus {
+  if (pct === 0) return { label: 'Getting started', tone: 'neutral' };
+  if (pct < 50) return { label: 'Just getting going', tone: 'critical' };
+  if (pct < 80) return { label: 'Making progress', tone: 'serious' };
+  if (pct < 100) return { label: 'Almost there', tone: 'warning' };
+  return { label: 'All required documents ready', tone: 'good' };
+}
+
+// Verbatim port of the "Still missing" list source: every applicable required item not yet
+// checked, in checklist order (same order updateScore() builds missList from).
+export function missingRequiredItems(checklist: ChecklistItem[], a: Answers, checked: Record<string, boolean>): ChecklistItem[] {
+  return checklist.filter((it) => it.weight === 'required' && itemApplies(it, a) && !checked[it.id]);
+}

@@ -12,6 +12,7 @@ import {
 import { ALL_CHECKLISTS } from '@/lib/checklist/all';
 import { getSponsorRecommendation, resolveSpouseRef } from '@/lib/checklist/sponsor';
 import { trackEvent } from '@/lib/analytics';
+import ChecklistSidebar from '@/components/checklist/ChecklistSidebar';
 
 // Phase 4b of task #244: the shared checklist app UI, factored out of the UK-only
 // web/app/checklist/uk/page.tsx (Phase 2) so the same profile-form + categorized-document-list
@@ -360,8 +361,9 @@ export default function CountryChecklistApp({
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-5 p-6 pb-16">
-      <div className="sticky top-0 z-10 -mx-6 border-b border-black/10 bg-[#f7fafb]/95 px-6 py-3 backdrop-blur">
+    <main className="mx-auto flex min-h-screen max-w-5xl flex-col gap-5 p-6 pb-16 lg:flex-row lg:items-start">
+      <div className="flex min-w-0 flex-1 flex-col gap-5">
+      <div className="sticky top-0 z-10 -mx-6 border-b border-black/10 bg-[#f7fafb]/95 px-6 py-3 backdrop-blur lg:mx-0 lg:rounded-lg lg:border">
         <div className="flex items-center justify-between gap-2 text-sm">
           <span className="min-w-0 truncate font-semibold text-[#12232e]">
             {flag} {name} {visaName} checklist
@@ -501,6 +503,14 @@ export default function CountryChecklistApp({
       <button type="button" onClick={() => setView('profile')} className="text-center text-xs text-accent underline">
         ← Edit your answers
       </button>
+      </div>
+
+      {/* Phase 1 of the session/sidebar rebuild (task #380) — the original's persistent sidebar
+          (Readiness scores, Still missing, Save your progress), ported self-contained for UK/all
+          countries ahead of Phase 2's full session-pagination restructuring. Stacks below the
+          checklist on mobile, sits alongside it on large screens (see the lg:flex-row wrapper
+          above). */}
+      <ChecklistSidebar code={code} name={name} checklist={checklist} answers={answers} checked={checked} />
     </main>
   );
 }
@@ -515,7 +525,7 @@ function ChecklistRow({
   onToggle: () => void;
 }) {
   return (
-    <li className="flex items-start gap-3 px-4 py-3">
+    <li id={`item_${item.id}`} className="scroll-mt-24 flex items-start gap-3 px-4 py-3">
       <input type="checkbox" checked={checked} onChange={onToggle} className="mt-0.5 flex-shrink-0" />
       <div className="flex-1">
         <div className="flex flex-wrap items-center gap-2">

@@ -1,5 +1,6 @@
 import {
   computeFinancials,
+  computeFinanceReadiness,
   fmtN,
   emptyCashFlow,
   DEFAULT_FINANCIAL_INPUTS,
@@ -230,5 +231,74 @@ describe('computeFinancials — timing', () => {
     );
     expect(result.monthlyNetSavings).toBeLessThanOrEqual(0);
     expect(result.monthsToCloseGap).toBeNull();
+  });
+});
+
+// Sidebar "Finances" readiness score (task #380) — verbatim port of index.html's ~line 8303-8318
+// cap logic: percent = funds / (2x cost), capped at 100, then capped AGAIN at 50 unless at least
+// 2 months of cash-flow data has been entered (the only half of "evidenceBehindScore" this port
+// currently has — see the disclosed gap in the doc comment on computeFinanceReadiness itself).
+describe('computeFinanceReadiness', () => {
+  it('returns 0%, uncapped, when no trip cost has been entered yet', () => {
+    const result = computeFinancials(inputs());
+    expect(computeFinanceReadiness(result)).toEqual({ percent: 0, capped: false });
+  });
+
+  it('caps a high raw percent at 50 when there is no cash-flow evidence behind it', () => {
+    const result = computeFinancials(
+      inputs({
+        costs: { flightPerAdult: 500000, accomPerNight: 0, nights: 0, transport: 0, shopping: 0, sightseeing: 0 },
+        funds: { closingBalance: 2000000, forexSavings: 0 }, // way more than the 2x buffer needs
+      })
+    );
+    expect(result.hasCashFlowData).toBe(false);
+    const readiness = computeFinanceReadiness(result);
+    expect(readiness.capped).toBe(true);
+    expect(readiness.percent).toBe(50);
+  });
+
+  it('does not cap when >= 2 months of cash-flow data have been entered', () => {
+    const result = computeFinancials(
+      inputs({
+        costs: { flightPerAdult: 500000, accomPerNight: 0, nights: 0, transport: 0, shopping: 0, sightseeing: 0 },
+        funds: { closingBalance: 2000000, forexSavings: 0 },
+        cashFlow: [
+          { month: 'Jan', inflow: 300000, outflow: 100000, balance: '' },
+          { month: 'Feb', inflow: 300000, outflow: 100000, balance: '' },
+          ...emptyCashFlow().slice(2),
+        ],
+      })
+    );
+    expect(result.hasCashFlowData).toBe(true);
+    const readiness = computeFinanceReadiness(result);
+    expect(readiness.capped).toBe(false);
+    expect(readiness.percent).toBe(100); // raw percent clamped at 100, not the 50 cap
+  });
+
+  it('never exceeds 100 even when funds vastly exceed the recommended buffer', () => {
+    const result = computeFinancials(
+      inputs({
+        costs: { flightPerAdult: 100000, accomPerNight: 0, nights: 0, transport: 0, shopping: 0, sightseeing: 0 },
+        funds: { closingBalance: 50000000, forexSavings: 0 },
+        cashFlow: [
+          { month: 'Jan', inflow: 300000, outflow: 100000, balance: '' },
+          { month: 'Feb', inflow: 300000, outflow: 100000, balance: '' },
+          ...emptyCashFlow().slice(2),
+        ],
+      })
+    );
+    expect(computeFinanceReadiness(result).percent).toBe(100);
+  });
+
+  it('reports a low, uncapped percent when funds genuinely fall short of the buffer', () => {
+    const result = computeFinancials(
+      inputs({
+        costs: { flightPerAdult: 1000000, accomPerNight: 0, nights: 0, transport: 0, shopping: 0, sightseeing: 0 },
+        funds: { closingBalance: 200000, forexSavings: 0 },
+      })
+    );
+    const readiness = computeFinanceReadiness(result);
+    expect(readiness.capped).toBe(false);
+    expect(readiness.percent).toBeLessThan(50);
   });
 });
