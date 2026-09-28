@@ -3,6 +3,20 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Country picker: widened to homepage size, header condensed
+
+Direct request, screenshot: "increase the size of this page to the size of the homepage. Move the
+smooth application beside the image. Remove 'A personal document-readiness checklist.'"
+
+**`app/checklist/start/page.tsx`:** the card's max-width went from `max-w-md` (448px) to `max-w-3xl`
+(768px), matching the homepage's container exactly — the 4-box country grid (previous entry) now
+gets the same room to breathe the homepage's own stat boxes have. The header changed from a stacked
+icon-then-title (icon on its own row, "Smooth Application" below it, then a subtitle paragraph) to
+the homepage's side-by-side layout (`flex items-center gap-2`, same icon/text sizing) with the
+"A personal document-readiness checklist." subtitle removed entirely.
+
+Typecheck clean, full suite still 62 suites / 374 tests passing.
+
 ## Country picker: 4-box grid replaces the plain dropdown
 
 Direct request, 2 screenshots (homepage + the "Which visa are you preparing for?" screen): "convert

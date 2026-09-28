@@ -61,13 +61,24 @@ export default function ChecklistStartPage() {
     // Task #392 (UI/UX audit): same fix as the quiz-intro/result screens (app/quiz/page.tsx) —
     // `items-center` vertically centers this short card instead of leaving it pinned near the top
     // of a `min-h-screen` canvas with a large blank gap below.
+    // Task #406 (direct request, screenshot): "increase the size of this page to the size of the
+    // homepage" — the card was `max-w-md` (448px), noticeably narrower than the homepage's
+    // `max-w-3xl` (768px) container that the 4-box country grid (task #405) is visually modeled
+    // on, so the boxes here were cramped compared to their homepage counterparts. Widened to
+    // `max-w-3xl` to match exactly.
     <main className="flex min-h-screen items-center justify-center bg-[#f7fafb] p-6">
-      <div className="card-surface w-full max-w-md p-8">
-        <div className="mb-4 grid h-10 w-10 place-items-center rounded-full bg-accent-wash text-xl" aria-hidden>
-          🛂
+      <div className="card-surface w-full max-w-3xl p-8">
+        {/* Task #406: header changed from a stacked icon-then-title (icon box on its own row,
+            "Smooth Application" on the row below) to the homepage's own side-by-side header
+            layout (app/page.tsx: `flex items-center gap-2`, same icon/text sizing) — "move the
+            smooth application beside the image." The "A personal document-readiness checklist."
+            subtitle is gone per the direct request to remove it. */}
+        <div className="mb-5 flex items-center gap-2">
+          <span className="grid h-9 w-9 place-items-center rounded-full bg-accent-wash text-lg" aria-hidden>
+            🛂
+          </span>
+          <span className="text-lg font-semibold text-[#12232e]">Smooth Application</span>
         </div>
-        <h1 className="text-xl font-semibold text-[#12232e]">Smooth Application</h1>
-        <p className="mb-5 text-sm text-[#4c6270]">A personal document-readiness checklist.</p>
 
         <label className="mb-2 block text-sm font-medium text-[#12232e]">
           Which visa are you preparing for?
