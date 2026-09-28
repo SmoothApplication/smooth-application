@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -71,6 +71,35 @@ export default function SituationGate({
   const [refCount, setRefCount] = useState('');
   const [refReason, setRefReason] = useState('');
   const [refBalance, setRefBalance] = useState('');
+
+  // ---- Task #410 (direct request): "Re-Applying" follow-up — a returning applicant's history
+  // with this visa, gathered the same lightweight, ephemeral way as the "refused" fields above
+  // (component state only, not persisted or sent anywhere automatically — this gate isn't part of
+  // the persisted Answers, see SessionGate's own header comment). ----
+  const [reappLastVisaDate, setReappLastVisaDate] = useState(''); // <input type="month">, e.g. "2022-06"
+  const [reappValidityValue, setReappValidityValue] = useState('');
+  const [reappValidityUnit, setReappValidityUnit] = useState<'months' | 'years'>('years');
+  const [reappTimesUsed, setReappTimesUsed] = useState('');
+  const [reappLastTravelDate, setReappLastTravelDate] = useState('');
+  // One days-spent entry per trip — resized below to match reappTimesUsed, keeping whatever the
+  // applicant already typed for the trips that still exist.
+  const [reappTripDays, setReappTripDays] = useState<string[]>([]);
+
+  useEffect(() => {
+    const n = parseInt(reappTimesUsed, 10);
+    if (!Number.isFinite(n) || n < 0) return;
+    const capped = Math.min(n, 30); // sanity cap — matches the "up to 20 years" style caps used elsewhere (e.g. TravelHistory's YEARS list)
+    setReappTripDays((prev) => {
+      if (prev.length === capped) return prev;
+      const next = prev.slice(0, capped);
+      while (next.length < capped) next.push('');
+      return next;
+    });
+  }, [reappTimesUsed]);
+
+  function updateReappTripDay(i: number, value: string) {
+    setReappTripDays((rows) => rows.map((r, idx) => (idx === i ? value : r)));
+  }
 
   function destName() {
     return isTravelReadiness ? `${name} trip` : `${name} application`;
@@ -148,7 +177,10 @@ export default function SituationGate({
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-lg flex-col gap-5 p-6 pb-16">
+    // Task #409 (direct request, screenshot): "make it the same size with the homepage" — widened
+    // from `max-w-lg` (512px) to `max-w-3xl` (768px), matching the homepage's own container
+    // (app/page.tsx) and the country picker's (app/checklist/start/page.tsx, task #406) exactly.
+    <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-5 p-6 pb-16">
       <div>
         <h1 className="text-xl font-semibold text-[#12232e]">🧭 Where are you in the process?</h1>
         <p className="mt-1 text-sm text-[#4c6270]">Just so we can point you the right way - answering doesn&apos;t change what&apos;s ahead unless you want it to.</p>
@@ -404,6 +436,127 @@ export default function SituationGate({
               ✉️ Email instead
             </a>
           </div>
+        </div>
+      )}
+
+      {/* Task #410 (direct request): "Re-Applying" follow-up — a short history of the applicant's
+          time with this visa. Built as a `card-surface` box (the same white rounded-2xl card the
+          homepage's stat boxes and the country picker's grid use — app/page.tsx,
+          app/checklist/start/page.tsx), with a text-warn heading matching this box's own tone from
+          the grid above, rather than the plainer `rounded-lg border` boxes the refused/paid panels
+          above use — this is the newest addition, so it gets the fuller "same principle as the
+          home page" treatment the user asked for by name.
+          Five fields, in the order given: (1) when the last visa was issued, (2) how long that
+          visa was valid for (value + unit, since "months or years" wasn't a fixed choice), (3) how
+          many times it was actually used, (4) the most recent trip taken on it, and (5) a
+          per-trip "how many days did you spend" list — sized automatically to match (3) via the
+          effect above, so ticking "3" grows exactly 3 day-boxes without the applicant having to
+          add rows by hand. Each trip gets its own small box (bg-[#f7fafb] card) inside a
+          responsive grid — the literal "make it in a box" instruction — rather than one plain
+          list, so a single long list of numbers doesn't blur together. Ephemeral component state
+          only, same as the refused-follow-up fields above — nothing is sent or saved until the
+          applicant chooses to use it themselves later (this data isn't wired into a message or
+          the checklist yet, since none was requested). */}
+      {kind === 'reapplying' && (
+        <div className="card-surface flex flex-col gap-4 p-4">
+          <p className="text-base font-extrabold leading-snug text-warn">🔁 Your history with this visa</p>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-[#12232e]" htmlFor="reapp-last-visa-date">
+                When did you last get this visa?
+              </label>
+              <input
+                id="reapp-last-visa-date"
+                type="month"
+                value={reappLastVisaDate}
+                onChange={(e) => setReappLastVisaDate(e.target.value)}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-medium text-[#12232e]">How long was that visa valid for?</label>
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  min={0}
+                  inputMode="numeric"
+                  value={reappValidityValue}
+                  onChange={(e) => setReappValidityValue(e.target.value)}
+                  placeholder="e.g. 5"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                />
+                <select
+                  value={reappValidityUnit}
+                  onChange={(e) => setReappValidityUnit(e.target.value as 'months' | 'years')}
+                  className="rounded-md border border-gray-300 px-2 py-2 text-sm"
+                >
+                  <option value="months">Months</option>
+                  <option value="years">Years</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-medium text-[#12232e]" htmlFor="reapp-times-used">
+                How many times did you use this visa?
+              </label>
+              <input
+                id="reapp-times-used"
+                type="number"
+                min={0}
+                inputMode="numeric"
+                value={reappTimesUsed}
+                onChange={(e) => setReappTimesUsed(e.target.value)}
+                placeholder="e.g. 3"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-medium text-[#12232e]" htmlFor="reapp-last-travel-date">
+                When was the last time you travelled with this visa?
+              </label>
+              <input
+                id="reapp-last-travel-date"
+                type="month"
+                value={reappLastTravelDate}
+                onChange={(e) => setReappLastTravelDate(e.target.value)}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              />
+            </div>
+          </div>
+
+          {reappTripDays.length > 0 && (
+            <div>
+              <p className="mb-2 text-xs font-medium text-[#12232e]">
+                For each of those {reappTripDays.length} trip{reappTripDays.length === 1 ? '' : 's'}, how many days did you spend?
+              </p>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {reappTripDays.map((days, i) => (
+                  <div key={i} className="rounded-lg border border-black/10 bg-[#f7fafb] p-2">
+                    <label className="mb-1 block text-[11px] font-medium text-[#566a76]" htmlFor={`reapp-trip-days-${i}`}>
+                      Trip {i + 1}
+                    </label>
+                    <div className="flex items-center gap-1">
+                      <input
+                        id={`reapp-trip-days-${i}`}
+                        type="number"
+                        min={0}
+                        inputMode="numeric"
+                        value={days}
+                        onChange={(e) => updateReappTripDay(i, e.target.value)}
+                        placeholder="Days"
+                        className="w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm"
+                      />
+                      <span className="text-xs text-[#8a99a3]">days</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

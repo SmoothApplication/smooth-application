@@ -3,6 +3,31 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Situation gate: "Re-Applying" follow-up form + widened to homepage size
+
+Two follow-up direct requests on the situation gate:
+1. Screenshot: "make it the same size with the homepage."
+2. "if you are reapplying after a successful application once you click let it have a dropdown of
+   when last did you get your visa next line will be how many months or how many years visa were
+   you given the third line will be how many times did you use this visa the fourth line will be
+   when was the last time you traveled with this visa the fifth line will be then create a line
+   where for each time you traveled how many days did you spend make it in a box this proper GUI
+   very presentable like we have been using from the home page to where we are."
+
+**`components/checklist/SituationGate.tsx`:**
+- The page's container went from `max-w-lg` (512px) to `max-w-3xl` (768px), matching the homepage
+  and country picker exactly.
+- Clicking the "Re-Applying" box now opens a follow-up panel — a `card-surface` box (the same white
+  rounded-2xl card the homepage and country picker use) with a text-warn heading matching the box's
+  own tone. It has 5 fields in the order given: when the visa was last issued (month picker), how
+  long it was valid for (a number + Months/Years unit), how many times it was actually used, the
+  most recent trip taken on it, and — sized automatically to match "how many times used" — a small
+  box per trip asking how many days were spent on it. Ephemeral component state only, same pattern
+  as the existing "refused" follow-up fields — nothing is sent or saved automatically.
+
+Typecheck clean, full suite still 62 suites / 374 tests passing (no existing tests touch this
+component).
+
 ## Situation gate: 3 bars → 4-box grid, added "Re-Applying"
 
 Direct request, screenshot: "following the same principle of the home page design, turn the 3 bars
