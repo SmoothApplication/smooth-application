@@ -1,8 +1,11 @@
-// Thin Resend wrapper — two email types only for now (see docs/EMAIL_COPY.md for full text):
+// Thin Resend wrapper — email types (see docs/EMAIL_COPY.md for full text):
 //  1. "Create your password" — fired the moment an applicant drops their email anywhere in the
 //     flow (see app/api/capture-email/route.ts).
 //  2. "Finish your checklist" — fired by the reminder cron (scripts/send-reminders.js) for anyone
 //     inactive N days with an incomplete checklist.
+//  3. "Reset your password" — task #419 (direct request, after seyiafeni@yahoo.co.uk got locked
+//     out of /admin with no way back in): fired from app/api/request-password-reset/route.ts for
+//     both admins and applicants.
 import { Resend } from 'resend';
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
@@ -28,6 +31,21 @@ export async function sendCreatePasswordEmail(opts: {
       <p><b>Create a password</b> so you can view your saved progress and pick up exactly where you left off, on any device:</p>
       <p><a href="${setPasswordUrl}" style="display:inline-block;background:#0b7a6e;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;">Create my password</a></p>
       <p style="color:#666;font-size:13px;">We only save your email and which step you've reached — never your passport number, bank details, or other answers. Those stay only in your own browser, same as always.</p>
+    `,
+  });
+}
+
+export async function sendPasswordResetEmail(opts: { to: string; resetUrl: string }) {
+  const { to, resetUrl } = opts;
+  return resend.emails.send({
+    from: FROM,
+    to,
+    subject: 'Reset your Smooth Application password',
+    html: `
+      <p>Hi,</p>
+      <p>Someone (hopefully you) asked to reset the password for this Smooth Application account.</p>
+      <p><a href="${resetUrl}" style="display:inline-block;background:#0b7a6e;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;">Reset my password</a></p>
+      <p style="color:#666;font-size:13px;">This link only works once and expires after a while. If you didn't request this, you can safely ignore this email — your password hasn't been changed.</p>
     `,
   });
 }

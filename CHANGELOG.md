@@ -3,6 +3,38 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Added a password-reset flow to the login page
+
+Direct request, right after the login page's lack of one turned into a real lockout: signing in
+with a stale remembered password threw "Invalid login credentials" with no way forward, and a
+direct Supabase SQL password update (via the connected Supabase MCP) was needed just to get back
+into `/admin`. The account itself was fine — confirmed, not banned, last signed in days earlier —
+the password had simply been forgotten, and there was no self-service way to fix that.
+
+Added the standard Supabase-recovery-link shape, mirroring the existing "create your password"
+invite flow (task #243) almost exactly:
+
+- `app/forgot-password/page.tsx` — email-only form linked from a new "Forgot password?" link on
+  `app/login/page.tsx`. Always shows the same "if that email has an account…" confirmation
+  regardless of whether it does, to avoid leaking which emails are registered.
+- `app/api/request-password-reset/route.ts` — service-role endpoint (same reason as
+  `capture-email/route.ts`: no session exists yet to act as). Looks up the account, calls
+  `supabase.auth.admin.generateLink({ type: 'recovery' })` for the real action link (same reason
+  `capture-email` avoids `inviteUserByEmail`'s built-in email — needed the actual link to embed in
+  our own template), and checks `admin_users` to decide whether the link should land the person back
+  on `/admin` or `/account` once they've set a new password.
+  - `lib/resend.ts` — new `sendPasswordResetEmail`.
+- `app/reset-password/page.tsx` — landing page for the emailed link. Same session-establishing
+  logic as `app/create-password/page.tsx` (Supabase's redirect carries either a `?code=` or a
+  `#access_token=` fragment that has to be exchanged for a real session before `updateUser` can set
+  a password), then redirects to whichever `?next=` the API route chose.
+
+No new test file — matches this codebase's own precedent: neither `capture-email/route.ts` nor
+`create-password/page.tsx` (the flows this most closely mirrors) have one either, since
+`jest.config.js` deliberately runs under plain Node rather than jsdom, and these pages are almost
+entirely DOM/session side-effects rather than pure logic. Verified instead via `tsc --noEmit` (0
+errors) and the full suite (66/66 suites, 433/433 tests, unchanged).
+
 ## Made analytics count real site traffic, not just funnel clicks
 
 Direct request, after confirming (via a live GoatCounter dashboard screenshot) that analytics was

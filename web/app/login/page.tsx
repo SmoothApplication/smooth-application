@@ -2,6 +2,7 @@
 
 import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 
 // Shared sign-in form for both applicants and admins — Supabase Auth doesn't distinguish account
@@ -63,6 +64,9 @@ function LoginForm() {
             {loading ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
+        <Link href="/forgot-password" className="mt-3 inline-block text-sm text-[#0b7a6e] underline">
+          Forgot password?
+        </Link>
       </div>
     </main>
   );
