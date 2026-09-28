@@ -3,6 +3,28 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Situation gate: center short content instead of top-pinning it
+
+Direct request, annotated screenshot circling a large blank area below the "Continue" button on a
+wider/desktop browser window: "just like the home page maximize this page the white spaces beneath
+are a lot maximize it."
+
+**`components/checklist/SituationGate.tsx`:** the previous fix (task #411) dropped `min-h-screen`
+so the page's height would follow its short content instead of always padding to full-screen — that
+part worked (content ends at ~635px regardless of window size), but on a taller browser window the
+same visual complaint just moved from "blank space inside a too-tall `<main>`" to "blank canvas
+below a too-short document" — same amount of empty space, same place on screen, different cause.
+This page only has 4 boxes and one button, nowhere near as much content as the homepage's two stat
+grids + CTA + sources line, so no amount of padding makes its actual content match the homepage's
+height. Rather than fight that, applied the pattern this app already uses for every other
+short-content screen — `/checklist/start` (task #406) and the quiz intro/result screens
+(`app/quiz/page.tsx`) both center their card with `flex min-h-screen items-center justify-center`
+instead of pinning it to the top. Did the same here: leftover space now splits evenly above and
+below the card instead of collecting in one block underneath, and the full viewport is the styled
+`bg-[#f7fafb]` background (matching the homepage) rather than ending partway down into plain white.
+
+Typecheck clean, full suite still 62 suites / 374 tests passing.
+
 ## Re-Applying form: month pickers now let you jump back a decade or more
 
 Direct request: "under 'when did you last get this visa' it's showing only 2026 make it to have at
