@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
+import Analytics from '@/components/Analytics';
 
 // Design pass (user feedback: "this site needs a UI/UX designer" — live screenshot of the
 // homepage): the app had never set a real typeface anywhere, so every page fell back to the
@@ -17,7 +18,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={inter.variable}>
-      <body className="min-h-screen bg-gray-50 font-sans text-gray-900 antialiased">{children}</body>
+      <body className="min-h-screen bg-gray-50 font-sans text-gray-900 antialiased">
+        <Analytics />
+        {children}
+      </body>
     </html>
   );
 }

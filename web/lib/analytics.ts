@@ -37,6 +37,16 @@ const ANALYTICS_SITE_CODE = 'smoothapplication';
 //                                     "travel-history", "reasons", "tracker" (CountryChecklistApp.tsx)
 //   app:statement_analysis:attempted / :completed — the bank-statement analyzer funnel
 //                                     (StatementCheck.tsx)
+// Task #419 (direct request: "I want it to count as it counts before so I can trace the number of
+// people who hit the website"): previously this script only loaded — and so only ever counted
+// anything — the first time a `trackEvent()` call happened to fire on a given page (a country
+// picked, "Start the quiz" clicked, etc.). Most session pages in this port (SessionShell and every
+// page it wraps: responsibilities, trip-details, the document-checklist categories, final review...)
+// never call trackEvent() at all, so a real visitor who landed, read a page, and left without
+// clicking one of those specific buttons was never counted anywhere — undercounting total traffic,
+// not just funnel steps. `data-goatcounter-settings` below disables GoatCounter's own automatic
+// on-load pageview (which would otherwise double-count against the explicit calls this file now
+// makes) so this file is the one place that decides when a pageview counts.
 let analyticsLoaded = false;
 function loadAnalytics() {
   if (!ANALYTICS_SITE_CODE || analyticsLoaded) return;
@@ -45,10 +55,54 @@ function loadAnalytics() {
     const s = document.createElement('script');
     s.async = true;
     s.setAttribute('data-goatcounter', 'https://' + ANALYTICS_SITE_CODE + '.goatcounter.com/count');
+    s.setAttribute('data-goatcounter-settings', JSON.stringify({ no_onload: true }));
     s.src = '//gc.zgo.at/count.js';
     document.head.appendChild(s);
   } catch {
     /* analytics must never break the app */
+  }
+}
+
+type GoatCounter = { count?: (o: { path: string; title?: string; event?: boolean }) => void };
+function getGoatCounter(): GoatCounter | undefined {
+  return (window as unknown as { goatcounter?: GoatCounter }).goatcounter;
+}
+
+// Fires `fn` once GoatCounter's script has finished loading and exposed window.goatcounter — the
+// script is injected async, so on the very first call in a page's lifetime it may not be ready the
+// instant this runs. Gives up silently after ~2s (a slow/blocked analytics script must never delay
+// or break anything else on the page).
+function whenReady(fn: (gc: GoatCounter) => void) {
+  const gc = getGoatCounter();
+  if (gc && typeof gc.count === 'function') {
+    fn(gc);
+    return;
+  }
+  let attempts = 0;
+  const iv = setInterval(() => {
+    attempts += 1;
+    const gc2 = getGoatCounter();
+    if (gc2 && typeof gc2.count === 'function') {
+      clearInterval(iv);
+      fn(gc2);
+    } else if (attempts > 20) {
+      clearInterval(iv);
+    }
+  }, 100);
+}
+
+// Task #419: a plain, unconditional pageview — call this once per route the visitor actually loads
+// (see components/Analytics.tsx, mounted in the root layout so it runs on every page except /admin).
+// This is deliberately separate from trackEvent()'s "app:"-prefixed funnel events: `path` here is the
+// real URL path, so GoatCounter's own Pages widget shows genuine per-page traffic counts, the same
+// kind of number the original's single-page analytics setup relied on.
+export function trackPageview(path: string): void {
+  if (typeof window === 'undefined' || !ANALYTICS_SITE_CODE) return;
+  try {
+    loadAnalytics();
+    whenReady((gc) => gc.count!({ path }));
+  } catch {
+    /* never let analytics break the app */
   }
 }
 
@@ -59,10 +113,7 @@ export function trackEvent(name: string): void {
   if (typeof window === 'undefined' || !ANALYTICS_SITE_CODE) return;
   try {
     loadAnalytics();
-    const gc = (window as unknown as { goatcounter?: { count?: (o: unknown) => void } }).goatcounter;
-    if (gc && typeof gc.count === 'function') {
-      gc.count({ path: 'app:' + name, title: 'app:' + name, event: true });
-    }
+    whenReady((gc) => gc.count!({ path: 'app:' + name, title: 'app:' + name, event: true }));
   } catch {
     /* never let analytics break the app */
   }

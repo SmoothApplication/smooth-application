@@ -3,6 +3,39 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Made analytics count real site traffic, not just funnel clicks
+
+Direct request, after confirming (via a live GoatCounter dashboard screenshot) that analytics was
+genuinely working: "i want it to count as it counts before so I can trace the number of people who
+hit the website".
+
+Root cause: `lib/analytics.ts` (task #370) only ever fired named funnel events —
+`session_started:UK`, `situation_continue`, etc. — from specific button clicks, and the GoatCounter
+script itself only got injected into the page the first time one of those calls happened to fire.
+Most session pages in this port (every page `SessionShell` wraps: responsibilities, trip details, the
+document-checklist categories, final review...) never call a tracked function at all, so a real
+visitor who landed, read, and left without hitting one of those specific buttons was never counted
+anywhere — undercounting total traffic, not just funnel steps. This also meant the script frequently
+never loaded at all on a given visit, since GoatCounter's own implicit on-load pageview only fires if
+the script is present.
+
+Fixed by adding an unconditional `trackPageview(path)` alongside the existing `trackEvent(name)`, and
+mounting a small client component (`components/Analytics.tsx`, in `app/layout.tsx`) that calls it
+once per route via `usePathname()` — covering both real page loads and the App Router's client-side
+navigations, which don't trigger full reloads. GoatCounter's own automatic on-load pageview is
+explicitly disabled (`data-goatcounter-settings: { no_onload: true }`) so this is the one place that
+decides when a pageview counts, avoiding double-counting. `/admin/*` (staff dashboards) is excluded
+from the count, since that's internal traffic, not applicant traffic. Plain pageviews stay
+unprefixed (`path` = the real URL) so GoatCounter's "Pages" widget shows genuine per-page traffic,
+distinct from the existing "app:"-prefixed funnel events.
+
+No new test file: this module is pure DOM side-effect (script injection, `window.goatcounter.count`)
+with no equivalent elsewhere in the codebase, and the project's `jest.config.js` deliberately runs
+tests under plain Node rather than jsdom ("test files only exercise pure functions in lib/ — no
+React/DOM rendering needed here"); adding a jsdom dependency for one file didn't fit that convention.
+The existing `typeof window === 'undefined'` guards on both `trackPageview` and `trackEvent` remain
+the safety net for SSR.
+
 ## Ported the rest of "Your responsibilities": marital status, address/rent estimate, aged parents
 
 Direct request, off two screenshots comparing the original's own live "Your responsibilities"
