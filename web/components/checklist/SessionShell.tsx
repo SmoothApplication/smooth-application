@@ -29,6 +29,10 @@ export default function SessionShell({ code, name, session, children }: SessionS
   const total = order.length;
   const prev = prevSessionHref(code, session);
   const next = nextSessionHref(code, session);
+  // Task #418 (direct request): "move 'still missing' to the last session" — the sidebar is
+  // persistent across every session (rendered below), so this only turns it on once the applicant
+  // reaches the flow's actual last session ('reasons') rather than repeating it on every page.
+  const isLastSession = idx === total - 1;
 
   return (
     <main className="mx-auto flex min-h-screen max-w-5xl flex-col gap-5 p-6 pb-16 lg:flex-row lg:items-start">
@@ -56,7 +60,7 @@ export default function SessionShell({ code, name, session, children }: SessionS
                 href={`/checklist/${code.toLowerCase()}/reasons`}
                 className="shrink-0 whitespace-nowrap rounded-full bg-[#12232e] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90"
               >
-                📖 Why these documents
+                📖 Reasons
               </Link>
             )}
           </div>
@@ -97,7 +101,14 @@ export default function SessionShell({ code, name, session, children }: SessionS
         {children}
       </div>
 
-      <ChecklistSidebar code={code} name={name} checklist={checklist} answers={answers} checked={checked} />
+      <ChecklistSidebar
+        code={code}
+        name={name}
+        checklist={checklist}
+        answers={answers}
+        checked={checked}
+        showStillMissing={isLastSession}
+      />
     </main>
   );
 }

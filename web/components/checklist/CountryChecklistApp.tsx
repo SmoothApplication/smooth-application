@@ -440,7 +440,7 @@ export default function CountryChecklistApp({
             onClick={() => trackEvent('session_view:reasons')}
             className="inline-block text-xs text-accent underline"
           >
-            📖 Why these documents
+            📖 Reasons
           </Link>
           {trackerHref && (
             <Link

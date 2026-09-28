@@ -3,6 +3,26 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## "Still missing" moved to the last session; "Why these documents" renamed back to "Reasons"
+
+Direct request, off a screenshot of the live `/checklist/uk/statement` page (now correctly Session 1
+after the reorder above): "move 'still missing' to the last session. change 'why these documents' to
+its original name called 'reasons'".
+
+`ChecklistSidebar` (Phase 1's persistent Readiness scores / Still missing / Save your progress panel)
+renders on every numbered session page via `SessionShell`, so the "Still missing" list was repeating
+the same document checklist on every single page — including the earliest sessions, before the
+applicant had even reached the document-checklist categories. Added a `showStillMissing` prop
+(default `true`) and `SessionShell` now only passes `true` on the flow's actual last session
+(`idx === total - 1`, i.e. Reasons). Default stays `true` so `CountryChecklistApp`'s separate flat
+"everything on one page" view — not part of the numbered flow, so there's no "last session" to gate
+on — is unaffected.
+
+Renamed the "📖 Why these documents" button/heading back to "📖 Reasons" — its name in the original
+app — everywhere it appears: the sticky top-bar button on every session page (`SessionShell.tsx`),
+the inline link on `CountryChecklistApp`'s flat view, and the Reasons page's own `<h1>`
+(`ReasonsView.tsx`). Only the label changed; every href still points at `/checklist/<code>/reasons`.
+
 ## Fixed the numbered-session order to actually match the live original
 
 Direct request: "rearrange smoothapplication.com to follow the arrangement in sessions" on

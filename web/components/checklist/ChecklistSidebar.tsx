@@ -34,6 +34,14 @@ export type ChecklistSidebarProps = {
   checklist: ChecklistItem[];
   answers: Answers;
   checked: Record<string, boolean>;
+  /** Task #418 (direct request, screenshot): "move 'still missing' to the last session" — this
+   * sidebar is persistent across every numbered session (see SessionShell.tsx), so showing "Still
+   * missing" on all of them repeated the same list on every single page before the applicant had
+   * even reached the document checklist. SessionShell now only passes true here on the flow's last
+   * session ('reasons'). Defaults to true so CountryChecklistApp's own flat "everything on one page"
+   * view (not part of the numbered flow, so there's no "last session" to gate on) keeps showing it
+   * unconditionally, same as before this change. */
+  showStillMissing?: boolean;
 };
 
 function toneClasses(tone: 'neutral' | 'critical' | 'serious' | 'warning' | 'good') {
@@ -51,7 +59,7 @@ function toneClasses(tone: 'neutral' | 'critical' | 'serious' | 'warning' | 'goo
   }
 }
 
-export default function ChecklistSidebar({ code, name, checklist, answers, checked }: ChecklistSidebarProps) {
+export default function ChecklistSidebar({ code, name, checklist, answers, checked, showStillMissing = true }: ChecklistSidebarProps) {
   const financialKey = `sa_${code.toLowerCase()}_financial`;
   const [financialInputs, setFinancialInputs] = useState<FinancialInputs | null>(null);
   const [savedAt, setSavedAt] = useState<string | null>(null);
@@ -152,26 +160,28 @@ export default function ChecklistSidebar({ code, name, checklist, answers, check
         </div>
       </div>
 
-      <details className="card-surface p-4" open>
-        <summary className="cursor-pointer text-sm font-semibold text-[#12232e]">
-          Still missing {missing.length > 0 && <span className="text-[#566a76]">({missing.length})</span>}
-        </summary>
-        <ul className="mt-2 flex flex-col gap-1.5 text-sm">
-          {missing.length === 0 ? (
-            <li className="text-[#4c6270]">
-              {docsPct === 0 ? 'Fill in your checklist above to see what still applies.' : 'Nothing outstanding — nicely done.'}
-            </li>
-          ) : (
-            missing.map((item) => (
-              <li key={item.id}>
-                <a href={`#item_${item.id}`} className="text-accent underline">
-                  {item.label}
-                </a>
+      {showStillMissing && (
+        <details className="card-surface p-4" open>
+          <summary className="cursor-pointer text-sm font-semibold text-[#12232e]">
+            Still missing {missing.length > 0 && <span className="text-[#566a76]">({missing.length})</span>}
+          </summary>
+          <ul className="mt-2 flex flex-col gap-1.5 text-sm">
+            {missing.length === 0 ? (
+              <li className="text-[#4c6270]">
+                {docsPct === 0 ? 'Fill in your checklist above to see what still applies.' : 'Nothing outstanding — nicely done.'}
               </li>
-            ))
-          )}
-        </ul>
-      </details>
+            ) : (
+              missing.map((item) => (
+                <li key={item.id}>
+                  <a href={`#item_${item.id}`} className="text-accent underline">
+                    {item.label}
+                  </a>
+                </li>
+              ))
+            )}
+          </ul>
+        </details>
+      )}
 
       <div className="card-surface p-4">
         <p className="text-sm font-semibold text-[#12232e]">Save your progress</p>
