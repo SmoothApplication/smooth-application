@@ -9,6 +9,8 @@ import {
   computeRefusalRouting,
   refusalSuggestionText,
   parseRefusalDateFromText,
+  analyzeLetter,
+  LetterAnalysis,
 } from '@/lib/situation';
 import { extractLetterText } from '@/lib/situation/extractLetterText';
 import { trackEvent } from '@/lib/analytics';
@@ -60,6 +62,10 @@ export default function SituationGate({
   const [scanStatus, setScanStatus] = useState<'idle' | 'busy' | 'ok' | 'info' | 'err'>('idle');
   const [scanMessage, setScanMessage] = useState('');
   const [letterText, setLetterText] = useState<string | null>(null);
+  // Task #415 (direct request, mid-turn message): "scan through and read and pick words appeared
+  // often... summarize the reason why you were denied" — computed alongside letterText from the
+  // same on-device extracted text, see lib/situation/letterAnalysis.ts for the actual logic.
+  const [letterAnalysis, setLetterAnalysis] = useState<LetterAnalysis | null>(null);
   const [showManual, setShowManual] = useState(false);
   const [manualDate, setManualDate] = useState('');
   const [manualFinancial, setManualFinancial] = useState<'' | 'yes' | 'no'>('');
@@ -134,6 +140,7 @@ export default function SituationGate({
     }
     setScanStatus('busy');
     setScanMessage('Reading your letter… this can take up to 30 seconds (nothing leaves your browser).');
+    setLetterAnalysis(null); // clear any previous scan's analysis before this one finishes
     try {
       const text = await extractLetterText(letterFile);
       if (!text || !text.trim()) {
@@ -145,6 +152,7 @@ export default function SituationGate({
       // Show the applicant their own letter's text, and pre-fill only the date (a plain fact) —
       // never decide the financial question for them. See the block comment above this component.
       setLetterText(text);
+      setLetterAnalysis(analyzeLetter(text));
       const parsedDate = parseRefusalDateFromText(text);
       if (parsedDate) {
         const y = parsedDate.getFullYear();
@@ -304,6 +312,70 @@ export default function SituationGate({
               {scanMessage}
             </p>
           )}
+          {/* Task #415 (direct request, mid-turn message): "the system should be able to scan
+              through and read and pick words appeared often... and summarize the reason why you
+              were denied" — see lib/situation/letterAnalysis.ts for the actual word-counting and
+              phrase-matching logic (entirely on-device, no network call). Framed as a reading aid,
+              not a verdict — same disclaimer tone as the rest of this panel — with a "use this"
+              button rather than auto-filling refReason, since a category guess is an inference,
+              not a fact the way the parsed refusal date above is. */}
+          {letterAnalysis && (
+            <div className="mb-2 rounded-md bg-accent-wash p-3 text-xs text-[#12232e]">
+              {letterAnalysis.looksNonEnglish && (
+                <p className="mb-2 rounded-md bg-warn-wash p-2 text-warn-text">
+                  This doesn&apos;t look like it&apos;s written in English, so the word/reason
+                  patterns below are unreliable - they only understand English text. Read the full
+                  text below yourself, or see the note under &quot;Just tell us directly&quot; for
+                  what to do with a letter in another language.
+                </p>
+              )}
+              {letterAnalysis.topWords.length > 0 && (
+                <div className="mb-2">
+                  <p className="mb-1 font-medium">Words that came up often in your letter:</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {letterAnalysis.topWords.map((wc) => (
+                      <span
+                        key={wc.word}
+                        className="rounded-full bg-white px-2 py-0.5 text-[11px] font-medium text-[#12232e]"
+                      >
+                        {wc.word} × {wc.count}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {letterAnalysis.primaryReason ? (
+                <div>
+                  <p className="mb-1">
+                    Based on the wording, this reads most like:{' '}
+                    <strong>{letterAnalysis.primaryReason.label}</strong>
+                  </p>
+                  <p className="mb-2 text-[11px] text-[#4c6270]">
+                    Matched phrases: &quot;{letterAnalysis.primaryReason.matchedPhrases.join('", "')}&quot;
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setRefReason(letterAnalysis.primaryReason!.label)}
+                    className="rounded-md border border-black/10 bg-white px-2 py-1 text-[11px] font-medium text-[#12232e] hover:bg-black/5"
+                  >
+                    Use this as my reason below
+                  </button>
+                </div>
+              ) : (
+                <p className="text-[11px] text-[#4c6270]">
+                  Couldn&apos;t match this to one of the common refusal reasons automatically - read
+                  the highlighted words above and the full text below, then fill in the reason
+                  yourself.
+                </p>
+              )}
+              <p className="mt-2 text-[10px] text-[#8a99a3]">
+                This is just pattern-matching over the words in your own letter, not a legal
+                reading of it - it can be wrong or miss something important. Always go with what
+                your letter actually says.
+              </p>
+            </div>
+          )}
+
           {letterText && (
             <div className="mb-2 max-h-44 overflow-y-auto whitespace-pre-wrap rounded-md bg-black/5 p-2 text-xs text-[#4c6270]">
               {letterText}
@@ -653,6 +725,13 @@ function SituationOption({
 }) {
   const isGood = tone === 'good';
   return (
+    // Task #414 (direct request, two side-by-side screenshots comparing the homepage's stat boxes
+    // to these): the homepage's boxes use `p-6` padding, a `text-xl` headline and `text-sm`
+    // description (app/page.tsx) — these boxes had shrunk that down to `p-4`/`text-base`/`text-xs`
+    // along the way, making them visibly smaller/denser than their homepage counterparts despite
+    // using the same card-surface/dark-navy box language. Bumped all three to match the homepage
+    // exactly, plus `gap-2` (homepage's headline-to-caption spacing is `mt-2`, ~8px, vs. the
+    // `gap-1` here being only 4px).
     <button
       type="button"
       role="radio"
@@ -660,18 +739,18 @@ function SituationOption({
       onClick={onClick}
       className={
         isGood
-          ? `card-surface flex flex-col gap-1 p-4 text-left transition ${
+          ? `card-surface flex flex-col gap-2 p-6 text-left transition ${
               selected ? 'ring-2 ring-good' : 'hover:bg-black/5'
             }`
-          : `flex flex-col gap-1 rounded-2xl bg-[#12232e] p-4 text-left text-white transition ${
+          : `flex flex-col gap-2 rounded-2xl bg-[#12232e] p-6 text-left text-white transition ${
               selected ? 'ring-2 ring-warn' : 'hover:bg-white/5'
             }`
       }
     >
-      <p className={`text-base font-extrabold leading-snug ${isGood ? 'text-good' : 'text-warn'}`}>
+      <p className={`text-xl font-extrabold leading-snug ${isGood ? 'text-good' : 'text-warn'}`}>
         <span aria-hidden>{icon}</span> {title}
       </p>
-      <p className={`text-xs ${isGood ? 'text-[#4c6270]' : 'text-white/70'}`}>{desc}</p>
+      <p className={`text-sm ${isGood ? 'text-[#4c6270]' : 'text-white/70'}`}>{desc}</p>
     </button>
   );
 }

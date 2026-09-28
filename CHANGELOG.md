@@ -3,6 +3,60 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Refusal-letter reading aid: word frequency + likely-reason summary
+
+Direct request (mid-turn message): "under read my letter, make it possible for applicant to
+[upload] letters of denial and the system should be able to scan through and read and pick words
+appeared often. How many times the word appeared often, the word appeared the most, and summarize
+the reason why you were denied. For letters in other languages, translate them and tell the
+applicant the reason."
+
+**`lib/situation/letterAnalysis.ts`** (new): a small, dependency-free module that runs entirely on
+the text `extractLetterText.ts` already pulls out of the applicant's PDF/photo on-device — no
+network call, nothing sent anywhere. `wordFrequency()` counts meaningful (non-stopword,
+non-boilerplate) repeated words and returns the most frequent, with how many times each appeared.
+`matchReasonCategories()` checks the letter against six known UK/Schengen refusal-reason categories
+(insufficient/unclear finances, not a genuine visitor, inconsistent documents, employment/income,
+accommodation/sponsor, previous immigration history), built from the same publicly documented
+stock refusal wording this app already reflects elsewhere (its own refusal dropdown, routing
+logic). `looksEnglish()` is a lightweight heuristic (ratio of common English function words) so the
+UI can warn when the analysis is unlikely to be reliable. `analyzeLetter()` ties all three together.
+
+**`components/checklist/SituationGate.tsx`:** wired into the existing "Read my letter" flow —
+alongside the raw extracted text, now shows the words that came up often (as a count badge per
+word), the best-matching reason category with the phrases that triggered it, and a "Use this as my
+reason" button that fills the existing "What reason were you given?" field (a manual action, not an
+auto-fill — a category guess is an inference, unlike the refusal date this flow already
+auto-fills, which is a plain parsed fact). Framed throughout as a reading aid, not a diagnosis, with
+the same disclaimer tone the rest of this panel already uses, plus a non-English warning banner
+when `looksNonEnglish` is true.
+
+**Translation for non-English letters — deliberately not built yet.** The reading aid's OCR/PDF
+extraction is 100% on-device (Tesseract.js + pdf.js, no server), and the letter is never uploaded
+anywhere — that's an explicit promise in this exact panel's copy. Automatically translating a
+letter into English needs either (a) a third-party translation API, which means sending the
+letter's actual text to an outside service and breaks that promise, or (b) an in-browser
+translation model (e.g. a small MarianMT/OPUS model via transformers.js), which keeps everything
+on-device but adds a real per-language download and is a bigger, riskier build to get right in one
+pass. Flagged to the user as a decision rather than picked silently.
+
+Added `lib/situation/__tests__/letterAnalysis.test.ts` (18 tests) covering word frequency, reason
+matching, language detection, and edge cases (empty text, no matches, ties). Typecheck clean, full
+suite now 63 suites / 392 tests passing.
+
+## Situation gate boxes: match the homepage's box padding and text sizes
+
+Direct request, two side-by-side screenshots comparing the homepage's stat boxes to these: "increase
+the sizes of the box in image 2 to the sizes of the box in image 1."
+
+**`components/checklist/SituationGate.tsx`** (`SituationOption`): the 4 selectable boxes ("Fresh
+application", "Refused before", etc.) had shrunk to `p-4` padding with a `text-base` headline and
+`text-xs` description somewhere along the way, while the homepage's boxes (`app/page.tsx`) use
+`p-6`, `text-xl`, and `text-sm`. Matched all three exactly, plus bumped the headline-to-caption gap
+from `gap-1` (4px) to `gap-2` (8px) to match the homepage's `mt-2` spacing.
+
+Typecheck clean, full suite still 62 suites / 374 tests passing.
+
 ## Situation gate: center short content instead of top-pinning it
 
 Direct request, annotated screenshot circling a large blank area below the "Continue" button on a
