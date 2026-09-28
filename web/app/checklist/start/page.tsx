@@ -19,6 +19,16 @@ export default function ChecklistStartPage() {
   const country = useMemo(() => COUNTRIES.find((c) => c.code === selected) ?? null, [selected]);
   const canContinue = !!country?.ready && agreed;
 
+  // Task #405: 8 ready countries chunked into 4 pairs for the box grid below; the 3 not-ready
+  // countries are surfaced separately as a plain "coming soon" line instead of a 5th half-empty box.
+  const countryPairs = useMemo(() => {
+    const ready = COUNTRIES.filter((c) => c.ready);
+    const pairs: (typeof COUNTRIES)[] = [];
+    for (let i = 0; i < ready.length; i += 2) pairs.push(ready.slice(i, i + 2));
+    return pairs;
+  }, []);
+  const comingSoonCountries = useMemo(() => COUNTRIES.filter((c) => !c.ready), []);
+
   function handleContinue() {
     if (!canContinue || !country) return;
     trackEvent('session_started:' + country.code);
@@ -69,22 +79,66 @@ export default function ChecklistStartPage() {
         <Link href="/opportunities" className="mb-3 block text-xs text-accent underline">
           🎓 Not applying for a visa yet? Browse funded opportunities &amp; exchange programs instead
         </Link>
-        <select
-          aria-label="Country"
-          value={selected ?? ''}
-          onChange={(e) => setSelected(e.target.value || null)}
-          className="field-input mb-5 bg-white py-2.5 text-[#12232e]"
-        >
-          <option value="" disabled>
-            Select a country…
-          </option>
-          {COUNTRIES.map((c) => (
-            <option key={c.code} value={c.code} disabled={!c.ready}>
-              {c.flag} {c.name} — {c.visaName}
-              {!c.ready ? ' (Coming soon)' : ''}
-            </option>
+
+        {/* Task #405 (direct request, using the homepage's stat-box grid as the guide): the country
+            picker used to be a plain <select> — this replaces it with the same 2x2 box grid
+            language as the homepage (app/page.tsx) and the quiz pages (app/quiz/page.tsx): first 2
+            boxes white/`card-surface`/text-good, last 2 dark navy/text-warn, both `p-6`-family
+            padding. The 8 "ready" countries split evenly into the 4 boxes, 2 per box; the 3
+            not-yet-ready countries (AU/CN/US) move to a small "coming soon" line below the grid
+            since they were never really selectable options anyway (the old <select> just showed
+            them disabled).
+            Each country is a clickable button, not a real navigation link — nothing to navigate to
+            yet, it only records a selection, same as the old <select> did — styled to read as a
+            tappable list item. Clicking one selects that country AND resets `agreed` to false
+            (a country switch shows a different disclaimer below, via the existing `country?.ready
+            && agreed` gate on the Continue button), so picking a different country always
+            re-mandates ticking "I understand this is guidance only..." for that specific country's
+            disclaimer, however many times someone changes their mind. */}
+        <div className="mb-4 grid gap-3 sm:grid-cols-2">
+          {countryPairs.map((pair, i) => (
+            <div
+              key={i}
+              className={
+                i < 2
+                  ? 'card-surface flex flex-col gap-1 p-4'
+                  : 'flex flex-col gap-1 rounded-2xl bg-[#12232e] p-4 text-white'
+              }
+            >
+              {pair.map((c) => {
+                const isSelected = selected === c.code;
+                return (
+                  <button
+                    key={c.code}
+                    type="button"
+                    onClick={() => {
+                      setSelected(c.code);
+                      setAgreed(false);
+                    }}
+                    aria-pressed={isSelected}
+                    className={
+                      i < 2
+                        ? `rounded-lg px-3 py-2 text-left text-base font-extrabold leading-snug transition ${
+                            isSelected ? 'bg-good-wash text-good' : 'text-good hover:bg-black/5'
+                          }`
+                        : `rounded-lg px-3 py-2 text-left text-base font-extrabold leading-snug transition ${
+                            isSelected ? 'bg-white/15 text-warn' : 'text-warn hover:bg-white/10'
+                          }`
+                    }
+                  >
+                    {c.flag} {c.name}
+                  </button>
+                );
+              })}
+            </div>
           ))}
-        </select>
+        </div>
+
+        {comingSoonCountries.length > 0 && (
+          <p className="mb-4 text-xs text-[#8a99a3]">
+            Coming soon: {comingSoonCountries.map((c) => `${c.flag} ${c.name}`).join(' · ')}
+          </p>
+        )}
 
         <div className="mb-4 flex gap-2 rounded-lg bg-accent-wash p-3 text-sm text-[#12232e]">
           <span aria-hidden>ℹ️</span>

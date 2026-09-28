@@ -3,6 +3,24 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Country picker: 4-box grid replaces the plain dropdown
+
+Direct request, 2 screenshots (homepage + the "Which visa are you preparing for?" screen): "convert
+the page... to 4 boxes put 2 countries in each box... each country have a clickable link that once
+you click it mandates you to click 'I understand this is guidance only...'"
+
+**`app/checklist/start/page.tsx`:** the `<select>` is gone. The 8 "ready" countries (UK, CA, EU, ZA,
+GH, KE, ET, MA) split evenly into 4 boxes, 2 per box, using the same box language as the homepage
+(`app/page.tsx`) and quiz pages (`app/quiz/page.tsx`): first 2 boxes white/`card-surface`/text-good,
+last 2 dark navy/text-warn. Each country is a clickable button that selects it (same underlying
+`selected` state the old `<select>` set) and now also resets the "I understand..." checkbox back to
+unchecked — so switching countries always re-mandates ticking the box for that country's own
+disclaimer before Continue unlocks, rather than carrying over a tick made for a different country's
+disclaimer. The 3 not-yet-ready countries (AU, CN, US) move to a small "Coming soon: ..." line below
+the grid, since the old `<select>` only ever showed them disabled anyway.
+
+Typecheck clean, full suite still 62 suites / 374 tests passing (no existing tests touch this page).
+
 ## Homepage: shrunk stat-box headline numbers to match the quiz pages
 
 Direct request, 3 screenshots comparing the homepage boxes to the quiz-result grid and trust card:
