@@ -3,6 +3,26 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Situation gate: 3 bars → 4-box grid, added "Re-Applying"
+
+Direct request, screenshot: "following the same principle of the home page design, turn the 3 bars
+into boxes make the 4th box 'Re-Applying'."
+
+**`lib/situation/types.ts`:** added `'reapplying'` to `SituationKind` — someone who's successfully
+held this visa (or a similar one) before and is now renewing or applying again, distinct from
+"fresh" (never applied, or it's been a while) and "refused" (previously turned down). No dedicated
+follow-up panel, same as "fresh" — there's no different routing advice to give for it.
+
+**`components/checklist/SituationGate.tsx`:** the 3 stacked full-width bars on `/checklist/[country]/situation`
+became a 2x2 box grid using the same language as the homepage and country picker (tasks #405-#407):
+top row white/`card-surface`/text-good, bottom row dark navy/text-warn, bold headline + smaller
+caption underneath, with a ring highlight on the selected box. The new "Re-Applying" box fills out
+the grid evenly. The Continue button's label ("Continue to my checklist →" vs "...anyway →") now
+also treats `reapplying` the same as `fresh`.
+
+Typecheck clean, full suite still 62 suites / 374 tests passing (no existing tests touch this
+component).
+
 ## Country picker: opportunities link moved beside "Coming soon", renamed
 
 Direct request, screenshot: "the link called 'not applying for a visa yet...' move it beside coming

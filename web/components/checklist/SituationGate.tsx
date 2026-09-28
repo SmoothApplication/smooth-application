@@ -154,27 +154,46 @@ export default function SituationGate({
         <p className="mt-1 text-sm text-[#4c6270]">Just so we can point you the right way - answering doesn&apos;t change what&apos;s ahead unless you want it to.</p>
       </div>
 
-      <div className="flex flex-col gap-2" role="radiogroup" aria-label="Where are you in the process?">
+      {/* Task #408 (direct request, screenshot): "following the same principle of the home page
+          design, turn the 3 bars into boxes make the 4th box 'Re-Applying'" — the 3 stacked
+          full-width bars became a 2x2 box grid using the same language as the homepage
+          (app/page.tsx) and the country picker (app/checklist/start/page.tsx, tasks #405-#407):
+          top row white/`card-surface`/text-good, bottom row dark navy/text-warn, both bold
+          headline + smaller caption underneath. A 4th box, "Re-Applying", was added to fill out
+          the grid evenly — see lib/situation/types.ts for why it's a distinct option rather than
+          folded into "fresh". */}
+      <div className="grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Where are you in the process?">
         <SituationOption
+          tone="good"
           icon="🆕"
-          title="This is a fresh application"
+          title="Fresh application"
           desc="Haven't applied for this visa before, or it's been a while"
           selected={kind === 'fresh'}
           onClick={() => selectKind('fresh')}
         />
         <SituationOption
+          tone="good"
           icon="📄"
-          title="I've been refused before"
+          title="Refused before"
           desc="For this visa, or any other, in the last few years"
           selected={kind === 'refused'}
           onClick={() => selectKind('refused')}
         />
         <SituationOption
+          tone="warn"
           icon="✅"
-          title="I've already paid the fee and filled the form"
+          title="Already paid & filled"
           desc="Applied already - want a second pair of eyes before your appointment"
           selected={kind === 'paid'}
           onClick={() => selectKind('paid')}
+        />
+        <SituationOption
+          tone="warn"
+          icon="🔁"
+          title="Re-Applying"
+          desc="Successfully held this visa (or a similar one) before - now renewing or applying again"
+          selected={kind === 'reapplying'}
+          onClick={() => selectKind('reapplying')}
         />
       </div>
 
@@ -403,7 +422,7 @@ export default function SituationGate({
           onClick={() => trackEvent('situation_continue')}
           className="w-full rounded-lg bg-accent px-4 py-3 text-center font-semibold text-white hover:opacity-90"
         >
-          {kind === 'fresh' ? 'Continue to my checklist →' : 'Continue to my checklist anyway →'}
+          {kind === 'fresh' || kind === 'reapplying' ? 'Continue to my checklist →' : 'Continue to my checklist anyway →'}
         </Link>
       ) : (
         <div>
@@ -425,33 +444,41 @@ export default function SituationGate({
 }
 
 function SituationOption({
+  tone,
   icon,
   title,
   desc,
   selected,
   onClick,
 }: {
+  tone: 'good' | 'warn';
   icon: string;
   title: string;
   desc: string;
   selected: boolean;
   onClick: () => void;
 }) {
+  const isGood = tone === 'good';
   return (
     <button
       type="button"
       role="radio"
       aria-checked={selected}
       onClick={onClick}
-      className={`flex items-start gap-3 rounded-lg border px-3 py-2.5 text-left text-sm transition ${
-        selected ? 'border-accent bg-accent-wash' : 'border-black/10 hover:border-accent/50'
-      }`}
+      className={
+        isGood
+          ? `card-surface flex flex-col gap-1 p-4 text-left transition ${
+              selected ? 'ring-2 ring-good' : 'hover:bg-black/5'
+            }`
+          : `flex flex-col gap-1 rounded-2xl bg-[#12232e] p-4 text-left text-white transition ${
+              selected ? 'ring-2 ring-warn' : 'hover:bg-white/5'
+            }`
+      }
     >
-      <span aria-hidden>{icon}</span>
-      <span>
-        <span className="block font-medium text-[#12232e]">{title}</span>
-        <span className="block text-xs text-[#566a76]">{desc}</span>
-      </span>
+      <p className={`text-base font-extrabold leading-snug ${isGood ? 'text-good' : 'text-warn'}`}>
+        <span aria-hidden>{icon}</span> {title}
+      </p>
+      <p className={`text-xs ${isGood ? 'text-[#4c6270]' : 'text-white/70'}`}>{desc}</p>
     </button>
   );
 }
