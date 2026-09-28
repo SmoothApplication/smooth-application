@@ -13,6 +13,7 @@ import {
   LetterAnalysis,
 } from '@/lib/situation';
 import { extractLetterText } from '@/lib/situation/extractLetterText';
+import { translateToEnglish, TranslationError } from '@/lib/situation/translateLetter';
 import { trackEvent } from '@/lib/analytics';
 
 // Port of index.html's "Where are you in the process?" gate (#situationGate, ~line 1806) — shown
@@ -66,6 +67,12 @@ export default function SituationGate({
   // often... summarize the reason why you were denied" — computed alongside letterText from the
   // same on-device extracted text, see lib/situation/letterAnalysis.ts for the actual logic.
   const [letterAnalysis, setLetterAnalysis] = useState<LetterAnalysis | null>(null);
+  // Task #415 follow-up (direct request): "translate them and tell the applicant the reason" — see
+  // lib/situation/translateLetter.ts's header for why this is the one part of the reading aid that
+  // sends text to a third-party service (MyMemory) rather than staying fully on-device.
+  const [translateStatus, setTranslateStatus] = useState<'idle' | 'busy' | 'ok' | 'err'>('idle');
+  const [translateMessage, setTranslateMessage] = useState('');
+  const [translatedText, setTranslatedText] = useState<string | null>(null);
   const [showManual, setShowManual] = useState(false);
   const [manualDate, setManualDate] = useState('');
   const [manualFinancial, setManualFinancial] = useState<'' | 'yes' | 'no'>('');
@@ -141,6 +148,9 @@ export default function SituationGate({
     setScanStatus('busy');
     setScanMessage('Reading your letter… this can take up to 30 seconds (nothing leaves your browser).');
     setLetterAnalysis(null); // clear any previous scan's analysis before this one finishes
+    setTranslatedText(null);
+    setTranslateStatus('idle');
+    setTranslateMessage('');
     try {
       const text = await extractLetterText(letterFile);
       if (!text || !text.trim()) {
@@ -167,6 +177,31 @@ export default function SituationGate({
       setScanStatus('err');
       setScanMessage((err instanceof Error ? err.message : "Couldn't read this file automatically.") + ' You can still just tell us directly below.');
       setShowManual(true);
+    }
+  }
+
+  // Task #415 follow-up (direct request): "translate them and tell the applicant the reason." Only
+  // callable once letterAnalysis.detectedLanguage is set (see the render block below), so
+  // sourceLang is always a real guessed code, never invented here.
+  async function handleTranslateLetter(sourceLang: string) {
+    if (!letterText) return;
+    setTranslateStatus('busy');
+    setTranslateMessage('Translating… this sends your letter’s text to a translation service (not just processed on your device, unlike the rest of this page).');
+    try {
+      const translated = await translateToEnglish(letterText, sourceLang);
+      setTranslatedText(translated);
+      // Re-run the same word/reason analysis on the translated text so the summary above now
+      // reflects the letter's actual content instead of untranslated foreign-language noise.
+      setLetterAnalysis(analyzeLetter(translated));
+      setTranslateStatus('ok');
+      setTranslateMessage('Translated below - this is a machine translation and may not be perfectly accurate.');
+    } catch (err) {
+      setTranslateStatus('err');
+      setTranslateMessage(
+        err instanceof TranslationError
+          ? err.message
+          : "Couldn't translate this automatically - the original text is still shown below."
+      );
     }
   }
 
@@ -321,13 +356,37 @@ export default function SituationGate({
               not a fact the way the parsed refusal date above is. */}
           {letterAnalysis && (
             <div className="mb-2 rounded-md bg-accent-wash p-3 text-xs text-[#12232e]">
-              {letterAnalysis.looksNonEnglish && (
-                <p className="mb-2 rounded-md bg-warn-wash p-2 text-warn-text">
-                  This doesn&apos;t look like it&apos;s written in English, so the word/reason
-                  patterns below are unreliable - they only understand English text. Read the full
-                  text below yourself, or see the note under &quot;Just tell us directly&quot; for
-                  what to do with a letter in another language.
-                </p>
+              {letterAnalysis.looksNonEnglish && !translatedText && (
+                <div className="mb-2 rounded-md bg-warn-wash p-2 text-warn-text">
+                  <p className="mb-2">
+                    This doesn&apos;t look like it&apos;s written in English
+                    {letterAnalysis.detectedLanguage ? ` - possibly ${letterAnalysis.detectedLanguage.name}` : ''},
+                    so the word/reason patterns above are unreliable - they only understand English text.
+                  </p>
+                  {letterAnalysis.detectedLanguage ? (
+                    <>
+                      <button
+                        type="button"
+                        disabled={translateStatus === 'busy'}
+                        onClick={() => handleTranslateLetter(letterAnalysis.detectedLanguage!.code)}
+                        className="rounded-md bg-white px-2 py-1 text-[11px] font-medium text-warn-text hover:bg-white/80 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {translateStatus === 'busy' ? 'Translating…' : `Translate from ${letterAnalysis.detectedLanguage.name} to English`}
+                      </button>
+                      <p className="mt-1 text-[10px]">
+                        Unlike everything else on this page, translating sends your letter&apos;s
+                        text to a free translation service (translated.net) rather than keeping it
+                        only on your device.
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-[10px]">
+                      Read the full text below yourself, or see the note under &quot;Just tell us
+                      directly&quot; for what to do with a letter in another language.
+                    </p>
+                  )}
+                  {translateStatus === 'err' && <p className="mt-1 text-[10px]">{translateMessage}</p>}
+                </div>
               )}
               {letterAnalysis.topWords.length > 0 && (
                 <div className="mb-2">
@@ -376,9 +435,25 @@ export default function SituationGate({
             </div>
           )}
 
+          {translateStatus === 'ok' && translatedText && (
+            <div className="mb-2 rounded-md bg-good-wash p-2 text-xs text-good">{translateMessage}</div>
+          )}
+
+          {translatedText && (
+            <div className="mb-2">
+              <p className="mb-1 text-xs font-medium text-[#12232e]">Translated to English (machine translation):</p>
+              <div className="max-h-44 overflow-y-auto whitespace-pre-wrap rounded-md bg-black/5 p-2 text-xs text-[#4c6270]">
+                {translatedText}
+              </div>
+            </div>
+          )}
+
           {letterText && (
-            <div className="mb-2 max-h-44 overflow-y-auto whitespace-pre-wrap rounded-md bg-black/5 p-2 text-xs text-[#4c6270]">
-              {letterText}
+            <div className="mb-2">
+              {translatedText && <p className="mb-1 text-xs font-medium text-[#12232e]">Original text:</p>}
+              <div className="max-h-44 overflow-y-auto whitespace-pre-wrap rounded-md bg-black/5 p-2 text-xs text-[#4c6270]">
+                {letterText}
+              </div>
             </div>
           )}
 

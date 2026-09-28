@@ -3,6 +3,50 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Refusal-letter reading aid: translate non-English letters in-app
+
+Follow-up to the word-frequency/reason-summary feature above. Direct request: "translate them and
+tell the applicant the reason" — the applicant wanted this to happen inside the app itself, not by
+sending someone off to translate their letter elsewhere.
+
+**Why this isn't fully on-device, unlike everything else in this app:** the original plan was an
+in-browser translation model (transformers.js) so the letter's text would never leave the device,
+matching this app's existing privacy story everywhere else (OCR, PDF parsing, statement analysis).
+That library needs a large (~150MB+) install, and this project's current dev setup kills any single
+command after about 3 minutes — long enough to start the download, never long enough to finish or
+verify it actually works. Rather than ship an integration I couldn't test, this was flagged back to
+the applicant (site owner) directly: fully offline, or an external API with a privacy trade-off, or
+hold off. They chose the external API.
+
+**`lib/situation/letterAnalysis.ts`:** added `detectNonEnglishLanguage()` — the same stopword-ratio
+trick as the existing `looksEnglish()` check, run once per candidate language (French, German,
+Spanish, Italian, Dutch, Portuguese, Polish — the languages a Nigerian applicant's Schengen refusal
+letter is realistically written in, depending on which consulate issued it). Wired into
+`analyzeLetter()` as a new `detectedLanguage` field. A letter in some other language just isn't
+offered a translate button — guessing the wrong source language would mistranslate it.
+
+**`lib/situation/translateLetter.ts`** (new, CLIENT-ONLY): calls MyMemory
+(mymemory.translated.net), a free, keyless translation API — verified working via a real browser
+request before wiring it in (a French refusal-letter paragraph translated correctly on the first
+try). No account, no API key, no billing setup needed from the applicant (site owner) or from me.
+`chunkLetterText()` splits long letters into safely-sized pieces first (paragraph boundaries, falling
+back to sentence boundaries for an unusually long paragraph) since the free tier isn't documented
+with a hard length cap, then `translateToEnglish()` translates each piece in sequence and rejoins
+them.
+
+**`components/checklist/SituationGate.tsx`:** when a specific language is detected, shows "This
+doesn't look like it's written in English — possibly French" with a "Translate from French to
+English" button and an explicit note that, unlike the rest of this reading aid, this sends the
+letter's text to a translation service. Clicking it shows the translated text, re-runs the
+word-frequency/reason-summary analysis on the *translated* content (so the summary reflects what
+the letter actually says once in English), and keeps the original text visible underneath for
+comparison. Translation is always a manual click, never automatic.
+
+Added `detectNonEnglishLanguage` tests to `letterAnalysis.test.ts` and a new
+`translateLetter.test.ts` covering `chunkLetterText`'s pure chunking logic (14 tests total,
+`translateToEnglish` itself is a live network call and isn't unit-tested, matching the existing
+`extractLetterText.ts` precedent). Typecheck clean, full suite now 64 suites / 406 tests passing.
+
 ## Refusal-letter reading aid: word frequency + likely-reason summary
 
 Direct request (mid-turn message): "under read my letter, make it possible for applicant to

@@ -41,6 +41,17 @@ export interface LetterAnalysis {
    * English-only pattern matches, so callers should warn the applicant these may be unreliable
    * (or worthless) for a letter in another language, rather than silently showing nothing. */
   looksNonEnglish: boolean;
+  /** A specific guessed source language, only set when detectNonEnglishLanguage (below) is
+   * confident enough to name one — this is what a translate-to-English affordance should key off,
+   * since translation needs an actual source language code, not just a yes/no "not English" flag. */
+  detectedLanguage: DetectedLanguage | null;
+}
+
+export interface DetectedLanguage {
+  /** ISO 639-1 code, e.g. 'fr' — this is what gets passed to the translation service. */
+  code: string;
+  /** Display name shown to the applicant, e.g. "French". */
+  name: string;
 }
 
 // General-English stopwords — common function words that would otherwise dominate any frequency
@@ -208,15 +219,112 @@ export function looksEnglish(text: string): boolean {
   return stopwordHits / words.length > 0.08;
 }
 
+// Task #415 follow-up (direct request): "For letters in other languages, translate them and tell
+// the applicant the reason." Naming a specific source language is a harder problem than the
+// yes/no looksEnglish() check above — it's needed because lib/situation/translateLetter.ts's
+// translation API takes an explicit `langpair` (e.g. "fr|en"), not an "auto-detect" option on its
+// free tier. Rather than pull in a language-ID library, this reuses the same stopword-ratio trick
+// as looksEnglish(), just once per candidate language: the handful of languages a Nigerian
+// applicant's Schengen refusal letter is realistically going to be written in, based on which
+// consulate issued it. A letter in some other language simply won't be offered a translate button
+// — better to say nothing than guess the wrong source language and mistranslate.
+interface LanguageProfile {
+  code: string;
+  name: string;
+  stopwords: Set<string>;
+}
+
+const LANGUAGE_PROFILES: LanguageProfile[] = [
+  {
+    code: 'fr',
+    name: 'French',
+    stopwords: new Set([
+      'le', 'la', 'les', 'de', 'des', 'et', 'est', 'vous', 'votre', 'pour', 'que', 'dans', 'pas',
+      'ne', 'avec', 'nous', 'ce', 'cette', 'ont', 'au', 'aux', 'sur', 'par', 'ou', 'se', 'sont',
+      'il', 'elle', 'en', 'du', 'un', 'une', 'qui', 'a',
+    ]),
+  },
+  {
+    code: 'de',
+    name: 'German',
+    stopwords: new Set([
+      'der', 'die', 'das', 'und', 'ist', 'sie', 'ihre', 'nicht', 'mit', 'sich', 'auf', 'ein',
+      'eine', 'für', 'von', 'den', 'dem', 'wir', 'ihr', 'wurde', 'werden', 'haben', 'hat', 'als',
+      'auch', 'oder', 'bei', 'im', 'zu',
+    ]),
+  },
+  {
+    code: 'es',
+    name: 'Spanish',
+    stopwords: new Set([
+      'el', 'la', 'los', 'las', 'de', 'que', 'es', 'usted', 'su', 'para', 'no', 'con', 'por', 'se',
+      'un', 'una', 'del', 'en', 'al', 'ha', 'sus', 'le', 'más', 'pero', 'como', 'lo',
+    ]),
+  },
+  {
+    code: 'it',
+    name: 'Italian',
+    stopwords: new Set([
+      'il', 'lo', 'la', 'di', 'che', 'è', 'lei', 'suo', 'per', 'non', 'con', 'del', 'della', 'un',
+      'una', 'gli', 'le', 'sono', 'ha', 'al', 'come', 'più', 'anche', 'in',
+    ]),
+  },
+  {
+    code: 'nl',
+    name: 'Dutch',
+    stopwords: new Set([
+      'de', 'het', 'een', 'en', 'is', 'u', 'uw', 'niet', 'voor', 'met', 'van', 'op', 'dat', 'deze',
+      'wordt', 'naar', 'aan', 'bij', 'door', 'als', 'ook', 'zijn',
+    ]),
+  },
+  {
+    code: 'pt',
+    name: 'Portuguese',
+    stopwords: new Set([
+      'o', 'a', 'de', 'é', 'você', 'seu', 'para', 'não', 'com', 'por', 'se', 'um', 'uma', 'do',
+      'da', 'em', 'os', 'as', 'mais', 'como', 'também', 'que',
+    ]),
+  },
+  {
+    code: 'pl',
+    name: 'Polish',
+    stopwords: new Set([
+      'i', 'w', 'na', 'jest', 'pan', 'pani', 'nie', 'do', 'z', 'że', 'się', 'dla', 'po', 'od', 'o',
+      'przez', 'oraz', 'jako', 'może', 'tym',
+    ]),
+  },
+];
+
+/** Best-guess source language for `text`, or null if nothing matches confidently enough. Matches
+ * on Unicode letters (`\p{L}`) rather than the plain a-z used elsewhere in this file, since several
+ * of these languages depend on accented/diacritic characters (é, ñ, ü, ł, etc.) that a plain ASCII
+ * word regex would silently mangle. */
+export function detectNonEnglishLanguage(text: string): DetectedLanguage | null {
+  const words = (text.match(/\p{L}+/gu) || []).map((w) => w.toLowerCase());
+  if (words.length < 15) return null;
+  let best: (DetectedLanguage & { ratio: number }) | null = null;
+  for (const profile of LANGUAGE_PROFILES) {
+    const hits = words.filter((w) => profile.stopwords.has(w)).length;
+    const ratio = hits / words.length;
+    if (ratio > 0.08 && (!best || ratio > best.ratio)) {
+      best = { code: profile.code, name: profile.name, ratio };
+    }
+  }
+  return best ? { code: best.code, name: best.name } : null;
+}
+
 /** Runs the full reading-aid analysis over already-extracted letter text: top repeated words,
- * matched refusal-reason categories, and an English-language sanity check. */
+ * matched refusal-reason categories, an English-language sanity check, and a best-guess source
+ * language for the "Translate to English" affordance. */
 export function analyzeLetter(text: string): LetterAnalysis {
   const topWords = wordFrequency(text);
   const reasonMatches = matchReasonCategories(text);
+  const nonEnglish = !looksEnglish(text);
   return {
     topWords,
     reasonMatches,
     primaryReason: reasonMatches[0] ?? null,
-    looksNonEnglish: !looksEnglish(text),
+    looksNonEnglish: nonEnglish,
+    detectedLanguage: nonEnglish ? detectNonEnglishLanguage(text) : null,
   };
 }

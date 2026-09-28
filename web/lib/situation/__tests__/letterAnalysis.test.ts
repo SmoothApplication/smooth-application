@@ -3,7 +3,13 @@
 // ../letterAnalysis.ts against realistic UK Home Office-style refusal letter wording (same style of
 // fixture used in routing.test.ts), plus a non-English fixture and edge cases.
 
-import { wordFrequency, matchReasonCategories, looksEnglish, analyzeLetter } from '../letterAnalysis';
+import {
+  wordFrequency,
+  matchReasonCategories,
+  looksEnglish,
+  detectNonEnglishLanguage,
+  analyzeLetter,
+} from '../letterAnalysis';
 
 const FINANCIAL_LETTER = `
 Dear Applicant,
@@ -39,6 +45,14 @@ Nous vous informons que votre demande de visa a été refusée. Les documents fo
 pas d'établir de manière suffisante vos ressources financières ni votre intention de quitter le
 territoire à l'issue de votre séjour. Nous vous prions d'agréer, Madame, Monsieur, l'expression de
 nos salutations distinguées.
+`;
+
+const GERMAN_LETTER = `
+Sehr geehrte Damen und Herren,
+
+wir teilen Ihnen mit, dass Ihr Visumantrag abgelehnt wurde. Die vorgelegten Unterlagen reichen
+nicht aus, um Ihre finanziellen Verhältnisse und Ihre Absicht, das Land nach Ablauf Ihres
+Aufenthalts wieder zu verlassen, ausreichend nachzuweisen. Mit freundlichen Grüßen.
 `;
 
 describe('wordFrequency', () => {
@@ -121,17 +135,51 @@ describe('looksEnglish', () => {
   });
 });
 
+describe('detectNonEnglishLanguage', () => {
+  test('identifies French from its stopwords', () => {
+    expect(detectNonEnglishLanguage(FRENCH_LETTER)).toEqual({ code: 'fr', name: 'French' });
+  });
+
+  test('identifies German from its stopwords', () => {
+    expect(detectNonEnglishLanguage(GERMAN_LETTER)).toEqual({ code: 'de', name: 'German' });
+  });
+
+  test('returns null for English text', () => {
+    expect(detectNonEnglishLanguage(FINANCIAL_LETTER)).toBeNull();
+  });
+
+  test('returns null for short text rather than guessing', () => {
+    expect(detectNonEnglishLanguage('Bonjour')).toBeNull();
+  });
+
+  test('returns null for a language none of the profiles cover', () => {
+    // Random unrelated English-looking gibberish shouldn't accidentally match a profile.
+    expect(detectNonEnglishLanguage('xyz qwe rst uvw abc def ghi jkl mno pqr stu vwx yz')).toBeNull();
+  });
+});
+
 describe('analyzeLetter', () => {
   test('combines word frequency, reason matching, and language check', () => {
     const result = analyzeLetter(FINANCIAL_LETTER);
     expect(result.primaryReason?.label).toBe('Insufficient or unclear finances');
     expect(result.topWords.length).toBeGreaterThan(0);
     expect(result.looksNonEnglish).toBe(false);
+    expect(result.detectedLanguage).toBeNull();
   });
 
   test('flags a non-English letter and still runs without throwing', () => {
     const result = analyzeLetter(FRENCH_LETTER);
     expect(result.looksNonEnglish).toBe(true);
+  });
+
+  test('names the detected language for a non-English letter', () => {
+    const result = analyzeLetter(FRENCH_LETTER);
+    expect(result.detectedLanguage).toEqual({ code: 'fr', name: 'French' });
+  });
+
+  test('does not attempt language detection when the text already looks English', () => {
+    const result = analyzeLetter(GENUINE_VISITOR_LETTER);
+    expect(result.detectedLanguage).toBeNull();
   });
 
   test('primaryReason is null when nothing matches', () => {
@@ -144,5 +192,6 @@ describe('analyzeLetter', () => {
     expect(result.topWords).toEqual([]);
     expect(result.reasonMatches).toEqual([]);
     expect(result.primaryReason).toBeNull();
+    expect(result.detectedLanguage).toBeNull();
   });
 });
