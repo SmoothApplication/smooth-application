@@ -180,7 +180,7 @@ export default function ConfidenceQuizPage() {
               </div>
               <div className="card-surface p-6">
                 <p className="text-xl font-extrabold leading-snug text-good">
-                  Your passport photo and bank statements are never uploaded anywhere
+                  Your international passport and bank statements are never uploaded anywhere
                 </p>
               </div>
               <div className="rounded-2xl bg-[#12232e] p-6 text-white">

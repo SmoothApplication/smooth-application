@@ -3,6 +3,17 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Trust/privacy card: "passport photo" corrected to "international passport"
+
+Direct request, screenshot: "it is your international passport not passport photo." The applicant
+hands over their actual international passport document during the real checklist (for the
+passport-scan session), not a standalone photo of one — the trust-card copy was worded loosely.
+
+**`app/quiz/page.tsx`:** the box's text now reads "Your international passport and bank statements
+are never uploaded anywhere."
+
+Typecheck clean, full suite still 62 suites / 374 tests passing.
+
 ## Trust/privacy card: removed redundant "Pick Your Country" heading
 
 Direct request, screenshot: "Remove 'Pick Your Country'." That heading (added in task #400) sat
