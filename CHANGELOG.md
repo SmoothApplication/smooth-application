@@ -3,6 +3,19 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Country picker: opportunities link moved beside "Coming soon", renamed
+
+Direct request, screenshot: "the link called 'not applying for a visa yet...' move it beside coming
+soon and name is funded opportunities."
+
+**`app/checklist/start/page.tsx`:** the opportunities link — previously its own line above the
+4-box country grid — moved to sit beside the "Coming soon: ..." line below the grid, on the same
+row (`flex justify-between`), and its label shortened from "🎓 Not applying for a visa yet? Browse
+funded opportunities & exchange programs instead" to "🎓 Funded opportunities". Still links to
+`/opportunities` — only its position and label text changed.
+
+Typecheck clean, full suite still 62 suites / 374 tests passing.
+
 ## Country picker: widened to homepage size, header condensed
 
 Direct request, screenshot: "increase the size of this page to the size of the homepage. Move the

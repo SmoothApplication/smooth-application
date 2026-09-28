@@ -80,16 +80,9 @@ export default function ChecklistStartPage() {
           <span className="text-lg font-semibold text-[#12232e]">Smooth Application</span>
         </div>
 
-        <label className="mb-2 block text-sm font-medium text-[#12232e]">
+        <label className="mb-3 block text-sm font-medium text-[#12232e]">
           Which visa are you preparing for?
         </label>
-        {/* Ported from index.html's #gateOpportunitiesLink (~line 1683) — a direct way out for
-            someone who can't yet afford a visa at all, right where they're choosing one, rather
-            than several steps into the checklist. See /opportunities for the standalone screen
-            this opens (index.html's #opportunitiesGate). */}
-        <Link href="/opportunities" className="mb-3 block text-xs text-accent underline">
-          🎓 Not applying for a visa yet? Browse funded opportunities &amp; exchange programs instead
-        </Link>
 
         {/* Task #405 (direct request, using the homepage's stat-box grid as the guide): the country
             picker used to be a plain <select> — this replaces it with the same 2x2 box grid
@@ -145,11 +138,22 @@ export default function ChecklistStartPage() {
           ))}
         </div>
 
-        {comingSoonCountries.length > 0 && (
-          <p className="mb-4 text-xs text-[#8a99a3]">
-            Coming soon: {comingSoonCountries.map((c) => `${c.flag} ${c.name}`).join(' · ')}
-          </p>
-        )}
+        {/* Task #407 (direct request, screenshot): "move it beside coming soon and name is funded
+            opportunities" — the opportunities link (previously above the box grid, task #405
+            moved everything else around it) now sits next to the "Coming soon" line as a shorter
+            label, since both are the same kind of low-priority secondary text sitting right below
+            the main country grid. Still points at /opportunities (index.html's #gateOpportunitiesLink
+            / #opportunitiesGate) — only its position and label changed, not its destination. */}
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-[#8a99a3]">
+          {comingSoonCountries.length > 0 ? (
+            <p>Coming soon: {comingSoonCountries.map((c) => `${c.flag} ${c.name}`).join(' · ')}</p>
+          ) : (
+            <span />
+          )}
+          <Link href="/opportunities" className="text-accent underline">
+            🎓 Funded opportunities
+          </Link>
+        </div>
 
         <div className="mb-4 flex gap-2 rounded-lg bg-accent-wash p-3 text-sm text-[#12232e]">
           <span aria-hidden>ℹ️</span>
