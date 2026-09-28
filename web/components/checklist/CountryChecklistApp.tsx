@@ -351,11 +351,12 @@ export default function CountryChecklistApp({
           onClick={() => {
             trackEvent('checklist_view');
             setView('checklist');
-            // Task #381: land on Session 1 (Validate your International Passport) first, matching
-            // the original's real session order (confirmed directly off the live original's own
-            // session pills), rather than the flat document checklist — see
-            // lib/checklist/sessions.ts for the full scope note.
-            router.push(sessionHref(code, 'passport'));
+            // Task #417: land on the real Session 1 — Income & bank statement analysis (finance2)
+            // — matching the original's actual sessionFlowOrder(), rather than the flat document
+            // checklist. (This used to point at 'passport' based on an earlier, incorrect reading
+            // of the live original's session order — see lib/checklist/sessions.ts's header
+            // comment for the correction and how it was confirmed off the original's own source.)
+            router.push(sessionHref(code, 'statement'));
           }}
           className="w-full rounded-lg bg-accent px-4 py-3 font-semibold text-white hover:opacity-90"
         >

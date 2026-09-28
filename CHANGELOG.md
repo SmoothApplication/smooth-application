@@ -3,6 +3,52 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fixed the numbered-session order to actually match the live original
+
+Direct request: "rearrange smoothapplication.com to follow the arrangement in sessions" on
+smoothapplication.github.io/smooth-application, backed by two screenshots showing the original's
+own "Session 1 of 14: Income & bank statement analysis" header — contradicting this app's session
+order, which opened on Session 1: Validate your International Passport instead.
+
+Earlier task history in this repo (the sessions.ts header comment, and CountryChecklistApp's own
+"Show my checklist" button) had concluded passport was genuinely session 1, "confirmed directly off
+the live original's own session pills." That conclusion was wrong, and worth recording exactly how:
+a plain read of the live page's text/DOM does list passport first, because index.html renders every
+section in one static document and only paginates them with CSS — so the raw markup order looks like
+the session order but isn't. The real order comes from a separate reordering step layered on top.
+
+Confirmed this time from the original's actual source
+(raw.githubusercontent.com/SmoothApplication/smooth-application/main/index.html):
+`getVisibleSessionKeys()` declares the base array as `['passport', 'travelExperience',
+'responsibilities', 'trip', 'finance2', 'finance', 'nextSteps', ...]`, but a second function,
+`sessionFlowOrder()`, permutes it to `[4, 0, 1, 2, 3, ...rest]` before it ever reaches the pill nav,
+Back/Next stepping, or the "Session X of Y" label — specifically so that Income & bank statement
+analysis (finance2) is what applicants land on first ("bank-statement readiness is the one
+requirement with real calendar lead time — passport renewal is parallelizable, this isn't").
+
+Applied the same permutation in `lib/checklist/sessions.ts`'s `buildSessionOrder()` — statement
+first, then passport → travel-history → responsibilities → trip-details in their original relative
+order, then financial → next-steps unchanged, then the per-category document checklist → final
+review → reasons unchanged (only the first 5 of the 7 fixed sessions move). Since every session page
+computes its "Session X of Y" header, pill order, and Back/Next hrefs generically from
+`buildSessionOrder()` (via `SessionShell.tsx`), this one change fixes the numbering everywhere
+without touching any individual session page.
+
+Also fixed the two places that hardcoded a `/passport` entry point instead of asking
+`buildSessionOrder`/`sessionHref` for the real first session: `SituationGate`'s "fresh application"
+`checklistHref` (both the UK-specific and generic per-country situation routes) and
+`CountryChecklistApp`'s "Show my checklist" button — both now land on the statement session.
+
+**Known, disclosed gap, out of scope for this fix:** the original also inserts a "Business Income
+Record" session (`bizLedger`) for self-employed applicants only, appended after the document
+checklist and before Final review. This app's equivalent (`BusinessIncomeLedger.tsx`) exists but
+isn't wired into `buildSessionOrder` as its own numbered, conditional session yet — reordering the
+existing sessions didn't require touching that, so it was left alone rather than scope-creeping into
+a second feature gap while fixing the first.
+
+`lib/checklist/__tests__/sessions.test.ts` updated to assert the new order. Full suite: 65 suites /
+422 tests passing.
+
 ## "Already paid & filled" self-check: does your form match your finances?
 
 Direct request, screenshot of the situation gate: "ask applicants to upload their filled UK form

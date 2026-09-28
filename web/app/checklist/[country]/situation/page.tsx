@@ -22,11 +22,11 @@ export default function CountrySituationPage({ params }: { params: { country: st
     <SituationGate
       name={data.name}
       isTravelReadiness={TRAVEL_READINESS_CODES.includes(data.code)}
-      // Same fix as web/app/checklist/uk/situation/page.tsx: checklistHref is the "fresh
-      // application" default entry point, so it needs to land on Session 1 (Validate your
-      // International Passport), not skip straight to this country's own /checklist/<code>
-      // checklist body.
-      checklistHref={`/checklist/${params.country}/passport`}
+      // Task #417, same fix as web/app/checklist/uk/situation/page.tsx: checklistHref is the
+      // "fresh application" default entry point, so it needs to land on the real Session 1 —
+      // Income & bank statement analysis (finance2), not passport — see lib/checklist/sessions.ts's
+      // header comment for how that was confirmed off the original's actual source.
+      checklistHref={`/checklist/${params.country}/statement`}
       statementHref={`/checklist/${params.country}/statement`}
       passportHref={`/checklist/${params.country}/passport`}
     />
