@@ -3,6 +3,20 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Homepage: shrunk stat-box headline numbers to match the quiz pages
+
+Direct request, 3 screenshots comparing the homepage boxes to the quiz-result grid and trust card:
+"make sure the images in the 3 pictures... have the same sizes and same font and use the same
+colour where it applies." Padding (`p-6`) and the good/warn colour split already matched across
+all three, but the homepage's headline numbers were `text-4xl`/`text-3xl` — much bigger than the
+quiz pages' `text-xl` headline sentences. Clarified with the user first (asked whether to bump the
+quiz pages up or bring the homepage down); they said to leave the quiz pages alone.
+
+**`app/page.tsx`:** all 4 stat numbers (1.13M, 38.65%, NGN 246bn+, NGN 7.1bn+) now use
+`text-xl font-extrabold leading-snug`, matching the quiz-result grid and trust card exactly.
+
+Typecheck clean, full suite still 62 suites / 374 tests passing.
+
 ## Trust/privacy card: "passport photo" corrected to "international passport"
 
 Direct request, screenshot: "it is your international passport not passport photo." The applicant

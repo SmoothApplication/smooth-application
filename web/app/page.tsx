@@ -37,15 +37,23 @@ export default function HomePage() {
           <span className="text-lg font-semibold text-[#12232e]">Smooth Application</span>
         </div>
 
+        {/* Task #404 (direct request, 3 screenshots comparing this page's boxes to the quiz-result
+            and trust-card boxes): "make sure the images... have the same sizes and same font and
+            use the same colour where it applies." Box padding (p-6) and the good/warn colour split
+            already matched the quiz pages, but the headline number here was text-4xl/text-3xl —
+            much bigger than the quiz pages' text-xl headline sentences. Per the user's explicit
+            call (leave the quiz pages alone, bring this page in line with them), shrunk both
+            headline sizes here to text-xl font-extrabold leading-snug, matching the quiz-result
+            grid (app/quiz/page.tsx, task #397-#399) and trust card (task #400) exactly. */}
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="card-surface p-6">
-            <p className="text-4xl font-extrabold text-good">1.13M</p>
+            <p className="text-xl font-extrabold leading-snug text-good">1.13M</p>
             <p className="mt-2 text-sm text-[#4c6270]">
               UK visitor-visa refusals for Nigerian applicants, 2005–Q1 2026
             </p>
           </div>
           <div className="card-surface p-6">
-            <p className="text-4xl font-extrabold text-good">38.65%</p>
+            <p className="text-xl font-extrabold leading-snug text-good">38.65%</p>
             <p className="mt-2 text-sm text-[#4c6270]">
               Nigeria&apos;s UK visitor-visa refusal rate, year ending March 2026 — more than 2× the
               UK&apos;s global average
@@ -62,14 +70,14 @@ export default function HomePage() {
             <p className="text-xs font-medium uppercase tracking-wide text-white/60">
               UK · 2005–Q1 2026
             </p>
-            <p className="mt-2 text-3xl font-extrabold text-warn">NGN 246bn+</p>
+            <p className="mt-2 text-xl font-extrabold leading-snug text-warn">NGN 246bn+</p>
             <p className="mt-2 text-xs text-white/70">≈£129.6M · 1.13M refusals × £115 base fee</p>
           </div>
           <div className="rounded-2xl bg-[#12232e] p-6 text-white">
             <p className="text-xs font-medium uppercase tracking-wide text-white/60">
               Schengen · 2024 only
             </p>
-            <p className="mt-2 text-3xl font-extrabold text-warn">NGN 7.1bn+</p>
+            <p className="mt-2 text-xl font-extrabold leading-snug text-warn">NGN 7.1bn+</p>
             <p className="mt-2 text-xs text-white/70">
               ≈$5.1M · 50,376 of 111,201 applications refused (45.9%)
             </p>
