@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -100,6 +100,21 @@ export default function SituationGate({
   function updateReappTripDay(i: number, value: string) {
     setReappTripDays((rows) => rows.map((r, idx) => (idx === i ? value : r)));
   }
+
+  // Task #412 (direct request): both <input type="month"> fields below defaulted their native
+  // picker to opening on the CURRENT month with no `min`, so getting to a visa issued years ago
+  // meant clicking the picker's back arrow one month at a time — for a visa from a decade back,
+  // that's 120+ clicks. Browsers that show a year selector in the month picker only offer it once
+  // a `min` is set, so this range lets someone jump straight to, say, 2016 instead of stepping
+  // back through it. 20 years covers even a long-since-expired multi-entry visa; `max` is today's
+  // month since neither "when issued" nor "when last travelled" can be in the future.
+  const monthInputRange = useMemo(() => {
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const max = `${now.getFullYear()}-${pad(now.getMonth() + 1)}`;
+    const min = `${now.getFullYear() - 20}-${pad(now.getMonth() + 1)}`;
+    return { min, max };
+  }, []);
 
   function destName() {
     return isTravelReadiness ? `${name} trip` : `${name} application`;
@@ -481,6 +496,8 @@ export default function SituationGate({
               <input
                 id="reapp-last-visa-date"
                 type="month"
+                min={monthInputRange.min}
+                max={monthInputRange.max}
                 value={reappLastVisaDate}
                 onChange={(e) => setReappLastVisaDate(e.target.value)}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
@@ -533,6 +550,8 @@ export default function SituationGate({
               <input
                 id="reapp-last-travel-date"
                 type="month"
+                min={monthInputRange.min}
+                max={monthInputRange.max}
                 value={reappLastTravelDate}
                 onChange={(e) => setReappLastTravelDate(e.target.value)}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"

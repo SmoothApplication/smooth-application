@@ -3,6 +3,23 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Re-Applying form: month pickers now let you jump back a decade or more
+
+Direct request: "under 'when did you last get this visa' it's showing only 2026 make it to have at
+least to start from 2016 a visa issued ten years visa is okay."
+
+**`components/checklist/SituationGate.tsx`:** both `<input type="month">` fields in the
+"Re-Applying" follow-up ("When did you last get this visa?" and "When was the last time you
+travelled with this visa?") had no `min`/`max`, so the native picker opened straight on the current
+month with no fast way to reach an earlier year — stepping back a decade meant clicking the
+picker's back arrow 100+ times. Added a `min`/`max` range (computed at render time, not
+hardcoded): `max` is the current month, `min` is 20 years back. Most browsers only show a
+jump-to-year control on a month picker once a `min` is set, so this lets someone reach 2016 (or
+further back) directly instead of stepping through it one month at a time. Neither field can be
+set in the future, which also wasn't previously enforced.
+
+Typecheck clean, full suite still 62 suites / 374 tests passing.
+
 ## Situation gate: dropped forced full-screen height to kill dead space below content
 
 Direct request, screenshot of the gate with the 4-box grid + Continue button: "make the size like
