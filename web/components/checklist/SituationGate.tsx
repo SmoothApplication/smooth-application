@@ -14,6 +14,17 @@ import {
 } from '@/lib/situation';
 import { extractLetterText } from '@/lib/situation/extractLetterText';
 import { translateToEnglish, TranslationError } from '@/lib/situation/translateLetter';
+import {
+  extractMoneyFigures,
+  summarizeStatementTxns,
+  checkDeclaredFundsFit,
+  MoneyFigure,
+  StatementSummary,
+  FinanceFitResult,
+} from '@/lib/situation/paidFinanceCheck';
+import { getLinesFromFile } from '@/lib/statement/extractFile';
+import { parseStatementLinesWithFallback, ParsedTxn } from '@/lib/statement';
+import { fmtN } from '@/lib/checklist/financial';
 import { trackEvent } from '@/lib/analytics';
 
 // Port of index.html's "Where are you in the process?" gate (#situationGate, ~line 1806) — shown
@@ -84,6 +95,26 @@ export default function SituationGate({
   const [refCount, setRefCount] = useState('');
   const [refReason, setRefReason] = useState('');
   const [refBalance, setRefBalance] = useState('');
+
+  // ---- Task #416 (direct request, screenshot): "Already paid & filled" follow-up — upload the
+  // filled UK form + bank statement(s), cross-check what was declared against what the statement
+  // actually shows. Same on-device-only privacy promise as everything else on this page: the form
+  // is read via extractLetterText (the same OCR/PDF pipeline as the refusal-letter reading aid) and
+  // the statement(s) via lib/statement's existing parse engine (same as the standalone statement
+  // checker) — nothing here is ever uploaded anywhere. See lib/situation/paidFinanceCheck.ts for
+  // the actual money-figure extraction / balance-comparison logic and why it only auto-suggests
+  // figures rather than trusting OCR to pick "the" declared amount. ----
+  const [paidFormFile, setPaidFormFile] = useState<File | null>(null);
+  const [paidFormScanStatus, setPaidFormScanStatus] = useState<'idle' | 'busy' | 'ok' | 'err'>('idle');
+  const [paidFormScanMessage, setPaidFormScanMessage] = useState('');
+  const [paidFormText, setPaidFormText] = useState<string | null>(null);
+  const [paidMoneyFigures, setPaidMoneyFigures] = useState<MoneyFigure[]>([]);
+  const [paidDeclaredAmount, setPaidDeclaredAmount] = useState('');
+
+  const [paidStatementFiles, setPaidStatementFiles] = useState<File[]>([]);
+  const [paidStatementStatus, setPaidStatementStatus] = useState<'idle' | 'busy' | 'ok' | 'err'>('idle');
+  const [paidStatementMessage, setPaidStatementMessage] = useState('');
+  const [paidStatementSummary, setPaidStatementSummary] = useState<StatementSummary | null>(null);
 
   // ---- Task #410 (direct request): "Re-Applying" follow-up — a returning applicant's history
   // with this visa, gathered the same lightweight, ephemeral way as the "refused" fields above
@@ -205,6 +236,78 @@ export default function SituationGate({
     }
   }
 
+  // Task #416 follow-up: OCR the filled form purely as a reading aid — see the state block above
+  // and paidFinanceCheck.ts's header for why this never auto-picks "the" declared figure, only
+  // surfaces candidates for the applicant to confirm below.
+  async function handleScanPaidForm() {
+    if (!paidFormFile) return;
+    if (paidFormFile.size > 20 * 1024 * 1024) {
+      setPaidFormScanStatus('err');
+      setPaidFormScanMessage('File is larger than 20MB - please pick a smaller copy.');
+      return;
+    }
+    setPaidFormScanStatus('busy');
+    setPaidFormScanMessage('Reading your form… this can take up to 30 seconds (nothing leaves your browser).');
+    setPaidFormText(null);
+    setPaidMoneyFigures([]);
+    try {
+      const text = await extractLetterText(paidFormFile);
+      if (!text || !text.trim()) {
+        setPaidFormScanStatus('err');
+        setPaidFormScanMessage("Couldn't read that clearly - try a clearer photo/scan, or just type the amount you declared below.");
+        return;
+      }
+      setPaidFormText(text);
+      const figures = extractMoneyFigures(text);
+      setPaidMoneyFigures(figures);
+      setPaidFormScanStatus('ok');
+      setPaidFormScanMessage(
+        figures.length
+          ? "Got it - here's what we could find. Tap the right amount below, or type it in yourself."
+          : "Got it, but we couldn't spot a clear Naira amount in there automatically - type the amount you declared below."
+      );
+    } catch (err) {
+      setPaidFormScanStatus('err');
+      setPaidFormScanMessage((err instanceof Error ? err.message : "Couldn't read this file automatically.") + ' You can still type the amount you declared below.');
+    }
+  }
+
+  // Task #416 follow-up: run the uploaded statement(s) through the same parse engine the standalone
+  // statement checker uses (lib/statement), then reduce to just the couple of numbers this
+  // cross-check needs (see paidFinanceCheck.ts's summarizeStatementTxns). Each file is parsed
+  // separately and the results concatenated, rather than merging raw lines across files, so page-
+  // boundary narration-wrap logic never has to reason about two unrelated documents as one.
+  async function handleAnalyzePaidStatements() {
+    if (!paidStatementFiles.length) return;
+    setPaidStatementStatus('busy');
+    setPaidStatementMessage('Reading your statement(s)… this can take a few minutes for a scanned or photographed copy (nothing leaves your browser).');
+    setPaidStatementSummary(null);
+    try {
+      const allTxns: ParsedTxn[] = [];
+      for (const file of paidStatementFiles) {
+        const lines = await getLinesFromFile(file);
+        if (!lines.length) continue;
+        allTxns.push(...parseStatementLinesWithFallback(lines));
+      }
+      if (!allTxns.length) {
+        setPaidStatementStatus('err');
+        setPaidStatementMessage("We couldn't make out any transactions in that file. Double-check it's a bank statement export, or try a clearer copy.");
+        return;
+      }
+      setPaidStatementSummary(summarizeStatementTxns(allTxns));
+      setPaidStatementStatus('ok');
+      setPaidStatementMessage(`Read ${allTxns.length} transaction${allTxns.length === 1 ? '' : 's'} from your statement.`);
+    } catch (err) {
+      setPaidStatementStatus('err');
+      setPaidStatementMessage(err instanceof Error ? err.message : "Something went wrong reading that file - try a different PDF, spreadsheet, or clearer photo.");
+    }
+  }
+
+  const paidFitResult: FinanceFitResult | null =
+    paidStatementSummary && Number(paidDeclaredAmount) > 0
+      ? checkDeclaredFundsFit(Number(paidDeclaredAmount), paidStatementSummary)
+      : null;
+
   function handleApplyManual() {
     if (!manualDate) return;
     const [y, m, d] = manualDate.split('-').map(Number);
@@ -232,6 +335,20 @@ export default function SituationGate({
 
   function paidMessage() {
     return `Hi, I've already paid the fee and filled my ${destName()} form. I'm interested in the paid Document Review (70% off for the first 100 applicants - $4 instead of $14) before my appointment.`;
+  }
+
+  // Task #416 follow-up: prefilled with the actual numbers when the self-check below turns up a
+  // mismatch, so whoever replies already has the context instead of asking the applicant to
+  // re-explain it.
+  function paidFinanceMismatchMessage() {
+    const lines = [`Hi, I've already paid the fee and filled my ${destName()} form.`];
+    if (paidFitResult) {
+      lines.push(
+        `I declared about ${fmtN(paidFitResult.declaredAmount)}, but my bank statement's latest balance shows about ${fmtN(paidFitResult.latestBalance)}.`
+      );
+    }
+    lines.push("Can you help me understand what to do about this before my appointment?");
+    return lines.join('\n');
   }
 
   return (
@@ -597,6 +714,152 @@ export default function SituationGate({
 
       {kind === 'paid' && (
         <div className="rounded-lg border border-black/10 bg-white p-4">
+          {/* Task #416 (direct request, screenshot): "ask applicants to upload their filled UK form
+              and their bank statements... runs your bank statement through the income analysis
+              check and checks it with what you filled in your finances of you filled UK form...
+              confirm if your filled form fits your finances." A quick self-check, entirely
+              on-device, before the paid human review below. */}
+          <div className="mb-4 border-b border-black/10 pb-4">
+            <p className="mb-1 text-sm font-medium text-[#12232e]">🔍 Quick self-check: does your form match your finances?</p>
+            <p className="mb-3 text-xs text-[#4c6270]">
+              Upload your filled form and your bank statement, and we&apos;ll compare the funds figure you declared against what
+              your statement actually shows - both read entirely on your device, nothing uploaded anywhere.
+            </p>
+
+            <div className="mb-4">
+              <label className="mb-1 block text-xs font-medium text-[#12232e]">1. Your filled UK form</label>
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <input
+                  type="file"
+                  accept="image/*,application/pdf"
+                  onChange={(e) => setPaidFormFile(e.target.files?.[0] ?? null)}
+                  className="max-w-[220px] text-sm"
+                />
+                <button
+                  type="button"
+                  disabled={!paidFormFile || paidFormScanStatus === 'busy'}
+                  onClick={handleScanPaidForm}
+                  className="rounded-md bg-accent px-3 py-1.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  📎 Read my form
+                </button>
+              </div>
+              {paidFormScanStatus !== 'idle' && (
+                <p
+                  className={`mb-2 rounded-md p-2 text-xs ${
+                    paidFormScanStatus === 'err' ? 'bg-warn-wash text-warn-text' : paidFormScanStatus === 'ok' ? 'bg-accent-wash text-accent' : 'bg-black/5 text-[#4c6270]'
+                  }`}
+                >
+                  {paidFormScanMessage}
+                </p>
+              )}
+              {paidMoneyFigures.length > 0 && (
+                <div className="mb-2 flex flex-wrap gap-1.5">
+                  {paidMoneyFigures.map((f) => (
+                    <button
+                      key={f.value}
+                      type="button"
+                      onClick={() => setPaidDeclaredAmount(String(f.value))}
+                      className="rounded-full border border-black/10 bg-[#f7fafb] px-2.5 py-1 text-xs font-medium text-[#12232e] hover:bg-black/5"
+                    >
+                      {f.raw}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <label className="mb-1 block text-xs font-medium text-[#12232e]" htmlFor="paid-declared-amount">
+                Amount you declared as your available funds (₦)
+              </label>
+              <input
+                id="paid-declared-amount"
+                type="number"
+                min={0}
+                inputMode="numeric"
+                value={paidDeclaredAmount}
+                onChange={(e) => setPaidDeclaredAmount(e.target.value)}
+                placeholder="e.g. 500000"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              />
+              <p className="mt-1 text-[10px] text-[#8a99a3]">
+                Tap one of the amounts above once your form&apos;s read, or type it in yourself. If your form states a different
+                currency, roughly convert it to Naira first - this check only compares Naira figures.
+              </p>
+            </div>
+
+            <div className="mb-3">
+              <label className="mb-1 block text-xs font-medium text-[#12232e]">2. Your bank statement(s)</label>
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <input
+                  type="file"
+                  accept=".pdf,.xlsx,.xls,image/*"
+                  multiple
+                  onChange={(e) => setPaidStatementFiles(e.target.files ? Array.from(e.target.files) : [])}
+                  className="max-w-[260px] text-sm"
+                />
+                <button
+                  type="button"
+                  disabled={!paidStatementFiles.length || paidStatementStatus === 'busy'}
+                  onClick={handleAnalyzePaidStatements}
+                  className="rounded-md bg-accent px-3 py-1.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  🔍 Check my statement
+                </button>
+              </div>
+              {paidStatementStatus !== 'idle' && (
+                <p
+                  className={`mb-2 rounded-md p-2 text-xs ${
+                    paidStatementStatus === 'err' ? 'bg-warn-wash text-warn-text' : paidStatementStatus === 'ok' ? 'bg-accent-wash text-accent' : 'bg-black/5 text-[#4c6270]'
+                  }`}
+                >
+                  {paidStatementMessage}
+                </p>
+              )}
+              {paidStatementSummary && (
+                <p className="rounded-md bg-black/5 p-2 text-xs text-[#4c6270]">
+                  Your statement&apos;s latest balance: <strong className="text-[#12232e]">{fmtN(paidStatementSummary.latestBalance)}</strong>
+                  {' · '}Total money in over the period: <strong className="text-[#12232e]">{fmtN(paidStatementSummary.totalCredits)}</strong>
+                </p>
+              )}
+            </div>
+
+            {paidFitResult && (
+              <div className={`rounded-md p-3 text-sm ${paidFitResult.fits ? 'bg-good-wash text-good' : 'bg-warn-wash text-warn-text'}`}>
+                {paidFitResult.fits ? (
+                  <p>
+                    ✅ To the best of our knowledge, your statement supports what you declared - you look good to go for your
+                    appointment. This is a rough automatic check, not a guarantee, so it&apos;s still worth a last look yourself
+                    before you go.
+                  </p>
+                ) : (
+                  <>
+                    <p className="mb-2">
+                      ⚠️ This doesn&apos;t clearly match - you declared about {fmtN(paidFitResult.declaredAmount)}, but your
+                      statement&apos;s latest balance shows about {fmtN(paidFitResult.latestBalance)}. This doesn&apos;t
+                      necessarily mean anything is wrong (statements move around, and forms sometimes ask for a different kind of
+                      figure), but it&apos;s worth having a second pair of eyes on it before your appointment.
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <a
+                        href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(paidFinanceMismatchMessage())}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-md bg-accent px-3 py-1.5 text-sm font-semibold text-white hover:opacity-90"
+                      >
+                        💬 Contact us about this
+                      </a>
+                      <a
+                        href={`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent('My form and bank statement don’t match')}&body=${encodeURIComponent(paidFinanceMismatchMessage())}`}
+                        className="rounded-md border border-black/10 px-3 py-1.5 text-sm font-medium text-[#12232e] hover:bg-black/5"
+                      >
+                        ✉️ Email instead
+                      </a>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
           <p className="mb-3 text-sm text-[#4c6270]">
             We&apos;re testing a paid Document Review - a real person checks your form, passport and statements for completeness
             and quality before your appointment, from $4 (about ₦6,600) for our first 100 applicants. Message us and attach what

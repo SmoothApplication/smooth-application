@@ -3,6 +3,46 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## "Already paid & filled" self-check: does your form match your finances?
+
+Direct request, screenshot of the situation gate: "ask applicants to upload their filled UK form
+and their bank statements... the system now runs your bank statement through the income analysis
+check and checks it with what you filled in your finances of you filled UK form. This would
+confirm if your filled form fits your finances. If it does not fit ask the applicant to contact
+us. If it fits tell the applicant to the best of our knowledge the applicant is good to go."
+
+Added to the "Already paid & filled" panel, above the existing paid Document Review offer:
+
+- **Filled form (reading aid, not a verdict).** Upload a photo/PDF of the filled form; read
+  on-device via the same OCR/PDF pipeline as the refusal-letter reading aid
+  (`extractLetterText.ts`). Never trusts OCR to auto-pick "the" declared funds figure — a visa
+  form's page is full of unrelated numbers (reference codes, dates, phone numbers) — instead
+  `extractMoneyFigures` (new: `lib/situation/paidFinanceCheck.ts`) surfaces every Naira-tagged
+  amount it can find (requires a ₦/NGN/"naira" marker, filters anything under ₦1,000) as tappable
+  suggestions; the applicant taps one or types their own into a plain confirm field. Only that
+  confirmed number ever drives the comparison below.
+- **Bank statement(s).** Reuses the exact same parse engine as the standalone statement checker
+  (`getLinesFromFile` + `parseStatementLinesWithFallback` from `lib/statement`) — supports
+  multiple files (parsed separately, then concatenated, so page-boundary logic never has to treat
+  two unrelated documents as one). Reduced to just the two numbers this check needs
+  (`summarizeStatementTxns`): the latest balance and total credits over the period.
+- **The fit check** (`checkDeclaredFundsFit`): the statement's latest balance must cover at least
+  90% of the declared amount — a statement balance moves day to day even for someone with genuinely
+  sufficient funds, so this isn't an exact-match requirement. Fits → "to the best of our knowledge…
+  good to go" framed explicitly as a rough automatic check, not a guarantee. Doesn't fit → shows
+  both figures plainly and offers the same WhatsApp/email contact buttons used elsewhere on this
+  page, prefilled with the actual mismatch so whoever replies doesn't need it re-explained.
+
+**Scope, deliberately narrow:** only compares Naira figures. The real UK visitor visa form has no
+single fixed "funds available" field to OCR, and this codebase has no reliable, currency-converter
+to trust for a GBP/USD declared figure — silently picking a stale exchange rate would be worse than
+not attempting the comparison at all. The UI just asks the applicant to convert to Naira themselves
+first if their form states another currency.
+
+Same on-device-only privacy promise as the rest of this page — nothing here is ever uploaded
+anywhere. `lib/situation/paidFinanceCheck.ts` — pure logic, 16 new unit tests
+(`__tests__/paidFinanceCheck.test.ts`). Full suite: 65 suites / 422 tests passing.
+
 ## Refusal-letter reading aid: translate non-English letters in-app
 
 Follow-up to the word-frequency/reason-summary feature above. Direct request: "translate them and
