@@ -24,6 +24,11 @@ export interface PersistedTxn {
 /** Everything sa_uk_statement stores. */
 export interface PersistedStatement {
   txns: PersistedTxn[];
+  /** Task #420: applicant-editable label for this statement slot (e.g. "Salary account" / "Side
+   * business account") — only meaningful once a second slot exists, but stored on every statement
+   * so a slot keeps its name across visits. Optional/defaults to "Statement 1"/"Statement 2" in
+   * the UI for payloads saved before this feature existed. */
+  label?: string;
   applicantName: string;
   maidenName: string;
   nameCorrections: Record<string, string>;

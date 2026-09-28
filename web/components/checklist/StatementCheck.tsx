@@ -1,363 +1,153 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getLinesFromFile } from '@/lib/statement/extractFile';
-import {
-  parseStatementLinesWithFallback,
-  ParsedTxn,
-  serializeTxns,
-  deserializeTxns,
-  PersistedStatement,
-  extractAccountHolderName,
-  SpouseSponsorDeclaration,
-  WorkCategoryMap,
-} from '@/lib/statement';
-import StatementDashboard from '@/components/checklist/StatementDashboard';
-import ResumeReminderLinks from '@/components/checklist/ResumeReminderLinks';
+import StatementSlot from '@/components/checklist/StatementSlot';
 import SessionShell from '@/components/checklist/SessionShell';
 import { COUNTRIES } from '@/lib/checklist/countries';
-import { trackEvent } from '@/lib/analytics';
+import { combineStatementSummaries, StatementSummary } from '@/lib/statement';
 
 // Generalized out of the original UK-only web/app/checklist/uk/statement/page.tsx (Phase 4 of
-// task #244) so the same bank-statement check (StatementUpload + StatementDashboard, wired
-// together here) can be reused for every supported country's /checklist/<country>/statement
-// route, not just the UK's. The parsing/classification engine itself (lib/statement/*) is
-// destination-agnostic — this component is now parameterized by `countryCode` instead of
-// hardcoding "uk".
+// task #244) so the same bank-statement check can be reused for every supported country's
+// /checklist/<country>/statement route.
 //
-// Privacy: unchanged from every earlier phase - the file itself is read and parsed entirely in this
-// tab (pdf.js/SheetJS in the browser) and is never sent anywhere. What DOES get saved is a small
-// plain-data reduction of the parsed transactions (see lib/statement/persist.ts) plus the applicant
-// name / maiden name / "Fix name" corrections - all under one localStorage key,
-// sa_<countryCode>_statement. No raw file bytes and no original file are ever stored.
+// Task #420 (direct request): "people who work in structured/corporate organizations... have an
+// account for salary [and] are not permitted to take in any other money for that account. Now they
+// have another account for a side business or inflow from parents or... rental income... let the
+// system accept two bank statements, process them at the same time, pick their balances and create
+// a place where you can have two statements to take to the embassy." Previously this component only
+// ever handled ONE statement (see StatementSlot.tsx, which is what this file's whole body used to
+// be before this task pulled it out to be mountable twice). Now a second, fully independent
+// statement slot is available on demand, plus a combined-balance summary once both are present.
 //
-// Follow-up selection "Personal-statement name-tally check": also extracts and persists just the
-// detected account-holder NAME (not the raw text it was found in) at scan time — see
-// lib/statement/personalNameTally.ts for the matching/messaging logic and its own note on why the
-// original's coarser text-search fallback is deliberately not reproduced here (same reasoning as
-// the business-statement version). married/spouseSponsoring/spouseName are read read-only from the
-// checklist's own answers key (sa_<countryCode>_answers) for the declared-spouse-sponsor exception.
+// Each slot analyzes its own statement completely independently — different accounts can have
+// different senders, narrations, even a different declared name on the account — and the two are
+// never merged into one transaction list (see lib/statement/combined.ts for why: a running balance
+// only means anything within its own account). All this file adds on top is the number a combined
+// evidence pack actually needs: each account's closing balance and date range, plus their total/span.
 //
-// Follow-up selection "Narration-based employer/business name check": employed/selfEmployed are
-// ALSO read read-only from the same answers key, to decide which of the employer/business name
-// inputs to show (see StatementDashboard.tsx's ReportTab) — mirroring index.html's own
-// namesToCheck gating. The employer/business name + "also known as" fields themselves are owned and
-// persisted here, same pattern as applicantName/maidenName.
-//
-// Only a plain string (`countryCode`) crosses the Server -> Client boundary from the page files
-// that render this component — see the comment at the top of lib/checklist/all.ts for why a
-// function-bearing prop broke the production build previously.
+// Privacy: unchanged — each file is read and parsed entirely in-browser and never uploaded anywhere.
 export type StatementCheckProps = {
   countryCode: string;
 };
 
-function formatDate(d: Date): string {
+function fmtCurrency(n: number): string {
+  return new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(n);
+}
+
+function fmtDate(d: Date | null): string {
   if (!d || Number.isNaN(d.getTime())) return '—';
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-function loadSaved(storageKey: string): PersistedStatement | null {
-  try {
-    const raw = localStorage.getItem(storageKey);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as PersistedStatement;
-    if (!parsed || !Array.isArray(parsed.txns) || parsed.txns.length === 0) return null;
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-
 export default function StatementCheck({ countryCode }: StatementCheckProps) {
   const lowerCode = countryCode.toLowerCase();
-  const storageKey = `sa_${lowerCode}_statement`;
+  const slot1Key = `sa_${lowerCode}_statement`;
+  const slot2Key = `sa_${lowerCode}_statement_2`;
+  const answersKey = `sa_${lowerCode}_answers`;
   const financialHref = `/checklist/${lowerCode}/financial`;
   const countryInfo = COUNTRIES.find((c) => c.code === countryCode.toUpperCase());
   const visaName = countryInfo?.visaName || 'visa';
   const countryName = countryInfo?.name || countryCode;
 
-  const [loaded, setLoaded] = useState(false);
-  const [recalled, setRecalled] = useState(false);
+  const [showSecondSlot, setShowSecondSlot] = useState(false);
+  const [summary1, setSummary1] = useState<StatementSummary | null>(null);
+  const [summary2, setSummary2] = useState<StatementSummary | null>(null);
 
-  const [txns, setTxns] = useState<ParsedTxn[] | null>(null);
-  const [applicantName, setApplicantName] = useState('');
-  const [maidenName, setMaidenName] = useState('');
-  const [nameCorrections, setNameCorrections] = useState<Record<string, string>>({});
-  const [detectedHolderName, setDetectedHolderName] = useState<string | null>(null);
-  const [spouse, setSpouse] = useState<SpouseSponsorDeclaration>({
-    married: false,
-    spouseSponsoring: false,
-    spouseName: '',
-  });
-  const [employed, setEmployed] = useState(false);
-  const [selfEmployed, setSelfEmployed] = useState(false);
-  const [employerName, setEmployerName] = useState('');
-  const [employerAltName, setEmployerAltName] = useState('');
-  const [businessName, setBusinessName] = useState('');
-  const [businessAltName, setBusinessAltName] = useState('');
-  const [employerCategoryChoices, setEmployerCategoryChoices] = useState<WorkCategoryMap>({});
-  const [businessCategoryChoices, setBusinessCategoryChoices] = useState<WorkCategoryMap>({});
-
-  const [file, setFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // Restore a previously-saved statement on mount, so this page can skip straight to the dashboard
-  // instead of asking the applicant to re-upload every visit - same "recalled, no re-upload needed"
-  // UX the rest of this app already uses for other saved answers.
+  // A second slot from an earlier visit should reappear automatically — don't make someone click
+  // "+ Add a second bank statement" again just because they refreshed the page.
   useEffect(() => {
-    const saved = loadSaved(storageKey);
-    if (saved) {
-      setTxns(deserializeTxns(saved.txns));
-      setApplicantName(saved.applicantName || '');
-      setMaidenName(saved.maidenName || '');
-      setNameCorrections(saved.nameCorrections || {});
-      setDetectedHolderName(saved.detectedHolderName ?? null);
-      setEmployerName(saved.employerName || '');
-      setEmployerAltName(saved.employerAltName || '');
-      setBusinessName(saved.businessName || '');
-      setBusinessAltName(saved.businessAltName || '');
-      setEmployerCategoryChoices(saved.employerCategoryChoices || {});
-      setBusinessCategoryChoices(saved.businessCategoryChoices || {});
-      setRecalled(true);
-    }
-
-    // Read-only, same pattern as ReasonsView's own Travel History read: the checklist's own answers
-    // key owns married/spouseSponsoring/spouseName/employed/selfEmployed, this component just reads
-    // them.
     try {
-      const raw = localStorage.getItem(`sa_${lowerCode}_answers`);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        setSpouse({
-          married: !!parsed?.married,
-          spouseSponsoring: !!parsed?.spouseSponsoring,
-          spouseName: parsed?.spouseName || '',
-        });
-        setEmployed(!!parsed?.employed);
-        setSelfEmployed(!!parsed?.selfEmployed);
-      }
+      if (localStorage.getItem(slot2Key)) setShowSecondSlot(true);
     } catch {
-      /* nothing saved yet */
+      /* ignore */
     }
-
-    setLoaded(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storageKey, lowerCode]);
+  }, [slot2Key]);
 
-  // Save on every change, once loaded - same debounce-free pattern as
-  // web/components/checklist/FinancialCalculator.tsx. Only saves once there's a parsed statement
-  // to save; an empty/aborted upload never touches localStorage.
-  useEffect(() => {
-    if (!loaded || !txns || txns.length === 0) return;
+  function removeSecondSlot() {
     try {
-      const payload: PersistedStatement = {
-        txns: serializeTxns(txns),
-        applicantName,
-        maidenName,
-        nameCorrections,
-        detectedHolderName,
-        employerName,
-        employerAltName,
-        businessName,
-        businessAltName,
-        employerCategoryChoices,
-        businessCategoryChoices,
-      };
-      localStorage.setItem(storageKey, JSON.stringify(payload));
+      localStorage.removeItem(slot2Key);
     } catch {
       /* ignore */
     }
-  }, [
-    loaded,
-    txns,
-    applicantName,
-    maidenName,
-    nameCorrections,
-    detectedHolderName,
-    employerName,
-    employerAltName,
-    businessName,
-    businessAltName,
-    employerCategoryChoices,
-    businessCategoryChoices,
-    storageKey,
-  ]);
-
-  function clearSaved() {
-    try {
-      localStorage.removeItem(storageKey);
-    } catch {
-      /* ignore */
-    }
-    setTxns(null);
-    setApplicantName('');
-    setMaidenName('');
-    setNameCorrections({});
-    setDetectedHolderName(null);
-    setEmployerName('');
-    setEmployerAltName('');
-    setBusinessName('');
-    setBusinessAltName('');
-    setEmployerCategoryChoices({});
-    setBusinessCategoryChoices({});
-    setRecalled(false);
-    setFile(null);
-    setError(null);
+    setSummary2(null);
+    setShowSecondSlot(false);
   }
 
-  async function handleAnalyze() {
-    if (!file) return;
-    trackEvent('statement_analysis:attempted');
-    setUploading(true);
-    setError(null);
-    try {
-      const lines = await getLinesFromFile(file);
-      if (!lines.length) {
-        setError(
-          "We tried reading that file — including on-device OCR for a scanned or photographed statement — but couldn't make out any readable text in it. Try a clearer photo/scan (good lighting, holding it flat and steady), or a regular PDF/spreadsheet export from your bank."
-        );
-        return;
-      }
-      const result = parseStatementLinesWithFallback(lines);
-      if (!result.length) {
-        setError(
-          "We read the file but couldn't make out any transactions in it. Double-check it's a bank statement export, or try a different file."
-        );
-        return;
-      }
-      setTxns(result);
-      const fullStatementText = lines.map((l) => l.text || '').join(' ');
-      setDetectedHolderName(extractAccountHolderName(fullStatementText));
-      setRecalled(false);
-      trackEvent('statement_analysis:completed');
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      setError(
-        `Something went wrong while reading that file (${message}). Try a different PDF or spreadsheet export from your bank.`
-      );
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  if (!loaded) return null;
-
-  if (!txns) {
-    return (
-      <SessionShell code={countryCode} name={countryName} session="statement">
-        <div>
-          <h1 className="text-xl font-semibold text-[#12232e]">🏦 Bank statement check</h1>
-          <p className="mt-1 text-sm text-[#4c6270]">
-            Upload a bank statement (PDF, Excel export, or a clear photo/scan) to see who&apos;s
-            paying you, and whether a reviewer would find any gaps.
-          </p>
-        </div>
-
-        <span className="w-fit rounded-full bg-accent-wash px-3 py-1 text-xs font-medium text-accent">
-          🔒 Processed entirely in your browser — this file is never uploaded anywhere
-        </span>
-
-        {/* Resume reminder (task #319+) — same friction point index.html flagged: the applicant
-            often hits this step away from home, without the statement downloaded yet. Only shown
-            before a statement is scanned/recalled — see the same note in PassportCheck.tsx. */}
-        <ResumeReminderLinks
-          visaName={visaName}
-          whatToBring="my last 3–6 months of bank statements"
-          prompt="Haven't downloaded your bank statements yet? Send yourself a reminder with the link back to this page:"
-        />
-
-        <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
-          <label className="mb-2 block text-sm font-medium text-[#12232e]" htmlFor="statement-file">
-            Statement file
-          </label>
-          <input
-            id="statement-file"
-            type="file"
-            accept=".pdf,.xlsx,.xls,image/*"
-            onChange={(e) => {
-              setFile(e.target.files?.[0] ?? null);
-              setError(null);
-            }}
-            className="mb-4 block w-full text-sm text-[#12232e] file:mr-3 file:rounded-lg file:border-0 file:bg-accent-wash file:px-3 file:py-2 file:text-sm file:font-medium file:text-accent hover:file:bg-accent/10"
-          />
-          <button
-            type="button"
-            disabled={!file || uploading}
-            onClick={handleAnalyze}
-            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {uploading ? 'Analyzing…' : 'Analyze'}
-          </button>
-          {uploading && (
-            <p className="mt-2 text-xs text-[#566a76]">
-              This can take a few minutes for a scanned or photographed statement — it&apos;s read
-              entirely on this device (on-device OCR), so a longer statement or a lower-quality photo
-              takes longer.
-            </p>
-          )}
-        </div>
-
-        {error && (
-          <div className="rounded-lg bg-warn-wash p-3 text-sm text-warn-text" role="alert">
-            {error}
-          </div>
-        )}
-      </SessionShell>
-    );
-  }
+  const combined =
+    summary1 || summary2 ? combineStatementSummaries([summary1, summary2].filter((s): s is StatementSummary => !!s)) : null;
 
   return (
     <SessionShell code={countryCode} name={countryName} session="statement">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <h1 className="text-xl font-semibold text-[#12232e]">🏦 Bank statement check</h1>
-          <p className="mt-1 text-sm text-[#4c6270]">
-            Found {txns.length} transaction{txns.length === 1 ? '' : 's'} · {formatDate(txns[0]?.date)} –{' '}
-            {formatDate(txns[txns.length - 1]?.date)}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={clearSaved}
-          className="text-xs text-accent underline"
-        >
-          Upload a different statement
-        </button>
+      <div>
+        <h1 className="text-xl font-semibold text-[#12232e]">🏦 Bank statement check</h1>
+        <p className="mt-1 text-sm text-[#4c6270]">
+          Upload a bank statement to see who&apos;s paying you, and whether a reviewer would find any
+          gaps. If your salary account can&apos;t receive other income, add your second account below
+          too — we&apos;ll analyze both and total up the balance to take to the embassy.
+        </p>
       </div>
 
-      {recalled && (
-        <div className="rounded-lg bg-accent-wash p-3 text-sm text-accent" role="status">
-          📄 Statement recalled from your last visit — no need to re-upload.
-        </div>
+      <span className="w-fit rounded-full bg-accent-wash px-3 py-1 text-xs font-medium text-accent">
+        🔒 Processed entirely in your browser — these files are never uploaded anywhere
+      </span>
+
+      <StatementSlot
+        storageKey={slot1Key}
+        answersStorageKey={answersKey}
+        defaultLabel="Statement 1"
+        financialHref={financialHref}
+        visaName={visaName}
+        onSummaryChange={setSummary1}
+      />
+
+      {showSecondSlot ? (
+        <StatementSlot
+          storageKey={slot2Key}
+          answersStorageKey={answersKey}
+          defaultLabel="Statement 2"
+          financialHref={financialHref}
+          visaName={visaName}
+          onSummaryChange={setSummary2}
+          onRemove={removeSecondSlot}
+        />
+      ) : (
+        <button
+          type="button"
+          onClick={() => setShowSecondSlot(true)}
+          className="w-fit rounded-lg border border-dashed border-black/20 px-4 py-2 text-sm font-medium text-accent hover:bg-accent-wash"
+        >
+          + Add a second bank statement
+        </button>
       )}
 
-      <StatementDashboard
-        txns={txns}
-        applicantName={applicantName}
-        maidenName={maidenName}
-        nameCorrections={nameCorrections}
-        onApplicantNameChange={setApplicantName}
-        onMaidenNameChange={setMaidenName}
-        onNameCorrectionsChange={setNameCorrections}
-        detectedHolderName={detectedHolderName}
-        spouse={spouse}
-        employed={employed}
-        selfEmployed={selfEmployed}
-        employerName={employerName}
-        employerAltName={employerAltName}
-        businessName={businessName}
-        businessAltName={businessAltName}
-        onEmployerNameChange={setEmployerName}
-        onEmployerAltNameChange={setEmployerAltName}
-        onBusinessNameChange={setBusinessName}
-        onBusinessAltNameChange={setBusinessAltName}
-        employerCategoryChoices={employerCategoryChoices}
-        businessCategoryChoices={businessCategoryChoices}
-        onEmployerCategoryChoicesChange={setEmployerCategoryChoices}
-        onBusinessCategoryChoicesChange={setBusinessCategoryChoices}
-        financialHref={financialHref}
-      />
+      {combined && summary1 && summary2 && (
+        <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
+          <h2 className="mb-1 text-sm font-semibold text-[#12232e]">Combined summary — for the embassy</h2>
+          <p className="mb-4 text-xs text-[#566a76]">
+            Both statements&apos; own analysis stays separate above (different accounts can have
+            different senders); this just totals up what a reviewer would want to see across both.
+          </p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {combined.statements.map((s, i) => (
+              <div key={i} className="rounded-lg border border-black/10 p-3">
+                <p className="text-xs text-[#566a76]">{s.label}</p>
+                <p className="mt-1 text-base font-semibold text-[#12232e]">{fmtCurrency(s.closingBalance)}</p>
+                <p className="mt-1 text-xs text-[#566a76]">
+                  {fmtDate(s.firstDate)} – {fmtDate(s.lastDate)}
+                </p>
+              </div>
+            ))}
+            <div className="rounded-lg bg-accent-wash p-3">
+              <p className="text-xs text-accent">Combined total</p>
+              <p className="mt-1 text-base font-semibold text-[#12232e]">{fmtCurrency(combined.totalClosingBalance)}</p>
+              <p className="mt-1 text-xs text-[#566a76]">
+                {fmtDate(combined.earliestDate)} – {fmtDate(combined.latestDate)}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </SessionShell>
   );
 }

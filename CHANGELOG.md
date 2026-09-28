@@ -3,6 +3,51 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Quiz result 4-card grid: bigger bold labels, smaller answer text
+
+Direct request, live screenshot: "increase the finance [label] size a little and make it bold...
+reduce the font a little bit [on the answer line]" — applied to all 4 cards (Finance, Travel
+history, Ties to home country, Savings for trip). Label goes `text-xs font-medium` →
+`text-sm font-bold`; the "Not answered yet — ..." line goes `text-xl` → `text-lg` (still
+`font-extrabold`), so the now-bolder label doesn't get visually flattened by an oversized answer
+line next to it. `app/quiz/page.tsx` only — no logic change, so no new tests; verified via
+`tsc --noEmit`.
+
+## Support a second bank statement for dual-account income evidence
+
+Direct request: "people... in structured/corporate organizations... have an account for salary [and]
+are not permitted to take in any other money for that account. Now they have another account for a
+side business or inflow from parents or... rental income... let the system accept two bank
+statements, process them at the same time... pick their balances and create a place where you can
+have two statements to take to the embassy."
+
+Previously the statement-check page only ever handled one file — the upload input had no
+`multiple`, and every re-upload fully replaced whatever was parsed before (`clearSaved()`). Added an
+optional second, fully independent statement slot:
+
+- `lib/statement/combined.ts` (new, pure, tested) — `summarizeStatement`/`combineStatementSummaries`.
+  Deliberately does NOT merge the two statements' transactions into one list: each `ParsedTxn.balance`
+  is a running balance that only makes sense within its own account, so interleaving two accounts'
+  rows by date would produce a nonsensical balance column. Each statement's income-source/name-check
+  analysis stays fully independent for the same reason (different accounts can have different
+  senders). This module only adds the numbers a combined evidence pack actually needs: each account's
+  closing balance (its last row's balance) and date range, plus their sum/span.
+- `components/checklist/StatementSlot.tsx` (new) — the entire single-statement upload → parse →
+  dashboard lifecycle that used to be StatementCheck.tsx's whole body, pulled out so it can be
+  mounted twice. Each slot gets its own storage key (`sa_<country>_statement` / `_statement_2`, so
+  the existing first slot is unaffected/backward-compatible) and an editable label (defaults to
+  "Statement 1"/"Statement 2", renamable to e.g. "Salary account"/"Side business account").
+- `components/checklist/StatementCheck.tsx` (rewritten) — now the thin orchestrator: renders the
+  shared page chrome once, always shows slot 1, offers a "+ Add a second bank statement" toggle for
+  slot 2 (auto-reappears on return visits once used), and — once both slots have a parsed
+  statement — a "Combined summary — for the embassy" card showing each account's own closing balance
+  and date range plus the combined total balance and combined date span.
+- `lib/statement/persist.ts` — added an optional `label` field to `PersistedStatement` so a renamed
+  slot keeps its name across visits (optional, backward-compatible with existing saved payloads).
+
+Verified via `tsc --noEmit` (0 errors) and the full suite (67/67 suites, 439/439 tests — 6 new for
+`combined.ts`, no regressions).
+
 ## Added a password-reset flow to the login page
 
 Direct request, right after the login page's lack of one turned into a real lockout: signing in
