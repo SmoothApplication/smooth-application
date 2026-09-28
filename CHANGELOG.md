@@ -3,6 +3,17 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Trust/privacy card: removed redundant "Pick Your Country" heading
+
+Direct request, screenshot: "Remove 'Pick Your Country'." That heading (added in task #400) sat
+right above a button already labelled "Continue to pick your country →" — same words, twice, right
+next to each other.
+
+**`app/quiz/page.tsx`:** the heading `<p>` is gone; the button now sits directly under the 4-box
+grid with a small `mt-1` in its place.
+
+Typecheck clean, full suite still 62 suites / 374 tests passing.
+
 ## Quiz result: caveat sentence moved into a bottom-right "Reasons" tab
 
 Direct request, screenshot of the result screen: "the goal is to make the webpages on this website

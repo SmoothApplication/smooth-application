@@ -196,9 +196,11 @@ export default function ConfidenceQuizPage() {
               </div>
             </div>
 
-            <p className="mb-2 text-center text-lg font-semibold text-[#12232e]">Pick Your Country</p>
-
-            <button type="button" onClick={handleContinue} className="btn-primary w-full">
+            {/* Task #403 (direct request, screenshot): the "Pick Your Country" heading (added in
+                task #400, right above this same button) was removed — the button's own label
+                ("Continue to pick your country →") already says the same thing, so the heading was
+                pure repetition sitting right on top of it. */}
+            <button type="button" onClick={handleContinue} className="btn-primary mt-1 w-full">
               Continue to pick your country →
             </button>
 
