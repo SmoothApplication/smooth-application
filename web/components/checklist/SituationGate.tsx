@@ -180,11 +180,23 @@ export default function SituationGate({
     // Task #409 (direct request, screenshot): "make it the same size with the homepage" — widened
     // from `max-w-lg` (512px) to `max-w-3xl` (768px), matching the homepage's own container
     // (app/page.tsx) and the country picker's (app/checklist/start/page.tsx, task #406) exactly.
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-5 p-6 pb-16">
-      <div>
-        <h1 className="text-xl font-semibold text-[#12232e]">🧭 Where are you in the process?</h1>
-        <p className="mt-1 text-sm text-[#4c6270]">Just so we can point you the right way - answering doesn&apos;t change what&apos;s ahead unless you want it to.</p>
-      </div>
+    // Task #411 (direct request, screenshot): "make the size like the homepage, reduce the white
+    // spaces under" — this page's single <main> carried `min-h-screen`, which forces the flex
+    // column to fill the entire viewport height no matter how short its content is; with only 4
+    // boxes + one button (much less content than the homepage's two stat grids + CTA), that left a
+    // large blank gap below the "Continue" button. Restructured to match the homepage's own
+    // two-level layout exactly (app/page.tsx: outer `<main>` carries the background + padding,
+    // inner `<div>` carries `mx-auto max-w-3xl flex flex-col gap-*`) and dropped `min-h-screen` so
+    // the page's height simply follows its content instead of always padding out to full-screen —
+    // this is what actually removes the dead space, not just a cosmetic tweak. Picked up the
+    // homepage's own `bg-[#f7fafb]` too, since this page previously had no background at all
+    // (plain white) — now consistent with every other page in the flow.
+    <main className="bg-[#f7fafb] px-4 pb-10 pt-6 sm:pb-16 sm:pt-8">
+      <div className="mx-auto flex max-w-3xl flex-col gap-5">
+        <div>
+          <h1 className="text-xl font-semibold text-[#12232e]">🧭 Where are you in the process?</h1>
+          <p className="mt-1 text-sm text-[#4c6270]">Just so we can point you the right way - answering doesn&apos;t change what&apos;s ahead unless you want it to.</p>
+        </div>
 
       {/* Task #408 (direct request, screenshot): "following the same principle of the home page
           design, turn the 3 bars into boxes make the 4th box 'Re-Applying'" — the 3 stacked
@@ -592,6 +604,7 @@ export default function SituationGate({
       <Link href="/checklist/start" className="text-center text-xs text-accent underline">
         ← Back
       </Link>
+      </div>
     </main>
   );
 }

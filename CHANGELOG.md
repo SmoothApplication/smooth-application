@@ -3,6 +3,23 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Situation gate: dropped forced full-screen height to kill dead space below content
+
+Direct request, screenshot of the gate with the 4-box grid + Continue button: "make the size like
+the homepage, reduce the white spaces under."
+
+**`components/checklist/SituationGate.tsx`:** the page's single `<main>` carried `min-h-screen`,
+which forces the flex column to pad out to the full viewport height regardless of how much content
+it actually holds. With only 4 boxes and one button — much less content than the homepage's two
+stat grids plus CTA — that left a large blank gap below "Continue to my checklist." Restructured to
+mirror the homepage's own two-level layout exactly (`app/page.tsx`: outer `<main>` carries the
+background + padding, inner `<div>` carries `mx-auto max-w-3xl flex flex-col gap-*`) and dropped
+`min-h-screen`, so the page's height now follows its content instead of always padding out to
+full-screen. Also picked up the homepage's `bg-[#f7fafb]` background, since this page previously
+had none (plain white) — now visually consistent with the rest of the flow.
+
+Typecheck clean, full suite still 62 suites / 374 tests passing.
+
 ## Situation gate: "Re-Applying" follow-up form + widened to homepage size
 
 Two follow-up direct requests on the situation gate:
