@@ -3,6 +3,49 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Ported the rest of "Your responsibilities": marital status, address/rent estimate, aged parents
+
+Direct request, off two screenshots comparing the original's own live "Your responsibilities"
+session (Gender, Marital status, children count, State/LGA/bedroom address picker, an "Estimated
+yearly cost of living" box, aged-parents/remittance section) against this port's version of the same
+session, which only had employment/host/child checkboxes: "follow [the original]".
+
+Traced this to the original's `data-session-key="responsibilities"` section being built entirely in
+the pre-Next.js-rebuild vanilla-JS codebase (before task #238) and never carried over — this port's
+own version of the session was assembled by name-matching against the old flat qualifying-questions
+form (task #382), which happened to have none of this. Confirmed the original's actual
+responsibilities section has no employment/host/child fields at all; left those in place here rather
+than relocating them, since the request was to restore what's missing, not reshuffle what already
+works.
+
+Ported, faithfully, from the original's own source (fetched via the Claude Browser tool against
+raw.githubusercontent.com, since a plain fetch strips `<script>` content):
+
+- A real Single/Married/Divorced dropdown (`Answers.maritalStatus`) in place of the plain "I'm
+  married" checkbox — this exact change was already made once, in the old codebase (task #206), and
+  is now made again here. `married` stays a derived boolean set alongside it, since every existing
+  appliesIf condition and self-detection check already reads that field. Picking "Single" clears the
+  children count, same as the original.
+- "How many children do you have?" (0-10), kept separate from the existing "a child is travelling
+  with me" checkbox — a permanent family fact vs. a fact about this specific trip.
+- A State → LGA → bedrooms picker for the applicant's own Nigerian residence
+  (`lib/checklist/nigeriaLocations.ts`, all 773 LGAs across 36 states + FCT, transcribed from the
+  original), feeding an "Estimated yearly cost of living" box (annual rent, monthly upkeep, school
+  fees per term) via `lib/checklist/livingCost.ts` — the same rent tables, bedroom multipliers, Eti
+  Osa sub-area refinement, and Lagos "premium pocket" (Ikeja GRA / Ogudu GRA) logic as the original's
+  `getEstimatedAnnualRent()`, with the same "never overwrite what the applicant already typed" rule
+  once a real number is entered.
+- "I have aged parents I support" — father/mother names with independent "passed away / not
+  applicable" toggles, a monthly remittance figure, and an opt-in checkbox to have it checked against
+  the bank statement (advisory only — no automated cross-check wired up yet, same gap the original
+  itself left for a human reviewer).
+
+Deliberately NOT ported: the original's separate Gender field and its own maiden-name field. Gender
+is already captured off the passport scan's MRZ; maiden name already has its own, already-wired field
+on the bank-statement page (feeding `buildIncomeSourceBreakdown`'s Self-detection). Duplicating either
+here would just create two answers that could disagree with each other, not two chances to get it
+right — documented in `lib/checklist/uk.ts`'s `Answers.maritalStatus` comment.
+
 ## "Still missing" moved to the last session; "Why these documents" renamed back to "Reasons"
 
 Direct request, off a screenshot of the live `/checklist/uk/statement` page (now correctly Session 1
