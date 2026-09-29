@@ -3,6 +3,19 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fix: CHANGELOG itself was re-leaking the scrubbed PII (CI pii-scan failure, round 2)
+
+Push of the "Retire the legacy Playwright suite" commit still failed `pii-scan` in CI (`test` and
+`web-test` both passed). Root cause: the CHANGELOG entry below documenting the *previous* PII fix
+("Fix: scrub leaked real applicant PII...") described what had leaked by quoting the actual real
+values — passport number, first name, surname, business name — directly in prose. The denylist
+scanner doesn't care whether a match is in a test fixture or in a changelog explaining that a test
+fixture used to have it; a literal match is a literal match, correctly. Fixed by redacting all four
+values from that entry's prose (replaced with "redacted here; see git history pre-scrub if you need
+the literal value"), keeping the entry factually intact otherwise. `npm run pii-scan` now clean
+(299 files, 0 findings). Lesson for future PII-fix writeups: describe what kind of data leaked, never
+quote the value itself, even retroactively.
+
 ## Retire the legacy index.html Playwright suite; point CI at the real web/ test suite
 
 Follow-up to the PII-scan CI fix below, and to the earlier "Retire the old GitHub Pages site" entry.
@@ -44,10 +57,10 @@ Root-caused a GitHub Actions email showing "CI: All jobs have failed" (commit f7
 `npm run pii-scan` (`scripts/pii-scan.js`) was failing its denylist check, not passing as every
 prior CHANGELOG entry assumed. Real applicant data from an actual bug report had been copy-pasted
 into 11 committed test files and this CHANGELOG (as fixture data, code comments, and one MRZ line)
-and never fully scrubbed: a real first name ("oluwafunmilayo"), a real surname ("agboola"), a real
-business name ("crisp n clean"), and — found only because pii-scan reads inside PDF fixtures, not
-just raw file bytes — a real passport number ("b50338594") embedded directly as MRZ text in
-`tests/expiry-second-language-zero-for-o-fixture.test.js`.
+and never fully scrubbed: a real first name, a real surname, a real business name (redacted here;
+see git history pre-scrub if you need the literal values), and — found only because pii-scan reads inside PDF fixtures, not
+just raw file bytes — a real passport number (redacted here; see git history pre-scrub if you need
+the literal value) embedded directly as MRZ text in `tests/expiry-second-language-zero-for-o-fixture.test.js`.
 
 Fixed by replacing all four with clearly fictional equivalents (name → "titilayo"/"bello", business
 → "bloom n clean", passport number → a fabricated one) across every flagged file:
