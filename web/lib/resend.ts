@@ -109,6 +109,32 @@ export async function sendReportEmail(opts: {
   });
 }
 
+// Direct instruction on the statement page's Analysis tab: "make sure you request for email once
+// the applicant clicks 'download breakdown as spreadsheet'" (earlier framed as the file being sent
+// to their email instead of downloaded straight away). Deliberately a much lighter flow than
+// sendReportEmail above — no create-password link, no outcome-tracking links, no Supabase Auth user
+// — this is a single-file attachment email, not the full checklist report. See
+// app/api/email-income-breakdown/route.ts for why no account/audit-row bookkeeping was added here.
+export async function sendIncomeBreakdownEmail(opts: { to: string; xlsxBuffer: Buffer }) {
+  const { to, xlsxBuffer } = opts;
+  return resend.emails.send({
+    from: FROM,
+    to,
+    subject: 'Your income source breakdown (spreadsheet)',
+    html: `
+      <p>Hi,</p>
+      <p>Attached is the income source breakdown spreadsheet from your bank statement analysis on Smooth Application — every credit, grouped by who it came from.</p>
+      <p style="color:#666;font-size:13px;">This reflects only what was in the statement you uploaded, processed entirely in your own browser — nothing about it is seen by anyone at Smooth Application unless you choose to share it.</p>
+    `,
+    attachments: [
+      {
+        filename: 'income-source-breakdown.xlsx',
+        content: xlsxBuffer,
+      },
+    ],
+  });
+}
+
 export async function sendIncompleteReminderEmail(opts: {
   to: string;
   percentComplete: number;

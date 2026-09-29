@@ -3,6 +3,34 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Gate the income-breakdown spreadsheet behind an email address
+
+Direct instruction, on the statement page's Analysis tab: "make sure you request for email once
+the applicant clicks 'download breakdown as spreadsheet'" — earlier framed as "before they download
+it they must send an email and it will be sent to their email." The "⬇️ Download breakdown as
+spreadsheet" button (Task #432) previously called `XLSX.writeFile()` straight away, an instant,
+entirely client-side download. It now opens an inline email field instead; submitting it still
+builds the exact same workbook the same way (same `xlsx` library, same `buildIncomeBreakdownAoa`,
+still entirely in-browser — no bank statement data or transaction detail is reconstructed
+server-side), then base64-encodes that already-built file and POSTs just the attachment plus the
+typed email address to a new route, `app/api/email-income-breakdown/route.ts`, which relays it via
+Resend (`sendIncomeBreakdownEmail`, added to `lib/resend.ts`). This mirrors the "processed in your
+browser... nothing leaves your device unless you choose to email yourself a copy" disclosure
+already on this page for the full PDF report.
+
+Deliberately a much lighter route than the existing `email-report`: no Supabase Auth user is
+created and no create-password link is sent, since this is a single spreadsheet attachment, not the
+full checklist/financial/passport report. Rate-limited (5/email/hour, 12/IP/hour) by reusing the
+already-deployed `report_request_log` table from migration `0004_report_email_rate_limit.sql` — no
+new migration needed, deliberately avoiding the exact kind of migration-created-but-never-applied
+drift that silently broke `email_log` auditing for months (task #450). For the same reason, this
+route skips the `email_log` audit insert entirely rather than reusing a mismatched enum value or
+introducing a new one that would need its own migration to reach production.
+
+Typecheck clean; existing test suite unaffected (no test referenced the old instant-download flow
+by name, so nothing needed updating). `npx tsc --noEmit`: clean; `npx jest`: 473/473 passing, 0
+regressions.
+
 ## Add Top-senders concentration ratio to the Top 10 senders table
 
 Direct instruction, on the Analysis tab's Top 10 senders table: "do a total for it... a ratio of

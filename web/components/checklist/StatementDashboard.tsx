@@ -378,28 +378,63 @@ export default function StatementDashboard({
   // carried over in this port, distinct from topSenders above (ranked by consistency, not size).
   const topInflows = useMemo(() => getTopInflows(txns, 10), [txns]);
 
-  // Task #432: client-side "Download spreadsheet" export, same privacy model as the rest of this
-  // page — built and downloaded entirely in-browser, nothing sent anywhere. Dynamically imports
-  // 'xlsx' so it's not part of every checklist page's initial bundle, only loaded on click.
-  const [downloadingSpreadsheet, setDownloadingSpreadsheet] = useState(false);
-  async function handleDownloadSpreadsheet() {
+  // Task #432 built this as an instant, entirely client-side download. Direct instruction on the
+  // live Analysis tab: "make sure you request for email once the applicant clicks 'download
+  // breakdown as spreadsheet'" (earlier framed as "before they download it they must send an
+  // email and it will be sent to their email"). The spreadsheet is still BUILT entirely in-browser
+  // (same 'xlsx' library, same buildIncomeBreakdownAoa as before — nothing about the data leaves
+  // the device until the applicant deliberately chooses to email it), but the button now opens an
+  // inline email prompt instead of triggering XLSX.writeFile() straight away; submitting that
+  // prompt base64-encodes the already-built workbook and POSTs just that attachment (plus the
+  // email address) to app/api/email-income-breakdown/route.ts, which relays it via Resend. This
+  // matches the same "processed in your browser... nothing leaves your device unless you choose to
+  // email yourself a copy" disclosure already on this page for the full PDF report.
+  const [breakdownEmailOpen, setBreakdownEmailOpen] = useState(false);
+  const [breakdownEmail, setBreakdownEmail] = useState('');
+  const [sendingBreakdownEmail, setSendingBreakdownEmail] = useState(false);
+  const [breakdownEmailError, setBreakdownEmailError] = useState<string | null>(null);
+  const [breakdownEmailSent, setBreakdownEmailSent] = useState(false);
+
+  function openBreakdownEmailPrompt() {
     if (!groups.length) return;
-    setDownloadingSpreadsheet(true);
+    setBreakdownEmailSent(false);
+    setBreakdownEmailError(null);
+    setBreakdownEmailOpen(true);
+  }
+
+  async function handleSendBreakdownEmail() {
+    const email = breakdownEmail.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setBreakdownEmailError('Enter a valid email address.');
+      return;
+    }
+    setBreakdownEmailError(null);
+    setSendingBreakdownEmail(true);
     try {
       const XLSX = await import('xlsx');
       const aoa = buildIncomeBreakdownAoa(groups, displayName, explanations);
       const ws = XLSX.utils.aoa_to_sheet(aoa);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Income Breakdown');
-      XLSX.writeFile(wb, 'income-source-breakdown.xlsx');
-      // Fix 1 (launch-day priority: "we need to know how many people downloaded"): this export is
-      // entirely client-side (see this function's own comment) - no request ever reaches the
-      // server, so without this it's invisible to every count anywhere else in the app. Same
-      // privacy model as every other trackEvent() call: an anonymous, aggregate tally of "this
-      // happened", never the file's contents or who clicked it.
-      trackEvent('spreadsheet_downloaded');
+      const base64 = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
+      const res = await fetch('/api/email-income-breakdown', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, base64 }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setBreakdownEmailError(data?.error || 'Could not send the email — please try again.');
+        return;
+      }
+      setBreakdownEmailSent(true);
+      // Same privacy model as trackEvent() everywhere else in this file: an anonymous, aggregate
+      // "this happened" tally — never the email address or the file's contents.
+      trackEvent('spreadsheet_emailed');
+    } catch {
+      setBreakdownEmailError('Could not send the email — please try again.');
     } finally {
-      setDownloadingSpreadsheet(false);
+      setSendingBreakdownEmail(false);
     }
   }
 
@@ -568,8 +603,14 @@ export default function StatementDashboard({
           topSenders={topSenders}
           topInflows={topInflows}
           cashFlowRows={cashFlowRows}
-          onDownloadSpreadsheet={handleDownloadSpreadsheet}
-          downloadingSpreadsheet={downloadingSpreadsheet}
+          breakdownEmailOpen={breakdownEmailOpen}
+          onOpenBreakdownEmail={openBreakdownEmailPrompt}
+          breakdownEmail={breakdownEmail}
+          setBreakdownEmail={setBreakdownEmail}
+          onSendBreakdownEmail={handleSendBreakdownEmail}
+          sendingBreakdownEmail={sendingBreakdownEmail}
+          breakdownEmailError={breakdownEmailError}
+          breakdownEmailSent={breakdownEmailSent}
           displayName={displayName}
           editingName={editingName}
           editValue={editValue}
@@ -618,8 +659,14 @@ function AnalysisTab({
   topSenders,
   topInflows,
   cashFlowRows,
-  onDownloadSpreadsheet,
-  downloadingSpreadsheet,
+  breakdownEmailOpen,
+  onOpenBreakdownEmail,
+  breakdownEmail,
+  setBreakdownEmail,
+  onSendBreakdownEmail,
+  sendingBreakdownEmail,
+  breakdownEmailError,
+  breakdownEmailSent,
   displayName,
   editingName,
   editValue,
@@ -640,8 +687,14 @@ function AnalysisTab({
   };
   topInflows: ParsedTxn[];
   cashFlowRows: MonthlyCashFlowRow[];
-  onDownloadSpreadsheet: () => void;
-  downloadingSpreadsheet: boolean;
+  breakdownEmailOpen: boolean;
+  onOpenBreakdownEmail: () => void;
+  breakdownEmail: string;
+  setBreakdownEmail: (v: string) => void;
+  onSendBreakdownEmail: () => void;
+  sendingBreakdownEmail: boolean;
+  breakdownEmailError: string | null;
+  breakdownEmailSent: boolean;
   displayName: (rawName: string) => string;
   editingName: string | null;
   editValue: string;
@@ -702,15 +755,50 @@ function AnalysisTab({
             ))}
           </div>
         )}
-        {groups.length > 0 && (
+        {groups.length > 0 && !breakdownEmailOpen && (
           <button
             type="button"
-            onClick={onDownloadSpreadsheet}
-            disabled={downloadingSpreadsheet}
-            className="mt-4 rounded-lg border border-black/10 px-3 py-2 text-xs font-medium text-[#12232e] hover:bg-black/5 disabled:opacity-60"
+            onClick={onOpenBreakdownEmail}
+            className="mt-4 rounded-lg border border-black/10 px-3 py-2 text-xs font-medium text-[#12232e] hover:bg-black/5"
           >
-            {downloadingSpreadsheet ? 'Preparing…' : '⬇️ Download breakdown as spreadsheet'}
+            ⬇️ Download breakdown as spreadsheet
           </button>
+        )}
+        {breakdownEmailOpen && (
+          <div className="mt-4 rounded-lg border border-black/10 bg-black/[0.02] p-4">
+            {breakdownEmailSent ? (
+              <p className="text-sm text-good">
+                ✅ Sent — check <b>{breakdownEmail}</b> for the spreadsheet (and your spam folder,
+                just in case).
+              </p>
+            ) : (
+              <>
+                <p className="mb-2 text-xs text-[#566a76]">
+                  Enter your email and we&apos;ll send the income breakdown spreadsheet there.
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    type="email"
+                    value={breakdownEmail}
+                    onChange={(e) => setBreakdownEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    className="min-w-[14rem] flex-1 rounded-lg border border-black/10 px-2 py-1.5 text-sm text-[#12232e]"
+                  />
+                  <button
+                    type="button"
+                    onClick={onSendBreakdownEmail}
+                    disabled={sendingBreakdownEmail}
+                    className="rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white disabled:opacity-60"
+                  >
+                    {sendingBreakdownEmail ? 'Sending…' : 'Send to my email'}
+                  </button>
+                </div>
+                {breakdownEmailError && (
+                  <p className="mt-2 text-xs text-red-800">{breakdownEmailError}</p>
+                )}
+              </>
+            )}
+          </div>
         )}
       </div>
 
