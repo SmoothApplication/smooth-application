@@ -3,6 +3,35 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Restore Monthly cash flow + Financial summary to the statement page's Report tab
+
+User report, with a live side-by-side comparison against the retired GitHub Pages app: the Report
+tab on `/checklist/uk/statement` (and the other 7 countries) was missing two sections the original
+single-file app always showed alongside the income breakdown — a "Monthly cash flow (last 6
+months)" table and a "Financial summary" (opening/closing balance, total inflow/outflow, net
+change, income generation per month, average monthly outflow, monthly net savings pace). Traced
+to the multi-session rebuild (task #380/381): the original's one page became two separate
+sessions/routes — "Income & bank statement analysis" and "Financial readiness calculator" — and
+nobody carried the cash-flow/summary rendering back onto the statement page itself when that split
+happened. Not a deliberate simplification; scope that fell through the cracks of a long migration.
+
+Fixed in `StatementDashboard.tsx`'s `ReportTab`: both sections are now computed directly from the
+same `computeMonthlyCashFlow` (`lib/statement/cashFlow.ts`) already driving the Financial
+calculator's own auto-fill, and `computeFinancials` (`lib/checklist/financial.ts`, the ported
+calculator engine) for the averages/variance check — so these numbers can never drift out of sync
+with what the calculator page shows for the same statement; nothing is reimplemented a second time.
+The two buffer-dependent rows (2× recommended funds, amount still needed) need a trip cost, which
+lives on the calculator page, so those link out instead of showing a meaningless ₦0 — same as the
+original did before any trip cost was entered. Also exported `INCOME_VARIANCE_THRESHOLD` from
+`lib/checklist/nextSteps.ts` (was a private local constant) so the new "income varies a lot
+month-to-month" warning uses the exact same 40% threshold as the existing readiness-report verdict,
+rather than picking its own number.
+
+`npx tsc --noEmit`: clean. `npx jest`: 473/473 passing, 0 regressions. `npx next build` could not be
+run in this sandbox — no network access to fetch the Inter font from Google Fonts, the same kind of
+sandbox limitation already disclosed for Playwright installs earlier — so the production build
+itself needs to be confirmed via CI or the Vercel deploy, not something I could verify locally here.
+
 ## Fix: CHANGELOG itself was re-leaking the scrubbed PII (CI pii-scan failure, round 2)
 
 Push of the "Retire the legacy Playwright suite" commit still failed `pii-scan` in CI (`test` and

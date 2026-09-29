@@ -51,7 +51,10 @@ export interface FinanceReadinessProxy {
 }
 
 // Same 0.4 coefficient-of-variation threshold as index.html's incomeIssue check (~line 8274).
-const INCOME_VARIANCE_THRESHOLD = 0.4;
+// Exported (not just local) so StatementDashboard.tsx's Report-tab Financial Summary can flag the
+// same "income varies a lot month-to-month" condition using the exact same threshold as this
+// module's own balance verdict, rather than picking its own number.
+export const INCOME_VARIANCE_THRESHOLD = 0.4;
 
 // Port of the balancePillEl/incomePillEl classification (index.html ~8347-8423), reduced to a
 // 3-state proxy over FinancialResult alone — see this file's header comment for what's lost.

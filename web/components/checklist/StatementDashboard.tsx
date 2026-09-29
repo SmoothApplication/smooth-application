@@ -25,8 +25,25 @@ import {
   resolveWorkCategoryChoice,
   workPaymentCategoryLabel,
   senderPairKey,
+  computeMonthlyCashFlow,
+  MonthlyCashFlowRow,
 } from '@/lib/statement';
 import { trackEvent } from '@/lib/analytics';
+// Direct user report, live parity check against the original GitHub Pages app: this Report tab was
+// missing the "Monthly cash flow (last 6 months)" table and the "Financial summary" block the
+// original always showed alongside the income breakdown — opening/closing balance, total in/out,
+// income-generation-per-month, average monthly outflow, and the monthly net savings pace. Those
+// numbers already exist and are already tested: computeMonthlyCashFlow (lib/statement/cashFlow.ts,
+// also driving the Financial readiness calculator's auto-fill) produces the same month-by-month
+// totals from this exact ParsedTxn[], and computeFinancials (lib/checklist/financial.ts, the ported
+// calculator engine) turns a cash-flow table into avgIn/avgOut/monthlyNetSavings/incomeStabilityCv
+// using the exact same formulas the calculator page uses — so these numbers are guaranteed to match
+// the calculator rather than being a second, possibly-drifting reimplementation. The buffer-dependent
+// rows (2x recommended funds, amount still needed, time to reach it) need a trip cost, which lives on
+// a different session/page — those link out to the calculator instead of showing a meaningless ₦0,
+// same as the original did before any trip cost was entered.
+import { computeFinancials, DEFAULT_FINANCIAL_INPUTS } from '@/lib/checklist/financial';
+import { INCOME_VARIANCE_THRESHOLD } from '@/lib/checklist/nextSteps';
 
 // Phase 3 of the bank-statement port (see lib/statement/index.ts for Phase 1, StatementUpload.tsx +
 // extractFile.ts for Phase 2). This is the real two-tab dashboard that sits on top of the already-
@@ -388,6 +405,15 @@ export default function StatementDashboard({
 
   const unexplainedInflows = useMemo(() => findUnexplainedLargeInflows(txns), [txns]);
 
+  // Report-tab "Monthly cash flow" + "Financial summary" — same computeMonthlyCashFlow already
+  // driving the Financial readiness calculator's auto-fill (lib/statement/cashFlow.ts), so these
+  // numbers can never drift from what that page shows for the same statement.
+  const cashFlowRows: MonthlyCashFlowRow[] = useMemo(() => computeMonthlyCashFlow(txns, 6), [txns]);
+  const financialSummary = useMemo(
+    () => computeFinancials({ ...DEFAULT_FINANCIAL_INPUTS, cashFlow: cashFlowRows }),
+    [cashFlowRows]
+  );
+
   // Recomputed reactively so typing/correcting the applicant's name after the scan (the normal
   // order of operations here) still triggers the comparison — same idea as the business ledger's
   // own name-tally check, just with the personal-statement wording/spouse-sponsor exception.
@@ -561,6 +587,8 @@ export default function StatementDashboard({
           totalIncomeIdentified={totalIncomeIdentified}
           incomeSourceCount={incomeSourceCount}
           unexplainedInflows={unexplainedInflows}
+          cashFlowRows={cashFlowRows}
+          financialSummary={financialSummary}
           financialHref={financialHref}
           employed={employed}
           selfEmployed={selfEmployed}
@@ -1002,6 +1030,8 @@ function ReportTab({
   totalIncomeIdentified,
   incomeSourceCount,
   unexplainedInflows,
+  cashFlowRows,
+  financialSummary,
   financialHref,
   employed,
   selfEmployed,
@@ -1023,6 +1053,8 @@ function ReportTab({
   totalIncomeIdentified: number;
   incomeSourceCount: number;
   unexplainedInflows: ParsedTxn[];
+  cashFlowRows: MonthlyCashFlowRow[];
+  financialSummary: ReturnType<typeof computeFinancials>;
   financialHref: string;
   employed: boolean;
   selfEmployed: boolean;
@@ -1050,6 +1082,21 @@ function ReportTab({
           unexplainedTotal
         )}) still ${unexplainedInflows.length === 1 ? 'has' : 'have'} no clear description - worth explaining in a covering letter, or a reviewer will likely ask.`;
 
+  // Financial summary numbers, derived from the same cashFlowRows shown in the table below —
+  // total in/out are this 6-month window's totals (matching what the table's own Total row shows),
+  // and opening balance is worked back algebraically (closing - netChange) rather than read from a
+  // pre-first-transaction balance, since not every statement export exposes one directly.
+  const totalInflow = cashFlowRows.reduce((s, r) => s + r.inflow, 0);
+  const totalOutflow = cashFlowRows.reduce((s, r) => s + r.outflow, 0);
+  const netChange = totalInflow - totalOutflow;
+  const lastRow = cashFlowRows[cashFlowRows.length - 1];
+  const closingBalance = lastRow ? Number(lastRow.balance) || 0 : 0;
+  const openingBalance = closingBalance - netChange;
+  const hasCashFlow = cashFlowRows.length > 0;
+  const incomeVariancePct = Math.round(financialSummary.incomeStabilityCv * 100);
+  const showVarianceWarning = financialSummary.hasCashFlowData && financialSummary.incomeStabilityCv > INCOME_VARIANCE_THRESHOLD;
+  const showOverspendWarning = financialSummary.hasCashFlowData && financialSummary.avgOut >= financialSummary.avgIn;
+
   return (
     <div className="flex flex-col gap-5">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -1069,6 +1116,109 @@ function ReportTab({
           </p>
         </div>
       </div>
+
+      {hasCashFlow && (
+        <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
+          <h2 className="mb-1 text-sm font-semibold text-[#12232e]">Monthly cash flow (last {cashFlowRows.length} months)</h2>
+          <p className="mb-4 text-xs text-[#566a76]">
+            Auto-filled from your uploaded statement — the same figures feeding the Financial
+            readiness calculator&apos;s cash-flow table.
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-black/10 text-xs uppercase tracking-wide text-[#566a76]">
+                  <th className="py-2 pr-2">Month</th>
+                  <th className="py-2 pr-2 text-right">Total inflow (₦)</th>
+                  <th className="py-2 pr-2 text-right">Total outflow (₦)</th>
+                  <th className="py-2 text-right">Closing balance (₦)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cashFlowRows.map((r) => (
+                  <tr key={r.month} className="border-b border-black/5">
+                    <td className="py-2 pr-2 text-[#12232e]">{r.month}</td>
+                    <td className="py-2 pr-2 text-right text-[#12232e]">{r.inflow.toLocaleString('en-NG')}</td>
+                    <td className="py-2 pr-2 text-right text-[#12232e]">{r.outflow.toLocaleString('en-NG')}</td>
+                    <td className="py-2 text-right text-[#12232e]">
+                      {r.balance ? Number(r.balance).toLocaleString('en-NG') : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="font-semibold text-[#12232e]">
+                  <td className="py-2 pr-2">Total</td>
+                  <td className="py-2 pr-2 text-right">{formatAmount(totalInflow)}</td>
+                  <td className="py-2 pr-2 text-right">{formatAmount(totalOutflow)}</td>
+                  <td className="py-2 text-right">{formatAmount(closingBalance)} (most recent)</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          {showVarianceWarning && (
+            <div className="mt-3 rounded-lg bg-warn-wash p-3 text-sm text-warn-text">
+              ⚠️ Your monthly income varies a lot month-to-month (roughly ±{incomeVariancePct}%). A
+              steady, recurring monthly salary - backed by an employment letter - reads far better
+              than lump sums.
+            </div>
+          )}
+          {showOverspendWarning && (
+            <div className="mt-3 rounded-lg bg-warn-wash p-3 text-sm text-warn-text">
+              ⚠️ You&apos;re spending nearly all (or more than) you earn most months (avg in{' '}
+              {formatAmount(financialSummary.avgIn)} vs avg out {formatAmount(financialSummary.avgOut)}).
+              This can make it harder to show a genuine savings cushion.
+            </div>
+          )}
+          <div className="mt-3 rounded-lg bg-accent-wash p-3 text-sm text-accent">
+            ℹ️ Enter your trip dates and cost in the{' '}
+            <a href={financialHref} className="underline">
+              Financial readiness calculator
+            </a>{' '}
+            to see the recommended funds buffer and a readiness verdict against your closing balance.
+          </div>
+        </div>
+      )}
+
+      {hasCashFlow && (
+        <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
+          <h2 className="mb-3 text-sm font-semibold text-[#12232e]">Financial summary</h2>
+          <p className="mb-4 text-xs text-[#566a76]">
+            Everything above, pulled into one summary: what came in and went out over your
+            statement window, and how that pace compares income against outflow.
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <tbody>
+                {[
+                  ['Opening balance (start of statement window)', formatAmount(openingBalance)],
+                  ['Total inflow (credits)', formatAmount(totalInflow)],
+                  ['Total outflow (debits)', formatAmount(totalOutflow)],
+                  ['Net change (inflow − outflow)', formatAmount(netChange)],
+                  ['Closing balance (most recent)', formatAmount(closingBalance)],
+                  ['Income generation (average per month)', formatAmount(financialSummary.avgIn)],
+                  ['Average monthly outflow', formatAmount(financialSummary.avgOut)],
+                  ['Monthly net savings pace', formatAmount(financialSummary.monthlyNetSavings)],
+                ].map(([label, value]) => (
+                  <tr key={label} className="border-b border-black/5">
+                    <td className="py-2 pr-4 text-[#566a76]">{label}</td>
+                    <td className="py-2 text-right font-medium text-[#12232e]">{value}</td>
+                  </tr>
+                ))}
+                <tr className="border-b border-black/5">
+                  <td className="py-2 pr-4 text-[#566a76]">Recommended funds needed (2× buffer)</td>
+                  <td className="py-2 text-right text-accent">
+                    <a href={financialHref} className="hover:underline">
+                      Add trip cost in the calculator
+                    </a>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
         <h2 className="mb-3 text-sm font-semibold text-[#12232e]">Readiness at a glance</h2>
