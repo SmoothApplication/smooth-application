@@ -158,9 +158,34 @@ export async function POST(request: Request) {
     { onConflict: 'id', ignoreDuplicates: false }
   );
 
-  const { error: emailErr } = await sendReportEmail({ to: email, pdfBuffer, countryName, setPasswordUrl });
+  // Fix 1 (technical-co-founder review, launch-day priority: "we need to know how many people
+  // downloaded, and what happens after"): generate the opaque outcome token up front so it can be
+  // embedded in the email itself — see lib/resend.ts's own comment on outcomeLinks and migration
+  // 0005_report_outcomes.sql for why it's a token, never the email address. Built from
+  // NEXT_PUBLIC_SITE_URL as an absolute URL exactly like setPasswordUrl already is.
+  const outcomeToken = crypto.randomUUID();
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || '';
+  const outcomeLinks = {
+    applied: `${siteUrl}/api/report-outcome?token=${outcomeToken}&result=applied`,
+    approved: `${siteUrl}/api/report-outcome?token=${outcomeToken}&result=approved`,
+    refused: `${siteUrl}/api/report-outcome?token=${outcomeToken}&result=refused`,
+  };
+
+  const { error: emailErr } = await sendReportEmail({ to: email, pdfBuffer, countryName, setPasswordUrl, outcomeLinks });
   if (emailErr) {
     return NextResponse.json({ error: emailErr.message || 'Could not send report email' }, { status: 500 });
+  }
+
+  // Only recorded once the email actually sent — a row here means a report really went out, which is
+  // also the "how many people downloaded" count this was asked for (alongside email_log's own
+  // progress_report rows, now that migration 0004 is actually applied — see that migration's own
+  // comment on why this insert was silently failing for every send until today). Never fatal: a
+  // failure here must not make an otherwise-successful send look like an error to the applicant.
+  const { error: outcomeLogErr } = await supabase
+    .from('report_outcomes')
+    .insert({ token: outcomeToken, applicant_id: userId, country_code: countryCode });
+  if (outcomeLogErr) {
+    console.error('email-report: failed to write report_outcomes row', outcomeLogErr);
   }
 
   // Fix 5/2 (technical-co-founder review): this insert used to be fire-and-forget with its error

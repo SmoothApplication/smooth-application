@@ -62,8 +62,15 @@ export async function sendReportEmail(opts: {
    * (same find-or-invite pattern as capture-email/route.ts) — null for an applicant who already has
    * a password, since they don't need one made for them again. */
   setPasswordUrl: string | null;
+  /** Fix 1 (technical-co-founder review, launch-day priority: "we need to know what happens after
+   * someone downloads this"): three one-click GET links, each already carrying the opaque outcome
+   * token and the result it records — the applicant does nothing but click whichever is true. Never
+   * built from the applicant's email; see app/api/report-outcome/route.ts + migration
+   * 0005_report_outcomes.sql for why (never put personal data in a URL). Optional so this function
+   * still works, unchanged, for any future caller that doesn't have a token to attach. */
+  outcomeLinks?: { applied: string; approved: string; refused: string } | null;
 }) {
-  const { to, pdfBuffer, countryName, setPasswordUrl } = opts;
+  const { to, pdfBuffer, countryName, setPasswordUrl, outcomeLinks } = opts;
   return resend.emails.send({
     from: FROM,
     to,
@@ -78,6 +85,20 @@ export async function sendReportEmail(opts: {
           : `<p>You can sign back in any time to keep going.</p>`
       }
       <p style="color:#666;font-size:13px;">This report reflects only what you've entered — it isn't sent anywhere else, and isn't seen by anyone at Smooth Application unless you choose to share it.</p>
+      ${
+        outcomeLinks
+          ? `<hr style="border:none;border-top:1px solid #e5e5e5;margin:20px 0;" />
+             <p style="font-size:13px;color:#333;">One quick thing — has your visa application moved since you got this? Whichever is true, one click and we'll know:</p>
+             <p style="font-size:13px;">
+               <a href="${outcomeLinks.applied}" style="color:#0b7a6e;">I've applied</a>
+               &nbsp;·&nbsp;
+               <a href="${outcomeLinks.approved}" style="color:#0b7a6e;">I was approved</a>
+               &nbsp;·&nbsp;
+               <a href="${outcomeLinks.refused}" style="color:#0b7a6e;">I was refused</a>
+             </p>
+             <p style="color:#999;font-size:12px;">Totally optional — just helps us keep improving this for the next applicant.</p>`
+          : ''
+      }
     `,
     attachments: [
       {

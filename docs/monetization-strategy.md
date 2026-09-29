@@ -1,5 +1,45 @@
 # Monetization Strategy — draft
 
+## Fix 6 update (launch day, technical co-founder review): one-time package vs. recurring pricing — recommendation
+
+**Bottom line: one-time, not recurring — and don't turn on any paywall today.** Everything below is
+reasoning for that call, given what's actually shipped and what's happening today (public launch:
+NairaLand, WhatsApp/Facebook groups, word of mouth, real clients).
+
+**Why one-time, not recurring:** a person applies for a visa a handful of times in their life, not
+every month. A subscription charges someone for months they're not using the product, which reads
+as a bait-and-switch on top of a tool that's been marketed as free — the fastest way to burn the
+trust this launch is built on. Every prior pass at this question (see path 1 below) landed on the
+same answer for the same reason; nothing that's shipped since changes it. A one-time fee per
+application cycle is the only pricing shape that matches how people actually use this.
+
+**What's changed since the last pass, and why it matters for scoping the package:** the backend
+this strategy always assumed as a paid tier now actually exists and is live — real accounts
+(Supabase Auth), a real emailed PDF progress report, and, as of today, an outcome-tracking loop
+(did the applicant apply / get approved / get refused). That last piece is the one thing this
+recommendation was missing before: real data, starting today, on how many free users actually
+apply and succeed — which is exactly the evidence needed to price a paid tier with confidence
+instead of guessing. The situational-routing gate (fresh / refused / already paid) also already
+exists and quietly does a version of "Document Review" for free today, informally, over
+WhatsApp/email with the founder — that's real proof of demand for hands-on help, not just a
+hypothesis.
+
+**Recommended shape, once there's a week or two of outcome data to look at (not today):**
+- A one-time "Application Readiness Package" (~₦2,000–5,000, in line with the earlier rough
+  pricing test) sold ONLY after the free checklist is already complete — never a gate in front of
+  anything free. It bundles what's already built: automated progress reminders (the cron/reminder
+  system already ships this for free today — decide whether it stays free as a hook or moves
+  behind the package), the emailed PDF report, and a "we'll check in after you apply" follow-up
+  that the new outcome-tracking links now make possible to actually deliver on, not just promise.
+- Do NOT price or ship this today. Today's job is: launch the free tool, let real applicants hit
+  the outcome-tracking links that just shipped, and revisit pricing once there's real "how many
+  applied / got approved" data instead of the fake-door waitlist clicks alone (path 1 below).
+- Do NOT touch the referral-to-regulated-advisers path (path 3 below) as a monetization lever until
+  a lawyer has looked at referral-fee rules — that caution from the original pass still stands
+  untouched.
+
+Everything below this line is the original draft this update sits on top of, kept for context.
+
 Three plausible revenue paths, in the order I'd actually pursue them. None require the full
 backend build on day one — each can start as a small, cheap test before you commit real
 infrastructure spend.

@@ -24,7 +24,9 @@ import {
   WorkCategoryMap,
   resolveWorkCategoryChoice,
   workPaymentCategoryLabel,
+  senderPairKey,
 } from '@/lib/statement';
+import { trackEvent } from '@/lib/analytics';
 
 // Phase 3 of the bank-statement port (see lib/statement/index.ts for Phase 1, StatementUpload.tsx +
 // extractFile.ts for Phase 2). This is the real two-tab dashboard that sits on top of the already-
@@ -368,6 +370,12 @@ export default function StatementDashboard({
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Income Breakdown');
       XLSX.writeFile(wb, 'income-source-breakdown.xlsx');
+      // Fix 1 (launch-day priority: "we need to know how many people downloaded"): this export is
+      // entirely client-side (see this function's own comment) - no request ever reaches the
+      // server, so without this it's invisible to every count anywhere else in the app. Same
+      // privacy model as every other trackEvent() call: an anonymous, aggregate tally of "this
+      // happened", never the file's contents or who clicked it.
+      trackEvent('spreadsheet_downloaded');
     } finally {
       setDownloadingSpreadsheet(false);
     }
@@ -716,7 +724,8 @@ function AnalysisTab({
         <h2 className="mb-1 text-sm font-semibold text-[#12232e]">Top 10 senders</h2>
         <p className="mb-4 text-xs text-[#566a76]">
           Whoever pays you most consistently - ranked by how many different months they&apos;ve sent
-          money in, not just the total amount.
+          money in, not just the total amount. If a name was misread, or the same person shows up
+          twice under two slightly different names, fix it right here.
         </p>
         {topSenders.pendingDuplicates.length > 0 && (
           <div className="mb-3 flex flex-col gap-2">
@@ -762,15 +771,74 @@ function AnalysisTab({
                 </tr>
               </thead>
               <tbody>
-                {topSenders.list.map((s, i) => (
-                  <tr key={s.name} className="border-b border-black/5">
-                    <td className="py-2 pr-2 text-[#566a76]">{i + 1}</td>
-                    <td className="py-2 pr-2 font-medium text-[#12232e]">{displayName(s.name)}</td>
-                    <td className="py-2 pr-2 text-right text-[#12232e]">{s.monthCount}</td>
-                    <td className="py-2 pr-2 text-right text-[#12232e]">{s.count}</td>
-                    <td className="py-2 text-right text-[#12232e]">{formatAmount(s.total)}</td>
-                  </tr>
-                ))}
+                {topSenders.list.map((s, i) => {
+                  const isEditingThis = editingName === s.name;
+                  const otherSenders = topSenders.list.filter((o) => o.name !== s.name);
+                  return (
+                    <tr key={s.name} className="border-b border-black/5">
+                      <td className="py-2 pr-2 text-[#566a76]">{i + 1}</td>
+                      <td className="py-2 pr-2 font-medium text-[#12232e]">
+                        {isEditingThis ? (
+                          <div className="flex flex-wrap items-center gap-2">
+                            <input
+                              type="text"
+                              value={editValue}
+                              onChange={(e) => setEditValue(e.target.value)}
+                              autoFocus
+                              className="max-w-[10rem] rounded-lg border border-black/10 px-2 py-1 text-sm text-[#12232e]"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => saveNameCorrection(s.name)}
+                              className="rounded-lg bg-accent px-2 py-1 text-xs font-medium text-white"
+                            >
+                              Save
+                            </button>
+                            <button
+                              type="button"
+                              onClick={cancelEditingName}
+                              className="text-xs text-[#566a76] hover:underline"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span>{displayName(s.name)}</span>
+                            <button
+                              type="button"
+                              onClick={() => startEditingName(s.name)}
+                              className="text-[10px] font-medium text-accent hover:underline"
+                            >
+                              ✏️ Fix name
+                            </button>
+                            {otherSenders.length > 0 && (
+                              <select
+                                value=""
+                                onChange={(e) => {
+                                  if (e.target.value) {
+                                    resolveSenderDuplicate(senderPairKey(s.name, e.target.value), 'merge');
+                                  }
+                                }}
+                                className="rounded-lg border border-black/10 bg-white px-1 py-0.5 text-[10px] text-[#566a76]"
+                              >
+                                <option value="">🔗 Same as…</option>
+                                {otherSenders.map((o) => (
+                                  <option key={o.name} value={o.name}>
+                                    {displayName(o.name)}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-2 pr-2 text-right text-[#12232e]">{s.monthCount}</td>
+                      <td className="py-2 pr-2 text-right text-[#12232e]">{s.count}</td>
+                      <td className="py-2 text-right text-[#12232e]">{formatAmount(s.total)}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

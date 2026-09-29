@@ -3,6 +3,67 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fix 1: outcome-tracking + download counts, and a live deployment gap this surfaced
+
+Direct request, launch day: "we need to know how many people downloaded [their report]."
+
+**How many people downloaded:** three independent counts now exist, all privacy-safe (no answers,
+no documents, nothing that leaves the browser except the report the applicant explicitly asked to
+be emailed):
+1. `public.email_log` rows with `email_type = 'progress_report'` — one per successful report send.
+2. The new `public.report_outcomes` table (below) — one row per send, same count as #1 but also
+   holds whatever outcome the applicant reports back.
+3. GoatCounter events `app:report_downloaded` (report emailed) and `app:spreadsheet_downloaded`
+   (the client-side-only "Download breakdown as spreadsheet" button, which never touches the
+   server at all and so was invisible to #1/#2 — added a `trackEvent()` call at the point it
+   actually writes the file).
+
+**Outcome-tracking follow-up loop:** `/api/email-report` now generates an opaque `token` (a uuid,
+never the applicant's email — see this project's own "never put personal data in a URL" rule) and
+embeds three one-click links in the report email's footer: "I've applied" / "I was approved" /
+"I was refused". A new public route, `/api/report-outcome`, resolves whichever is clicked by token
+and records it — no page to load, no form, no login. New migration `0005_report_outcomes.sql`
+adds the table (service-role-only RLS, same pattern as every other table here); `lib/resend.ts`'s
+`sendReportEmail` renders the links when a token is supplied.
+
+**Deployment gap found and fixed while building this:** checking the live database (via the
+Supabase MCP, ref `yjskbifnswwlgywehrse`) before adding a new table turned up that migration
+`0004_report_email_rate_limit.sql` — written and referenced in shipped code for the rate-limiting
+fix — had never actually been applied to production. `report_request_log` didn't exist, and the
+`email_type` enum was still missing `'progress_report'`. Net effect: `/api/email-report`'s rate
+limiting has been silently inactive since it shipped, and every report-send's own audit-log
+insert has been silently failing (exactly the failure mode that migration's own comment already
+described — it just never went live). Applied both missing pieces directly to production, then
+verified the enum and the new outcome-tracking table are both correctly in place before touching
+any code that depends on them.
+
+Typecheck clean, full jest suite (71 suites / 463 tests) green.
+
+## Fix name + merge duplicate senders directly from the Top 10 senders table
+
+Direct user report (screenshot of their own Top 10 senders table): correcting a misread sender
+name, or merging two rows that are clearly the same person under slightly different extracted
+names (e.g. "Mary Oluwafunmilayo Afeni" / "Agboola Mary Oluwafunmilayo Mary"), required leaving
+this table entirely — the "Fix name" and "same person, merge" tools already existed elsewhere in
+the dashboard (the Income sources cards, and an auto-detected duplicate-pair prompt), but not here,
+where the applicant is actually looking at the list of names.
+
+`StatementDashboard.tsx`'s Top 10 senders table now has both controls inline, per row, reusing the
+exact same underlying mechanisms (no new logic, just newly wired UI):
+
+1. **✏️ Fix name** — same inline edit-and-save control as the Income sources cards, backed by the
+   same `nameCorrections` map, so a correction made here shows up everywhere else too (and vice
+   versa).
+2. **🔗 Same as…** — a dropdown listing every other sender in the table; picking one merges that
+   pair immediately via the existing `senderDuplicateDecisions` / `senderPairKey` mechanism, the
+   same one that already powers the auto-detected "these look like the same person" banner — just
+   no longer gated on the automatic name-overlap heuristic catching the pair first. The two rows
+   collapse into one (amounts summed, the longer/more complete extracted name kept), which can then
+   also be corrected with Fix name.
+
+Typecheck clean, full jest suite (71 suites / 463 tests) green — no existing test needed changes,
+since this only wires up UI to logic that was already covered.
+
 ## Launch-day hardening: OCR confidence flag + post-deploy smoke test
 
 Two of the four items from the technical co-founder review, both code-complete and test-verified

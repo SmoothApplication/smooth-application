@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Answers } from '@/lib/checklist/uk';
 import { DEFAULT_FINANCIAL_INPUTS, FinancialInputs } from '@/lib/checklist/financial';
 import { COUNTRIES } from '@/lib/checklist/countries';
+import { trackEvent } from '@/lib/analytics';
 
 // Task #421 (save/report-by-email redesign, direct request): "this save file, I want it to be a
 // link or a tab beneath the page where you have your responsibility... when you save, it shows you
@@ -101,6 +102,10 @@ export default function SaveProgressPanel({ code, answers, checked }: SaveProgre
         return;
       }
       setEmailStep('sent');
+      // Fix 1 (launch-day priority: "we need to know how many people downloaded"): mirrors the
+      // server-side count (email_log + report_outcomes) in GoatCounter too, so a quick dashboard
+      // check doesn't require a database query.
+      trackEvent('report_downloaded');
     } catch {
       setErrorMsg('Something went wrong sending your report — try again.');
       setEmailStep('error');
