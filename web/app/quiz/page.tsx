@@ -287,15 +287,20 @@ export default function ConfidenceQuizPage() {
               answered. quizResultCards() no longer computes a tone at all (see lib/quiz-score.ts). */}
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {resultCards.map((c, i) =>
+              // Task #422 (direct request, live screenshot): "increase the [label] font a little
+              // and make it bold... reduce the font [of the answer text] a little bit" — applied
+              // to all 4 cards. Label goes text-xs/font-medium -> text-sm/font-bold; the answer
+              // line goes text-xl -> text-lg (still font-extrabold, just less overwhelming next to
+              // the now-bolder label).
               i < 2 ? (
                 <div key={c.label} className="card-surface p-6">
-                  <p className="text-xs font-medium uppercase tracking-wide text-[#4c6270]">{c.label}</p>
-                  <p className="mt-2 text-xl font-extrabold leading-snug text-good">{c.message}</p>
+                  <p className="text-sm font-bold uppercase tracking-wide text-[#4c6270]">{c.label}</p>
+                  <p className="mt-2 text-lg font-extrabold leading-snug text-good">{c.message}</p>
                 </div>
               ) : (
                 <div key={c.label} className="rounded-2xl bg-[#12232e] p-6 text-white">
-                  <p className="text-xs font-medium uppercase tracking-wide text-white/60">{c.label}</p>
-                  <p className="mt-2 text-xl font-extrabold leading-snug text-warn">{c.message}</p>
+                  <p className="text-sm font-bold uppercase tracking-wide text-white/60">{c.label}</p>
+                  <p className="mt-2 text-lg font-extrabold leading-snug text-warn">{c.message}</p>
                 </div>
               ),
             )}
