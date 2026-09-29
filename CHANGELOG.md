@@ -3,6 +3,31 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Real-time "stuck applicant" alert for failed bank statement uploads
+
+Direct report, launch day: a real applicant's bank statement wasn't processing, and there was no
+way to know that was happening short of them personally reaching out. The statement parser runs
+entirely on-device (privacy design — see extractFile.ts), so a failure there never reaches any
+server and can't be caught by server-side monitoring, ever. Two additions, both privacy-safe:
+
+1. **Granular failure analytics.** The three ways `StatementSlot.tsx`'s `handleAnalyze()` can fail
+   (no readable text even after OCR, text found but no transactions parsed, or an exception) each
+   now fire their own GoatCounter event (`app:statement_analysis:failed_no_text` /
+   `:failed_no_transactions` / `:failed_exception`) instead of all folding into the same
+   "not completed" gap between `:attempted` and `:completed`. Answers "how many, and what kind of
+   failure" from the dashboard after the fact.
+2. **One-tap real-time alert.** Whichever failure hits, the error message now also shows a
+   "💬 Still stuck? Message us now on WhatsApp" button (new `lib/statement/supportContact.ts`,
+   reusing the exact same `wa.me` pattern already used elsewhere in this app — TravelHistory.tsx's
+   own founder-contact link). The prefilled message names which of the three things went wrong (so
+   whoever answers can start diagnosing immediately) but never attaches or describes the
+   statement's own contents — the applicant decides whether to share the actual file only after
+   their WhatsApp opens. This is the part that turns "eventually notice it in a dashboard" into
+   "the applicant can alert a human the moment they're stuck."
+
+New regression tests for the message-building logic; typecheck clean; full jest suite (72 suites /
+467 tests) green.
+
 ## Fix 1: outcome-tracking + download counts, and a live deployment gap this surfaced
 
 Direct request, launch day: "we need to know how many people downloaded [their report]."

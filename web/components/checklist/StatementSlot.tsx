@@ -13,6 +13,8 @@ import {
   WorkCategoryMap,
   summarizeStatement,
   StatementSummary,
+  StatementFailureReason,
+  buildStatementHelpWhatsAppHref,
 } from '@/lib/statement';
 import StatementDashboard from '@/components/checklist/StatementDashboard';
 import ResumeReminderLinks from '@/components/checklist/ResumeReminderLinks';
@@ -99,6 +101,11 @@ export default function StatementSlot({
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Direct request: "how do we get an alert when an applicant is having difficulty reading his or
+  // her bank statement?" This is which of the three failure branches in handleAnalyze() below just
+  // hit, so the error UI can offer a one-tap "message us now" link built specifically for it (see
+  // lib/statement/supportContact.ts) — null whenever there's no error to show one for.
+  const [failureReason, setFailureReason] = useState<StatementFailureReason | null>(null);
 
   // Restore a previously-saved statement on mount — unchanged behavior from before this was split
   // out of StatementCheck.tsx, just keyed by whichever storageKey this instance was given.
@@ -221,6 +228,7 @@ export default function StatementSlot({
     setRecalled(false);
     setFile(null);
     setError(null);
+    setFailureReason(null);
   }
 
   async function handleAnalyze() {
@@ -228,12 +236,15 @@ export default function StatementSlot({
     trackEvent('statement_analysis:attempted');
     setUploading(true);
     setError(null);
+    setFailureReason(null);
     try {
       const { lines, ocrUsed: usedOcr } = await getLinesFromFileWithMeta(file);
       if (!lines.length) {
         setError(
           "We tried reading that file — including on-device OCR for a scanned or photographed statement — but couldn't make out any readable text in it. Try a clearer photo/scan (good lighting, holding it flat and steady), or a regular PDF/spreadsheet export from your bank."
         );
+        setFailureReason('no_text');
+        trackEvent('statement_analysis:failed_no_text');
         return;
       }
       const result = parseStatementLinesWithFallback(lines);
@@ -241,6 +252,8 @@ export default function StatementSlot({
         setError(
           "We read the file but couldn't make out any transactions in it. Double-check it's a bank statement export, or try a different file."
         );
+        setFailureReason('no_transactions');
+        trackEvent('statement_analysis:failed_no_transactions');
         return;
       }
       setTxns(result);
@@ -261,6 +274,8 @@ export default function StatementSlot({
       setError(
         `Something went wrong while reading that file (${message}). Try a different PDF or spreadsheet export from your bank.`
       );
+      setFailureReason('exception');
+      trackEvent('statement_analysis:failed_exception');
     } finally {
       setUploading(false);
     }
@@ -321,6 +336,7 @@ export default function StatementSlot({
             onChange={(e) => {
               setFile(e.target.files?.[0] ?? null);
               setError(null);
+              setFailureReason(null);
             }}
             className="mb-4 block w-full text-sm text-[#12232e] file:mr-3 file:rounded-lg file:border-0 file:bg-accent-wash file:px-3 file:py-2 file:text-sm file:font-medium file:text-accent hover:file:bg-accent/10"
           />
@@ -343,7 +359,17 @@ export default function StatementSlot({
 
         {error && (
           <div className="rounded-lg bg-warn-wash p-3 text-sm text-warn-text" role="alert">
-            {error}
+            <p>{error}</p>
+            {failureReason && (
+              <a
+                href={buildStatementHelpWhatsAppHref(failureReason, visaName)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 inline-block rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white"
+              >
+                💬 Still stuck? Message us now on WhatsApp
+              </a>
+            )}
           </div>
         )}
       </div>
