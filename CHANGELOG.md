@@ -3,6 +3,16 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Debug: surface the real error from /api/email-report (temporary)
+
+The `serverComponentsExternalPackages: ['pdfkit']` fix below did not resolve the production 500 —
+still an empty response body several minutes after that deploy. Rather than guess again, wrapped
+the whole route handler in a try/catch that returns the actual `err.message`/`err.stack` in the
+JSON response instead of letting Next.js swallow it (production strips uncaught-exception details
+by default, which is why the first fix attempt was working blind). Temporary — remove once the
+real cause is found and fixed, since returning a stack trace to the client is fine short-term for
+debugging but not something to leave in place.
+
 ## Hotfix: /api/email-report 500 in production (pdfkit + webpack bundling)
 
 Live-verified right after the save/report-by-email redesign shipped: the email flow worked in every
