@@ -10,8 +10,22 @@ const nextConfig = {
   // production while working fine locally under plain Node/jest (no bundler involved there).
   // Marking it external stops webpack from bundling it at all, so it's just a normal require()
   // against the real node_modules folder Vercel deploys alongside the function.
+  //
+  // That alone wasn't enough, confirmed by the real error once app/api/email-report/route.ts's
+  // temporary debug catch surfaced it: "Cannot find module
+  // '.../node_modules/pdfkit/js/standard-fonts/Helvetica.cjs'" at /var/task/... in production.
+  // Vercel's own file tracer (@vercel/nft) decides which node_modules files to upload alongside
+  // each serverless function by statically following require()/import calls — it doesn't
+  // understand the `#`-prefixed self-reference specifier either, so it never discovered these
+  // font files needed to come along even though pdfkit itself (now external) was left unbundled.
+  // outputFileTracingIncludes forces them in explicitly. Also including js/data (ICC colour
+  // profile data pdfkit resolves via a computed file URL, a different mechanism nft could equally
+  // miss) so a future PDF feature that touches colour profiles doesn't hit the same class of bug.
   experimental: {
     serverComponentsExternalPackages: ['pdfkit'],
+    outputFileTracingIncludes: {
+      '/api/email-report/route': ['./node_modules/pdfkit/js/standard-fonts/**/*', './node_modules/pdfkit/js/data/**/*'],
+    },
   },
 };
 

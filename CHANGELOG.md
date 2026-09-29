@@ -3,6 +3,22 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Hotfix #2: trace pdfkit's standard-fonts into the Vercel function bundle
+
+The debug catch below paid off immediately: production returned the real error on the next
+attempt — `Cannot find module '.../node_modules/pdfkit/js/standard-fonts/Helvetica.cjs'` at
+`/var/task/...`. Marking pdfkit external (the first hotfix) was necessary but not sufficient:
+Vercel's own file tracer (`@vercel/nft`) decides which `node_modules` files to upload alongside
+each serverless function by statically following `require()`/`import` calls, and it doesn't
+understand pdfkit's `#`-prefixed package-self-reference imports either — so it never discovered
+`js/standard-fonts/*.cjs` needed to travel with the function, even with pdfkit itself left
+unbundled. Added `experimental.outputFileTracingIncludes` in `next.config.mjs`, scoped to the
+`/api/email-report/route` function, forcing in `node_modules/pdfkit/js/standard-fonts/**/*` and
+`node_modules/pdfkit/js/data/**/*` (the latter for an ICC colour-profile file pdfkit resolves via
+a different, equally nft-invisible mechanism — not hit yet, but the same class of bug, so included
+pre-emptively). The debug catch from the entry below stays in place for one more deploy to confirm
+this actually closes it out before removing it.
+
 ## Debug: surface the real error from /api/email-report (temporary)
 
 The `serverComponentsExternalPackages: ['pdfkit']` fix below did not resolve the production 500 —
