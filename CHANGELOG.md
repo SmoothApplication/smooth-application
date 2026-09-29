@@ -3,6 +3,44 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Score Total outflow + Recommended funds needed in the Financial summary Status column
+
+Direct follow-up, sent as a screenshot of the live table with real numbers: outflow ₦53.2M exceeded
+inflow ₦45.7M, net change was -₦7.5M, yet the table still read "6 of 7 good — financially healthy"
+because Total outflow and the Recommended-funds-buffer row were the two lines left unscored in the
+previous entry. Two fixes:
+
+1. **Total outflow is now scored** — "the outflow is more than the inflow so the outflow has to be
+   bad": bad when the raw total outflow exceeds total inflow, same inflow-relative rule the Average
+   monthly outflow row already used, just applied to the total instead of the average.
+2. **Recommended funds needed is now scored, with a stand-in figure.** It was always showing "—"
+   because the trip-cost inputs it needs live on a separate page (the Financial readiness
+   calculator) that this statement page's `computeFinancials()` call never receives — it's always
+   fed `DEFAULT_FINANCIAL_INPUTS`' zeroed costs here, so `totalCost`/`recommendedFunds` are always 0
+   on this page. Direct instruction for a stand-in: simulate a basic 5-day UK trip — flight ≈ ₦1.5M
+   plus basic accommodation/transport/feeding/shopping — put at a minimum of ₦3,000,000 total, and
+   score the statement's own closing balance against that ₦3M floor directly ("aside the buffer",
+   i.e. the raw minimum, not the 2x-buffer figure). This is a rough dictated rule of thumb, not a
+   real per-applicant cost — entering actual trip dates/costs in the calculator still gives an
+   exact, personalized buffer instead of this floor.
+
+Scored lines go from 7 to 9. The original rule was a ratio ("seven items, five of seven is good" ≈
+71.4%), not a hardcoded "5" — so the overall-good threshold is generalized to hold that same ~71.4%
+bar rather than picking an arbitrary new cutoff: `round(9 × 5/7) = 6`, i.e. now needs 6 of 9 good.
+Flagging this as my own interpretation, not something dictated verbatim, since the exact threshold
+at other item counts wasn't specified — worth confirming this reads right once you've seen it live.
+
+Simulated against the exact numbers from the screenshot (opening ₦7,581,618; inflow ₦45,727,140;
+outflow ₦53,240,631; closing ₦68,127) via a throwaway Jest fixture using the real production
+functions: this statement now scores 5 of 9 good (bad: Total outflow, Net change, Income generation
+[single-month fixture limitation — `hasCashFlowData` needs ≥2 months before trusting the average,
+same as before], Recommended funds needed) against a threshold of 6 — correctly flips to an overall
+"bad" verdict, where it previously misread as "6 of 7 good — healthy" despite the same troubling
+numbers. A second simulation (healthy 3-month statement, ₦1.5M inflow vs ₦600K outflow) still scores
+8 of 9 good (only Recommended funds needed is bad, since ₦1.1M closing balance is below the ₦3M
+floor) — correctly still reads "good" overall. `npx tsc --noEmit`: clean; `npx jest`: 473/473
+passing, 0 regressions.
+
 ## Add Good/Bad status column + overall verdict to the Financial summary table
 
 Direct instruction: give the Financial summary table (added in the entry below) a third "Status"
