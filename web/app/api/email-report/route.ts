@@ -28,23 +28,6 @@ import { renderReportPdf } from '@/lib/report/renderReportPdf';
 import { COUNTRIES } from '@/lib/checklist/countries';
 
 export async function POST(request: Request) {
-  try {
-    return await handlePost(request);
-  } catch (err) {
-    // Task #421 hotfix: the first two production attempts at this route both crashed with an
-    // opaque 500 (empty response body) — Next.js/Vercel strips uncaught-exception details in
-    // production by default, which made the actual cause impossible to see from the client. This
-    // temporary catch-all surfaces the real message/stack so the next failure (if any) is
-    // diagnosable without another guess-and-redeploy cycle. Safe to remove once this route has
-    // been confirmed working end-to-end for a while.
-    const message = err instanceof Error ? err.message : String(err);
-    const stack = err instanceof Error ? err.stack : undefined;
-    console.error('email-report route crashed:', message, stack);
-    return NextResponse.json({ error: message, stack }, { status: 500 });
-  }
-}
-
-async function handlePost(request: Request) {
   const body = await request.json().catch(() => null);
 
   const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : '';

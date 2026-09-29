@@ -3,6 +3,16 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Confirmed fixed: /api/email-report now working end-to-end in production
+
+Live-verified against the commit `707d054` deploy: `POST /api/email-report` now returns
+`{"ok":true,"isNewApplicant":false}` (status 200) instead of the empty 500 — Hotfix #3's corrected
+`outputFileTracingIncludes` key was the actual fix. With this confirmed, removed the temporary
+debug try/catch added around the route handler (it was only ever meant to surface the real error
+message during this bug hunt); `POST` now calls `handlePost` directly again, same as any other
+route in this app. No behavior change beyond that — typecheck and the full jest suite (69 suites,
+452 tests) both pass clean.
+
 ## Hotfix #3: fix the outputFileTracingIncludes glob key (silent no-op)
 
 Hotfix #2 shipped, but the exact same "Cannot find module .../standard-fonts/Helvetica.cjs" error
