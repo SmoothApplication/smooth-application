@@ -1,82 +1,48 @@
-// Minimal app-shell service worker for Smooth Application.
+// KILL SWITCH — replaces the old app-shell service worker.
 //
-// Scope: caches ONLY same-origin, static app-shell files (this page, the manifest, the icons) so
-// the checklist still opens if you lose signal partway through — for example between a bank visit
-// and filling in a figure back home. It deliberately does NOT intercept or cache requests to
-// cdnjs.cloudflare.com (pdf.js/Tesseract.js/xlsx) or open.er-api.com: those are left to the
-// browser's normal network handling, so this worker never becomes a second place that would need
-// updating if a CDN version or its Subresource Integrity hash changes, and never caches a
-// cross-origin response indefinitely without a way to invalidate it.
+// Direct user report, with a screenshot: smoothapplication.github.io/smooth-application/ was still
+// rendering the FULL retired app — live data and all — well after that page's own index.html had
+// already been replaced with a redirect to smoothapplication.com (see CHANGELOG's "Retire the old
+// GitHub Pages site" entry). Root cause: the old app registered this exact file as a service worker
+// (`navigator.serviceWorker.register(...)`, index.html ~line 16694) with same-origin scope. Once a
+// browser has that worker installed, it keeps controlling every future navigation to this origin
+// AT THE BROWSER LEVEL, independent of whatever the server now returns — replacing index.html's
+// content alone can never reach someone whose browser already has this worker active. The redirect
+// page itself doesn't re-register a service worker, so simply removing the registration call did
+// nothing for browsers that already had the old one installed; it only stopped NEW installs.
 //
-// Bump CACHE_NAME whenever the app-shell file list below changes so old caches get cleaned up.
-var CACHE_NAME = 'smooth-app-shell-v1';
-// SCOPE_BASE: the folder this worker itself lives in ("/" on Netlify/Cloudflare, "/<repo>/" on a
-// GitHub Pages project site) — computed instead of hardcoded so the exact same file works on
-// either kind of host without edits.
-var SCOPE_BASE = self.location.pathname.replace(/[^/]*$/, '');
-var APP_SHELL = [
-  SCOPE_BASE,
-  SCOPE_BASE + 'manifest.json',
-  SCOPE_BASE + 'icons/icon-192.png',
-  SCOPE_BASE + 'icons/icon-512.png'
-];
-
-self.addEventListener('install', function(event){
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(function(cache){
-      return cache.addAll(APP_SHELL);
-    }).then(function(){
-      return self.skipWaiting();
-    })
-  );
+// Fix: this file is the SAME registered script URL the old worker used, so a browser that still has
+// the old worker installed will fetch it again (browsers byte-compare a registered service worker's
+// script on every navigation within its scope, not just periodically) and detect a change here,
+// triggering an install of THIS version instead. Once active, it deletes every cache this origin's
+// worker ever created and unregisters itself, then forces every open/future client to do a normal,
+// worker-free navigation — which is exactly what finally lets the real, current server response
+// (the redirect to smoothapplication.com) reach the browser. After this runs once, the origin has
+// no service worker at all, so this can't happen again.
+self.addEventListener('install', function () {
+  self.skipWaiting();
 });
 
-self.addEventListener('activate', function(event){
+self.addEventListener('activate', function (event) {
   event.waitUntil(
-    caches.keys().then(function(keys){
-      return Promise.all(
-        keys.filter(function(key){ return key !== CACHE_NAME; })
-            .map(function(key){ return caches.delete(key); })
-      );
-    }).then(function(){
-      return self.clients.claim();
-    })
-  );
-});
-
-self.addEventListener('fetch', function(event){
-  var req = event.request;
-  if (req.method !== 'GET') return; // never cache non-GET
-  var url = new URL(req.url);
-  if (url.origin !== self.location.origin) return; // let cross-origin (CDN) requests pass through untouched
-
-  if (req.mode === 'navigate'){
-    // Page loads: prefer a fresh copy when online (so fixes/updates show up immediately), fall
-    // back to the cached shell when offline.
-    event.respondWith(
-      fetch(req).then(function(res){
-        var copy = res.clone();
-        caches.open(CACHE_NAME).then(function(cache){ cache.put(SCOPE_BASE, copy); });
-        return res;
-      }).catch(function(){
-        return caches.match(SCOPE_BASE);
+    caches
+      .keys()
+      .then(function (keys) {
+        return Promise.all(keys.map(function (key) { return caches.delete(key); }));
       })
-    );
-    return;
-  }
-
-  // Other same-origin static assets (manifest, icons): cache-first, refresh the cache in the
-  // background when a network copy is available.
-  event.respondWith(
-    caches.match(req).then(function(cached){
-      var networkFetch = fetch(req).then(function(res){
-        if (res && res.ok){
-          var copy = res.clone();
-          caches.open(CACHE_NAME).then(function(cache){ cache.put(req, copy); });
-        }
-        return res;
-      }).catch(function(){ return cached; });
-      return cached || networkFetch;
-    })
+      .then(function () {
+        return self.registration.unregister();
+      })
+      .then(function () {
+        return self.clients.matchAll({ type: 'window' });
+      })
+      .then(function (clients) {
+        clients.forEach(function (client) {
+          // Re-navigating (rather than just letting the old cached page sit there) is what
+          // actually shows the applicant the redirect immediately, on the same tab, without them
+          // needing to manually refresh.
+          client.navigate(client.url);
+        });
+      })
   );
 });

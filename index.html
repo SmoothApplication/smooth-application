@@ -37,6 +37,19 @@
   <h1>We've moved!</h1>
   <p>Smooth Application now lives at <strong>smoothapplication.com</strong> — this page is outdated and no longer maintained. You should be redirected automatically in a moment.</p>
   <a class="btn" href="https://smoothapplication.com">Go to Smooth Application →</a>
-  <script>window.location.replace('https://smoothapplication.com');</script>
+  <script>
+    // Direct user report, with a screenshot: this origin still served the FULL retired app to a
+    // browser that had already installed the old app-shell service worker, well after this page
+    // was replaced with a redirect - the server-side change alone never reaches a browser a
+    // service worker is already controlling. Re-registering the SAME script URL here forces this
+    // visit to check that worker for updates immediately (rather than waiting on the browser's own
+    // periodic check); sw.js is now a kill switch that clears every cache, unregisters itself, and
+    // re-navigates every open tab - see sw.js's own comment for the full story. Harmless for a
+    // browser that never had the old worker: registration just resolves to a no-op kill switch.
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').catch(function () { /* best-effort only */ });
+    }
+    window.location.replace('https://smoothapplication.com');
+  </script>
 </body>
 </html>

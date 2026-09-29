@@ -38,6 +38,27 @@ moment any cell is hand-edited.
 keeping only the most recent N months, empty-balance-as-empty-string not "0", empty input, invalid
 dates skipped without crashing). Full suite: 473 passed, 0 regressions.
 
+## Fix: old GitHub Pages service worker still serving the retired app after the redirect shipped
+
+Direct user report, with a screenshot: `smoothapplication.github.io/smooth-application/` was still
+rendering the FULL retired app — live data and all — well after "Retire the old GitHub Pages site"
+(below) had already replaced that page's `index.html` with a redirect. Root cause: the old app
+registered `sw.js` as a same-origin service worker (see its own comment, `index.html` ~line 16694).
+Once a browser has that worker installed, it keeps controlling every future navigation to this
+origin AT THE BROWSER LEVEL — replacing the server's `index.html` alone can never reach a browser a
+service worker is already controlling, no matter how long ago the swap happened. Removing the
+registration call from the new redirect page (done in the original fix) only stopped NEW installs;
+it did nothing for a browser — like the one in the screenshot — that already had the old worker
+active from before.
+
+Fixed with a "kill switch": `sw.js` (same registered script URL, so an already-controlled browser
+will detect the byte change and install this version instead of the old one) now does nothing but
+delete every cache this origin's worker ever created, unregister itself, and re-navigate every open
+tab — after which the origin has no service worker at all, so the real server response (the
+redirect) finally reaches the browser, and this can't recur. The redirect page re-registers `sw.js`
+one more time (harmless no-op for anyone who never had the old worker) specifically so THIS visit
+triggers the browser's update check immediately, rather than waiting on its own periodic schedule.
+
 ## Retire the old GitHub Pages site for good (root `index.html` → redirect)
 
 Direct report, with screenshots: an applicant got a completely different, stale result set from
