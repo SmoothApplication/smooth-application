@@ -3,6 +3,22 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Hotfix: /api/email-report 500 in production (pdfkit + webpack bundling)
+
+Live-verified right after the save/report-by-email redesign shipped: the email flow worked in every
+local/jest test but returned an opaque 500 (empty response body) on smoothapplication.com. Root
+cause — pdfkit 0.20 loads its 14 standard fonts via Node's package-self-reference imports
+(`require('#standard-fonts/Helvetica')`, resolved through pdfkit's own `package.json` "imports"
+map). That resolution only works when pdfkit is required normally from `node_modules` at runtime;
+Next.js's webpack bundler for serverless functions doesn't correctly trace/rewrite the `#`-prefixed
+specifier when it inlines pdfkit into the function bundle, so it worked under plain Node (jest, no
+bundler involved) but broke once webpacked for Vercel. Fixed by adding
+`experimental.serverComponentsExternalPackages: ['pdfkit']` to `next.config.mjs`, which stops
+webpack from bundling pdfkit at all — it's just a normal `require()` against the real
+`node_modules` folder Vercel deploys alongside the function. No test can catch this class of bug
+(it's bundler-only, invisible to jest's unbundled execution), so this was only findable by live
+end-to-end verification — which is exactly why that step stayed in the plan after the push.
+
 ## Save/report-by-email redesign: PDF generation, moved out of the sidebar
 
 Direct request, screenshot of the "Your responsibilities" page: "Can you pitch me these pages and
