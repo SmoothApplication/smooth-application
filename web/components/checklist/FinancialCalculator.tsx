@@ -10,6 +10,34 @@ import {
 } from '@/lib/checklist/financial';
 import SessionShell from '@/components/checklist/SessionShell';
 import { COUNTRIES } from '@/lib/checklist/countries';
+import { computeMonthlyCashFlow, deserializeTxns, PersistedStatement } from '@/lib/statement';
+
+// Direct user report during launch: "when you put in your bank statement... your six months
+// report doesn't show." The original GitHub Pages app auto-filled this section's cash-flow table
+// straight from the same statement upload used for the income analysis; this Next.js port left the
+// table pure manual-entry, disconnected from StatementCheck's already-parsed transactions (see
+// lib/statement/cashFlow.ts's own comment for the full root-cause). Reads the SAME localStorage
+// keys StatementSlot.tsx writes to (sa_<code>_statement[/_2]) — read-only here, never written back,
+// so nothing about the statement pages' own behavior changes.
+function readPersistedTxnsForCashFlow(lowerCode: string) {
+  const keys = [`sa_${lowerCode}_statement`, `sa_${lowerCode}_statement_2`];
+  const all = [];
+  for (const key of keys) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const parsed: PersistedStatement = JSON.parse(raw);
+      if (parsed?.txns?.length) all.push(...deserializeTxns(parsed.txns));
+    } catch {
+      /* nothing usable under this key */
+    }
+  }
+  return all;
+}
+
+function cashFlowIsEmpty(rows: FinancialInputs['cashFlow']): boolean {
+  return rows.every((r) => !r.month && !r.inflow && !r.outflow && !r.balance);
+}
 
 // Generalized out of the original UK-only web/app/checklist/uk/financial/page.tsx (Phase 3 of
 // task #244) so the same financial readiness calculator can be reused for every supported
@@ -39,6 +67,7 @@ export default function FinancialCalculator({ countryCode }: FinancialCalculator
 
   const [inputs, setInputs] = useState<FinancialInputs>(DEFAULT_FINANCIAL_INPUTS);
   const [loaded, setLoaded] = useState(false);
+  const [cashFlowAutoFilled, setCashFlowAutoFilled] = useState(false);
 
   useEffect(() => {
     try {
@@ -50,6 +79,23 @@ export default function FinancialCalculator({ countryCode }: FinancialCalculator
     setLoaded(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storageKey]);
+
+  // Auto-fill the cash-flow table from an already-uploaded/analyzed bank statement (see this
+  // file's own top-of-file comment + lib/statement/cashFlow.ts). Only runs once inputs have
+  // loaded, and only while the table is still completely untouched - never overwrites a row the
+  // applicant already typed by hand, including one restored from THIS page's own saved progress,
+  // same non-overwrite convention as StatementDashboard's applicant-name auto-fill.
+  useEffect(() => {
+    if (!loaded) return;
+    if (!cashFlowIsEmpty(inputs.cashFlow)) return;
+    const txns = readPersistedTxnsForCashFlow(lowerCode);
+    if (!txns.length) return;
+    const rows = computeMonthlyCashFlow(txns, CF_MONTHS);
+    if (!rows.length) return;
+    setInputs((prev) => (cashFlowIsEmpty(prev.cashFlow) ? { ...prev, cashFlow: rows } : prev));
+    setCashFlowAutoFilled(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded, lowerCode]);
 
   useEffect(() => {
     if (!loaded) return;
@@ -101,6 +147,7 @@ export default function FinancialCalculator({ countryCode }: FinancialCalculator
     setInputs((prev) => ({ ...prev, travellers: { ...prev.travellers, [key]: numOrZero(v) } }));
   }
   function setCashFlow(i: number, field: 'month' | 'inflow' | 'outflow' | 'balance', v: string) {
+    setCashFlowAutoFilled(false);
     setInputs((prev) => {
       const rows = [...prev.cashFlow];
       rows[i] = {
@@ -183,6 +230,12 @@ export default function FinancialCalculator({ countryCode }: FinancialCalculator
         <p className="mb-3 text-xs text-[#4c6270]">
           Type in totals from your own statements — enter at least 2 months for the income-stability check below to run.
         </p>
+        {cashFlowAutoFilled && (
+          <p className="mb-3 rounded-lg bg-good-wash px-3 py-2 text-xs text-good">
+            ✅ Auto-filled from the bank statement you already uploaded and analyzed — edit any cell
+            below to correct it.
+          </p>
+        )}
         <div className="overflow-x-auto">
           <table className="w-full min-w-[420px] border-collapse text-xs">
             <thead>

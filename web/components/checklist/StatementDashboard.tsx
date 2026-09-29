@@ -244,7 +244,12 @@ export default function StatementDashboard({
   const [businessCategoryChoices, setBusinessCategoryChoices] = useState<WorkCategoryMap>(
     initialBusinessCategoryChoices || {}
   );
-  const [tab, setTab] = useState<'analysis' | 'report'>('analysis');
+  // Direct user report: "when you put in your bank statement, the first thing it shows is a
+  // report" - the Report tab (plain-language readiness summary) was meant to be what an applicant
+  // sees first after uploading, matching the original GitHub Pages app's own flow, not the
+  // Analysis tab's raw per-sender breakdown. Still just a UI default - switching tabs afterward
+  // works exactly the same either way.
+  const [tab, setTab] = useState<'analysis' | 'report'>('report');
 
   // Task follow-up: "it is not extracting name from bank statement" -- detectedHolderName was
   // already being computed (extractAccountHolderName in lib/statement/names.ts) but only ever fed

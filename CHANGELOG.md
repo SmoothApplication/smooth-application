@@ -3,6 +3,41 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Auto-fill the 6-month cash-flow table from the uploaded statement; Report tab shows first
+
+Direct user report: "when you put in your bank statement, the first thing it shows is a report...
+your six months report doesn't show. A lot is missing." Traced to two separate, real gaps against
+the original GitHub Pages app, not a caching or data issue:
+
+1. `StatementDashboard`'s two-tab bar (Analysis/Report) defaulted to the Analysis tab. The original
+   app's flow put the plain-language Report first; this port had it backwards, so what an applicant
+   saw immediately after uploading was the raw per-sender breakdown instead of the summary. Default
+   tab changed to `'report'` — switching tabs still works identically either way.
+2. The bigger one: the original's Financial readiness calculator auto-filled its "Monthly cash flow
+   (last 6 months)" table straight from the same statement upload used for the income analysis (its
+   own note said so explicitly: "Upload here to auto-fill the cash-flow table..."). Somewhere in
+   this Next.js port, the statement upload (`StatementSlot`/`StatementDashboard`) and the Financial
+   Calculator (`FinancialCalculator.tsx`) became two disconnected pieces — the calculator's 6-month
+   table was left pure manual entry, so an applicant who had already uploaded and fully analyzed
+   their statement was still asked to retype 6 months of totals by hand, and never did, which is
+   exactly what "your six months report doesn't show" looks like from the outside.
+
+Fixed by adding `lib/statement/cashFlow.ts` (`computeMonthlyCashFlow`) — groups the statement's
+already-parsed transactions by calendar month, summing credit as inflow / debit as outflow, and
+taking the last transaction's balance in that month as the closing balance, keeping only the most
+recent 6 distinct months found. `FinancialCalculator.tsx` now reads the SAME `sa_<code>_statement[_2]`
+localStorage keys `StatementSlot.tsx` already writes (read-only — nothing about the statement pages'
+own behavior changes) and auto-fills the cash-flow table from them the moment the page loads, but
+ONLY while every row is still completely untouched — never overwrites a row the applicant already
+typed by hand, on this page or a prior visit, same non-overwrite convention used elsewhere in this
+codebase (e.g. the applicant-name auto-fill). A small "✅ Auto-filled from the bank statement you
+already uploaded and analyzed" note shows while the auto-fill is in effect, and disappears the
+moment any cell is hand-edited.
+
+6 new tests in `lib/statement/__tests__/cashFlow.test.ts` (month grouping, last-balance-in-month,
+keeping only the most recent N months, empty-balance-as-empty-string not "0", empty input, invalid
+dates skipped without crashing). Full suite: 473 passed, 0 regressions.
+
 ## Retire the old GitHub Pages site for good (root `index.html` → redirect)
 
 Direct report, with screenshots: an applicant got a completely different, stale result set from
