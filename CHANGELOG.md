@@ -3,6 +3,31 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Add Top-senders concentration ratio to the Top 10 senders table
+
+Direct instruction, on the Analysis tab's Top 10 senders table: "do a total for it... a ratio of
+the total from the top senders to the total you have in your bank account within the six months...
+if those top senders do above 50% of your inflow, we'll take it as good to go." Added a Total
+footer row to the table (sum of the listed senders' own totals) and a status banner beneath it
+showing that sum against the same 6-month total inflow already driving the Report tab's cash-flow
+table (`cashFlowRows`, passed down so this can't drift from that other total) — e.g. "These 5
+senders account for 78% (₦X of ₦Y) of your total inflow over the last 6 months," green/good at
+≥50%, amber/needs-review below it. The idea: a reviewer can trace most of an applicant's money back
+to a short, identifiable list of payers when this ratio is high; a low ratio means income is spread
+thinly across many smaller, harder-to-verify sources.
+
+One disclosed caveat: Top 10 senders is computed over the whole uploaded statement, while the
+6-month total inflow is capped to the most recent 6 calendar months — for a statement that spans
+more than 6 months, a sender's total could include activity outside that window, which could in
+theory push the ratio above 100%. Not fixed here since most uploaded statements are already ≤6
+months in practice; flagging it rather than quietly working around it.
+
+Verified via a throwaway Jest fixture using the real production functions
+(`getTopConsistentSenders`, `computeMonthlyCashFlow`): one dominant sender scores 100% (good), six
+roughly-equal unrelated senders score well under 50% (needs review) — same production functions
+already driving the rest of this page. `npx tsc --noEmit`: clean; `npx jest`: 473/473 passing, 0
+regressions.
+
 ## Fix Closing balance status to match Recommended funds needed; add funds-shortfall note
 
 Direct follow-up, live screenshot: closing balance ₦68,127 was still reading "✅ Good" (against the

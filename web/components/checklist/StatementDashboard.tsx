@@ -567,6 +567,7 @@ export default function StatementDashboard({
           groups={groups}
           topSenders={topSenders}
           topInflows={topInflows}
+          cashFlowRows={cashFlowRows}
           onDownloadSpreadsheet={handleDownloadSpreadsheet}
           downloadingSpreadsheet={downloadingSpreadsheet}
           displayName={displayName}
@@ -616,6 +617,7 @@ function AnalysisTab({
   groups,
   topSenders,
   topInflows,
+  cashFlowRows,
   onDownloadSpreadsheet,
   downloadingSpreadsheet,
   displayName,
@@ -637,6 +639,7 @@ function AnalysisTab({
     pendingDuplicates: { nameA: string; nameB: string; key: string; shared: string[] }[];
   };
   topInflows: ParsedTxn[];
+  cashFlowRows: MonthlyCashFlowRow[];
   onDownloadSpreadsheet: () => void;
   downloadingSpreadsheet: boolean;
   displayName: (rawName: string) => string;
@@ -652,6 +655,16 @@ function AnalysisTab({
   setExplanation: (rawName: string, value: string) => void;
   resolveSenderDuplicate: (key: string, decision: 'merge' | 'separate') => void;
 }) {
+  // Direct instruction: "do a total for [Top 10 senders], then a ratio of the total from the top
+  // senders to the total you have in your bank account within the six months. If those top senders
+  // do above 50% of your inflow, we'll take it as good to go." totalInflow6mo is recomputed from
+  // cashFlowRows (the same 6-month window already driving the Report tab's own totals) rather than
+  // passed down as an already-summed number, so this can never drift from that other total.
+  const topSendersTotal = topSenders.list.reduce((s, x) => s + x.total, 0);
+  const totalInflow6mo = cashFlowRows.reduce((s, r) => s + r.inflow, 0);
+  const topSendersRatio = totalInflow6mo > 0 ? topSendersTotal / totalInflow6mo : 0;
+  const topSendersGood = topSendersRatio >= 0.5;
+
   return (
     <div className="flex flex-col gap-5">
       {groups.missingSalaryMonths && groups.missingSalaryMonths.length > 0 && (
@@ -873,7 +886,31 @@ function AnalysisTab({
                   );
                 })}
               </tbody>
+              <tfoot>
+                <tr className="font-semibold text-[#12232e]">
+                  <td className="py-2 pr-2" colSpan={4}>
+                    Total from these {topSenders.list.length} sender{topSenders.list.length === 1 ? '' : 's'}
+                  </td>
+                  <td className="py-2 text-right">{formatAmount(topSendersTotal)}</td>
+                </tr>
+              </tfoot>
             </table>
+          </div>
+        )}
+        {topSenders.list.length > 0 && totalInflow6mo > 0 && (
+          <div
+            className={`mt-3 rounded-lg p-3 text-sm ${
+              topSendersGood ? 'bg-good-wash text-good' : 'bg-warn-wash text-warn-text'
+            }`}
+          >
+            {topSendersGood ? '✅' : '⚠️'} These {topSenders.list.length} sender
+            {topSenders.list.length === 1 ? '' : 's'} account for{' '}
+            <b>{Math.round(topSendersRatio * 100)}%</b> ({formatAmount(topSendersTotal)} of{' '}
+            {formatAmount(totalInflow6mo)}) of your total inflow over the last{' '}
+            {cashFlowRows.length} month{cashFlowRows.length === 1 ? '' : 's'}.
+            {topSendersGood
+              ? ' Above 50% — good to go: a reviewer can trace most of your money to a short, identifiable list of payers.'
+              : ' Below 50% — your income looks spread across many smaller, less consistent payers, which can be harder for a reviewer to trace back to a clear source.'}
           </div>
         )}
       </div>
