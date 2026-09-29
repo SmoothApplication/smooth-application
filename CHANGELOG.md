@@ -3,6 +3,56 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Save/report-by-email redesign: PDF generation, moved out of the sidebar
+
+Direct request, screenshot of the "Your responsibilities" page: "Can you pitch me these pages and
+reduce the clumsiness?... this save file, I want it to be a link or a tab beneath the page where you
+have your responsibility... when you save, it shows you option to download PDF. That option is to
+request for your email. When you request for your email, it will now be sent to your email. And
+then you'll be asked to create a password to save your document in your browser." Confirmed via 4
+rounds of clarifying questions: apply to every page (not just responsibilities), PDF delivery is
+email-only (no instant download), JSON export stays an instant no-email download, and the emailed
+report is a full checklist summary (responsibilities answers + document checklist status + financial
+readiness figures + bank statement summary), not just a scores snapshot.
+
+Key discovery that reframed this from "relocate a button" into "build a PDF pipeline from scratch":
+the existing "Save full report as PDF" button was just `window.print()` — there was no PDF
+generation, no print stylesheet, nothing to relocate. Added `pdfkit` as a real dependency (it
+generates the PDF entirely server-side) and built the missing pipeline:
+
+- `lib/report/types.ts` + `lib/report/buildReportPayload.ts` (new, pure, tested) — assembles a
+  `ReportPayload` from already-computed Answers/FinancialInputs/StatementSummary[]. Responsibilities
+  are filtered to "meaningful values only" (an applicant's ~40 Answers fields are mostly false/empty
+  for any one person — a report full of blank/No lines would bury the handful that matter), reusing
+  the existing `computeRequiredPercent`/`missingRequiredItems`/`computeFinancials`/
+  `combineStatementSummaries` functions rather than re-deriving any of that logic.
+- `lib/report/renderReportPdf.ts` (new, tested) — `ReportPayload` → PDF `Buffer` via pdfkit. Uses its
+  own `NGN 1,234,567` currency formatter rather than the in-app `₦` symbol: pdfkit's standard fonts
+  use WinAnsiEncoding, which doesn't include the Naira sign, so reusing the on-screen formatter would
+  have shipped applicants a PDF with a missing-glyph box where the currency symbol should be.
+- `lib/resend.ts` — added `sendReportEmail` (PDF attachment + a create-password link for a
+  first-time requester, same email type list as the other three).
+- `app/api/email-report/route.ts` (new) — reuses the same find-or-invite pattern as
+  `capture-email/route.ts` (as a self-contained copy, not an import, so nothing here can regress
+  that already-shipped endpoint), builds the payload, renders the PDF, sends the email. Checklist
+  items are never sent over the wire (an item's `appliesIf` is a function and can't survive JSON) —
+  the route looks the country's checklist up itself via `ALL_CHECKLISTS`, the same way
+  `useChecklistState` already does client-side.
+- `components/checklist/SaveProgressPanel.tsx` (new) — the instant JSON export (moved verbatim from
+  `ChecklistSidebar.handleExport`) plus the email-gated PDF request flow. Wired into both
+  `SessionShell.tsx` (all numbered sessions) and `CountryChecklistApp.tsx` (the flat legacy view),
+  rendered beneath each page's own content rather than in the sidebar.
+- `components/checklist/ChecklistSidebar.tsx` — the old "Save your progress" card (window.print() +
+  JSON export) removed entirely; the sidebar is Readiness scores + Still missing only from here on.
+
+Installing `pdfkit` hit repeated `npm install` `ENOTEMPTY` rename failures on this sandbox's mounted
+`node_modules` (a different, unrelated package failed each retry) — worked around by installing it
+into an isolated scratch directory instead, then copying the resolved package tree in as a
+self-contained nested dependency under `node_modules/pdfkit/node_modules/` (mirroring exactly what
+npm itself would have nested had a real version conflict forced it), so nothing already installed
+was touched. `package.json`/`package-lock.json` were then updated normally via
+`npm install --package-lock-only`, which doesn't extract packages and so didn't hit the same fault.
+
 ## Quiz result 4-card grid: bigger bold labels, smaller answer text
 
 Direct request, live screenshot: "increase the finance [label] size a little and make it bold...

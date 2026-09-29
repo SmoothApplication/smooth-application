@@ -3,6 +3,7 @@
 import { ReactNode } from 'react';
 import Link from 'next/link';
 import ChecklistSidebar from '@/components/checklist/ChecklistSidebar';
+import SaveProgressPanel from '@/components/checklist/SaveProgressPanel';
 import { useChecklistState } from '@/lib/checklist/useChecklistState';
 import { buildSessionOrder, SessionKey, prevSessionHref, nextSessionHref } from '@/lib/checklist/sessions';
 
@@ -99,6 +100,11 @@ export default function SessionShell({ code, name, session, children }: SessionS
         </div>
 
         {children}
+
+        {/* Task #421 (save/report-by-email redesign): moved out of ChecklistSidebar's <aside> and
+            into the page content itself, per the confirmed "apply to all pages" placement — this
+            renders beneath every session's own content, not in the sidebar. */}
+        <SaveProgressPanel code={code} answers={answers} checked={checked} />
       </div>
 
       <ChecklistSidebar

@@ -22,12 +22,16 @@ import {
 // see lib/checklist/uk.ts (computeRequiredPercent/requiredStatus/missingRequiredItems) and
 // lib/checklist/financial.ts (computeFinanceReadiness) for the ported scoring formulas themselves.
 //
+// Task #421 (save/report-by-email redesign, direct request): the "Save your progress" card that
+// used to live here (window.print() + JSON export) has moved out into SaveProgressPanel.tsx,
+// rendered in the page content beneath each session instead of in this sidebar — see that
+// component and SessionShell.tsx/CountryChecklistApp.tsx for where it's now wired in. This sidebar
+// is Readiness scores + Still missing only from here on.
+//
 // Deliberately NOT ported yet, disclosed rather than faked: dark mode (a sitewide theming feature,
 // out of scope for a checklist-page component), the statement-verification half of the Finances
 // score's "evidence" check (needs cross-page state Phase 2's session rebuild is the right place to
-// wire up), the WhatsApp/email waitlist card (a separate, already-shipped feature elsewhere), and
-// Import progress (Export exists below; Import would need to rehydrate two other pages' storage
-// keys too, not just this one).
+// wire up), and the WhatsApp/email waitlist card (a separate, already-shipped feature elsewhere).
 export type ChecklistSidebarProps = {
   code: string;
   name: string;
@@ -62,7 +66,6 @@ function toneClasses(tone: 'neutral' | 'critical' | 'serious' | 'warning' | 'goo
 export default function ChecklistSidebar({ code, name, checklist, answers, checked, showStillMissing = true }: ChecklistSidebarProps) {
   const financialKey = `sa_${code.toLowerCase()}_financial`;
   const [financialInputs, setFinancialInputs] = useState<FinancialInputs | null>(null);
-  const [savedAt, setSavedAt] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -72,16 +75,6 @@ export default function ChecklistSidebar({ code, name, checklist, answers, check
       /* no financial data saved yet — sidebar shows the neutral "Enter your figures" state */
     }
   }, [financialKey]);
-
-  // Re-checked every time answers/checked change (i.e. every time CountryChecklistApp's own
-  // autosave effect just ran) so the "Saved in this browser" timestamp reflects real saves, not a
-  // fixed mount-time value.
-  useEffect(() => {
-    setSavedAt(
-      new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [answers, checked]);
 
   const docsPct = useMemo(() => computeRequiredPercent(checklist, answers, checked), [checklist, answers, checked]);
   const docsStatus = requiredStatus(docsPct);
@@ -106,23 +99,6 @@ export default function ChecklistSidebar({ code, name, checklist, answers, check
     : finReadiness.percent >= 50
     ? 'Needs attention'
     : 'Below threshold';
-
-  function handleExport() {
-    const payload = {
-      exportedAt: new Date().toISOString(),
-      country: code,
-      answers,
-      checked,
-      financial: financialInputs,
-    };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `smooth-application-${code.toLowerCase()}-progress.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
 
   return (
     <aside className="flex w-full flex-col gap-4 lg:w-80 lg:shrink-0">
@@ -182,27 +158,6 @@ export default function ChecklistSidebar({ code, name, checklist, answers, check
           </ul>
         </details>
       )}
-
-      <div className="card-surface p-4">
-        <p className="text-sm font-semibold text-[#12232e]">Save your progress</p>
-        <p className="mt-1 text-xs text-[#4c6270]">
-          Your answers are automatically saved in this browser as you go — close the tab and come back anytime.
-          Nothing leaves your device. Use export below to back it up, or move it to another browser/device.
-        </p>
-        {savedAt && <p className="mt-1 text-xs font-semibold text-good">✅ Saved in this browser — {savedAt}</p>}
-        <div className="mt-3 flex flex-col gap-2">
-          <button type="button" onClick={() => window.print()} className="btn-primary text-sm">
-            🖨️ Save full report as PDF
-          </button>
-          <button
-            type="button"
-            onClick={handleExport}
-            className="rounded-lg border border-black/10 px-4 py-2.5 text-sm font-semibold text-[#12232e]"
-          >
-            ⬇️ Export progress (.json)
-          </button>
-        </div>
-      </div>
     </aside>
   );
 }

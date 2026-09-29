@@ -6,6 +6,10 @@
 //  3. "Reset your password" — task #419 (direct request, after seyiafeni@yahoo.co.uk got locked
 //     out of /admin with no way back in): fired from app/api/request-password-reset/route.ts for
 //     both admins and applicants.
+//  4. "Your progress report" — task #421 (save/report-by-email redesign, direct request): the PDF
+//     attachment for the applicant's own "email me a copy" request, fired from
+//     app/api/email-report/route.ts. Ends with the same create-password action_link as email type 1
+//     so a first-time requester can also set a password to come back to their saved progress later.
 import { Resend } from 'resend';
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
@@ -47,6 +51,40 @@ export async function sendPasswordResetEmail(opts: { to: string; resetUrl: strin
       <p><a href="${resetUrl}" style="display:inline-block;background:#0b7a6e;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;">Reset my password</a></p>
       <p style="color:#666;font-size:13px;">This link only works once and expires after a while. If you didn't request this, you can safely ignore this email — your password hasn't been changed.</p>
     `,
+  });
+}
+
+export async function sendReportEmail(opts: {
+  to: string;
+  pdfBuffer: Buffer;
+  countryName: string;
+  /** The create-password action_link, present only the first time this applicant's email is seen
+   * (same find-or-invite pattern as capture-email/route.ts) — null for an applicant who already has
+   * a password, since they don't need one made for them again. */
+  setPasswordUrl: string | null;
+}) {
+  const { to, pdfBuffer, countryName, setPasswordUrl } = opts;
+  return resend.emails.send({
+    from: FROM,
+    to,
+    subject: `Your ${countryName} visa checklist progress report`,
+    html: `
+      <p>Hi,</p>
+      <p>Attached is a copy of your ${countryName} visa checklist progress — your responsibilities answers, document checklist status, financial readiness figures, and bank statement summary, exactly as they stand right now.</p>
+      ${
+        setPasswordUrl
+          ? `<p><b>Create a password</b> so you can come back and pick up exactly where you left off, on any device — most applications take more than a day or two:</p>
+             <p><a href="${setPasswordUrl}" style="display:inline-block;background:#0b7a6e;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;">Create my password</a></p>`
+          : `<p>You can sign back in any time to keep going.</p>`
+      }
+      <p style="color:#666;font-size:13px;">This report reflects only what you've entered — it isn't sent anywhere else, and isn't seen by anyone at Smooth Application unless you choose to share it.</p>
+    `,
+    attachments: [
+      {
+        filename: `smooth-application-${countryName.toLowerCase().replace(/\s+/g, '-')}-report.pdf`,
+        content: pdfBuffer,
+      },
+    ],
   });
 }
 

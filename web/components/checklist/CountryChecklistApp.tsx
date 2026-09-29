@@ -14,6 +14,7 @@ import { ALL_CHECKLISTS } from '@/lib/checklist/all';
 import { getSponsorRecommendation, resolveSpouseRef } from '@/lib/checklist/sponsor';
 import { trackEvent } from '@/lib/analytics';
 import ChecklistSidebar from '@/components/checklist/ChecklistSidebar';
+import SaveProgressPanel from '@/components/checklist/SaveProgressPanel';
 import { sessionHref } from '@/lib/checklist/sessions';
 
 // Phase 4b of task #244: the shared checklist app UI, factored out of the UK-only
@@ -521,6 +522,11 @@ export default function CountryChecklistApp({
       <button type="button" onClick={() => setView('profile')} className="text-center text-xs text-accent underline">
         ← Edit your answers
       </button>
+
+      {/* Task #421 (save/report-by-email redesign): same panel as SessionShell, kept here too
+          since this flat "everything on one page" view also renders ChecklistSidebar directly and
+          is still a live route (see the header comment above return()). */}
+      <SaveProgressPanel code={code} answers={answers} checked={checked} />
       </div>
 
       <ChecklistSidebar code={code} name={name} checklist={checklist} answers={answers} checked={checked} />
