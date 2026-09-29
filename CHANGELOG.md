@@ -3,6 +3,43 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Statement analysis parity fixes + report-email hardening (pre-launch pass)
+
+A direct user report ("keep meeting roadblocks... little pieces of false") prompted a live
+parity check of the Income & bank statement analysis section against the original GitHub Pages
+site, plus a security/reliability review requested separately. Found and fixed three real gaps:
+
+1. **Missing "what's this for" explanation field.** The original's per-source free-text
+   annotation ("Your explanation" column) was deliberately dropped when this port's spreadsheet
+   export was built, noted only in a code comment, never surfaced as a decision. Restored: a
+   `SourceGroupCard` textarea (skipped for reversal/self/interest/internal groups, which need no
+   explanation), persisted via the same uncontrolled-seed-plus-callback pattern as
+   `nameCorrections`, and carried into `buildIncomeBreakdownAoa`'s spreadsheet export as an
+   8th "Your explanation" column.
+2. **Duplicate-sender prompt was passive only.** `getTopConsistentSenders` always called
+   `applySenderDuplicateDecisions` with an empty decisions map — the pure merge/separate logic
+   was fully built and unit-tested (`sender-duplicate-prompt.test.ts`), but no UI ever exercised
+   it; a flagged look-alike pair could only ever show a static "worth checking by eye" warning,
+   never actually be resolved. `getTopConsistentSenders` now accepts a `duplicateDecisions` map;
+   `StatementDashboard` renders "Same person — merge" / "Different people — keep separate"
+   buttons per pending pair, persisted the same way as everything else on this page.
+3. **`/api/email-report` had no rate limit and its own audit log was silently broken.** Any
+   caller could POST any email address plus a full financial/passport-derived payload and the
+   route would render a PDF and mail it with no ownership check and no cap — a spam-relay/NDPR
+   exposure. Added `report_request_log` (migration `0004_report_email_rate_limit.sql`) and a cap
+   of 3/email/hour, 8/IP/hour, checked before any expensive work runs. Separately: the route's
+   own `email_log` insert (`email_type: 'progress_report'`) had been failing on every single
+   call since this feature shipped — the enum never included that value — silently discarded
+   because the insert's error was never checked. Both fixed in the same migration/route pass.
+
+Also confirmed live: "Top 10 senders" and "Top N inflows" both work correctly; the Financial
+readiness calculator's income-stability inputs are still a fully separate, manually-typed system
+from the statement analysis's own income totals — nothing auto-populates one from the other. Not
+fixed in this pass (a bigger, riskier change to get right before a live client demo); flagged as
+a follow-up.
+
+Typecheck clean; full jest suite green (71 suites, 462 tests).
+
 ## Statement analysis: restore "Top 10 inflows" and "Download spreadsheet"
 
 Live audit against the original GitHub Pages site (smoothapplication.github.io) — comparing its

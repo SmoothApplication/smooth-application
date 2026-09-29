@@ -27,6 +27,24 @@ import { buildReportPayload } from '@/lib/report/buildReportPayload';
 import { renderReportPdf } from '@/lib/report/renderReportPdf';
 import { COUNTRIES } from '@/lib/checklist/countries';
 
+// Fix 2 (technical-co-founder review): this route used to render a PDF full of financial/passport-
+// derived data and email it to ANY address a caller supplied, with no check that the requester owns
+// that address and no cap on how many times it could be triggered — a spam-relay and NDPR exposure.
+// True ownership verification (send a confirm link, only mail the PDF after it's clicked) would
+// change the whole "instant" UX of this feature, so as a first, immediately-shippable layer this adds
+// rate limiting instead: a request is capped per email address and per rough client IP, checked
+// against public.report_request_log (0004_report_email_rate_limit.sql) BEFORE any expensive work
+// (PDF render, Resend send, Supabase Auth user creation) happens.
+const MAX_PER_EMAIL_PER_HOUR = 3;
+const MAX_PER_IP_PER_HOUR = 8;
+const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
+
+function getClientIp(request: Request): string | null {
+  const fwd = request.headers.get('x-forwarded-for');
+  if (fwd) return fwd.split(',')[0].trim();
+  return request.headers.get('x-real-ip');
+}
+
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
 
@@ -49,6 +67,40 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unknown country' }, { status: 400 });
   }
 
+  const ip = getClientIp(request);
+  const rateLimitClient = createAdminClient();
+  const since = new Date(Date.now() - RATE_LIMIT_WINDOW_MS).toISOString();
+
+  const { count: emailCount } = await rateLimitClient
+    .from('report_request_log')
+    .select('id', { count: 'exact', head: true })
+    .eq('email', email)
+    .gte('created_at', since);
+  if ((emailCount ?? 0) >= MAX_PER_EMAIL_PER_HOUR) {
+    return NextResponse.json(
+      { error: "You've requested a lot of reports recently — please wait a bit before trying again." },
+      { status: 429 }
+    );
+  }
+
+  if (ip) {
+    const { count: ipCount } = await rateLimitClient
+      .from('report_request_log')
+      .select('id', { count: 'exact', head: true })
+      .eq('ip', ip)
+      .gte('created_at', since);
+    if ((ipCount ?? 0) >= MAX_PER_IP_PER_HOUR) {
+      return NextResponse.json(
+        { error: 'Too many report requests from this connection — please try again later.' },
+        { status: 429 }
+      );
+    }
+  }
+
+  // Record this attempt regardless of what happens next, so a burst of otherwise-invalid requests
+  // (bad country code, malformed payload, etc.) still counts against the caller's limit.
+  await rateLimitClient.from('report_request_log').insert({ email, ip });
+
   const countryInfo = COUNTRIES.find((c) => c.code === countryCode);
   const countryName = countryInfo?.name || countryCode;
   const visaName = countryInfo?.visaName || 'visa';
@@ -70,7 +122,7 @@ export async function POST(request: Request) {
 
   const pdfBuffer = await renderReportPdf(payload);
 
-  const supabase = createAdminClient();
+  const supabase = rateLimitClient;
 
   // Find or create the auth user — same generateLink (not inviteUserByEmail) reasoning as
   // capture-email/route.ts: creates the user without Supabase firing its own duplicate email.
@@ -111,7 +163,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: emailErr.message || 'Could not send report email' }, { status: 500 });
   }
 
-  await supabase.from('email_log').insert({ applicant_id: userId, email_type: 'progress_report' });
+  // Fix 5/2 (technical-co-founder review): this insert used to be fire-and-forget with its error
+  // silently discarded. It had ALSO been failing on every single call — the email_type enum never
+  // included 'progress_report' until migration 0004 — so the audit trail for report emails has been
+  // empty since this feature shipped, invisibly. Now checked and logged so a future schema drift like
+  // this shows up in server logs instead of vanishing.
+  const { error: logErr } = await supabase.from('email_log').insert({ applicant_id: userId, email_type: 'progress_report' });
+  if (logErr) {
+    console.error('email-report: failed to write email_log audit row', logErr);
+  }
 
   return NextResponse.json({ ok: true, isNewApplicant });
 }

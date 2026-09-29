@@ -147,6 +147,17 @@ interface StatementDashboardProps {
   onApplicantNameChange?: (name: string) => void;
   onMaidenNameChange?: (name: string) => void;
   onNameCorrectionsChange?: (corrections: Record<string, string>) => void;
+  /** Restores the original GitHub Pages site's free-text "Your explanation" column per income
+   * source (confirmed missing in a live parity check against the original) — keyed by the same RAW
+   * extracted name as nameCorrections, uncontrolled-seed-plus-callback like everything else here. */
+  explanations?: Record<string, string>;
+  onExplanationsChange?: (explanations: Record<string, string>) => void;
+  /** Restores the interactive half of the original's duplicate-sender prompt — this port only ever
+   * surfaced the passive "N pair(s) of similar names were found" warning, with no way to actually
+   * answer it (see getTopConsistentSenders's own comment). Keyed by senderPairKey(nameA, nameB),
+   * same uncontrolled-seed-plus-callback pattern as everything else here. */
+  senderDuplicateDecisions?: Record<string, 'merge' | 'separate'>;
+  onSenderDuplicateDecisionsChange?: (decisions: Record<string, 'merge' | 'separate'>) => void;
   /** The account-holder name detected on this statement's own header at scan time (owned/persisted
    * by StatementCheck.tsx, read-only here) and the applicant's declared marital/spouse-sponsor
    * status (read-only from the checklist's own answers) — together drive the name-tally check. See
@@ -190,6 +201,10 @@ export default function StatementDashboard({
   onApplicantNameChange,
   onMaidenNameChange,
   onNameCorrectionsChange,
+  explanations: initialExplanations,
+  onExplanationsChange,
+  senderDuplicateDecisions: initialSenderDuplicateDecisions,
+  onSenderDuplicateDecisionsChange,
   detectedHolderName = null,
   spouse = DEFAULT_SPOUSE,
   employed = false,
@@ -245,6 +260,10 @@ export default function StatementDashboard({
   const [nameCorrections, setNameCorrections] = useState<Record<string, string>>(
     initialNameCorrections || {}
   );
+  const [explanations, setExplanations] = useState<Record<string, string>>(initialExplanations || {});
+  const [senderDuplicateDecisions, setSenderDuplicateDecisions] = useState<Record<string, 'merge' | 'separate'>>(
+    initialSenderDuplicateDecisions || {}
+  );
 
   // Report state changes up to the parent for persistence (Phase 4). Deliberately not merged into
   // the setters above - StatementUpload (the standalone test page) passes none of these callbacks,
@@ -261,6 +280,27 @@ export default function StatementDashboard({
     onNameCorrectionsChange?.(nameCorrections);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nameCorrections]);
+  useEffect(() => {
+    onExplanationsChange?.(explanations);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [explanations]);
+  useEffect(() => {
+    onSenderDuplicateDecisionsChange?.(senderDuplicateDecisions);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [senderDuplicateDecisions]);
+
+  function resolveSenderDuplicate(key: string, decision: 'merge' | 'separate') {
+    setSenderDuplicateDecisions((prev) => ({ ...prev, [key]: decision }));
+  }
+
+  function setExplanation(rawName: string, value: string) {
+    setExplanations((prev) => {
+      const next = { ...prev };
+      if (value.trim()) next[rawName] = value;
+      else delete next[rawName];
+      return next;
+    });
+  }
   useEffect(() => {
     onEmployerNameChange?.(employerName);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -298,8 +338,8 @@ export default function StatementDashboard({
   );
 
   const topSenders = useMemo(
-    () => getTopConsistentSenders(txns, 10, applicantName || null),
-    [txns, applicantName]
+    () => getTopConsistentSenders(txns, 10, applicantName || null, senderDuplicateDecisions),
+    [txns, applicantName, senderDuplicateDecisions]
   );
 
   // Task #430/#431 (found via a live audit against the original GitHub Pages site's "Advanced
@@ -316,7 +356,7 @@ export default function StatementDashboard({
     setDownloadingSpreadsheet(true);
     try {
       const XLSX = await import('xlsx');
-      const aoa = buildIncomeBreakdownAoa(groups, displayName);
+      const aoa = buildIncomeBreakdownAoa(groups, displayName, explanations);
       const ws = XLSX.utils.aoa_to_sheet(aoa);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Income Breakdown');
@@ -474,6 +514,9 @@ export default function StatementDashboard({
           cancelEditingName={() => setEditingName(null)}
           isExpanded={isExpanded}
           toggleExpanded={toggleExpanded}
+          explanations={explanations}
+          setExplanation={setExplanation}
+          resolveSenderDuplicate={resolveSenderDuplicate}
         />
       ) : (
         <ReportTab
@@ -518,9 +561,15 @@ function AnalysisTab({
   cancelEditingName,
   isExpanded,
   toggleExpanded,
+  explanations,
+  setExplanation,
+  resolveSenderDuplicate,
 }: {
   groups: SourceGroups;
-  topSenders: { list: TopConsistentSender[]; pendingDuplicates: { nameA: string; nameB: string }[] };
+  topSenders: {
+    list: TopConsistentSender[];
+    pendingDuplicates: { nameA: string; nameB: string; key: string; shared: string[] }[];
+  };
   topInflows: ParsedTxn[];
   onDownloadSpreadsheet: () => void;
   downloadingSpreadsheet: boolean;
@@ -533,6 +582,9 @@ function AnalysisTab({
   cancelEditingName: () => void;
   isExpanded: (g: SourceGroup) => boolean;
   toggleExpanded: (g: SourceGroup) => void;
+  explanations: Record<string, string>;
+  setExplanation: (rawName: string, value: string) => void;
+  resolveSenderDuplicate: (key: string, decision: 'merge' | 'separate') => void;
 }) {
   return (
     <div className="flex flex-col gap-5">
@@ -565,6 +617,8 @@ function AnalysisTab({
                 cancelEditingName={cancelEditingName}
                 expanded={isExpanded(g)}
                 onToggle={() => toggleExpanded(g)}
+                explanation={explanations[g.name] || ''}
+                setExplanation={(v) => setExplanation(g.name, v)}
               />
             ))}
           </div>
@@ -640,10 +694,32 @@ function AnalysisTab({
           money in, not just the total amount.
         </p>
         {topSenders.pendingDuplicates.length > 0 && (
-          <div className="mb-3 rounded-lg bg-warn-wash p-3 text-sm text-warn-text">
-            {topSenders.pendingDuplicates.length} pair(s) of similar names were found (e.g. a bank
-            narration that shortens or reorders the same sender&apos;s name) - worth checking by eye
-            whether any of these are actually the same person.
+          <div className="mb-3 flex flex-col gap-2">
+            {topSenders.pendingDuplicates.map((pair) => (
+              <div key={pair.key} className="rounded-lg bg-warn-wash p-3 text-sm text-warn-text">
+                <p>
+                  <b>{pair.nameA}</b> and <b>{pair.nameB}</b> share the name{pair.shared.length === 1 ? '' : 's'}{' '}
+                  &quot;{pair.shared.join('", "')}&quot; — is this the same person, extracted differently
+                  from different narrations?
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => resolveSenderDuplicate(pair.key, 'merge')}
+                    className="rounded-lg bg-accent px-3 py-1 text-xs font-medium text-white"
+                  >
+                    Same person — merge
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => resolveSenderDuplicate(pair.key, 'separate')}
+                    className="rounded-lg border border-black/10 px-3 py-1 text-xs font-medium text-[#12232e]"
+                  >
+                    Different people — keep separate
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         )}
         {topSenders.list.length === 0 ? (
@@ -690,6 +766,8 @@ function SourceGroupCard({
   cancelEditingName,
   expanded,
   onToggle,
+  explanation,
+  setExplanation,
 }: {
   group: SourceGroup;
   displayName: (rawName: string) => string;
@@ -701,11 +779,17 @@ function SourceGroupCard({
   cancelEditingName: () => void;
   expanded: boolean;
   onToggle: () => void;
+  explanation: string;
+  setExplanation: (v: string) => void;
 }) {
   const badge = sourceTypeBadge(group.type);
   const nameEditable = NAME_EDITABLE_TYPES.has(group.type);
   const isEditingThis = editingName === group.name;
   const note = NO_EXPLANATION_NOTE[group.type];
+  // Same "does this group even need an explanation" gate as the NO_EXPLANATION_NOTE text above —
+  // reversals/self-transfers/interest/internal movements are the applicant's own money, not new
+  // income from someone else, so asking "what was this for" would be a non-sequitur for them.
+  const needsExplanation = !note;
 
   return (
     <div className="rounded-xl border border-black/10 p-4">
@@ -759,6 +843,21 @@ function SourceGroupCard({
       )}
 
       {note && <p className="mt-2 text-xs text-[#566a76]">{note}</p>}
+
+      {needsExplanation && (
+        <div className="mt-2">
+          <label className="mb-1 block text-xs font-medium text-[#566a76]">
+            What was this for? <span className="font-normal">(optional, but a reviewer may ask)</span>
+          </label>
+          <textarea
+            value={explanation}
+            onChange={(e) => setExplanation(e.target.value)}
+            rows={2}
+            placeholder="e.g. Rent I collect from my tenant, a loan repayment, a gift for my birthday…"
+            className="w-full rounded-lg border border-black/10 px-2 py-1.5 text-xs text-[#12232e]"
+          />
+        </div>
+      )}
 
       <div className="mt-2">
         <button type="button" onClick={onToggle} className="text-xs font-medium text-accent hover:underline">

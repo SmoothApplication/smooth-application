@@ -1,7 +1,7 @@
 // Ported from index.html's getTopConsistentSenders (~lines 13680-13717) — Phase 3 needed this for the
 // Analysis tab's "Top 10 senders" table but it wasn't part of Phase 1's ported function list, so it's
 // added here alongside its own test.
-import { getTopConsistentSenders } from '../classify';
+import { getTopConsistentSenders, senderPairKey } from '../classify';
 import { txn } from './testHelpers';
 
 test('ranks senders by distinct months seen, then payment count, then total amount', () => {
@@ -42,4 +42,30 @@ test('excludes reversals and non-income charges, and never surfaces the applican
   const names = result.list.map((r) => r.name);
   expect(names).not.toContain('Applicant Name');
   expect(names.filter((n) => /John Smith/i.test(n)).length).toBe(1);
+});
+
+test('a "merge" duplicateDecision actually combines a flagged look-alike pair into one sender', () => {
+  const txns = [
+    txn({ narration: 'NIP/TUNDE BASSEY EKPO/TRF', credit: 20000, dateISO: '2026-01-10' }),
+    txn({ narration: 'NIP/TUNDE BASSEY EKPO/TRF', credit: 20000, dateISO: '2026-02-10' }),
+    txn({ narration: 'NIP/BASSEY EKPO ADISA/TRF', credit: 15000, dateISO: '2026-01-20' }),
+    txn({ narration: 'NIP/BASSEY EKPO ADISA/TRF', credit: 15000, dateISO: '2026-02-20' }),
+    txn({ narration: 'NIP/BASSEY EKPO ADISA/TRF', credit: 15000, dateISO: '2026-03-20' }),
+  ];
+
+  // Un-answered: both names surface separately, and the pair shows up as pending.
+  const unresolved = getTopConsistentSenders(txns, 10, null);
+  expect(unresolved.pendingDuplicates.length).toBe(1);
+  expect(unresolved.list.map((r) => r.name)).toEqual(
+    expect.arrayContaining(['Tunde Bassey Ekpo', 'Bassey Ekpo Adisa'])
+  );
+
+  // Answered "merge": one combined sender, no longer pending.
+  const key = senderPairKey('Tunde Bassey Ekpo', 'Bassey Ekpo Adisa');
+  const resolved = getTopConsistentSenders(txns, 10, null, { [key]: 'merge' });
+  expect(resolved.pendingDuplicates.length).toBe(0);
+  const merged = resolved.list.find((r) => r.name === 'Tunde Bassey Ekpo');
+  expect(merged).toBeDefined();
+  expect(merged!.count).toBe(5);
+  expect(resolved.list.some((r) => r.name === 'Bassey Ekpo Adisa')).toBe(false);
 });

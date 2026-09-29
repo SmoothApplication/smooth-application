@@ -22,7 +22,15 @@ test('builds a header row, one row per transaction, a subtotal, and a grand tota
 
   const aoa = buildIncomeBreakdownAoa(groups, identity);
 
-  expect(aoa[0]).toEqual(['Source', 'Type', 'Date', 'Amount (NGN)', 'Reason (from narration)', 'Narration']);
+  expect(aoa[0]).toEqual([
+    'Source',
+    'Type',
+    'Date',
+    'Amount (NGN)',
+    'Reason (from narration)',
+    'Narration',
+    'Your explanation',
+  ]);
   // First transaction row carries the source name/type; the second (same group) row's first two
   // columns are blank - same "shown once" convention as the on-screen SourceGroupCard.
   expect(aoa[1][0]).toBe('Chidi Okafor');
@@ -68,6 +76,29 @@ test('prepends a missing-salary-months warning row when present', () => {
   expect(aoa[1][0]).toBe('⚠️ Possibly missing:');
   expect(aoa[1][5]).toBe('March Salary');
   expect(aoa[2]).toEqual([]);
+});
+
+test('includes the explanation on the group\'s first row only, keyed by raw group name', () => {
+  const g1 = summarizeSourceGroup(
+    'Aunty Blessing',
+    [txn({ narration: 'NIP/GIFT FROM AUNTY BLESSING', credit: 300000, dateISO: '2026-04-20' })],
+    'personal'
+  );
+  const groups = [g1] as SourceGroups;
+
+  const aoa = buildIncomeBreakdownAoa(groups, identity, { 'Aunty Blessing': 'A birthday gift from my aunt' });
+
+  expect(aoa[1][6]).toBe('A birthday gift from my aunt');
+});
+
+test('leaves the explanation column blank for reversal/self/interest/internal groups', () => {
+  // No test-level enforcement needed here beyond the shape — the "no explanation needed" gate
+  // lives in the UI (StatementDashboard's `needsExplanation`), not in buildIncomeBreakdownAoa
+  // itself, so a group simply carries whatever the explanations map has for its name (or nothing).
+  const g1 = summarizeSourceGroup('Interest', [txn({ narration: 'Interest Earned', credit: 500, dateISO: '2026-01-05' })], 'interest');
+  const groups = [g1] as SourceGroups;
+  const aoa = buildIncomeBreakdownAoa(groups, identity);
+  expect(aoa[1][6]).toBe('');
 });
 
 test('does not exclude a salary/interest/internal bucket name from its own Reason extraction', () => {

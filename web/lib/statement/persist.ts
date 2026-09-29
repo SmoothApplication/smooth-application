@@ -50,6 +50,17 @@ export interface PersistedStatement {
    * Optional for the same backward-compat reason as detectedHolderName. */
   employerCategoryChoices?: WorkCategoryMap;
   businessCategoryChoices?: WorkCategoryMap;
+  /** Restores the original GitHub Pages site's free-text "Your explanation" column, dropped when
+   * this dashboard was first ported (see exportBreakdown.ts) and confirmed missing in a live parity
+   * check against the original. Keyed by the same RAW extracted sender name as nameCorrections, so
+   * one explanation survives a "Fix name" correction on the same source group. Optional for
+   * backward-compat with payloads saved before this field existed. */
+  explanations?: Record<string, string>;
+  /** Restores the interactive half of the original's duplicate-sender prompt (see
+   * getTopConsistentSenders's own comment) — the applicant's merge/separate answer per flagged
+   * look-alike sender pair, keyed by senderPairKey(nameA, nameB), so an answered pair is never
+   * re-asked across visits. Optional for backward-compat with payloads saved before this existed. */
+  senderDuplicateDecisions?: Record<string, 'merge' | 'separate'>;
 }
 
 export function serializeTxns(txns: ParsedTxn[]): PersistedTxn[] {

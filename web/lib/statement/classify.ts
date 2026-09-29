@@ -522,7 +522,15 @@ export function getTopInflows(txns: ParsedTxn[], n?: number): ParsedTxn[] {
 export function getTopConsistentSenders(
   txns: ParsedTxn[],
   n: number,
-  applicantName?: string | null
+  applicantName?: string | null,
+  // Confirmed missing in a live parity check: index.html's own duplicate-sender prompt let the
+  // applicant actually resolve a flagged look-alike pair ("same person" -> merge, "different
+  // people" -> keep separate) and had that decision stick; this port had only ever surfaced the
+  // pure pending-pair detection as a passive warning banner (see sender-duplicate-prompt.test.ts's
+  // own file comment), with no way to act on it — applySenderDuplicateDecisions was always called
+  // with an empty decisions map. Callers now pass the applicant's own decisions (persisted the same
+  // way as nameCorrections), keyed by senderPairKey(nameA, nameB).
+  duplicateDecisions?: Record<string, 'merge' | 'separate'>
 ): TopConsistentSendersResult {
   let namedGroups: Record<string, ParsedTxn[]> = {};
   txns.forEach((t) => {
@@ -533,7 +541,7 @@ export function getTopConsistentSenders(
     (namedGroups[name] = namedGroups[name] || []).push(t);
   });
   namedGroups = mergeNameVariants(namedGroups);
-  const dup = applySenderDuplicateDecisions(namedGroups);
+  const dup = applySenderDuplicateDecisions(namedGroups, duplicateDecisions);
   namedGroups = dup.merged;
   const list = Object.keys(namedGroups).map((name) => {
     const grpTxns = namedGroups[name];

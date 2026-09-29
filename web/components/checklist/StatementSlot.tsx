@@ -76,6 +76,10 @@ export default function StatementSlot({
   const [applicantName, setApplicantName] = useState('');
   const [maidenName, setMaidenName] = useState('');
   const [nameCorrections, setNameCorrections] = useState<Record<string, string>>({});
+  const [explanations, setExplanations] = useState<Record<string, string>>({});
+  const [senderDuplicateDecisions, setSenderDuplicateDecisions] = useState<Record<string, 'merge' | 'separate'>>(
+    {}
+  );
   const [detectedHolderName, setDetectedHolderName] = useState<string | null>(null);
   const [spouse, setSpouse] = useState<SpouseSponsorDeclaration>({
     married: false,
@@ -105,6 +109,8 @@ export default function StatementSlot({
       setApplicantName(saved.applicantName || '');
       setMaidenName(saved.maidenName || '');
       setNameCorrections(saved.nameCorrections || {});
+      setExplanations(saved.explanations || {});
+      setSenderDuplicateDecisions(saved.senderDuplicateDecisions || {});
       setDetectedHolderName(saved.detectedHolderName ?? null);
       setEmployerName(saved.employerName || '');
       setEmployerAltName(saved.employerAltName || '');
@@ -145,6 +151,8 @@ export default function StatementSlot({
         applicantName,
         maidenName,
         nameCorrections,
+        explanations,
+        senderDuplicateDecisions,
         detectedHolderName,
         employerName,
         employerAltName,
@@ -164,6 +172,8 @@ export default function StatementSlot({
     applicantName,
     maidenName,
     nameCorrections,
+    explanations,
+    senderDuplicateDecisions,
     detectedHolderName,
     employerName,
     employerAltName,
@@ -194,6 +204,8 @@ export default function StatementSlot({
     setApplicantName('');
     setMaidenName('');
     setNameCorrections({});
+    setExplanations({});
+    setSenderDuplicateDecisions({});
     setDetectedHolderName(null);
     setEmployerName('');
     setEmployerAltName('');
@@ -364,6 +376,10 @@ export default function StatementSlot({
         onApplicantNameChange={setApplicantName}
         onMaidenNameChange={setMaidenName}
         onNameCorrectionsChange={setNameCorrections}
+        explanations={explanations}
+        onExplanationsChange={setExplanations}
+        senderDuplicateDecisions={senderDuplicateDecisions}
+        onSenderDuplicateDecisionsChange={setSenderDuplicateDecisions}
         detectedHolderName={detectedHolderName}
         spouse={spouse}
         employed={employed}

@@ -11,12 +11,14 @@
 // download machinery and the dynamically-imported 'xlsx' package, neither of which belong in a
 // pure-logic module.
 //
-// Column set is a deliberate subset of the original's seven columns. index.html additionally had
-// a "Your explanation" column, sourced from a per-inflow/per-source free-text note the applicant
-// could type against a flagged inflow (sourceExplanations/inflowExplanations) — that per-inflow
-// annotation UI was never part of this port's simpler two-tab (Analysis/Report) dashboard design,
-// so there is nothing here to put in that column. Everything else — Source, Type, Date, Amount,
-// Reason (from narration), Narration — carries over unchanged, reusing the exact same
+// Column set originally shipped as a deliberate subset of the original's seven columns, dropping
+// its "Your explanation" column (a per-source free-text note the applicant could type against a
+// flagged inflow, sourceExplanations/inflowExplanations in index.html). A live parity check against
+// the original found that gap and confirmed it as a real, user-visible regression — restored below
+// as an 8th column, sourced from the same per-source-group `explanations` map now collected in
+// StatementDashboard.tsx (SourceGroupCard's "What was this for?" field), keyed the same way
+// nameCorrections already is (the raw extracted group name). Everything else — Source, Type, Date,
+// Amount, Reason (from narration), Narration — carries over unchanged, reusing the exact same
 // extractNarrationReason() logic already used on-screen so the spreadsheet's Reason column never
 // disagrees with what the applicant sees in the Income sources cards above it.
 
@@ -31,10 +33,11 @@ export type SpreadsheetRow = (string | number)[];
  * a per-group subtotal, a blank spacer row, and a final grand-total row. */
 export function buildIncomeBreakdownAoa(
   groups: SourceGroups,
-  displayName: (rawName: string) => string
+  displayName: (rawName: string) => string,
+  explanations: Record<string, string> = {}
 ): SpreadsheetRow[] {
   const aoa: SpreadsheetRow[] = [
-    ['Source', 'Type', 'Date', 'Amount (NGN)', 'Reason (from narration)', 'Narration'],
+    ['Source', 'Type', 'Date', 'Amount (NGN)', 'Reason (from narration)', 'Narration', 'Your explanation'],
   ];
 
   if (groups.missingSalaryMonths && groups.missingSalaryMonths.length > 0) {
@@ -45,6 +48,7 @@ export function buildIncomeBreakdownAoa(
       '',
       '',
       groups.missingSalaryMonths.map((m) => `${m} Salary`).join(', '),
+      '',
     ]);
     aoa.push([]);
   }
@@ -60,6 +64,7 @@ export function buildIncomeBreakdownAoa(
       g.name && g.type !== 'salary' && g.type !== 'interest' && g.type !== 'internal'
         ? g.name.toUpperCase().split(/\s+/)
         : [];
+    const explanation = explanations[g.name] || '';
     g.txns.forEach((t, i) => {
       const reason = extractNarrationReason(t.narration, nameWords);
       aoa.push([
@@ -69,12 +74,15 @@ export function buildIncomeBreakdownAoa(
         Math.round(t.credit),
         reason || '',
         t.narration || '(none)',
+        // Shown once on the group's first row, same "shown once" convention as Source/Type above —
+        // one explanation applies to the whole source group, not per individual payment.
+        i === 0 ? explanation : '',
       ]);
     });
-    aoa.push(['', '', '', '', 'Subtotal for ' + displayName(g.name) + ':', g.total]);
+    aoa.push(['', '', '', '', 'Subtotal for ' + displayName(g.name) + ':', g.total, '']);
     aoa.push([]);
   });
 
-  aoa.push(['', '', '', '', 'GRAND TOTAL:', grandTotal]);
+  aoa.push(['', '', '', '', 'GRAND TOTAL:', grandTotal, '']);
   return aoa;
 }
