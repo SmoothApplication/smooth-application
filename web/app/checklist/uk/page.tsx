@@ -1,4 +1,22 @@
+import type { Metadata } from 'next';
 import CountryChecklistApp from '@/components/checklist/CountryChecklistApp';
+import { COUNTRY_SEO } from '@/lib/checklist/seo';
+
+// Follow-up to "create SEO for this website" (#456/#457): the root layout's metadata is UK-led
+// already, but explicit per-page metadata here gives /checklist/uk its own canonical URL and lets
+// this page's OG/Twitter preview match its own title instead of silently falling back to the
+// homepage's (a child route only inherits openGraph/twitter wholesale from the parent layout if it
+// doesn't set its own). See lib/checklist/seo.ts for the shared copy.
+export function generateMetadata(): Metadata {
+  const copy = COUNTRY_SEO.UK;
+  return {
+    title: copy.title,
+    description: copy.description,
+    alternates: { canonical: '/checklist/uk' },
+    openGraph: { title: copy.title, description: copy.description },
+    twitter: { title: copy.title, description: copy.description },
+  };
+}
 
 // Phase 4b of task #244: refactored to use the shared CountryChecklistApp component (see
 // components/checklist/CountryChecklistApp.tsx) instead of its own copy of the profile+checklist

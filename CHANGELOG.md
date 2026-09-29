@@ -3,6 +3,30 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Add per-country SEO metadata to each checklist route
+
+Follow-up to "create SEO for this website": the root layout's metadata (previous entry) is UK-led
+and identical across every route, so a Nigerian applicant searching "Ghana travel checklist" or
+"Schengen visa checklist Nigeria" would see the same UK-branded title and snippet in search results
+and link previews as someone looking for the UK page — a real gap on a site that already supports 8
+countries.
+
+Added `web/lib/checklist/seo.ts` — a small per-country copy table (title + description) for all 8
+live countries, matching the visa/travel-document type each country's own checklist already uses
+(`visaNameByCode` in `app/checklist/[country]/page.tsx` and the UK page) so the copy stays accurate
+rather than inventing visa names. Wired via `generateMetadata()`:
+
+- `web/app/checklist/uk/page.tsx` — own title/description/canonical (`/checklist/uk`) and its own
+  OG/Twitter title+description (a child route only inherits the parent layout's `openGraph`/
+  `twitter` object wholesale if it doesn't set its own, so without this the UK page's link preview
+  would silently keep showing the homepage's).
+- `web/app/checklist/[country]/page.tsx` — same treatment for the 7 generic-route countries
+  (CA/EU/ZA/GH/KE/ET/MA), keyed off the existing `params.country` param, canonical
+  `/checklist/<code>`.
+
+No new logic to unit-test (metadata only). `npx tsc --noEmit`: clean. Full suite: 473 passed, 73
+suites, 0 regressions.
+
 ## Add real SEO to smoothapplication.com (title/description/OG/Twitter/JSON-LD, robots.txt, sitemap.xml)
 
 Direct request: "create SEO for this website." Until now `web/app/layout.tsx`'s only metadata was

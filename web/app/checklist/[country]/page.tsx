@@ -1,11 +1,30 @@
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import CountryChecklistApp from '@/components/checklist/CountryChecklistApp';
 import { COUNTRY_CHECKLISTS } from '@/lib/checklist/registry';
+import { COUNTRY_SEO } from '@/lib/checklist/seo';
 
 // Phase 4b of task #244: generic route for the 7 newly-ported countries (CA/EU/ZA/GH/KE/ET/MA).
 // UK keeps its own dedicated /checklist/uk route (built in Phase 2) rather than moving here.
 export function generateStaticParams() {
   return Object.keys(COUNTRY_CHECKLISTS).map((code) => ({ country: code.toLowerCase() }));
+}
+
+// Follow-up to "create SEO for this website" (#456/#457): without this, all 7 of these routes
+// inherited the root layout's UK-led metadata verbatim, so a search for "Ghana travel checklist
+// Nigeria" or "Schengen visa checklist" saw the same UK-branded title/snippet as the UK page. See
+// lib/checklist/seo.ts for the per-country copy (kept accurate to each country's own visa/travel-
+// document type, same names used in visaNameByCode below).
+export function generateMetadata({ params }: { params: { country: string } }): Metadata {
+  const copy = COUNTRY_SEO[params.country.toUpperCase()];
+  if (!copy) return {};
+  return {
+    title: copy.title,
+    description: copy.description,
+    alternates: { canonical: `/checklist/${params.country.toLowerCase()}` },
+    openGraph: { title: copy.title, description: copy.description },
+    twitter: { title: copy.title, description: copy.description },
+  };
 }
 
 export default function CountryChecklistPage({ params }: { params: { country: string } }) {
