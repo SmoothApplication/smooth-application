@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getLinesFromFile } from '@/lib/statement/extractFile';
+import { getLinesFromFileWithMeta } from '@/lib/statement/extractFile';
 import {
   parseStatementLinesWithFallback,
   ParsedTxn,
@@ -81,6 +81,7 @@ export default function StatementSlot({
     {}
   );
   const [detectedHolderName, setDetectedHolderName] = useState<string | null>(null);
+  const [ocrUsed, setOcrUsed] = useState(false);
   const [spouse, setSpouse] = useState<SpouseSponsorDeclaration>({
     married: false,
     spouseSponsoring: false,
@@ -112,6 +113,7 @@ export default function StatementSlot({
       setExplanations(saved.explanations || {});
       setSenderDuplicateDecisions(saved.senderDuplicateDecisions || {});
       setDetectedHolderName(saved.detectedHolderName ?? null);
+      setOcrUsed(!!saved.ocrUsed);
       setEmployerName(saved.employerName || '');
       setEmployerAltName(saved.employerAltName || '');
       setBusinessName(saved.businessName || '');
@@ -154,6 +156,7 @@ export default function StatementSlot({
         explanations,
         senderDuplicateDecisions,
         detectedHolderName,
+        ocrUsed,
         employerName,
         employerAltName,
         businessName,
@@ -175,6 +178,7 @@ export default function StatementSlot({
     explanations,
     senderDuplicateDecisions,
     detectedHolderName,
+    ocrUsed,
     employerName,
     employerAltName,
     businessName,
@@ -207,6 +211,7 @@ export default function StatementSlot({
     setExplanations({});
     setSenderDuplicateDecisions({});
     setDetectedHolderName(null);
+    setOcrUsed(false);
     setEmployerName('');
     setEmployerAltName('');
     setBusinessName('');
@@ -224,7 +229,7 @@ export default function StatementSlot({
     setUploading(true);
     setError(null);
     try {
-      const lines = await getLinesFromFile(file);
+      const { lines, ocrUsed: usedOcr } = await getLinesFromFileWithMeta(file);
       if (!lines.length) {
         setError(
           "We tried reading that file — including on-device OCR for a scanned or photographed statement — but couldn't make out any readable text in it. Try a clearer photo/scan (good lighting, holding it flat and steady), or a regular PDF/spreadsheet export from your bank."
@@ -242,6 +247,7 @@ export default function StatementSlot({
       const fullStatementText = lines.map((l) => l.text || '').join(' ');
       const holderName = extractAccountHolderName(fullStatementText);
       setDetectedHolderName(holderName);
+      setOcrUsed(usedOcr);
       // User request: auto-fill the applicant's name from the statement itself where possible,
       // rather than always waiting on manual entry. Never overwrites a name the applicant has
       // already typed (here or on a prior visit) — this only fills the field the first time it's
@@ -388,6 +394,7 @@ export default function StatementSlot({
         senderDuplicateDecisions={senderDuplicateDecisions}
         onSenderDuplicateDecisionsChange={setSenderDuplicateDecisions}
         detectedHolderName={detectedHolderName}
+        ocrUsed={ocrUsed}
         spouse={spouse}
         employed={employed}
         selfEmployed={selfEmployed}

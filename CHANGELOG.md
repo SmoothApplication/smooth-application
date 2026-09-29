@@ -3,6 +3,31 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Launch-day hardening: OCR confidence flag + post-deploy smoke test
+
+Two of the four items from the technical co-founder review, both code-complete and test-verified
+before today's public launch (NairaLand, WhatsApp/Facebook groups, word of mouth, live clients):
+
+1. **Parser confidence flag for scanned/photographed statements.** `extractFile.ts` gains
+   `getLinesFromFileWithMeta`, which reports `ocrUsed: true` whenever a statement's lines came
+   from on-device OCR (a scanned/image PDF fallback, or a direct photo) rather than a real digital
+   text layer or spreadsheet export — a known, factual signal, not a guess or an AI judgment call.
+   `StatementSlot.tsx` captures this at analyze-time and persists it (`persist.ts`'s
+   `ocrUsed` field); `StatementDashboard.tsx` shows a plain-language warning banner above the
+   Analysis/Report tabs whenever it's true, telling the applicant to double-check figures against
+   their real statement and try their bank's own PDF/Excel export if something looks wrong. No
+   accuracy grading, no AI — purely "this file went through the weaker extraction path."
+2. **Post-deploy smoke test** (`scripts/smoke-test.mjs`): a two-tier check against
+   `/api/capture-email` and `/api/email-report`, the two routes with real side effects on every
+   call. Default ("safe") mode sends deliberately invalid payloads and asserts the expected 400s —
+   proves both routes are alive, reachable, and validating, with zero side effects (no Supabase
+   writes, no emails, no PDFs) — safe to run after every single deploy. `--full` mode (needs a
+   `SMOKE_TEST_EMAIL` env var) additionally exercises the real happy path once, to be run
+   occasionally by a human, not on every deploy. Verified live against smoothapplication.com in
+   safe mode: all 3 checks passed.
+
+Typecheck clean, full jest suite green.
+
 ## Fix downloaded-spreadsheet GRAND TOTAL + clarify Reason/Narration relationship
 
 Direct user report (screenshot of their own downloaded breakdown, Globaltech Nigeria + a Reversal

@@ -163,6 +163,12 @@ interface StatementDashboardProps {
    * status (read-only from the checklist's own answers) — together drive the name-tally check. See
    * lib/statement/personalNameTally.ts. Both optional so the standalone dev page keeps working. */
   detectedHolderName?: string | null;
+  /** Fix 3 (technical-co-founder review, no AI/LLM per direct instruction): true when this
+   * statement's lines came from on-device OCR (a scanned/photographed statement) rather than a
+   * real digital text layer or spreadsheet export — a known fact about how it was read, not a
+   * guess about accuracy. Drives a plain "please double-check this" banner rather than pretending
+   * to grade the parse. See extractFile.ts's getLinesFromFileWithMeta. */
+  ocrUsed?: boolean;
   spouse?: SpouseSponsorDeclaration;
   /** Whether the applicant declared themselves employed/self-employed (read-only from the
    * checklist's own answers) — gates whether the employer/business name input is shown at all,
@@ -206,6 +212,7 @@ export default function StatementDashboard({
   senderDuplicateDecisions: initialSenderDuplicateDecisions,
   onSenderDuplicateDecisionsChange,
   detectedHolderName = null,
+  ocrUsed = false,
   spouse = DEFAULT_SPOUSE,
   employed = false,
   selfEmployed = false,
@@ -483,6 +490,16 @@ export default function StatementDashboard({
           />
         </div>
       </div>
+
+      {ocrUsed && (
+        <div className="rounded-lg bg-warn-wash p-3 text-sm text-warn-text" role="status">
+          ⚠️ This statement was read by scanning the image/photo (on-device text recognition),
+          not from a direct digital export — it&apos;s more likely to misread a name, date, or
+          amount than a PDF or Excel export straight from your bank. Please double-check the
+          figures below against your real statement, and if something looks wrong, try uploading
+          your bank&apos;s own PDF or Excel export instead.
+        </div>
+      )}
 
       <div className="flex gap-1 border-b border-black/10">
         {(

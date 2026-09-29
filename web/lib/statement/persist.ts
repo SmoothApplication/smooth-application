@@ -61,6 +61,12 @@ export interface PersistedStatement {
    * look-alike sender pair, keyed by senderPairKey(nameA, nameB), so an answered pair is never
    * re-asked across visits. Optional for backward-compat with payloads saved before this existed. */
   senderDuplicateDecisions?: Record<string, 'merge' | 'separate'>;
+  /** Fix 3 (technical-co-founder review): true when this statement's lines came from on-device OCR
+   * (a scanned/photographed statement) rather than a real digital text layer or spreadsheet export -
+   * a known, factual signal (not a guess) that the numbers below lean on a weaker parsing path and
+   * are worth double-checking against the real statement. See extractFile.ts's
+   * getLinesFromFileWithMeta. Optional for backward-compat with payloads saved before this existed. */
+  ocrUsed?: boolean;
 }
 
 export function serializeTxns(txns: ParsedTxn[]): PersistedTxn[] {

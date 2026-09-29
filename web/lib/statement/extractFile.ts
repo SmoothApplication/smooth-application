@@ -196,3 +196,43 @@ export async function getLinesFromFile(file: File): Promise<Line[]> {
   }
   throw new Error('Unsupported file type: ' + file.name);
 }
+
+// Fix 3 (technical-co-founder review, explicitly WITHOUT any AI/LLM per direct instruction to hold
+// that off for now): a genuinely low-confidence source format — a scanned/photographed statement
+// read via on-device OCR — has already lost its column x-positions before parsing even starts (see
+// getLinesFromPdfWithOcrFallback/getLinesFromImageFile's own comments), so it leans on the parser's
+// weaker order/keyword/balance-delta heuristic instead of real column detection. That's a real,
+// knowable fact about HOW a given statement was read, not a guess about whether the numbers are
+// right - the honest way to flag "please double-check this" without pretending to grade accuracy.
+// getLinesFromFileWithMeta wraps the same dispatch as getLinesFromFile but also reports which path
+// was taken, without changing getLinesFromFile's own signature (touched by several other call
+// sites - passport/refusal-letter reading aids - that have no use for this flag).
+export interface LinesWithMeta {
+  lines: Line[];
+  /** True when this file's lines came from Tesseract OCR (a scanned/image PDF fallback, or a direct
+   * photo) rather than a real digital text layer or spreadsheet export - i.e. the less reliable of
+   * the two extraction paths. */
+  ocrUsed: boolean;
+}
+
+export async function getLinesFromFileWithMeta(file: File): Promise<LinesWithMeta> {
+  if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '')) {
+    const textLines = await getLinesFromPdf(file);
+    const totalChars = textLines.reduce((n, l) => n + l.text.length, 0);
+    if (totalChars > OCR_FALLBACK_CHAR_THRESHOLD) return { lines: textLines, ocrUsed: false };
+    // Same OCR fallback getLinesFromPdfWithOcrFallback runs - duplicated here (rather than having
+    // that function report back its own path) so getLinesFromFile's existing callers/behavior stay
+    // completely untouched.
+    const lines = await getLinesFromPdfWithOcrFallback(file);
+    return { lines, ocrUsed: true };
+  }
+  if (isSpreadsheetFile(file)) {
+    const lines = await getLinesFromFile(file);
+    return { lines, ocrUsed: false };
+  }
+  if (file.type.startsWith('image/') || /\.(jpe?g|png|heic|heif|webp|bmp|gif)$/i.test(file.name || '')) {
+    const lines = await getLinesFromImageFile(file);
+    return { lines, ocrUsed: true };
+  }
+  throw new Error('Unsupported file type: ' + file.name);
+}
