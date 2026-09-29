@@ -3,6 +3,18 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Hotfix #3: fix the outputFileTracingIncludes glob key (silent no-op)
+
+Hotfix #2 shipped, but the exact same "Cannot find module .../standard-fonts/Helvetica.cjs" error
+came back byte-for-byte unchanged, meaning that config had no effect at all. Root-caused by reading
+Next.js's own matching code (`node_modules/next/dist/build/collect-build-traces.js`) rather than
+guessing again: it matches `outputFileTracingIncludes` keys against the route as
+`normalizeAppPath()` produces it for an App Router handler, which turns
+`app/api/email-report/route` into `/app/api/email-report` — not `/api/email-report/route`, the key
+hotfix #2 used. Verified the correct key (`/api/email-report`) directly against Next's own
+`picomatch(glob, {contains:true})` call before shipping this round, instead of shipping a fourth
+guess.
+
 ## Hotfix #2: trace pdfkit's standard-fonts into the Vercel function bundle
 
 The debug catch below paid off immediately: production returned the real error on the next

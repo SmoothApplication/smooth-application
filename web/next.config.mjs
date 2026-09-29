@@ -21,10 +21,17 @@ const nextConfig = {
   // outputFileTracingIncludes forces them in explicitly. Also including js/data (ICC colour
   // profile data pdfkit resolves via a computed file URL, a different mechanism nft could equally
   // miss) so a future PDF feature that touches colour profiles doesn't hit the same class of bug.
+  //
+  // Glob-key gotcha (this is what made the FIRST attempt at this fix a no-op): Next.js matches
+  // these keys against the route as normalizeAppPath() produces it for an App Router handler —
+  // 'app/api/email-report/route' becomes '/app/api/email-report', NOT '/api/email-report/route'.
+  // Verified directly against collect-build-traces.js's own picomatch(glob, {contains:true}) call
+  // (see node_modules/next/dist/build/collect-build-traces.js) before shipping this fix, rather
+  // than guessing at the syntax a third time.
   experimental: {
     serverComponentsExternalPackages: ['pdfkit'],
     outputFileTracingIncludes: {
-      '/api/email-report/route': ['./node_modules/pdfkit/js/standard-fonts/**/*', './node_modules/pdfkit/js/data/**/*'],
+      '/api/email-report': ['./node_modules/pdfkit/js/standard-fonts/**/*', './node_modules/pdfkit/js/data/**/*'],
     },
   },
 };
