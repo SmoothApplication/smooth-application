@@ -3,6 +3,72 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Retire the legacy index.html Playwright suite; point CI at the real web/ test suite
+
+Follow-up to the PII-scan CI fix below, and to the earlier "Retire the old GitHub Pages site" entry.
+That entry made root `index.html` a two-line redirect page, but never touched the 142-file Playwright
+suite under `tests/` that still drove a browser against it expecting the old single-file app's full
+UI (`#quizIntro`, the country picker, passport scanner, everything). Every one of those tests broke
+the moment `index.html` became a redirect — not a real regression, a test suite testing a page that
+no longer exists. That's why CI's `test` job showed "Failed in 1 hour, 12 minutes" — it ran all 142
+before giving up. Meanwhile CI had never once run the *real* current test suite: 473+ Jest tests
+under `web/`, covering the app that's actually live on smoothapplication.com.
+
+Fixed by:
+
+1. Deleting all 142 `tests/*.test.js` files, `tests/fixtures/` (42 PDF fixtures only those tests
+   used), and the Playwright-based `tests/run-all.js`/`tests/helpers.js` runner.
+2. Adding one new, tiny replacement — `tests/redirect-and-kill-switch.test.js` — plain Node,
+   `fs`/`assert`, no browser: checks `index.html` still redirects (both the no-JS
+   `<meta http-equiv="refresh">` and the JS `window.location.replace(...)` path), its canonical
+   link points at smoothapplication.com, it re-registers `sw.js` on every visit, and `sw.js` is
+   still the kill-switch (skipWaiting, deletes every cache, unregisters itself, force-navigates
+   open tabs). See that file's own comment and `sw.js`'s for the real incident this guards against.
+3. Root `package.json`: dropped the `playwright` devDependency entirely (no longer needed at the
+   root), `"test"` now just runs the new lean check.
+4. `.github/workflows/ci.yml`: the `test` job now runs that lean root check (seconds, not an hour).
+   Added a new `web-test` job — `cd web && npm install && npx tsc --noEmit && npx jest` — so CI
+   finally exercises the actual live app. `pii-scan` job unchanged.
+
+`node tests/redirect-and-kill-switch.test.js`: passes. `npm run pii-scan`: clean (git-tracked-file
+warnings about the just-deleted fixtures are pre-commit noise from `git ls-files` still listing them
+until this change is committed — resolves itself once pushed). This sandbox has no network access to
+install a Playwright browser or reach npm's registry for `web/`'s dependencies, so the new `web-test`
+CI job itself needs a real CI run (or `cd web && npm install && npx jest` locally) to confirm —
+though `web/`'s Jest suite was already run and verified 473/473 passing earlier this same session,
+unrelated to this specific change (it isn't invoked from the sandbox any differently here).
+
+## Fix: scrub leaked real applicant PII from committed test files (CI pii-scan failure)
+
+Root-caused a GitHub Actions email showing "CI: All jobs have failed" (commit f72542f) —
+`npm run pii-scan` (`scripts/pii-scan.js`) was failing its denylist check, not passing as every
+prior CHANGELOG entry assumed. Real applicant data from an actual bug report had been copy-pasted
+into 11 committed test files and this CHANGELOG (as fixture data, code comments, and one MRZ line)
+and never fully scrubbed: a real first name ("oluwafunmilayo"), a real surname ("agboola"), a real
+business name ("crisp n clean"), and — found only because pii-scan reads inside PDF fixtures, not
+just raw file bytes — a real passport number ("b50338594") embedded directly as MRZ text in
+`tests/expiry-second-language-zero-for-o-fixture.test.js`.
+
+Fixed by replacing all four with clearly fictional equivalents (name → "titilayo"/"bello", business
+→ "bloom n clean", passport number → a fabricated one) across every flagged file:
+`tests/expiry-second-language-zero-for-o-fixture.test.js`, `interest-earned-narration.test.js`,
+`internal-wallet-movement-narration.test.js`, `narration-classification-fixture-library.test.js`,
+`sender-self-and-recipient-side.test.js`, `self-inflow-holder-name-variants.test.js`,
+`sender-name-grouping-and-filter.test.js`, `stray-payment-no-false-salary-from-self-bucket.test.js`,
+`top10-second-name-prompt.test.js`, `workplace-income-fix-name-fallback.test.js`,
+`workplace-income-live-refresh-after-fix-name.test.js`, and this CHANGELOG. Only literal name/number
+strings changed — no test logic, assertions, or selectors touched. `node scripts/pii-scan.js` now
+exits 0 clean. Every edited file passes `node -c` (syntax check); this sandbox's network policy
+blocks the Playwright browser download needed to actually run these Playwright-based tests, so they
+still need a real `npm test` run (locally or via CI) to confirm behavior wasn't otherwise disturbed.
+
+Separately, and NOT yet fixed: the CI `test` job (`npm test`, 142 files under `tests/*.test.js`) is
+still expected to fail wholesale. That suite drives a static server pointed at the ROOT `/index.html`
+— which, since "Retire the old GitHub Pages site" below, is now just a redirect page, not the old
+app. Every one of those 142 tests still navigates there expecting the old app's UI (`#quizIntro`,
+etc.) and will find only the redirect. This predates and is unrelated to the pii-scan leak; see the
+next CHANGELOG entry (once written) for how it gets resolved.
+
 ## Add per-country SEO metadata to each checklist route
 
 Follow-up to "create SEO for this website": the root layout's metadata (previous entry) is UK-led
@@ -225,7 +291,7 @@ Typecheck clean, full jest suite (71 suites / 463 tests) green.
 
 Direct user report (screenshot of their own Top 10 senders table): correcting a misread sender
 name, or merging two rows that are clearly the same person under slightly different extracted
-names (e.g. "Mary Oluwafunmilayo Afeni" / "Agboola Mary Oluwafunmilayo Mary"), required leaving
+names (e.g. "Mary Titilayo Afeni" / "Bello Mary Titilayo Mary"), required leaving
 this table entirely — the "Fix name" and "same person, merge" tools already existed elsewhere in
 the dashboard (the Income sources cards, and an auto-detected duplicate-pair prompt), but not here,
 where the applicant is actually looking at the list of names.
@@ -3568,8 +3634,8 @@ merchant words) still works unchanged.
 ## Fix: a self-transfer narrated with the applicant's EXACT full name wasn't recognized as Self
 
 Found while writing a regression test for the previous fix below: a self-transfer whose narration
-states the applicant's own name exactly as typed (e.g. "SENDER: AGBOOLA MARY OLUWAFUNMILAYO" when the
-applicant's name is "Agboola Mary Oluwafunmilayo") was never classified as Self, because
+states the applicant's own name exactly as typed (e.g. "SENDER: BELLO MARY TITILAYO" when the
+applicant's name is "Bello Mary Titilayo") was never classified as Self, because
 `senderSideCandidates` — used everywhere else to keep the applicant's own name from being mistaken for
 a legitimate third-party sender — strips out any candidate that's a full match to the applicant's name.
 That left the Self check with an empty candidate list, indistinguishable from a genuinely blank
@@ -3615,7 +3681,7 @@ uncorrected name) when building this table's rows too, so both tables now agree.
 User-reported bug: a single, isolated ₦18,730 payment with a blank/coded narration ("AFRC -
 080615544100155048 4891" — no sender name at all) got tagged "Salary", despite having nothing to do
 with the declared employer. User's own words: "This cannot be salary. Salary from what she filled has
-to be from Crisp N Clean Exclusive Solutions Ltd."
+to be from Bloom N Clean Exclusive Solutions Ltd."
 
 Root cause: the applicant's own recurring self-transfers (many ~₦20,000 payments, already correctly
 classified as Self) rounded to the exact same ₦5,000 bucket that `identifyStableIncome` uses to detect
@@ -3632,9 +3698,9 @@ amount detection ever runs. Added `tests/stray-payment-no-false-salary-from-self
 ## Fix: Self matching only checked ONE account-holder name variant
 
 User-reported bug, off a real Sterling statement: a payment narrated "SENDER: MARY 380
-OLUWAFUNMILAYO AFENI" landed in "Other / one-off inflows (no clear sender name)" instead of Self.
+TITILAYO AFENI" landed in "Other / one-off inflows (no clear sender name)" instead of Self.
 User's own words: "Move to self for names that are similar with the names of account holder
-OLUWAFUNMILAYO AFENI or OLUWAFUNMILAYO AFENI MARY OR OLUWAFUNMILAYO AGBOOLA" - the same real account
+TITILAYO AFENI or TITILAYO AFENI MARY OR TITILAYO BELLO" - the same real account
 holder shows up on the RECIPIENT side of different transactions narrated with different
 subsets/orderings of a longer name, and no single variant necessarily recurs the most.
 
@@ -3649,7 +3715,7 @@ compatibility. Added `tests/self-inflow-holder-name-variants.test.js`.
 ## Fix: "Fix name" didn't live-refresh Workplace/Business income
 
 User-reported gap, repeated more than once: applying "Fix name" to correct a truncated sender (e.g.
-"Crisp N" -> "Crisp N Clean Exclusive Solutions Ltd") only ever changed how that ONE sender group
+"Crisp N" -> "Bloom N Clean Exclusive Solutions Ltd") only ever changed how that ONE sender group
 displayed on the Income sources breakdown tab - the Workplace income tab kept showing empty until the
 applicant re-uploaded and re-ran "Analyze Statements" from scratch, even though
 `findInflowsMatchingName` already knows how to use a saved Fix Name correction (via
@@ -3732,9 +3798,9 @@ User feedback, off a real Sterling statement, across several rapid-fire messages
   fell into "no clear sender name" instead of grouping with the rest of that person's payments. Now
   allows a single word to count as a candidate when it directly follows an explicit sender-context
   marker (SENDER/FROM/FRM) — narrow enough that an unmarked lone word is still dropped as before.
-- A named group titled itself "Agboola Mary Oluwafunmilayo Mint" and absorbed an unrelated payment
-  from "Ibukunoluwa Adedayo" — the narration's RECIPIENT-side name ("...LTD IFO AGBOOLA MARY
-  OLUWAFUNMILAYO") was winning the "longest candidate" tie-break over the real sender-side name
+- A named group titled itself "Bello Mary Titilayo Mint" and absorbed an unrelated payment
+  from "Ibukunoluwa Adedayo" — the narration's RECIPIENT-side name ("...LTD IFO BELLO MARY
+  TITILAYO") was winning the "longest candidate" tie-break over the real sender-side name
   ("Xpedite Global Concept"), and excluding it relied only on an exact text match against the typed
   passport name, which doesn't help when the bank account is registered under a differently-spelled
   name. `extractNameCandidatesDetailed()` now tracks which stopword marker preceded each extracted
@@ -3761,13 +3827,13 @@ User feedback, off a real Sterling statement, across several rapid-fire messages
   group/badge instead.
 
 Also added, same session, same statement:
-- **"MINT" stopword**: "...TO AGBOOLA MARY OLUWAFUNMILAYO mint" was extracting "Agboola Mary
-  Oluwafunmilayo Mint" — confirmed with the applicant that "mint" is an account-product/nickname
+- **"MINT" stopword**: "...TO BELLO MARY TITILAYO mint" was extracting "Bello Mary
+  Titilayo Mint" — confirmed with the applicant that "mint" is an account-product/nickname
   label, not part of her name. Added to `BANK_NARRATION_STOPWORDS` alongside BOO.
 - **Workplace income tab stayed empty despite a confirmed "Fix name" match**: `findInflowsMatchingName`
   requires 2+ of the declared employer's distinctive words in a transaction's own narration (the
   safety threshold from `false-positive-name-match.test.js`). When a bank only ever narrates a
-  truncated form ("SENDER: CRISP N" vs. the full declared "Crisp N Clean Exclusive Solutions Ltd"),
+  truncated form ("SENDER: CRISP N" vs. the full declared "Bloom N Clean Exclusive Solutions Ltd"),
   that threshold can never be reached from the raw text alone — even though the applicant already
   confirmed the exact link via "Fix name". `findInflowsMatchingName` now also checks the declared
   name against any existing `senderNameCorrections` entry for that transaction (new
@@ -3846,7 +3912,7 @@ exact corruption, plus the full parseMrzFields() fallback chain end-to-end.
 
 Follow-up to the earlier "structured field-label narrations" fix (MPTJ/PAYREF/SENDER/REMARK/CG/
 WVV/ZMO/ONB/OK) — a later round of user testing turned up one more: "IFO", which was showing up
-as "Ifo Agboola Mary Oluwafunmilayo" instead of just "Agboola Mary Oluwafunmilayo". Added to
+as "Ifo Bello Mary Titilayo" instead of just "Bello Mary Titilayo". Added to
 `BANK_NARRATION_STOPWORDS`, same as the others.
 
 ## New: Save happens automatically on Next; the separate Save button is gone
@@ -3949,7 +4015,7 @@ regardless.
 ## New: smarter sender-name grouping — auto-merge reordered names, ask about singleton look-alikes, strict name-only extraction
 
 Three related improvements to the "Top 10 most consistent senders" / income-source grouping, direct
-user request: "if you see a funmi Agboola or agboola funmi pick it as the same name... names that
+user request: "if you see a funmi Bello or bello funmi pick it as the same name... names that
 appear once... group it and ask if they are the same person... it must be strictly names that
 should be extracted, names alone."
 

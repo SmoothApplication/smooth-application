@@ -21,8 +21,27 @@ jobs:
 
       - name: Scan for known PII leaks
         run: npm run pii-scan
+  # Repo-root check: the retired index.html redirect page + its service-worker kill switch still
+  # do their one job. Plain Node, no browser — see tests/README.md for why this replaced the old
+  # 142-file Playwright suite (that suite tested the pre-redirect app, which no longer exists here).
   test:
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Run redirect + service-worker kill-switch check
+        run: npm test
+
+  # The real, current app (smoothapplication.com) lives in web/ — this is its actual test coverage.
+  web-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
     steps:
       - uses: actions/checkout@v4
 
@@ -33,8 +52,8 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Install Playwright's Chromium build
-        run: npx playwright install --with-deps chromium
+      - name: Typecheck
+        run: npx tsc --noEmit
 
-      - name: Run test suite
-        run: npm test
+      - name: Run Jest suite
+        run: npx jest

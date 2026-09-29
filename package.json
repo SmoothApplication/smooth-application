@@ -2,12 +2,9 @@
   "name": "smooth-application",
   "version": "1.0.0",
   "private": true,
-  "description": "Free, client-side visa document-readiness checklist for UK Standard Visitor and Canada visitor visa applicants. No build step for the app itself — this package.json exists only to run the Playwright regression test suite.",
+  "description": "Repo root for the retired GitHub Pages redirect page (index.html/sw.js) and the real, current app under web/ (Next.js, deployed to smoothapplication.com). This package.json exists only to run the tiny redirect/service-worker check and the PII-leak scanner — no build step, no Playwright, no browser needed. See web/package.json for the actual app.",
   "scripts": {
-    "test": "node tests/run-all.js",
+    "test": "node tests/redirect-and-kill-switch.test.js",
     "pii-scan": "node scripts/pii-scan.js"
-  },
-  "devDependencies": {
-    "playwright": "^1.56.0"
   }
 }
