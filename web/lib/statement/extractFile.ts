@@ -24,9 +24,12 @@ import type { Line } from './types';
 import { linesFromTextContent, linesFromPlainText, isSpreadsheetFile } from './columns';
 import { getImageFromFile, preprocessImageForOcr, recognizeText } from '@/lib/passport/extractText';
 
-// A 6-month statement from a busy account can run 25-30+ pages; text-layer extraction is cheap
-// enough per page that a generous cap is safe. Matches index.html's MAX_TEXT_PAGES.
-const MAX_TEXT_PAGES = 150;
+// A 6-month statement from a busy account can run 25-30+ pages; a dense wallet account (OPay,
+// PalmPay, Kuda) with several transactions a day can run past 150 — a real applicant's 6-month OPay
+// export hit 168 pages and this cap silently dropped the last 18. Raised well past that; sequential,
+// per-page-guarded extraction below (see getLinesFromPdf's own comment) means a higher cap no longer
+// costs the same memory it used to under the old all-pages-at-once approach.
+const MAX_TEXT_PAGES = 400;
 
 // OCR (only used as a scanned-PDF fallback, or for a direct photo) is far more expensive per page
 // than reading a text layer, so it gets a lower cap of its own — matches index.html's own
@@ -103,27 +106,41 @@ async function loadPdfjs() {
  * layer read, same as before, since lib/situation/extractLetterText.ts also calls this directly and
  * deliberately does NOT want an OCR fallback for a refusal letter (mirrors index.html's own
  * behavior there). getLinesFromPdfWithOcrFallback below is the bank-statement-specific wrapper that
- * adds one. */
+ * adds one.
+ *
+ * Direct live report: a real applicant's 168-page, ~2,300-transaction OPay statement crashed with
+ * "undefined is not a function" on their phone. This used to fire ALL pages' getPage()/
+ * getTextContent() calls at once (a Promise.all over up to 150 pushed promises) - on a memory-
+ * constrained mobile browser, holding that many pages' pdf.js internal objects and text-content
+ * arrays alive simultaneously is exactly the kind of thing that fails unpredictably deep inside a
+ * minified third-party library, which is consistent with the vague error the applicant saw. Pages
+ * are now processed ONE AT A TIME instead (same lower-memory shape the OCR fallback below already
+ * used), and a single page that still fails to extract is skipped with a console warning rather
+ * than taking the entire statement down - a statement that's 99% readable should still work. */
 export async function getLinesFromPdf(file: File): Promise<Line[]> {
   const pdfjsLib = await loadPdfjs();
   const buf = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
   const maxPages = Math.min(pdf.numPages, MAX_TEXT_PAGES);
-  const pagePromises: Promise<Line[]>[] = [];
+  const allLines: Line[] = [];
   for (let p = 1; p <= maxPages; p++) {
-    pagePromises.push(
-      pdf.getPage(p).then(async (page) => {
-        const tc = await page.getTextContent();
-        const lines = linesFromTextContent(tc as never);
-        lines.forEach((l) => {
-          l.__page = p;
-        });
-        return lines;
-      })
-    );
+    try {
+      const page = await pdf.getPage(p);
+      const tc = await page.getTextContent();
+      const lines = linesFromTextContent(tc as never);
+      lines.forEach((l) => {
+        l.__page = p;
+      });
+      allLines.push(...lines);
+    } catch (err) {
+      // One malformed/unusually heavy page must not take down a statement that is otherwise fine -
+      // skip it and keep going. Logged (not surfaced to the applicant) since a handful of missed
+      // lines on one page out of dozens isn't itself actionable to them; the OCR-fallback char-count
+      // check downstream still catches the case where entire extraction genuinely failed.
+      console.warn(`getLinesFromPdf: skipping page ${p} after extraction error`, err);
+    }
   }
-  const pagesLines = await Promise.all(pagePromises);
-  return ([] as Line[]).concat(...pagesLines);
+  return allLines;
 }
 
 /** Renders one PDF page to a canvas at the given scale — same approach as index.html's own

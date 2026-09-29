@@ -3,6 +3,47 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Retire the old GitHub Pages site for good (root `index.html` → redirect)
+
+Direct report, with screenshots: an applicant got a completely different, stale result set from
+`https://smoothapplication.github.io/smooth-application/`. Root cause, found by checking git
+remotes/history directly rather than guessing: that URL is served by GitHub Pages straight from
+this same repo's root `index.html` — the original single-page app, still sitting untouched
+alongside the new Next.js app (`web/`) ever since the rebuild, and still fully live. A prior fix
+this session (see "Fix 'Workplace income' gap...") only redirected one STALE INTERNAL LINK inside
+the new app that pointed there — it never addressed the GitHub Pages site being independently
+reachable on its own (an old bookmark, a shared link, a search result), with none of this session's
+fixes, ever.
+
+Root `index.html` (1.2MB of legacy app) replaced with a small redirect page (meta refresh + JS
+`location.replace` + a visible button) to `https://smoothapplication.com`, kept as a redirect
+rather than deleted so an old link lands somewhere useful instead of breaking. Nothing else in the
+repo changed — the actual product is, and has only ever been, `web/`.
+
+## Fix real-time bank statement crash on large statements ("undefined is not a function")
+
+Direct report, with the exact failing file: a 168-page, ~2,300-transaction 6-month OPay wallet
+statement crashed on the applicant's phone the moment they clicked Analyze, before any dashboard
+ever rendered. Reproduced the real pipeline (not a guess) by running the actual `extractFile.ts` +
+`parse.ts` source against the real uploaded PDF in Node, via pdf.js directly — this confirmed the
+extraction/parsing logic itself handles this file's content correctly, isolating the crash to *how*
+`getLinesFromPdf` reads a very large PDF, not what's in it.
+
+Root cause: `getLinesFromPdf` fired every page's `getPage()`/`getTextContent()` call at once (a
+`Promise.all` over up to 150 pushed promises) — on a memory-constrained mobile browser, holding that
+many pages' pdf.js internal objects alive simultaneously is exactly the kind of thing that fails
+unpredictably deep inside a minified third-party library, consistent with the vague error the
+applicant's phone showed. Pages are now processed ONE AT A TIME (the same lower-memory shape the
+OCR fallback already used), and a single page that still fails to extract is skipped with a logged
+warning instead of taking the whole statement down. Also raised `MAX_TEXT_PAGES` from 150 to 400 —
+this exact file was 168 pages and would have been silently truncated even once the crash was fixed;
+sequential extraction means a higher cap no longer costs the memory it used to.
+
+Verified against the real file: all 168 pages now extract successfully (up from being capped and
+crashing). Typecheck clean, full jest suite (72 suites / 467 tests) green — no existing test
+needed changes, since sequential-with-skip is behaviorally identical to parallel for any statement
+that doesn't hit a bad page.
+
 ## Real-time "stuck applicant" alert for failed bank statement uploads
 
 Direct report, launch day: a real applicant's bank statement wasn't processing, and there was no
