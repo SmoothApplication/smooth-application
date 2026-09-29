@@ -3,6 +3,42 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Add real SEO to smoothapplication.com (title/description/OG/Twitter/JSON-LD, robots.txt, sitemap.xml)
+
+Direct request: "create SEO for this website." Until now `web/app/layout.tsx`'s only metadata was
+a generic leftover placeholder ("Applicant accounts and admin dashboards...") that didn't describe
+the real product — every search result and every WhatsApp/X link preview for smoothapplication.com
+was showing that placeholder, and there was no `robots.txt` or `sitemap.xml` at all, so search
+engines had no guidance and no map of the site's real entry points.
+
+This was not a from-scratch job: the retired GitHub Pages app (`index.html`, now just a redirect)
+already had real, keyword-tested on-page SEO — a title leading with the primary search phrase, an
+accurate description, full Open Graph + Twitter Card tags, and `SoftwareApplication` JSON-LD
+deliberately without a fabricated `aggregateRating`/`review` (Google's structured-data policy
+treats a fake rating as a violation; the pre-existing `tests/seo-meta-tags.test.js` encoded this
+same constraint for the old site). That proven copy was ported onto the actual live product:
+
+1. `web/app/layout.tsx` — added `metadataBase` (so every route's relative canonical/OG image
+   resolves to an absolute `smoothapplication.com` URL), a title template, description, keywords,
+   full `openGraph`/`twitter` objects, favicon/apple-touch-icon, and a `SoftwareApplication`
+   JSON-LD `<script>` in `<head>` (no aggregateRating/review data).
+2. `web/app/robots.ts` (new) — allows `/`, disallows `/admin/`, `/api/`, and the account/auth
+   routes (`/login`, `/create-password`, `/forgot-password`, `/reset-password`, `/account`) so
+   staff-only and auth pages stay out of search results, points to `sitemap.xml`.
+3. `web/app/sitemap.ts` (new) — homepage, `/quiz`, `/checklist/start`, `/opportunities`,
+   `/privacy`, `/terms`, plus one entry per live (`ready: true`) country's `/checklist/<code>`
+   route. Deep per-session pages, the personal tracker, and every account/admin route are left out
+   on purpose — not meaningful without country context first, personal to a signed-in applicant,
+   or staff-only.
+4. `web/public/icons/` (new) — copied `icon-512.png`, `icon-192.png`, `apple-touch-icon.png`, and
+   `favicon-32.png` from the repo-root `icons/` folder; `web/public/` previously had no icon or OG
+   image assets at all.
+
+No new logic to unit-test (this is metadata + static config), so verification is typecheck +
+full suite (zero regressions expected) plus a live check of `/robots.txt`, `/sitemap.xml`, and the
+homepage's rendered `<head>` after this ships. `npx tsc --noEmit`: clean. Full suite: 473 passed,
+73 suites, 0 regressions.
+
 ## Auto-fill the 6-month cash-flow table from the uploaded statement; Report tab shows first
 
 Direct user report: "when you put in your bank statement, the first thing it shows is a report...
