@@ -3,6 +3,35 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Statement analysis: restore "Top 10 inflows" and "Download spreadsheet"
+
+Live audit against the original GitHub Pages site (smoothapplication.github.io) — comparing its
+"Income & bank statement analysis" Advanced details dropdown against the live Next.js
+production site — found two of its five shortcuts had never been carried over in the port:
+"Top 10 inflows" and "Download spreadsheet". ("Most consistent senders", "Income sources
+breakdown" and "Workplace income" were all already present, just reorganized into the two-tab
+Analysis/Report layout instead of a dropdown.)
+
+Added `getTopInflows` (lib/statement/classify.ts) — a direct port of index.html's own function,
+deliberately distinct from `getTopConsistentSenders`: it ranks the single biggest transactions by
+raw amount, not by how many separate months a sender recurs in. Wired into a new collapsible "Top
+10 inflows" table in the Analysis tab (StatementDashboard.tsx), between the Income sources and Top
+10 senders cards, with the same reversal/company/personal tagging as the original.
+
+Added `buildIncomeBreakdownAoa` (lib/statement/exportBreakdown.ts) — the pure, testable half of
+the original's client-side spreadsheet export (Source/Type/Date/Amount/Reason/Narration columns,
+per-source subtotals, grand total), plus a "⬇️ Download breakdown as spreadsheet" button that
+dynamically imports the already-installed `xlsx` (SheetJS) package and writes the file entirely
+in-browser — same "nothing leaves your device" privacy model as the rest of statement analysis.
+Deliberately dropped the original's "Your explanation" column: it came from a per-inflow free-text
+note UI (sourceExplanations/inflowExplanations) that was never part of this port's simpler
+Analysis/Report dashboard design, so there's nothing to put in that column here.
+
+7 new tests (getTopInflows ranking/limit/default-n; buildIncomeBreakdownAoa's header/subtotal/
+grand-total shape, Fix Name correction pass-through, missing-salary-months warning row, and the
+salary/interest/internal bucket-name exclusion from Reason extraction). Typecheck and the full
+jest suite (71 suites, 459 tests) both pass clean.
+
 ## Confirmed fixed: /api/email-report now working end-to-end in production
 
 Live-verified against the commit `707d054` deploy: `POST /api/email-report` now returns

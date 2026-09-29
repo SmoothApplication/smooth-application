@@ -502,6 +502,23 @@ export function applySenderDuplicateDecisions(
 // Deliberately does NOT apply any name correction itself (unlike the original, which called into its
 // own UI-only displaySourceName) — that's persisted UI state out of scope for this pure-logic module;
 // callers with a correction map apply it themselves using the returned (raw, extracted) `name`.
+// Direct port of index.html's getTopInflows (~line 13635) — deliberately simple and NOT the same
+// thing as getTopConsistentSenders just below: this ranks by raw amount (the single biggest
+// individual transactions on the statement), while getTopConsistentSenders ranks by how many
+// distinct months a sender recurs across. index.html showed both as separate boxes ("Top 10
+// inflows" and "Top 10 most consistent senders") because they answer different reviewer
+// questions — "what's the biggest single payment in?" vs "who pays me steadily?" — so this was
+// never meant to be replaced by the other; it was simply never carried over in the Next.js port
+// (task #430, found via a live audit against the original GitHub Pages site's "Advanced details"
+// dropdown, which still lists it as its own shortcut).
+export function getTopInflows(txns: ParsedTxn[], n?: number): ParsedTxn[] {
+  return txns
+    .filter((t) => t.credit > 0)
+    .slice()
+    .sort((a, b) => b.credit - a.credit)
+    .slice(0, n || 10);
+}
+
 export function getTopConsistentSenders(
   txns: ParsedTxn[],
   n: number,

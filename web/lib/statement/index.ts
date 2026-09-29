@@ -12,3 +12,4 @@ export * from './businessDrawings';
 export * from './personalNameTally';
 export * from './workNameCheck';
 export * from './combined';
+export * from './exportBreakdown';

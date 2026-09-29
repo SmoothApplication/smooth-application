@@ -8,6 +8,8 @@ import {
   TopConsistentSender,
   buildIncomeSourceBreakdown,
   getTopConsistentSenders,
+  getTopInflows,
+  buildIncomeBreakdownAoa,
   findUnexplainedLargeInflows,
   buildPersonalNameTallyMessage,
   SpouseSponsorDeclaration,
@@ -15,6 +17,8 @@ import {
   buildWorkNameCheckMessages,
   WorkNameCheckResult,
   decodeNarration,
+  isReversalNarration,
+  classifySourceType,
   inflowKey,
   WORK_PAYMENT_REASON_CATEGORIES,
   WorkCategoryMap,
@@ -298,6 +302,30 @@ export default function StatementDashboard({
     [txns, applicantName]
   );
 
+  // Task #430/#431 (found via a live audit against the original GitHub Pages site's "Advanced
+  // details" dropdown): "Top 10 inflows" — the biggest single transactions by amount — was never
+  // carried over in this port, distinct from topSenders above (ranked by consistency, not size).
+  const topInflows = useMemo(() => getTopInflows(txns, 10), [txns]);
+
+  // Task #432: client-side "Download spreadsheet" export, same privacy model as the rest of this
+  // page — built and downloaded entirely in-browser, nothing sent anywhere. Dynamically imports
+  // 'xlsx' so it's not part of every checklist page's initial bundle, only loaded on click.
+  const [downloadingSpreadsheet, setDownloadingSpreadsheet] = useState(false);
+  async function handleDownloadSpreadsheet() {
+    if (!groups.length) return;
+    setDownloadingSpreadsheet(true);
+    try {
+      const XLSX = await import('xlsx');
+      const aoa = buildIncomeBreakdownAoa(groups, displayName);
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Income Breakdown');
+      XLSX.writeFile(wb, 'income-source-breakdown.xlsx');
+    } finally {
+      setDownloadingSpreadsheet(false);
+    }
+  }
+
   const unexplainedInflows = useMemo(() => findUnexplainedLargeInflows(txns), [txns]);
 
   // Recomputed reactively so typing/correcting the applicant's name after the scan (the normal
@@ -434,6 +462,9 @@ export default function StatementDashboard({
         <AnalysisTab
           groups={groups}
           topSenders={topSenders}
+          topInflows={topInflows}
+          onDownloadSpreadsheet={handleDownloadSpreadsheet}
+          downloadingSpreadsheet={downloadingSpreadsheet}
           displayName={displayName}
           editingName={editingName}
           editValue={editValue}
@@ -475,6 +506,9 @@ export default function StatementDashboard({
 function AnalysisTab({
   groups,
   topSenders,
+  topInflows,
+  onDownloadSpreadsheet,
+  downloadingSpreadsheet,
   displayName,
   editingName,
   editValue,
@@ -487,6 +521,9 @@ function AnalysisTab({
 }: {
   groups: SourceGroups;
   topSenders: { list: TopConsistentSender[]; pendingDuplicates: { nameA: string; nameB: string }[] };
+  topInflows: ParsedTxn[];
+  onDownloadSpreadsheet: () => void;
+  downloadingSpreadsheet: boolean;
   displayName: (rawName: string) => string;
   editingName: string | null;
   editValue: string;
@@ -532,7 +569,69 @@ function AnalysisTab({
             ))}
           </div>
         )}
+        {groups.length > 0 && (
+          <button
+            type="button"
+            onClick={onDownloadSpreadsheet}
+            disabled={downloadingSpreadsheet}
+            className="mt-4 rounded-lg border border-black/10 px-3 py-2 text-xs font-medium text-[#12232e] hover:bg-black/5 disabled:opacity-60"
+          >
+            {downloadingSpreadsheet ? 'Preparing…' : '⬇️ Download breakdown as spreadsheet'}
+          </button>
+        )}
       </div>
+
+      {topInflows.length > 0 && (
+        <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
+          <details>
+            <summary className="cursor-pointer text-sm font-semibold text-[#12232e]">
+              Top {topInflows.length} inflow{topInflows.length === 1 ? '' : 's'}
+            </summary>
+            <p className="mb-4 mt-1 text-xs text-[#566a76]">
+              The single biggest payments in, ranked by amount - not the same as Top 10 senders
+              below, which ranks by how consistently someone pays you, not by size.
+            </p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-black/10 text-xs uppercase tracking-wide text-[#566a76]">
+                    <th className="py-2 pr-2">#</th>
+                    <th className="py-2 pr-2">Date</th>
+                    <th className="py-2 pr-2 text-right">Amount</th>
+                    <th className="py-2 pr-2">Narration</th>
+                    <th className="py-2">Type</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {topInflows.map((t, i) => {
+                    const hasNarration = !!(t.narration && t.narration.trim());
+                    const tag = isReversalNarration(t)
+                      ? { label: 'Reversal', className: 'bg-black/5 text-[#4c6270]' }
+                      : !hasNarration
+                      ? { label: 'No narration', className: 'bg-warn-wash text-warn-text' }
+                      : classifySourceType(t.narration) === 'company'
+                      ? { label: 'Company', className: 'bg-good-wash text-good' }
+                      : { label: 'Personal', className: 'bg-black/5 text-[#4c6270]' };
+                    return (
+                      <tr key={i} className="border-b border-black/5">
+                        <td className="py-2 pr-2 text-[#566a76]">{i + 1}</td>
+                        <td className="py-2 pr-2 text-[#12232e]">{formatDate(t.date)}</td>
+                        <td className="py-2 pr-2 text-right font-medium text-[#12232e]">{formatAmount(t.credit)}</td>
+                        <td className="py-2 pr-2 text-[#4c6270]">{t.narration || '(none)'}</td>
+                        <td className="py-2">
+                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${tag.className}`}>
+                            {tag.label}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </details>
+        </div>
+      )}
 
       <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
         <h2 className="mb-1 text-sm font-semibold text-[#12232e]">Top 10 senders</h2>
