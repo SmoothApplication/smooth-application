@@ -31,12 +31,16 @@ test('builds a header row, one row per transaction, a subtotal, and a grand tota
     'Narration',
     'Your explanation',
   ]);
+  // Direct user report: a one-line note row right after the header, clarifying that "Reason" is
+  // auto-extracted from "Narration" (not an independently verified fact) - added because the
+  // applicant asked for that relationship to be clearer after reading their own downloaded file.
+  expect(String(aoa[1][0])).toMatch(/auto-extracted/i);
   // First transaction row carries the source name/type; the second (same group) row's first two
   // columns are blank - same "shown once" convention as the on-screen SourceGroupCard.
-  expect(aoa[1][0]).toBe('Chidi Okafor');
-  expect(aoa[1][1]).toBe('salary');
-  expect(aoa[2][0]).toBe('');
-  expect(aoa[2][1]).toBe('');
+  expect(aoa[2][0]).toBe('Chidi Okafor');
+  expect(aoa[2][1]).toBe('salary');
+  expect(aoa[3][0]).toBe('');
+  expect(aoa[3][1]).toBe('');
   // Subtotal row, then a blank spacer row, then the grand total as the very last row.
   const subtotalRow = aoa.find((r) => String(r[4]).startsWith('Subtotal for'));
   expect(subtotalRow).toBeDefined();
@@ -44,6 +48,30 @@ test('builds a header row, one row per transaction, a subtotal, and a grand tota
   const lastRow = aoa[aoa.length - 1];
   expect(lastRow[4]).toBe('GRAND TOTAL:');
   expect(lastRow[5]).toBe(300000);
+});
+
+test('GRAND TOTAL excludes reversal/self/interest/internal groups (own money, not new income)', () => {
+  // Direct user report (screenshot of a downloaded file): GRAND TOTAL used to sum every group,
+  // including a Reversals group, silently overstating income relative to the on-screen "Total
+  // income identified" card (which already excludes these types via NON_INCOME_TYPES).
+  const salaryGroup = summarizeSourceGroup(
+    'Globaltech Nigeria',
+    [txn({ narration: 'NIP/GLOBALTECH NIGERIA LTD/SALARY', credit: 150000, dateISO: '2026-05-03' })],
+    'company'
+  );
+  const reversalGroup = summarizeSourceGroup(
+    'Reversal',
+    [txn({ narration: 'NIP/GLOBALTECH NIGERIA LTD/SALARY RVSL', credit: 150000, dateISO: '2026-05-02' })],
+    'reversal'
+  );
+  const groups = [salaryGroup, reversalGroup] as SourceGroups;
+
+  const aoa = buildIncomeBreakdownAoa(groups, identity);
+
+  const lastRow = aoa[aoa.length - 1];
+  expect(lastRow[4]).toBe('GRAND TOTAL:');
+  // Only the real (company) group's 150000 counts - not the reversal's 150000 on top of it.
+  expect(lastRow[5]).toBe(150000);
 });
 
 test('applies displayName (Fix Name corrections) to the Source column and subtotal label', () => {
@@ -57,7 +85,7 @@ test('applies displayName (Fix Name corrections) to the Source column and subtot
 
   const aoa = buildIncomeBreakdownAoa(groups, displayName);
 
-  expect(aoa[1][0]).toBe('Chidi Okafor');
+  expect(aoa[2][0]).toBe('Chidi Okafor');
   const subtotalRow = aoa.find((r) => String(r[4]).startsWith('Subtotal for'));
   expect(subtotalRow![4]).toBe('Subtotal for Chidi Okafor:');
 });
@@ -73,9 +101,11 @@ test('prepends a missing-salary-months warning row when present', () => {
 
   const aoa = buildIncomeBreakdownAoa(groups, identity);
 
-  expect(aoa[1][0]).toBe('⚠️ Possibly missing:');
-  expect(aoa[1][5]).toBe('March Salary');
-  expect(aoa[2]).toEqual([]);
+  // aoa[1] is the fixed "Reason is auto-extracted..." note row; the missing-salary warning comes
+  // right after it.
+  expect(aoa[2][0]).toBe('⚠️ Possibly missing:');
+  expect(aoa[2][5]).toBe('March Salary');
+  expect(aoa[3]).toEqual([]);
 });
 
 test('includes the explanation on the group\'s first row only, keyed by raw group name', () => {
@@ -88,7 +118,7 @@ test('includes the explanation on the group\'s first row only, keyed by raw grou
 
   const aoa = buildIncomeBreakdownAoa(groups, identity, { 'Aunty Blessing': 'A birthday gift from my aunt' });
 
-  expect(aoa[1][6]).toBe('A birthday gift from my aunt');
+  expect(aoa[2][6]).toBe('A birthday gift from my aunt');
 });
 
 test('leaves the explanation column blank for reversal/self/interest/internal groups', () => {
@@ -98,7 +128,7 @@ test('leaves the explanation column blank for reversal/self/interest/internal gr
   const g1 = summarizeSourceGroup('Interest', [txn({ narration: 'Interest Earned', credit: 500, dateISO: '2026-01-05' })], 'interest');
   const groups = [g1] as SourceGroups;
   const aoa = buildIncomeBreakdownAoa(groups, identity);
-  expect(aoa[1][6]).toBe('');
+  expect(aoa[2][6]).toBe('');
 });
 
 test('does not exclude a salary/interest/internal bucket name from its own Reason extraction', () => {
@@ -114,7 +144,7 @@ test('does not exclude a salary/interest/internal bucket name from its own Reaso
   );
   const groups = [g1] as SourceGroups;
   const aoa = buildIncomeBreakdownAoa(groups, identity);
-  const row = aoa[1];
+  const row = aoa[2];
   // Columns: [Source, Type, Date, Amount, Reason, Narration] — index 4 is Reason.
   expect(row[4]).toBe('SALARY FOR FEBRUARY');
   expect(row[4]).not.toBe('');

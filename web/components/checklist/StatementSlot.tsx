@@ -240,7 +240,14 @@ export default function StatementSlot({
       }
       setTxns(result);
       const fullStatementText = lines.map((l) => l.text || '').join(' ');
-      setDetectedHolderName(extractAccountHolderName(fullStatementText));
+      const holderName = extractAccountHolderName(fullStatementText);
+      setDetectedHolderName(holderName);
+      // User request: auto-fill the applicant's name from the statement itself where possible,
+      // rather than always waiting on manual entry. Never overwrites a name the applicant has
+      // already typed (here or on a prior visit) — this only fills the field the first time it's
+      // genuinely empty, and if extraction fails (returns null, e.g. an unrecognized statement
+      // layout), the field is simply left for the applicant to fill in manually, same as before.
+      setApplicantName((prev) => (prev.trim() ? prev : holderName || prev));
       setRecalled(false);
       trackEvent('statement_analysis:completed');
     } catch (err) {

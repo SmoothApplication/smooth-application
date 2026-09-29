@@ -3,6 +3,75 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fix downloaded-spreadsheet GRAND TOTAL + clarify Reason/Narration relationship
+
+Direct user report (screenshot of their own downloaded breakdown, Globaltech Nigeria + a Reversal
+both showing ₦150,000): two real fixes to `buildIncomeBreakdownAoa` (`lib/statement/
+exportBreakdown.ts`), the pure builder behind the "Download breakdown as spreadsheet" button.
+
+1. **GRAND TOTAL silently included reversals.** It summed every group's subtotal unconditionally
+   — including reversal/self/interest/internal groups, which are the applicant's own money
+   bouncing back or moving between their own accounts, never new income. The on-screen "Total
+   income identified" card already excludes these via a `NON_INCOME_TYPES` set; the spreadsheet's
+   own grand total disagreed with it, overstating income in the exact file a reviewer might see.
+   Now both use the same exclusion, so they can never disagree.
+2. **Asked directly** whether the raw "Narration" column (necessarily repeating the sender name
+   already shown in "Source") should be shortened, dropped, or left alone: kept as full raw text
+   (real evidence a reviewer can cross-check against the actual statement), with a new one-line
+   note row right after the header clarifying that "Reason" is auto-extracted FROM that Narration
+   text, not an independently verified fact.
+
+New regression test confirms GRAND TOTAL excludes a reversal group; existing tests' row-index
+expectations updated for the new note row. Typecheck clean, full jest suite 71 suites / 463 tests
+green.
+
+## Fix "Workplace income" gap + kill stale link to the old GitHub Pages site
+
+Two same-day findings from a direct bug report ("I still cannot view workplace income... after
+uploading my bank statement") plus its own screenshot, which turned out to show the OLD GitHub
+Pages site (`index.html`'s "Advanced details" dropdown / "Session 1 of 14" numbering), not
+smoothapplication.com:
+
+1. **`web/app/checklist/page.tsx` was a leftover stub** claiming "the real checklist isn't ready
+   yet on this new site" and linking straight to `smoothapplication.github.io/smooth-application`
+   — true when task #244's port was still in progress, false since Phase 4 shipped. The normal
+   country-picker flow never routes here (`/checklist/start` always goes to
+   `/checklist/[country]/situation`), but a direct visit to bare `/checklist` — an old bookmark or
+   stale link — still hit it and got bounced to the old site's known-buggy bank-statement flow.
+   Replaced with a plain redirect to `/checklist/start`.
+2. **The real bug, found once the "which site" question was resolved**: on the real
+   `StatementDashboard`, the "Employer/business income match" card (the actual equivalent of the
+   old site's "Workplace income" total — see `workNameCheck.ts`'s "Found 'X' as the sender on N
+   inflows, totaling ₦Y" message) only rendered when `employed`/`selfEmployed` were true — flags
+   read from the "Your responsibilities" session's saved answers. But `lib/checklist/sessions.ts`'s
+   own reordering puts "Income & bank statement analysis" at Session 1 and "Your responsibilities"
+   at Session 4 — so on a first pass through Session 1 (which is the whole point of the reorder:
+   applicants land there first), those flags could never yet be true, and the card could never
+   render no matter what the statement showed. This wasn't a parsing bug at all — the matching
+   logic (`computeWorkNameCheck`) was correct and already unit-tested; the card that displays it
+   was gated on a session the applicant hadn't reached yet.
+   Fixed by decoupling: `employerCheck`/`businessCheck` now compute from whether the applicant has
+   typed a name into the Employer/Business field on the statement page itself, and both fields
+   always render there — no dependency on what's been answered in a later session. An applicant
+   can now see their workplace-income match immediately in Session 1, exactly where they land
+   first, and Session 4's checkboxes are no longer a silent prerequisite.
+
+Typecheck clean, full jest suite 71 suites / 462 tests green (no lib logic changed — `classify.ts`/
+`workNameCheck.ts` were already correct; only the component-level gating moved).
+
+## Auto-fill applicant name from bank statement
+
+Direct user request: extract the applicant's name from the uploaded bank statement instead of
+always requiring manual entry, but still let the applicant type/correct it when extraction isn't
+possible. The extraction itself already existed (`extractAccountHolderName`, used only for the
+name-mismatch warning) — this wires it into the "Applicant's full name" field too:
+`StatementSlot.tsx`'s `handleAnalyze` now pre-fills `applicantName` from the detected holder name
+the first time the field is genuinely empty. It never overwrites a name the applicant has already
+typed (here or on a prior visit), and if extraction fails on an unrecognized statement layout
+(returns `null`), the field is simply left blank for manual entry, exactly as before. Typecheck
+clean, full jest suite still 71 suites / 462 tests green (no lib logic changed, only the one
+component wiring).
+
 ## Statement analysis parity fixes + report-email hardening (pre-launch pass)
 
 A direct user report ("keep meeting roadblocks... little pieces of false") prompted a live

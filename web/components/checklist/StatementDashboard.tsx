@@ -376,19 +376,27 @@ export default function StatementDashboard({
     [applicantName, detectedHolderName, spouse]
   );
 
+  // Direct user report ("I still cannot view workplace income"): this card was gated on
+  // employed/selfEmployed, read from the "Your responsibilities" session's answers - but that
+  // session comes AFTER this one (Income & bank statement analysis is Session 1; Your
+  // responsibilities is Session 4, see lib/checklist/sessions.ts's reordering). On a first pass
+  // through Session 1, those flags are never yet true, so this card could never show no matter
+  // what the applicant uploaded. Un-gated here: computed purely from whether the applicant has
+  // typed a name into the field on THIS page, independent of what they have or haven't answered
+  // elsewhere yet.
   const employerCheck = useMemo(
     () =>
-      employed && employerName.trim()
+      employerName.trim()
         ? computeWorkNameCheck({ label: 'employer', name: employerName, altName: employerAltName }, txns)
         : null,
-    [employed, employerName, employerAltName, txns]
+    [employerName, employerAltName, txns]
   );
   const businessCheck = useMemo(
     () =>
-      selfEmployed && businessName.trim()
+      businessName.trim()
         ? computeWorkNameCheck({ label: 'business', name: businessName, altName: businessAltName }, txns)
         : null,
-    [selfEmployed, businessName, businessAltName, txns]
+    [businessName, businessAltName, txns]
   );
 
   function displayName(rawName: string): string {
@@ -999,42 +1007,37 @@ function ReportTab({
         </div>
       </div>
 
-      {(employed || selfEmployed) && (
-        <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
-          <h2 className="mb-1 text-sm font-semibold text-[#12232e]">Employer/business income match</h2>
-          <p className="mb-4 text-xs text-[#566a76]">
-            Does the employer/business you declared under &quot;Work status&quot; actually show up as the
-            sender on real credits in this statement - stronger evidence than its name just appearing
-            somewhere on the page.
-          </p>
-          <div className="flex flex-col gap-4">
-            {employed && (
-              <WorkNameFields
-                label="Employer"
-                name={employerName}
-                setName={setEmployerName}
-                altName={employerAltName}
-                setAltName={setEmployerAltName}
-                check={employerCheck}
-                categoryChoices={employerCategoryChoices}
-                setCategoryChoices={setEmployerCategoryChoices}
-              />
-            )}
-            {selfEmployed && (
-              <WorkNameFields
-                label="Business"
-                name={businessName}
-                setName={setBusinessName}
-                altName={businessAltName}
-                setAltName={setBusinessAltName}
-                check={businessCheck}
-                categoryChoices={businessCategoryChoices}
-                setCategoryChoices={setBusinessCategoryChoices}
-              />
-            )}
-          </div>
+      <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
+        <h2 className="mb-1 text-sm font-semibold text-[#12232e]">Employer/business income match</h2>
+        <p className="mb-4 text-xs text-[#566a76]">
+          Type your employer and/or business name below to see whether it actually shows up as the
+          sender on real credits in this statement - stronger evidence than its name just appearing
+          somewhere on the page. (You don&apos;t need to have filled in &quot;Your responsibilities&quot;
+          yet - fill in whichever of these applies to you, right here.)
+        </p>
+        <div className="flex flex-col gap-4">
+          <WorkNameFields
+            label="Employer"
+            name={employerName}
+            setName={setEmployerName}
+            altName={employerAltName}
+            setAltName={setEmployerAltName}
+            check={employerCheck}
+            categoryChoices={employerCategoryChoices}
+            setCategoryChoices={setEmployerCategoryChoices}
+          />
+          <WorkNameFields
+            label="Business"
+            name={businessName}
+            setName={setBusinessName}
+            altName={businessAltName}
+            setAltName={setBusinessAltName}
+            check={businessCheck}
+            categoryChoices={businessCategoryChoices}
+            setCategoryChoices={setBusinessCategoryChoices}
+          />
         </div>
-      )}
+      </div>
     </div>
   );
 }
