@@ -1097,6 +1097,28 @@ function ReportTab({
   const showVarianceWarning = financialSummary.hasCashFlowData && financialSummary.incomeStabilityCv > INCOME_VARIANCE_THRESHOLD;
   const showOverspendWarning = financialSummary.hasCashFlowData && financialSummary.avgOut >= financialSummary.avgIn;
 
+  // Financial summary's Status column + overall verdict, per direct instruction: opening/closing
+  // balance above ₦50,000 is "good"; every other line is judged by sign (negative = bad, positive =
+  // good), except average monthly outflow, which is judged against average inflow instead of its own
+  // sign ("withdrawals more than inflow" = bad) — a positive outflow number is never itself bad, it's
+  // only bad relative to income. Total outflow (the raw total, not the average) is left unscored,
+  // same as the buffer row below it, since it's already covered by the average-outflow-vs-income line
+  // and scoring the same fact twice would double-count it — leaving exactly 7 scored lines, matching
+  // "seven items, five of seven is good" as given.
+  const financialStatusRows: { label: string; status: 'good' | 'bad' }[] = [
+    { label: 'Opening balance', status: openingBalance > 50000 ? 'good' : 'bad' },
+    { label: 'Total inflow', status: totalInflow > 0 ? 'good' : 'bad' },
+    { label: 'Net change', status: netChange >= 0 ? 'good' : 'bad' },
+    { label: 'Closing balance', status: closingBalance > 50000 ? 'good' : 'bad' },
+    { label: 'Income generation', status: financialSummary.avgIn > 0 ? 'good' : 'bad' },
+    { label: 'Average monthly outflow', status: financialSummary.avgOut > financialSummary.avgIn ? 'bad' : 'good' },
+    { label: 'Monthly net savings pace', status: financialSummary.monthlyNetSavings >= 0 ? 'good' : 'bad' },
+  ];
+  const financialScoredCount = financialStatusRows.length;
+  const financialGoodCount = financialStatusRows.filter((r) => r.status === 'good').length;
+  const financialStatusOverall: 'good' | 'bad' = financialGoodCount >= 5 ? 'good' : 'bad';
+  const financialBadLabels = financialStatusRows.filter((r) => r.status === 'bad').map((r) => r.label);
+
   return (
     <div className="flex flex-col gap-5">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -1186,36 +1208,79 @@ function ReportTab({
           <h2 className="mb-3 text-sm font-semibold text-[#12232e]">Financial summary</h2>
           <p className="mb-4 text-xs text-[#566a76]">
             Everything above, pulled into one summary: what came in and went out over your
-            statement window, and how that pace compares income against outflow.
+            statement window, and how that pace compares income against outflow — plus a status on
+            each line, and an overall verdict at the bottom.
           </p>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-black/10 text-xs uppercase tracking-wide text-[#566a76]">
+                  <th className="py-2 pr-4">Metric</th>
+                  <th className="py-2 pr-4 text-right">Value</th>
+                  <th className="py-2 text-right">Status</th>
+                </tr>
+              </thead>
               <tbody>
                 {[
-                  ['Opening balance (start of statement window)', formatAmount(openingBalance)],
-                  ['Total inflow (credits)', formatAmount(totalInflow)],
-                  ['Total outflow (debits)', formatAmount(totalOutflow)],
-                  ['Net change (inflow − outflow)', formatAmount(netChange)],
-                  ['Closing balance (most recent)', formatAmount(closingBalance)],
-                  ['Income generation (average per month)', formatAmount(financialSummary.avgIn)],
-                  ['Average monthly outflow', formatAmount(financialSummary.avgOut)],
-                  ['Monthly net savings pace', formatAmount(financialSummary.monthlyNetSavings)],
-                ].map(([label, value]) => (
-                  <tr key={label} className="border-b border-black/5">
-                    <td className="py-2 pr-4 text-[#566a76]">{label}</td>
-                    <td className="py-2 text-right font-medium text-[#12232e]">{value}</td>
+                  { label: 'Opening balance (start of statement window)', value: formatAmount(openingBalance), status: openingBalance > 50000 ? 'good' : ('bad' as const) },
+                  { label: 'Total inflow (credits)', value: formatAmount(totalInflow), status: totalInflow > 0 ? 'good' : ('bad' as const) },
+                  { label: 'Total outflow (debits)', value: formatAmount(totalOutflow), status: null },
+                  { label: 'Net change (inflow − outflow)', value: formatAmount(netChange), status: netChange >= 0 ? 'good' : ('bad' as const) },
+                  { label: 'Closing balance (most recent)', value: formatAmount(closingBalance), status: closingBalance > 50000 ? 'good' : ('bad' as const) },
+                  { label: 'Income generation (average per month)', value: formatAmount(financialSummary.avgIn), status: financialSummary.avgIn > 0 ? 'good' : ('bad' as const) },
+                  // The one row scored against inflow rather than its own sign — "withdrawals more
+                  // than inflow" is bad regardless of whether the raw outflow number is positive.
+                  { label: 'Average monthly outflow', value: formatAmount(financialSummary.avgOut), status: financialSummary.avgOut > financialSummary.avgIn ? 'bad' : ('good' as const) },
+                  { label: 'Monthly net savings pace', value: formatAmount(financialSummary.monthlyNetSavings), status: financialSummary.monthlyNetSavings >= 0 ? 'good' : ('bad' as const) },
+                ].map((row) => (
+                  <tr key={row.label} className="border-b border-black/5">
+                    <td className="py-2 pr-4 text-[#566a76]">{row.label}</td>
+                    <td className="py-2 pr-4 text-right font-medium text-[#12232e]">{row.value}</td>
+                    <td className="py-2 text-right">
+                      {row.status === 'good' && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-good-wash px-2 py-0.5 text-[10px] font-medium text-good">
+                          ✅ Good
+                        </span>
+                      )}
+                      {row.status === 'bad' && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-medium text-red-800">
+                          ❌ Bad
+                        </span>
+                      )}
+                      {row.status === null && <span className="text-[10px] text-[#566a76]">—</span>}
+                    </td>
                   </tr>
                 ))}
                 <tr className="border-b border-black/5">
                   <td className="py-2 pr-4 text-[#566a76]">Recommended funds needed (2× buffer)</td>
-                  <td className="py-2 text-right text-accent">
+                  <td className="py-2 pr-4 text-right text-accent">
                     <a href={financialHref} className="hover:underline">
                       Add trip cost in the calculator
                     </a>
                   </td>
+                  <td className="py-2 text-right">
+                    <span className="text-[10px] text-[#566a76]">—</span>
+                  </td>
                 </tr>
               </tbody>
             </table>
+          </div>
+
+          <div
+            className={`mt-4 rounded-lg p-3 text-sm ${
+              financialStatusOverall === 'good' ? 'bg-good-wash text-good' : 'bg-warn-wash text-warn-text'
+            }`}
+          >
+            {financialStatusOverall === 'good' ? '✅' : '⚠️'} Overall: {financialGoodCount} of{' '}
+            {financialScoredCount} good
+            {financialStatusOverall === 'good'
+              ? ' — this statement reads as financially healthy.'
+              : ' — this statement needs work before it reads as financially healthy.'}
+            {financialBadLabels.length > 0 && (
+              <div className="mt-1 text-xs">
+                Needs work on: <b>{financialBadLabels.join(', ')}</b>.
+              </div>
+            )}
           </div>
         </div>
       )}

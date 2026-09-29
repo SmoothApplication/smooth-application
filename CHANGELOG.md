@@ -3,6 +3,34 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Add Good/Bad status column + overall verdict to the Financial summary table
+
+Direct instruction: give the Financial summary table (added in the entry below) a third "Status"
+column, scored per an explicit dictated rule set — opening/closing balance above ₦50,000 is good;
+every other line is judged by sign (negative bad, positive good); the one exception is average
+monthly outflow, judged against average inflow instead of its own sign, since a positive outflow
+number is never itself bad — it's only bad when it's chewing through more than the applicant earns
+("withdrawals more than inflow, bad"). That's 7 scored lines (raw Total outflow and the buffer
+row are left unscored — both are already covered by other rows, or need data this page doesn't
+have), an overall verdict at 5-of-7, and a "needs work on: ..." list naming exactly which lines
+failed.
+
+Verified with two simulated statements run through the real `computeMonthlyCashFlow` +
+`computeFinancials` functions (not just eyeballed): a healthy 3-month statement scored 7/7 good;
+a statement built from this exact conversation's real numbers (opening ₦7,581,618, total in
+₦45,727,140, total out ₦53,240,631, closing ₦68,127) scored 4/7 — bad overall, flagging Net
+change, Average monthly outflow, and Monthly net savings pace, exactly as expected.
+
+Worth flagging even though it's working as specified: the flat ₦50,000 threshold on opening/closing
+balance doesn't scale with statement size. In that same real-numbers case, a closing balance of
+₦68,127 is technically "good" by the letter of the rule (it's above ₦50,000) even though it's
+razor-thin against ₦45M+ of monthly inflow — the overall verdict still correctly comes out "bad"
+because the other lines catch it, but that one line's own label could read as falsely reassuring
+in isolation. Flagging for a product decision, not changing unilaterally since the threshold was
+explicitly dictated.
+
+`npx tsc --noEmit`: clean. `npx jest`: 473/473 passing, 0 regressions.
+
 ## Restore Monthly cash flow + Financial summary to the statement page's Report tab
 
 User report, with a live side-by-side comparison against the retired GitHub Pages app: the Report
