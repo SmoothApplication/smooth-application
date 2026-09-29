@@ -1124,15 +1124,26 @@ function ReportTab({
   // generalized to preserve that same ~71.4% bar rather than hard-coding a new number: round(9 × 5/7) =
   // 6, i.e. now needs 6 of 9 good. Flagging this as a design interpretation, not something dictated
   // verbatim, since the exact threshold at other item counts wasn't specified.
+  //
+  // Direct follow-up, live screenshot: closing balance ₦68,127 was reading "Good" against the flat
+  // ₦50,000 rule even though the very next row (Recommended funds needed) was flagging that same
+  // statement as needing ₦3,000,000 — exactly the "razor-thin against the buffer, but reads as good
+  // in isolation" scaling problem flagged (not silently fixed) when the Status column first shipped.
+  // Direct instruction: "closing balance cannot be good because recommended funds needed is three
+  // million and the closing balance is sixty eight thousand ... that should be bad" — Closing balance
+  // is now judged against the same ₦3,000,000 floor as Recommended funds needed, replacing the flat
+  // ₦50,000 rule (Opening balance keeps ₦50,000 — only closing balance was named). The two rows will
+  // now always agree, which is the point: one closing-balance number should read one way, not two.
   const OUTFLOW_EXCEEDS_INFLOW = totalOutflow > totalInflow;
   const RECOMMENDED_FUNDS_FLOOR = 3_000_000; // ₦3,000,000 — dictated "basic 5-day UK trip" minimum
   const recommendedFundsStatus: 'good' | 'bad' = closingBalance < RECOMMENDED_FUNDS_FLOOR ? 'bad' : 'good';
+  const closingBalanceStatus: 'good' | 'bad' = recommendedFundsStatus;
   const financialStatusRows: { label: string; status: 'good' | 'bad' }[] = [
     { label: 'Opening balance', status: openingBalance > 50000 ? 'good' : 'bad' },
     { label: 'Total inflow', status: totalInflow > 0 ? 'good' : 'bad' },
     { label: 'Total outflow', status: OUTFLOW_EXCEEDS_INFLOW ? 'bad' : 'good' },
     { label: 'Net change', status: netChange >= 0 ? 'good' : 'bad' },
-    { label: 'Closing balance', status: closingBalance > 50000 ? 'good' : 'bad' },
+    { label: 'Closing balance', status: closingBalanceStatus },
     { label: 'Income generation', status: financialSummary.avgIn > 0 ? 'good' : 'bad' },
     { label: 'Average monthly outflow', status: financialSummary.avgOut > financialSummary.avgIn ? 'bad' : 'good' },
     { label: 'Monthly net savings pace', status: financialSummary.monthlyNetSavings >= 0 ? 'good' : 'bad' },
@@ -1251,7 +1262,7 @@ function ReportTab({
                   { label: 'Total inflow (credits)', value: formatAmount(totalInflow), status: totalInflow > 0 ? 'good' : ('bad' as const) },
                   { label: 'Total outflow (debits)', value: formatAmount(totalOutflow), status: OUTFLOW_EXCEEDS_INFLOW ? 'bad' : ('good' as const) },
                   { label: 'Net change (inflow − outflow)', value: formatAmount(netChange), status: netChange >= 0 ? 'good' : ('bad' as const) },
-                  { label: 'Closing balance (most recent)', value: formatAmount(closingBalance), status: closingBalance > 50000 ? 'good' : ('bad' as const) },
+                  { label: 'Closing balance (most recent)', value: formatAmount(closingBalance), status: closingBalanceStatus },
                   { label: 'Income generation (average per month)', value: formatAmount(financialSummary.avgIn), status: financialSummary.avgIn > 0 ? 'good' : ('bad' as const) },
                   // The one row scored against inflow rather than its own sign — "withdrawals more
                   // than inflow" is bad regardless of whether the raw outflow number is positive.
@@ -1287,6 +1298,12 @@ function ReportTab({
                       </a>{' '}
                       for an exact buffer figure.
                     </div>
+                    {recommendedFundsStatus === 'bad' && (
+                      <div className="mt-1.5 rounded bg-red-50 px-2 py-1 text-[10px] text-red-800">
+                        Kindly submit another funded account or a dollar account to bring your total
+                        funds closer to this figure.
+                      </div>
+                    )}
                   </td>
                   <td className="py-2 pr-4 text-right font-medium text-[#12232e]">
                     {formatAmount(RECOMMENDED_FUNDS_FLOOR)}+

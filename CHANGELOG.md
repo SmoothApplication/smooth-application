@@ -3,6 +3,32 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fix Closing balance status to match Recommended funds needed; add funds-shortfall note
+
+Direct follow-up, live screenshot: closing balance ₦68,127 was still reading "✅ Good" (against the
+flat ₦50,000 rule from the original dictated spec) directly above a "❌ Bad" Recommended funds
+needed row for that exact same balance against the ₦3,000,000 floor — one number, two contradictory
+readings on the same table. Direct instruction: "closing balance cannot be good because recommended
+funds needed is three million and the closing balance is sixty eight thousand ... that should be
+bad." Closing balance's status rule is now the same ₦3,000,000 floor as Recommended funds needed
+(previously the flat ₦50,000 rule) — the two rows will always agree from here on, which is the
+point. Opening balance keeps the ₦50,000 rule; only Closing balance was named in the instruction.
+
+This is exactly the scaling caveat flagged (and deliberately left unresolved, pending user input)
+when the Status column first shipped — now resolved by the user's own explicit instruction rather
+than a unilateral change.
+
+Also per the same message: when Recommended funds needed reads bad, a short note now appears under
+it — "Kindly submit another funded account or a dollar account to bring your total funds closer to
+this figure."
+
+Verified against the exact screenshot numbers (closing balance ₦68,127) via a throwaway Jest
+fixture using the real production functions: Closing balance and Recommended funds needed now both
+read bad (previously Closing balance alone read good), taking the overall count from 5-of-9 to
+4-of-9 — correctly still "bad" overall, and the two rows can no longer disagree by construction. A
+second check (closing balance above ₦3M) confirms both rows still read good together in the healthy
+case. `npx tsc --noEmit`: clean; `npx jest`: 473/473 passing, 0 regressions.
+
 ## Score Total outflow + Recommended funds needed in the Financial summary Status column
 
 Direct follow-up, sent as a screenshot of the live table with real numbers: outflow ₦53.2M exceeded
