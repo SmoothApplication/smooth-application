@@ -3,6 +3,110 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Warn (never block) when a statement isn't a current, genuine 6-month window
+
+Direct instruction, verbatim: "the applicant should be given a warning. It will still be
+processed, but you should be told that this bank statement it is not six months." Nothing
+previously checked whether an uploaded statement is actually recent and actually spans close to
+six real months — a statement whose last transaction is four months old, or one that only covers
+six weeks, passed every existing check silently. New `lib/statement/statementCurrency.ts`:
+`computeStatementCurrency(txns, asOf)` flags `'stale'` when the most recent transaction is more
+than 45 days old and `'short_span'` when the statement's own first-to-last span is under 150 days;
+`buildStatementCurrencyWarning(result)` returns plain-language warning text naming the specific
+issue(s), explicitly reassuring "It will still be processed and scored below" — this is a warning
+banner only, never a gate. Wired into `StatementDashboard.tsx` as a banner shown right after the
+existing OCR-used notice. Seven new tests.
+
+## Uncap large-inflow flagging and group repeat inflows by sender/month/amount
+
+Direct instruction, verbatim: "pick all transfers... even if the transfers are 1,000 times, 50,000
+naira in 1,000 times and above, pick them, group them, name by name... group them to month by
+month... this 50K is for this month, it appeared 200 times, you should fix it. Group them and ask
+for narration." `findUnexplainedLargeInflows` (`classify.ts`) previously capped its results at 10,
+silently dropping every large-but-unexplained inflow past the first 10 on a busy statement. The cap
+is removed — every qualifying transaction (≥₦50,000 with no recognised description, or a blank
+narration regardless of amount) is now returned, sorted by amount descending.
+
+A flat, uncapped list of hundreds of near-identical rows would be just as unusable as the old cap
+was misleading, so a new `groupFlaggedInflows(flagged, applicantName?)` collapses same-sender (or
+same-narration-snippet when no sender name extracts), same-month, same-amount inflows into one
+`FlaggedInflowGroup` row with a count and total — "₦50,000 from Tunde Bakare, 200 times in March"
+reads as one row needing one explanation, not 200. Wired into `StatementDashboard.tsx`'s Report tab
+as a new "Inflows that need an explanation" card, reusing the existing generic
+`explanations`/`setExplanation` persisted state (keyed by each group's stable `key`) rather than
+adding new persistence plumbing. The Income status summary text now distinguishes "N distinct
+patterns" from the total transaction count, so a single heavily-repeated sender doesn't read as
+N separate problems.
+
+Nine new regression tests covering the uncap, exact-triple grouping, month/amount boundaries, the
+narration-snippet fallback, sort order, and key stability. `npx tsc --noEmit`: clean; `npx jest`:
+503/503 passing, 0 regressions. `node scripts/pii-scan.js`: clean.
+
+## Compressed, bulleted "Your financial report is ready" summary
+
+Direct instruction, verbatim: "on a comprehensive, not clumsy list, when you are done, compress all
+these lists and give it in a proper report... your financial report is ready, your opening balance
+good, closing balance good, monthly expenses good, total overall inflow good, whichever is bad,
+bad. You need to pay attention to expired passport... no recurring income as salary. Old salary and
+recurring income in high esteem." New `lib/statement/finalSummary.ts`: `buildFinalSummary(input)`
+takes figures the rest of this engine already computes (opening/closing balance, total inflow/
+outflow, the ₦3,000,000 recommended-funds floor, whether a 'salary'-typed income group exists,
+whether some other sender still pays consistently across 3+ months, the statement-currency issues,
+and the count of still-unexplained inflow groups) and returns a short bulleted good/bad verdict per
+line, plus a separate "needs attention" list for anything that isn't a clean pass/fail (a stale or
+short-span statement, N inflow patterns still needing narration, an optional expired-passport flag
+for a future caller that has that data). Deliberately re-derives nothing — it's a pure compression
+step over numbers already shown elsewhere on the Report tab.
+
+"No recurring income as salary" reads as the concern it's meant to be; "recurring income in high
+esteem" — a sender paying consistently without being labelled salary — reads as a strength (GOOD,
+not a lesser version of a salary line), per the direct instruction's own framing.
+
+Wired into `StatementDashboard.tsx`'s Report tab as a new "📋 Your financial report is ready" card
+at the very top, above every other card, showing "N of M good" plus the bulleted lines and an
+amber "Needs your attention" box when there's anything to flag. Twelve new regression tests. `npx
+tsc --noEmit`: clean; `npx jest`: 515/515 passing, 0 regressions. `node scripts/pii-scan.js`:
+clean.
+
+Scope note: the expired-passport cross-reference is wired into the summary's logic (an optional
+`passportExpired` flag) but not yet connected to a real passport-expiry source, since passport data
+lives outside `lib/statement` and no caller currently has both in scope at once — this is a known,
+flagged gap rather than a silently-dropped requirement, left for a follow-up that combines the two
+checks. The downloadable PDF report (`buildReportPayload.ts`/`renderReportPdf.ts`) also still
+doesn't carry this compressed summary — the same "PDF is thinner than the live page" gap the
+earlier audit this session flagged, unchanged by this batch of work.
+
+## Explicit "who is this" prompt for frequent senders, explicit fund-gap suggestions, and cross-statement balance visibility
+
+Three related direct instructions, all about giving the applicant more complete, more explicit
+guidance rather than leaving them to infer it. First: "count the number of times a particular
+sender has paid the applicant... if somebody has sent you in six months back, there's six times
+and above, you need to ask the person who is this, and what do you do with them... as a visa
+officer, when they see a repeated name of inflow and you cannot explain, it's a red flag." The
+existing Top 10 consistent senders table already computes `monthCount` (distinct months a sender
+appears in) but never acted on it — `StatementDashboard.tsx`'s Analysis tab now renders an explicit
+warning card for every sender with `monthCount >= 6`, framed around the actual visa-officer risk,
+with its own explanation field (reusing the existing generic `explanations` state, keyed
+`freq6mo__<sender>`).
+
+Second: "ask for a cooperative account, if you have a cooperative account, ask for a pension
+account... explicitly ask." The below-₦3,000,000-floor message in the Report tab's Financial
+summary previously only suggested "another funded account or a dollar account" — now explicitly
+lists all four: another bank statement, a dollar account, a cooperative account, a pension account.
+
+Third: "read the balance on the dollar account and read the balance on the other account... I did
+it to see before it even under financial readiness." The app already supports two independent
+statement slots with a page-level combined-balance card (task #420), but that card only appeared
+after both slots, separate from either slot's own Financial readiness section. A new
+`otherStatementSummary` prop threads each slot's `StatementSummary` into the OTHER slot
+(`StatementCheck.tsx` → `StatementSlot.tsx` → `StatementDashboard.tsx`), rendered as a new
+informational (non-scored) row inside the Financial summary table itself, so the fuller picture is
+visible without scrolling to the bottom of the page.
+
+`npx tsc --noEmit`: clean; `npx jest`: 503/503 passing, 0 regressions (all three changes are UI
+wiring/copy on top of already-tested logic, no new pure-logic functions). `node
+scripts/pii-scan.js`: clean.
+
 ## Flag when declared income doesn't match what's actually landing from that employer/business
 
 Direct follow-up to the "expert-grade" report work above: `workNameCheck.ts` already confirms an

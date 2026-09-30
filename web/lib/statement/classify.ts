@@ -395,6 +395,13 @@ export function isBlankNarration(narration: string | null | undefined): boolean 
   return !/[a-zA-Z]{2,}/.test(stripped);
 }
 
+// Direct instruction: "pick all transfers... even if the transfers are 1,000 times, 50,000 naira
+// in 1,000 times and above, pick them." Previously capped at .slice(0, 10) — a statement with 14
+// genuinely unexplained ₦50k+ inflows silently showed only the 10 largest, dropping the other 4
+// from the applicant's view entirely. Now returns every qualifying inflow; groupFlaggedInflows
+// (below) is what keeps that list from reading as "clumsy" when the same sender/amount repeats
+// many times in a month — the grouping, not a cap, is what the direct instruction actually asked
+// for ("group them... ask for narration" rather than "show fewer of them").
 export function findUnexplainedLargeInflows(txns: ParsedTxn[]): ParsedTxn[] {
   const credits = txns.filter((t) => t.credit > 0 && !isReversalNarration(t));
   if (!credits.length) return [];
@@ -407,7 +414,69 @@ export function findUnexplainedLargeInflows(txns: ParsedTxn[]): ParsedTxn[] {
   flagged.forEach((t) => {
     t.__flagReason = isBlankNarration(t.narration) ? 'blank' : 'vague';
   });
-  return flagged.sort((a, b) => b.credit - a.credit).slice(0, 10);
+  return flagged.sort((a, b) => b.credit - a.credit);
+}
+
+export interface FlaggedInflowGroup {
+  /** Stable key for React lists / per-group explanation storage (see inflowGroupKey below). */
+  key: string;
+  /** Best-effort sender name (via senderSideCandidates) when the narration names one, otherwise a
+   * short snippet of the narration itself so the group still has a readable label. */
+  senderLabel: string;
+  /** Calendar month the group's transactions fall in, e.g. "Mar 2026" — grouping is scoped to one
+   * month so a genuinely recurring monthly payment (see task #476) reads as separate month-groups,
+   * not one giant merged blob spanning the whole statement. */
+  month: string;
+  /** The shared amount every transaction in this group has (grouping requires an exact match). */
+  amount: number;
+  count: number;
+  total: number;
+  flagReason: 'blank' | 'vague';
+  sampleNarration: string;
+  txns: ParsedTxn[];
+}
+
+export function inflowGroupKey(g: Pick<FlaggedInflowGroup, 'senderLabel' | 'month' | 'amount'>): string {
+  return `${g.senderLabel}__${g.month}__${Math.round(g.amount)}`;
+}
+
+function monthLabel(d: Date): string {
+  return d.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+}
+
+// Direct instruction, verbatim: "if you have 1,000, 50,000, group [them] month by month... this
+// 50K is for this month, it appeared 200 times, you should fix it. Group them and ask for
+// narration." A flat uncapped list of 200 near-identical rows would be just as "clumsy" as the old
+// 10-item cap was misleading — this collapses same-sender (or same-narration when no sender name
+// is extractable), same-amount, same-month inflows into ONE row with a count, so the applicant sees
+// "50,000 from Tunde Bakare, 200 times in March" and gives ONE explanation for the whole pattern
+// rather than either drowning in 200 rows or losing 190 of them to a cap.
+export function groupFlaggedInflows(flagged: ParsedTxn[], applicantName?: string | null): FlaggedInflowGroup[] {
+  const groups: Record<string, FlaggedInflowGroup> = {};
+  flagged.forEach((t) => {
+    const candidates = senderSideCandidates(t.narration, applicantName || null);
+    const senderLabel = candidates[0] || (t.narration || 'No narration').slice(0, 40).trim() || 'No narration';
+    const month = monthLabel(t.date);
+    const amount = Math.round(t.credit);
+    const key = inflowGroupKey({ senderLabel, month, amount });
+    if (!groups[key]) {
+      groups[key] = {
+        key,
+        senderLabel,
+        month,
+        amount,
+        count: 0,
+        total: 0,
+        flagReason: t.__flagReason || 'vague',
+        sampleNarration: t.narration || '',
+        txns: [],
+      };
+    }
+    groups[key].count += 1;
+    groups[key].total += t.credit;
+    groups[key].txns.push(t);
+  });
+  return Object.values(groups).sort((a, b) => b.total - a.total);
 }
 
 export function inflowKey(t: ParsedTxn): string {

@@ -99,6 +99,7 @@ export default function StatementCheck({ countryCode }: StatementCheckProps) {
         financialHref={financialHref}
         visaName={visaName}
         onSummaryChange={setSummary1}
+        otherStatementSummary={summary2}
       />
 
       {showSecondSlot ? (
@@ -110,6 +111,7 @@ export default function StatementCheck({ countryCode }: StatementCheckProps) {
           visaName={visaName}
           onSummaryChange={setSummary2}
           onRemove={removeSecondSlot}
+          otherStatementSummary={summary1}
         />
       ) : (
         <button

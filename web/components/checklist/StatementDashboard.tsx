@@ -30,6 +30,12 @@ import {
   computeIncomeMatch,
   buildIncomeMatchMessage,
   IncomeMatchResult,
+  computeStatementCurrency,
+  buildStatementCurrencyWarning,
+  groupFlaggedInflows,
+  FlaggedInflowGroup,
+  StatementSummary,
+  buildFinalSummary,
 } from '@/lib/statement';
 import { trackEvent } from '@/lib/analytics';
 // Direct user report, live parity check against the original GitHub Pages app: this Report tab was
@@ -225,6 +231,13 @@ interface StatementDashboardProps {
    * (StatementUpload.tsx, which doesn't pass this) keeps working unchanged; every real checklist
    * route passes its own country's href via StatementCheck.tsx. */
   financialHref?: string;
+  /** Direct instruction: "read the balance on the dollar account and read the balance on the other
+   * account... I did it to see before it even under financial readiness" — the OTHER uploaded
+   * statement's summary (from StatementCheck.tsx's two-slot setup), surfaced as an informational row
+   * inside THIS statement's Financial readiness table. Not scored/added into this statement's own
+   * closing-balance status - shown so the applicant (and a reviewer reading the report) can see the
+   * fuller picture without leaving this card. Null/undefined when no second statement is uploaded. */
+  otherStatementSummary?: StatementSummary | null;
 }
 
 const DEFAULT_SPOUSE: SpouseSponsorDeclaration = { married: false, spouseSponsoring: false, spouseName: '' };
@@ -263,6 +276,7 @@ export default function StatementDashboard({
   businessDeclaredMonthlyIncome: initialBusinessDeclaredMonthlyIncome = 0,
   onBusinessDeclaredMonthlyIncomeChange,
   financialHref = '/checklist/uk/financial',
+  otherStatementSummary = null,
 }: StatementDashboardProps) {
   const [applicantName, setApplicantName] = useState(initialApplicantName);
   const [maidenName, setMaidenName] = useState(initialMaidenName);
@@ -473,6 +487,14 @@ export default function StatementDashboard({
   // driving the Financial readiness calculator's auto-fill (lib/statement/cashFlow.ts), so these
   // numbers can never drift from what that page shows for the same statement.
   const cashFlowRows: MonthlyCashFlowRow[] = useMemo(() => computeMonthlyCashFlow(txns, 6), [txns]);
+
+  // Direct instruction: warn (never block) when this isn't a genuine, current 6-month statement —
+  // stale (most recent transaction too old) or too short a span. Still processed/scored regardless.
+  const statementCurrencyResult = useMemo(() => computeStatementCurrency(txns), [txns]);
+  const statementCurrencyWarning = useMemo(
+    () => buildStatementCurrencyWarning(statementCurrencyResult),
+    [statementCurrencyResult]
+  );
   const financialSummary = useMemo(
     () => computeFinancials({ ...DEFAULT_FINANCIAL_INPUTS, cashFlow: cashFlowRows }),
     [cashFlowRows]
@@ -621,6 +643,12 @@ export default function StatementDashboard({
         </div>
       )}
 
+      {statementCurrencyWarning && (
+        <div className="rounded-lg bg-warn-wash p-3 text-sm text-warn-text" role="status">
+          ⚠️ {statementCurrencyWarning}
+        </div>
+      )}
+
       <div className="flex gap-1 border-b border-black/10">
         {(
           [
@@ -672,6 +700,8 @@ export default function StatementDashboard({
         />
       ) : (
         <ReportTab
+          groups={groups}
+          topSenders={topSenders}
           totalIncomeIdentified={totalIncomeIdentified}
           incomeSourceCount={incomeSourceCount}
           unexplainedInflows={unexplainedInflows}
@@ -700,6 +730,11 @@ export default function StatementDashboard({
           setBusinessDeclaredMonthlyIncome={setBusinessDeclaredMonthlyIncome}
           employerIncomeMatch={employerIncomeMatch}
           businessIncomeMatch={businessIncomeMatch}
+          applicantName={applicantName}
+          explanations={explanations}
+          setExplanation={setExplanation}
+          otherStatementSummary={otherStatementSummary}
+          statementCurrencyIssues={statementCurrencyResult.issues}
         />
       )}
     </div>
@@ -1037,6 +1072,39 @@ function AnalysisTab({
             </table>
           </div>
         )}
+        {/* Direct instruction, verbatim: "count the number of times a particular sender has paid the
+            applicant... if somebody has sent you in six months back, there's six times and above, you
+            need to ask the person: who is this, and what do you do with them... as a visa officer,
+            when they see a repeated name of inflow and you cannot explain, it's a red flag." */}
+        {topSenders.list.filter((s) => s.monthCount >= 6).length > 0 && (
+          <div className="mt-4 flex flex-col gap-3">
+            {topSenders.list
+              .filter((s) => s.monthCount >= 6)
+              .map((s) => {
+                const key = `freq6mo__${s.name}`;
+                return (
+                  <div key={key} className="rounded-lg border border-warn-text/30 bg-warn-wash p-3">
+                    <p className="text-sm font-medium text-warn-text">
+                      ⚠️ {displayName(s.name)} paid you in {s.monthCount} of your last{' '}
+                      {cashFlowRows.length || s.monthCount} months
+                    </p>
+                    <p className="mt-1 text-xs text-warn-text">
+                      A visa officer who sees a name sending money almost every month, with no
+                      explanation, tends to flag it as a red flag. Who is this, and what do you do
+                      with them?
+                    </p>
+                    <textarea
+                      value={explanations[key] || ''}
+                      onChange={(e) => setExplanation(key, e.target.value)}
+                      rows={2}
+                      placeholder="e.g. My business partner - this is my share of our monthly proceeds, my landlord refunding a deposit in instalments, a relative I care for financially…"
+                      className="mt-2 w-full rounded-lg border border-black/10 px-2 py-1.5 text-xs text-[#12232e]"
+                    />
+                  </div>
+                );
+              })}
+          </div>
+        )}
         {topSenders.list.length > 0 && totalInflow6mo > 0 && (
           <div
             className={`mt-3 rounded-lg p-3 text-sm ${
@@ -1204,6 +1272,8 @@ function statusPill(status: 'good' | 'warn' | 'neutral', label: string) {
 }
 
 function ReportTab({
+  groups,
+  topSenders,
   totalIncomeIdentified,
   incomeSourceCount,
   unexplainedInflows,
@@ -1232,6 +1302,11 @@ function ReportTab({
   setBusinessDeclaredMonthlyIncome,
   employerIncomeMatch,
   businessIncomeMatch,
+  applicantName,
+  explanations,
+  setExplanation,
+  otherStatementSummary,
+  statementCurrencyIssues,
 }: {
   totalIncomeIdentified: number;
   incomeSourceCount: number;
@@ -1261,15 +1336,36 @@ function ReportTab({
   setBusinessDeclaredMonthlyIncome: (v: number) => void;
   employerIncomeMatch: IncomeMatchResult | null;
   businessIncomeMatch: IncomeMatchResult | null;
+  applicantName: string;
+  explanations: Record<string, string>;
+  setExplanation: (rawName: string, value: string) => void;
+  otherStatementSummary?: StatementSummary | null;
+  groups: SourceGroups;
+  topSenders: {
+    list: TopConsistentSender[];
+    pendingDuplicates: { nameA: string; nameB: string; key: string; shared: string[] }[];
+  };
+  statementCurrencyIssues: ('stale' | 'short_span')[];
 }) {
   const unexplainedTotal = unexplainedInflows.reduce((s, t) => s + t.credit, 0);
   const incomeStatus: 'good' | 'warn' = unexplainedInflows.length === 0 ? 'good' : 'warn';
+  // Direct instruction: "pick all transfers... even if 1,000 times... group them, name by name...
+  // month by month... group them and ask for narration" — every qualifying transaction is picked up
+  // (findUnexplainedLargeInflows is uncapped, see classify.ts), then collapsed here into one row per
+  // (sender, month, amount) so a sender who sent ₦50,000 two hundred times in one month reads as one
+  // group with a count, not two hundred rows, and needs only one explanation, not two hundred.
+  const flaggedGroups: FlaggedInflowGroup[] = useMemo(
+    () => groupFlaggedInflows(unexplainedInflows, applicantName || undefined),
+    [unexplainedInflows, applicantName]
+  );
   const incomeDetail =
     unexplainedInflows.length === 0
       ? 'No large inflows were flagged as unclear - nice, that\'s one less thing a reviewer could question.'
-      : `${unexplainedInflows.length} large inflow${unexplainedInflows.length === 1 ? '' : 's'} (totaling ${formatAmount(
+      : `${flaggedGroups.length} distinct pattern${flaggedGroups.length === 1 ? '' : 's'} of unclear inflow${
+          flaggedGroups.length === 1 ? '' : 's'
+        } - ${unexplainedInflows.length} transaction${unexplainedInflows.length === 1 ? '' : 's'} in total (totaling ${formatAmount(
           unexplainedTotal
-        )}) still ${unexplainedInflows.length === 1 ? 'has' : 'have'} no clear description - worth explaining in a covering letter, or a reviewer will likely ask.`;
+        )}) - still ${unexplainedInflows.length === 1 ? 'has' : 'have'} no clear description. Explain each pattern below, or a reviewer will likely ask.`;
 
   // Financial summary numbers, derived from the same cashFlowRows shown in the table below —
   // total in/out are this 6-month window's totals (matching what the table's own Total row shows),
@@ -1344,8 +1440,57 @@ function ReportTab({
   const financialStatusOverall: 'good' | 'bad' = financialGoodCount >= financialGoodThreshold ? 'good' : 'bad';
   const financialBadLabels = financialStatusRows.filter((r) => r.status === 'bad').map((r) => r.label);
 
+  // Direct instruction, verbatim: "your financial report is ready, your opening balance good,
+  // closing balance good, monthly expenses good, total overall inflow good, whichever is bad,
+  // bad... no recurring income as salary [is a concern]... recurring income in high esteem [is a
+  // strength]." Compresses figures already computed above (financialStatusRows' inputs,
+  // statementCurrencyIssues, flaggedGroups) into the short bulleted view via finalSummary.ts —
+  // deliberately does not re-derive any number itself.
+  const hasSalaryIncome = groups.some((g) => g.type === 'salary');
+  const hasOtherRecurringIncome = !hasSalaryIncome && topSenders.list.some((s) => s.monthCount >= 3);
+  const finalSummary = buildFinalSummary({
+    openingBalance,
+    closingBalance,
+    totalInflow,
+    totalOutflow,
+    recommendedFundsFloor: RECOMMENDED_FUNDS_FLOOR,
+    hasSalaryIncome,
+    hasOtherRecurringIncome,
+    statementCurrencyIssues,
+    unexplainedGroupCount: flaggedGroups.length,
+  });
+
   return (
     <div className="flex flex-col gap-5">
+      <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
+        <h2 className="mb-1 text-sm font-semibold text-[#12232e]">📋 Your financial report is ready</h2>
+        <p className="mb-3 text-xs text-[#566a76]">
+          {finalSummary.goodCount} of {finalSummary.totalCount} good — the short version, compressed
+          from everything below.
+        </p>
+        <ul className="flex flex-col gap-1.5">
+          {finalSummary.lines.map((line) => (
+            <li key={line.label} className="flex items-start gap-2 text-sm">
+              <span>{line.verdict === 'good' ? '✅' : '❌'}</span>
+              <span className="text-[#12232e]">
+                <b>{line.label}:</b> {line.verdict === 'good' ? 'Good' : 'Bad'} — {line.detail}
+              </span>
+            </li>
+          ))}
+        </ul>
+        {finalSummary.attentionFlags.length > 0 && (
+          <div className="mt-3 rounded-lg bg-warn-wash p-3">
+            <p className="text-xs font-medium text-warn-text">⚠️ Needs your attention:</p>
+            <ul className="mt-1 flex flex-col gap-1">
+              {finalSummary.attentionFlags.map((flag) => (
+                <li key={flag} className="text-xs text-warn-text">
+                  • {flag}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="rounded-2xl border border-black/10 bg-white p-4">
           <p className="text-xs text-[#566a76]">Total income identified</p>
@@ -1476,6 +1621,24 @@ function ReportTab({
                     </td>
                   </tr>
                 ))}
+                {otherStatementSummary && otherStatementSummary.txnCount > 0 && (
+                  <tr className="border-b border-black/5 bg-accent-wash/40">
+                    <td className="py-2 pr-4 text-[#566a76]">
+                      Other account balance ({otherStatementSummary.label})
+                      <div className="mt-0.5 text-[10px] font-normal text-[#8a99a3]">
+                        From your other uploaded statement — shown here so you see the fuller
+                        picture before deciding whether you need it. Not added into this
+                        statement&apos;s own status above.
+                      </div>
+                    </td>
+                    <td className="py-2 pr-4 text-right font-medium text-[#12232e]">
+                      {formatAmount(otherStatementSummary.closingBalance)}
+                    </td>
+                    <td className="py-2 text-right">
+                      <span className="text-[10px] text-[#566a76]">— informational</span>
+                    </td>
+                  </tr>
+                )}
                 <tr className="border-b border-black/5">
                   <td className="py-2 pr-4 text-[#566a76]">
                     Recommended funds needed
@@ -1489,8 +1652,9 @@ function ReportTab({
                     </div>
                     {recommendedFundsStatus === 'bad' && (
                       <div className="mt-1.5 rounded bg-red-50 px-2 py-1 text-[10px] text-red-800">
-                        Kindly submit another funded account or a dollar account to bring your total
-                        funds closer to this figure.
+                        To bring your total funds closer to this figure, consider: uploading another
+                        bank statement, a dollar account, a cooperative account, or a pension account.
+                        Any one of these - or a combination - can help close the gap.
                       </div>
                     )}
                   </td>
@@ -1558,6 +1722,41 @@ function ReportTab({
           </div>
         </div>
       </div>
+
+      {flaggedGroups.length > 0 && (
+        <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
+          <h2 className="mb-1 text-sm font-semibold text-[#12232e]">
+            Inflows that need an explanation ({flaggedGroups.length})
+          </h2>
+          <p className="mb-4 text-xs text-[#566a76]">
+            Every credit of ₦50,000 or more with no clear description, grouped by sender, month and
+            amount - so a sender who paid the same amount many times in one month shows up as one row,
+            not one row per payment. One short explanation per row is enough for a reviewer.
+          </p>
+          <div className="flex flex-col gap-3">
+            {flaggedGroups.map((g) => (
+              <div key={g.key} className="rounded-lg border border-black/10 p-3">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <p className="text-sm font-medium text-[#12232e]">{g.senderLabel}</p>
+                  <p className="text-xs text-[#566a76]">
+                    {g.month} · {formatAmount(g.amount)} × {g.count} = {formatAmount(g.total)}
+                  </p>
+                </div>
+                <label className="mb-1 mt-2 block text-xs font-medium text-[#566a76]">
+                  What was this for? <span className="font-normal">(one answer covers this whole group)</span>
+                </label>
+                <textarea
+                  value={explanations[g.key] || ''}
+                  onChange={(e) => setExplanation(g.key, e.target.value)}
+                  rows={2}
+                  placeholder="e.g. Weekly contribution from my savings group, repeat customer payment, family support…"
+                  className="w-full rounded-lg border border-black/10 px-2 py-1.5 text-xs text-[#12232e]"
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
         <h2 className="mb-1 text-sm font-semibold text-[#12232e]">Employer/business income match</h2>

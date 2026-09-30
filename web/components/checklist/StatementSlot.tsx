@@ -41,6 +41,12 @@ export type StatementSlotProps = {
   /** Slot 2 only: lets the applicant drop the second statement entirely (distinct from "Upload a
    * different statement", which replaces THIS slot's file but keeps the slot itself). */
   onRemove?: () => void;
+  /** Direct instruction: "read the balance on the dollar account and read the balance on the other
+   * account... I did it to see before it even under financial readiness" — the OTHER slot's own
+   * summary (closing balance, label, date range), surfaced inside THIS slot's Financial readiness
+   * section rather than only in the page-level combined-summary card at the bottom. Null/undefined
+   * when the other slot has nothing uploaded yet. */
+  otherStatementSummary?: StatementSummary | null;
 };
 
 function formatDate(d: Date): string {
@@ -68,6 +74,7 @@ export default function StatementSlot({
   visaName,
   onSummaryChange,
   onRemove,
+  otherStatementSummary,
 }: StatementSlotProps) {
   const [loaded, setLoaded] = useState(false);
   const [recalled, setRecalled] = useState(false);
@@ -528,6 +535,7 @@ export default function StatementSlot({
         businessDeclaredMonthlyIncome={businessDeclaredMonthlyIncome}
         onBusinessDeclaredMonthlyIncomeChange={setBusinessDeclaredMonthlyIncome}
         financialHref={financialHref}
+        otherStatementSummary={otherStatementSummary}
       />
     </div>
   );
