@@ -3,6 +3,50 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fix Documents score not moving after a valid passport scan; reason dropdown for every income source, any amount; warn before emailing an unfinished breakdown
+
+Three items from the same session.
+
+Documents readiness stuck: scanning (or recalling) a passport with 6+ months' validity never
+ticked the checklist's "Valid passport" item (`sa_<code>_checked['passport']`), because nothing on
+`PassportCheck.tsx` ever wrote to that key — only the passport-scan page's own six fields
+(`sa_<code>_passport`) were saved. `PassportCheck.tsx` now auto-ticks `passport` the moment
+`getPassportValidityStatus(fields.expiryDate)` reports `level: 'ok'`, on both a fresh scan and a
+recalled one, and only ever sets it to `true` — a manual tick made elsewhere is never undone by
+revisiting this page. `useChecklistState.ts` (the sidebar's read-only mirror of `checked`) used to
+only read `sa_<code>_checked` once on mount, so a write from elsewhere on the page had no way to
+reach it without a full reload — the same gap `FINANCIAL_UPDATED_EVENT` closed for the Finances
+score. It now also listens for `CHECKLIST_UPDATED_EVENT` (`liveUpdateEvents.ts`) and re-reads.
+
+Reason dropdown missing on small inflows: a direct report that "the drop down menu has
+disappeared" turned out to be two different, both-working features being compared — every income
+source has always had a plain free-text "What was this for?" box (`SourceGroupCard`), while the
+dropdown of canonical reasons only ever applied to inflows the flagging logic considered large and
+unclear (₦50,000+, `UNEXPLAINED_INFLOW_MIN_AMOUNT`). A ₦143 dividend credit and a ₦200 transfer
+were both far under that floor, so they'd never shown a dropdown to begin with — nothing broke.
+Per direct instruction, `SourceGroupCard` now shows the same `UNEXPLAINED_REASON_OPTIONS` dropdown
+(with "Other" opening free text) for every income source regardless of amount, not just flagged
+ones. `explanation` stays a single persisted string either way, so an applicant's existing
+free-typed answer (from before this change) round-trips as "Other" pre-filled with that same text,
+rather than being lost.
+
+Unfinished reasons before emailing: per direct instruction, `handleSendBreakdownEmail` now checks
+every income source that needs an explanation (same gate as above — reversals/self-transfers/
+interest/internal movements never ask for one) and, if any are still blank, shows a warning instead
+of sending immediately. A second click on "Send to my email" goes through regardless, so an
+applicant with genuinely nothing more to add isn't stuck; reopening the email prompt resets the
+warning so a newly-created gap is caught again.
+
+Files: `web/components/checklist/PassportCheck.tsx`, `web/lib/checklist/useChecklistState.ts`,
+`web/components/checklist/StatementDashboard.tsx`.
+
+Verification: `tsc --noEmit` clean; full `jest` run green, 532/532 tests passing, 0 regressions;
+`node scripts/pii-scan.js` clean (316 files). No new automated test yet for the passport-auto-tick
+or unfinished-reasons-warning paths specifically — both are straightforward enough (single
+conditional localStorage write; a filter + early return) that manual verification plus the
+existing 532 covering the surrounding logic were judged sufficient, but a dedicated test would be
+a reasonable follow-up.
+
 ## Sync Finances readiness score from an analyzed statement; collapse multi-payment sender lists
 
 Two direct live reports in the same sitting.

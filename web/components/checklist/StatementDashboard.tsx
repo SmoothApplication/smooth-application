@@ -501,11 +501,19 @@ export default function StatementDashboard({
   const [sendingBreakdownEmail, setSendingBreakdownEmail] = useState(false);
   const [breakdownEmailError, setBreakdownEmailError] = useState<string | null>(null);
   const [breakdownEmailSent, setBreakdownEmailSent] = useState(false);
+  // Direct instruction: warn before sending rather than silently emailing a spreadsheet with blank
+  // "What was this for?" answers still in it — a reviewer reading the breakdown later shouldn't be
+  // the first one to notice a gap the applicant could have filled in right here. The warning only
+  // blocks the FIRST click after it fires; a second click on "Send to my email" goes through, so an
+  // applicant who genuinely has nothing more to add isn't stuck unable to send at all. Reset
+  // whenever the prompt is reopened, so revisiting this page and finding a new gap warns again.
+  const [breakdownReasonsWarned, setBreakdownReasonsWarned] = useState(false);
 
   function openBreakdownEmailPrompt() {
     if (!groups.length) return;
     setBreakdownEmailSent(false);
     setBreakdownEmailError(null);
+    setBreakdownReasonsWarned(false);
     setBreakdownEmailOpen(true);
   }
 
@@ -513,6 +521,21 @@ export default function StatementDashboard({
     const email = breakdownEmail.trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       setBreakdownEmailError('Enter a valid email address.');
+      return;
+    }
+    // Same needsExplanation gate SourceGroupCard uses to decide whether to show the reason field at
+    // all (reversals/self-transfers/interest/internal movements are the applicant's own money and
+    // never asked for a reason, so they don't count towards "unfinished").
+    const unfinishedCount = groups.filter(
+      (g) => !NO_EXPLANATION_NOTE[g.type] && !(explanations[g.name] || '').trim()
+    ).length;
+    if (unfinishedCount > 0 && !breakdownReasonsWarned) {
+      setBreakdownReasonsWarned(true);
+      setBreakdownEmailError(
+        `You haven't finished filling in "What was this for?" for ${unfinishedCount} income source${
+          unfinishedCount === 1 ? '' : 's'
+        } above — it's optional, but worth answering before you send this off, since a reviewer may ask the same question. Click "Send to my email" again to send it as-is.`
+      );
       return;
     }
     setBreakdownEmailError(null);
@@ -1245,6 +1268,34 @@ function SourceGroupCard({
   // income from someone else, so asking "what was this for" would be a non-sequitur for them.
   const needsExplanation = !note;
 
+  // Direct instruction: the reason dropdown used for flagged ₦50k+ inflows (ReasonDropdown, below)
+  // only ever applied above that threshold — a small dividend/business credit like ₦143 or ₦200
+  // still only got this card's plain free-text box, which read to the applicant as "the dropdown
+  // disappeared" even though nothing broke (it was simply never wired up here). Every income
+  // source now gets the same canonical-reason dropdown regardless of amount; "Other" still opens
+  // free text for anything that doesn't fit. `explanation` stays a single persisted string either
+  // way, so existing saved answers (typed before this change) round-trip as "Other" pre-filled
+  // with whatever the applicant already wrote, rather than being lost.
+  const matchedReasonOption = UNEXPLAINED_REASON_OPTIONS.find(
+    (o) => o.value !== 'other' && o.label === explanation
+  );
+  const [reasonChoice, setReasonChoice] = useState<string>(() =>
+    matchedReasonOption ? matchedReasonOption.value : explanation ? 'other' : ''
+  );
+
+  function handleReasonChoiceChange(value: string) {
+    setReasonChoice(value);
+    if (value === 'other') {
+      // Only clear when switching away from a canonical pick — if the applicant lands on "Other"
+      // because their existing free text didn't match any label, leave that text in place so it's
+      // still visible/editable, not silently wiped.
+      if (matchedReasonOption) setExplanation('');
+    } else {
+      const opt = UNEXPLAINED_REASON_OPTIONS.find((o) => o.value === value);
+      setExplanation(opt ? opt.label : '');
+    }
+  }
+
   return (
     <div className="rounded-xl border border-black/10 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1303,13 +1354,27 @@ function SourceGroupCard({
           <label className="mb-1 block text-xs font-medium text-[#566a76]">
             What was this for? <span className="font-normal">(optional, but a reviewer may ask)</span>
           </label>
-          <textarea
-            value={explanation}
-            onChange={(e) => setExplanation(e.target.value)}
-            rows={2}
-            placeholder="e.g. Rent I collect from my tenant, a loan repayment, a gift for my birthday…"
-            className="w-full rounded-lg border border-black/10 px-2 py-1.5 text-xs text-[#12232e]"
-          />
+          <select
+            value={reasonChoice}
+            onChange={(e) => handleReasonChoiceChange(e.target.value)}
+            className="w-full rounded-lg border border-black/10 bg-white px-2 py-1.5 text-xs text-[#12232e]"
+          >
+            <option value="">Choose a reason…</option>
+            {UNEXPLAINED_REASON_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+          {reasonChoice === 'other' && (
+            <textarea
+              value={explanation}
+              onChange={(e) => setExplanation(e.target.value)}
+              rows={2}
+              placeholder="e.g. Rent I collect from my tenant, a loan repayment, a gift for my birthday…"
+              className="mt-1.5 w-full rounded-lg border border-black/10 px-2 py-1.5 text-xs text-[#12232e]"
+            />
+          )}
         </div>
       )}
 

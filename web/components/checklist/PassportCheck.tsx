@@ -5,6 +5,8 @@ import PassportScan from '@/components/checklist/PassportScan';
 import ResumeReminderLinks from '@/components/checklist/ResumeReminderLinks';
 import SessionShell from '@/components/checklist/SessionShell';
 import { COUNTRIES } from '@/lib/checklist/countries';
+import { getPassportValidityStatus } from '@/lib/passport';
+import { dispatchChecklistUpdated } from '@/lib/checklist/liveUpdateEvents';
 import {
   FieldState,
   PersistedPassportFields,
@@ -12,6 +14,29 @@ import {
   deserializePassportFields,
   hasPassportFields,
 } from '@/lib/passport/persist';
+
+// Task #503: the document checklist's "passport" item (lib/checklist/uk.ts etc., id: 'passport',
+// "Valid passport (covers your whole trip)") was never auto-ticked here — an applicant could scan
+// a perfectly valid passport and see the Documents readiness score sit at its old value forever,
+// because nothing on this page ever wrote to sa_<code>_checked. Ticking it automatically once the
+// scanned/recalled expiry date clears the same 6-months-remaining bar the passport-scan page
+// already shows a "🎉 Congratulations" banner for (lib/passport/validity.ts) means the applicant
+// never has to separately remember to go tick a box for something we already told them is fine —
+// and, since this only ever sets the flag to true (never clears it), a manual tick the applicant
+// made elsewhere (or before this fix existed) is never undone by revisiting this page.
+function autoTickPassportIfValid(checkedStorageKey: string, fields: FieldState) {
+  const validity = getPassportValidityStatus(fields.expiryDate);
+  if (!validity || validity.level !== 'ok') return;
+  try {
+    const raw = localStorage.getItem(checkedStorageKey);
+    const current = raw ? (JSON.parse(raw) as Record<string, boolean>) : {};
+    if (current.passport) return; // already ticked — nothing changed, don't dispatch a no-op event
+    localStorage.setItem(checkedStorageKey, JSON.stringify({ ...current, passport: true }));
+    dispatchChecklistUpdated();
+  } catch {
+    /* ignore — worst case the applicant ticks it by hand on the checklist */
+  }
+}
 
 // Generalized out of the original UK-only web/app/checklist/uk/passport/page.tsx (Phase 3 of the
 // passport-MRZ port, task #244) so the same passport-scan checklist page (reusing PassportScan's
@@ -48,6 +73,7 @@ function loadSaved(storageKey: string): FieldState | null {
 export default function PassportCheck({ countryCode }: PassportCheckProps) {
   const lowerCode = countryCode.toLowerCase();
   const storageKey = `sa_${lowerCode}_passport`;
+  const checkedStorageKey = `sa_${lowerCode}_checked`;
   const countryInfo = COUNTRIES.find((c) => c.code === countryCode.toUpperCase());
   const visaName = countryInfo?.visaName || 'visa';
   const countryName = countryInfo?.name || countryCode;
@@ -70,6 +96,7 @@ export default function PassportCheck({ countryCode }: PassportCheckProps) {
       setSavedFields(saved);
       fieldsRef.current = saved;
       setRecalled(true);
+      autoTickPassportIfValid(checkedStorageKey, saved);
     }
     setLoaded(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -86,6 +113,7 @@ export default function PassportCheck({ countryCode }: PassportCheckProps) {
     } catch {
       /* ignore */
     }
+    autoTickPassportIfValid(checkedStorageKey, fields);
   }
 
   function clearSaved() {
