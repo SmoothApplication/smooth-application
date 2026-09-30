@@ -89,6 +89,9 @@ export default function StatementSlot({
   const [senderDuplicateDecisions, setSenderDuplicateDecisions] = useState<Record<string, 'merge' | 'separate'>>(
     {}
   );
+  const [flaggedReasonMode, setFlaggedReasonMode] = useState<Record<string, 'same' | 'different'>>({});
+  const [flaggedReasonChoice, setFlaggedReasonChoice] = useState<Record<string, string>>({});
+  const [flaggedReasonOther, setFlaggedReasonOther] = useState<Record<string, string>>({});
   const [detectedHolderName, setDetectedHolderName] = useState<string | null>(null);
   const [ocrUsed, setOcrUsed] = useState(false);
   const [spouse, setSpouse] = useState<SpouseSponsorDeclaration>({
@@ -139,6 +142,9 @@ export default function StatementSlot({
       setNameCorrections(saved.nameCorrections || {});
       setExplanations(saved.explanations || {});
       setSenderDuplicateDecisions(saved.senderDuplicateDecisions || {});
+      setFlaggedReasonMode(saved.flaggedReasonMode || {});
+      setFlaggedReasonChoice(saved.flaggedReasonChoice || {});
+      setFlaggedReasonOther(saved.flaggedReasonOther || {});
       setDetectedHolderName(saved.detectedHolderName ?? null);
       setOcrUsed(!!saved.ocrUsed);
       setEmployerName(saved.employerName || '');
@@ -184,6 +190,9 @@ export default function StatementSlot({
         nameCorrections,
         explanations,
         senderDuplicateDecisions,
+        flaggedReasonMode,
+        flaggedReasonChoice,
+        flaggedReasonOther,
         detectedHolderName,
         ocrUsed,
         employerName,
@@ -208,6 +217,9 @@ export default function StatementSlot({
     nameCorrections,
     explanations,
     senderDuplicateDecisions,
+    flaggedReasonMode,
+    flaggedReasonChoice,
+    flaggedReasonOther,
     detectedHolderName,
     ocrUsed,
     employerName,
@@ -513,6 +525,12 @@ export default function StatementSlot({
         onExplanationsChange={setExplanations}
         senderDuplicateDecisions={senderDuplicateDecisions}
         onSenderDuplicateDecisionsChange={setSenderDuplicateDecisions}
+        flaggedReasonMode={flaggedReasonMode}
+        onFlaggedReasonModeChange={setFlaggedReasonMode}
+        flaggedReasonChoice={flaggedReasonChoice}
+        onFlaggedReasonChoiceChange={setFlaggedReasonChoice}
+        flaggedReasonOther={flaggedReasonOther}
+        onFlaggedReasonOtherChange={setFlaggedReasonOther}
         detectedHolderName={detectedHolderName}
         ocrUsed={ocrUsed}
         spouse={spouse}

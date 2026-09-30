@@ -68,6 +68,14 @@ export interface PersistedStatement {
    * look-alike sender pair, keyed by senderPairKey(nameA, nameB), so an answered pair is never
    * re-asked across visits. Optional for backward-compat with payloads saved before this existed. */
   senderDuplicateDecisions?: Record<string, 'merge' | 'separate'>;
+  /** Direct instruction (see flaggedReasons.ts): the applicant's "same purpose" / "different
+   * purposes" choice, canonical reason-dropdown pick, and any typed "Other" detail, for each
+   * unexplained-inflow sender/sub-group card. Keyed by SenderInflowGroup.senderKey for a "same"
+   * answer, or FlaggedInflowGroup.key for a "different purposes" sub-group answer. Optional for
+   * backward-compat with payloads saved before this existed. */
+  flaggedReasonMode?: Record<string, 'same' | 'different'>;
+  flaggedReasonChoice?: Record<string, string>;
+  flaggedReasonOther?: Record<string, string>;
   /** Fix 3 (technical-co-founder review): true when this statement's lines came from on-device OCR
    * (a scanned/photographed statement) rather than a real digital text layer or spreadsheet export -
    * a known, factual signal (not a guess) that the numbers below lean on a weaker parsing path and

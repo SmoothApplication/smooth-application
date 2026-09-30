@@ -36,6 +36,13 @@ import {
   FlaggedInflowGroup,
   StatementSummary,
   buildFinalSummary,
+  nestFlaggedGroupsBySender,
+  SenderInflowGroup,
+  FlaggedReasonMode,
+  UNEXPLAINED_REASON_OPTIONS,
+  resolveFlaggedReasonLabel,
+  effectiveReasonMode,
+  buildFlaggedTxnReasons,
 } from '@/lib/statement';
 import { trackEvent } from '@/lib/analytics';
 // Direct user report, live parity check against the original GitHub Pages app: this Report tab was
@@ -186,6 +193,16 @@ interface StatementDashboardProps {
    * same uncontrolled-seed-plus-callback pattern as everything else here. */
   senderDuplicateDecisions?: Record<string, 'merge' | 'separate'>;
   onSenderDuplicateDecisionsChange?: (decisions: Record<string, 'merge' | 'separate'>) => void;
+  /** Direct instruction (see lib/statement/flaggedReasons.ts): the applicant's "same purpose" /
+   * "different purposes" choice, canonical reason-dropdown pick, and any typed "Other" detail, for
+   * each unexplained-inflow sender card. Same uncontrolled-seed-plus-callback pattern as everything
+   * else in this props list. */
+  flaggedReasonMode?: Record<string, 'same' | 'different'>;
+  onFlaggedReasonModeChange?: (mode: Record<string, 'same' | 'different'>) => void;
+  flaggedReasonChoice?: Record<string, string>;
+  onFlaggedReasonChoiceChange?: (choice: Record<string, string>) => void;
+  flaggedReasonOther?: Record<string, string>;
+  onFlaggedReasonOtherChange?: (other: Record<string, string>) => void;
   /** The account-holder name detected on this statement's own header at scan time (owned/persisted
    * by StatementCheck.tsx, read-only here) and the applicant's declared marital/spouse-sponsor
    * status (read-only from the checklist's own answers) — together drive the name-tally check. See
@@ -254,6 +271,12 @@ export default function StatementDashboard({
   onExplanationsChange,
   senderDuplicateDecisions: initialSenderDuplicateDecisions,
   onSenderDuplicateDecisionsChange,
+  flaggedReasonMode: initialFlaggedReasonMode,
+  onFlaggedReasonModeChange,
+  flaggedReasonChoice: initialFlaggedReasonChoice,
+  onFlaggedReasonChoiceChange,
+  flaggedReasonOther: initialFlaggedReasonOther,
+  onFlaggedReasonOtherChange,
   detectedHolderName = null,
   ocrUsed = false,
   spouse = DEFAULT_SPOUSE,
@@ -330,6 +353,15 @@ export default function StatementDashboard({
   const [senderDuplicateDecisions, setSenderDuplicateDecisions] = useState<Record<string, 'merge' | 'separate'>>(
     initialSenderDuplicateDecisions || {}
   );
+  const [flaggedReasonMode, setFlaggedReasonMode] = useState<Record<string, 'same' | 'different'>>(
+    initialFlaggedReasonMode || {}
+  );
+  const [flaggedReasonChoice, setFlaggedReasonChoice] = useState<Record<string, string>>(
+    initialFlaggedReasonChoice || {}
+  );
+  const [flaggedReasonOther, setFlaggedReasonOther] = useState<Record<string, string>>(
+    initialFlaggedReasonOther || {}
+  );
 
   // Report state changes up to the parent for persistence (Phase 4). Deliberately not merged into
   // the setters above - StatementUpload (the standalone test page) passes none of these callbacks,
@@ -354,6 +386,38 @@ export default function StatementDashboard({
     onSenderDuplicateDecisionsChange?.(senderDuplicateDecisions);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [senderDuplicateDecisions]);
+  useEffect(() => {
+    onFlaggedReasonModeChange?.(flaggedReasonMode);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flaggedReasonMode]);
+  useEffect(() => {
+    onFlaggedReasonChoiceChange?.(flaggedReasonChoice);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flaggedReasonChoice]);
+  useEffect(() => {
+    onFlaggedReasonOtherChange?.(flaggedReasonOther);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flaggedReasonOther]);
+
+  function setFlaggedMode(key: string, value: 'same' | 'different') {
+    setFlaggedReasonMode((prev) => ({ ...prev, [key]: value }));
+  }
+  function setFlaggedChoice(key: string, value: string) {
+    setFlaggedReasonChoice((prev) => {
+      const next = { ...prev };
+      if (value) next[key] = value;
+      else delete next[key];
+      return next;
+    });
+  }
+  function setFlaggedOther(key: string, value: string) {
+    setFlaggedReasonOther((prev) => {
+      const next = { ...prev };
+      if (value.trim()) next[key] = value;
+      else delete next[key];
+      return next;
+    });
+  }
 
   function resolveSenderDuplicate(key: string, decision: 'merge' | 'separate') {
     setSenderDuplicateDecisions((prev) => ({ ...prev, [key]: decision }));
@@ -455,7 +519,7 @@ export default function StatementDashboard({
     setSendingBreakdownEmail(true);
     try {
       const XLSX = await import('xlsx');
-      const aoa = buildIncomeBreakdownAoa(groups, displayName, explanations);
+      const aoa = buildIncomeBreakdownAoa(groups, displayName, explanations, flaggedTxnReasonsForExport);
       const ws = XLSX.utils.aoa_to_sheet(aoa);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Income Breakdown');
@@ -482,6 +546,19 @@ export default function StatementDashboard({
   }
 
   const unexplainedInflows = useMemo(() => findUnexplainedLargeInflows(txns), [txns]);
+
+  // Same nesting ReportTab uses to render the "Inflows that need an explanation" cards, recomputed
+  // here purely so the Download-spreadsheet flow (above) can build the per-transaction reason map
+  // the export needs — see flaggedReasons.ts's own comment for why this is a pure re-shape, not a
+  // second source of truth for the flagging logic itself.
+  const senderInflowGroupsForExport: SenderInflowGroup[] = useMemo(
+    () => nestFlaggedGroupsBySender(groupFlaggedInflows(unexplainedInflows, applicantName || undefined)),
+    [unexplainedInflows, applicantName]
+  );
+  const flaggedTxnReasonsForExport = useMemo(
+    () => buildFlaggedTxnReasons(senderInflowGroupsForExport, flaggedReasonMode, flaggedReasonChoice, flaggedReasonOther),
+    [senderInflowGroupsForExport, flaggedReasonMode, flaggedReasonChoice, flaggedReasonOther]
+  );
 
   // Report-tab "Monthly cash flow" + "Financial summary" — same computeMonthlyCashFlow already
   // driving the Financial readiness calculator's auto-fill (lib/statement/cashFlow.ts), so these
@@ -705,6 +782,12 @@ export default function StatementDashboard({
           totalIncomeIdentified={totalIncomeIdentified}
           incomeSourceCount={incomeSourceCount}
           unexplainedInflows={unexplainedInflows}
+          flaggedReasonMode={flaggedReasonMode}
+          setFlaggedMode={setFlaggedMode}
+          flaggedReasonChoice={flaggedReasonChoice}
+          setFlaggedChoice={setFlaggedChoice}
+          flaggedReasonOther={flaggedReasonOther}
+          setFlaggedOther={setFlaggedOther}
           cashFlowRows={cashFlowRows}
           financialSummary={financialSummary}
           financialHref={financialHref}
@@ -1271,6 +1354,120 @@ function statusPill(status: 'good' | 'warn' | 'neutral', label: string) {
   );
 }
 
+// Direct instruction (see lib/statement/flaggedReasons.ts's file-level comment for the full quote
+// and history): one card per sender. A sender with just one (month, amount) sub-group only ever
+// shows a single dropdown (nothing to toggle between - effectiveReasonMode always returns 'same'
+// for it). A sender with more than one sub-group gets the "Is this for the same purpose?" toggle;
+// "same" applies one dropdown answer to every payment from that sender, "different" expands into
+// one dropdown per sub-group.
+function SenderInflowCard({
+  sg,
+  mode,
+  setMode,
+  choice,
+  setChoice,
+  otherText,
+  setOther,
+}: {
+  sg: SenderInflowGroup;
+  mode: FlaggedReasonMode;
+  setMode: (v: 'same' | 'different') => void;
+  choice: Record<string, string>;
+  setChoice: (key: string, value: string) => void;
+  otherText: Record<string, string>;
+  setOther: (key: string, value: string) => void;
+}) {
+  const hasMultipleSubGroups = sg.subGroups.length > 1;
+
+  function ReasonDropdown({ forKey }: { forKey: string }) {
+    const selected = choice[forKey] || '';
+    return (
+      <div className="mt-2">
+        <label className="mb-1 block text-xs font-medium text-[#566a76]">What was this for?</label>
+        <select
+          value={selected}
+          onChange={(e) => setChoice(forKey, e.target.value)}
+          className="w-full rounded-lg border border-black/10 bg-white px-2 py-1.5 text-xs text-[#12232e]"
+        >
+          <option value="">Choose a reason…</option>
+          {UNEXPLAINED_REASON_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        {selected === 'other' && (
+          <textarea
+            value={otherText[forKey] || ''}
+            onChange={(e) => setOther(forKey, e.target.value)}
+            rows={2}
+            placeholder="Describe what this was for…"
+            className="mt-1.5 w-full rounded-lg border border-black/10 px-2 py-1.5 text-xs text-[#12232e]"
+          />
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-black/10 p-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className="text-sm font-medium text-[#12232e]">{sg.senderLabel}</p>
+        <p className="text-xs text-[#566a76]">
+          {sg.count} payment{sg.count === 1 ? '' : 's'} = {formatAmount(sg.total)}
+        </p>
+      </div>
+
+      {hasMultipleSubGroups && (
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+          <span className="font-medium text-[#566a76]">Is this for the same purpose?</span>
+          <div className="flex overflow-hidden rounded-full border border-black/10">
+            <button
+              type="button"
+              onClick={() => setMode('same')}
+              className={`px-3 py-1 font-medium ${mode === 'same' ? 'bg-accent text-white' : 'bg-white text-[#566a76]'}`}
+            >
+              Same purpose
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('different')}
+              className={`px-3 py-1 font-medium ${mode === 'different' ? 'bg-accent text-white' : 'bg-white text-[#566a76]'}`}
+            >
+              Different purposes
+            </button>
+          </div>
+        </div>
+      )}
+
+      {mode === 'same' ? (
+        <>
+          <p className="mt-2 text-xs text-[#566a76]">
+            {sg.subGroups.map((g, i) => (
+              <span key={g.key}>
+                {i > 0 && '; '}
+                {g.month} · {formatAmount(g.amount)} × {g.count}
+              </span>
+            ))}
+          </p>
+          <ReasonDropdown forKey={sg.senderKey} />
+        </>
+      ) : (
+        <div className="mt-2 flex flex-col gap-3">
+          {sg.subGroups.map((g) => (
+            <div key={g.key} className="rounded-lg bg-black/[0.02] p-2">
+              <p className="text-xs text-[#566a76]">
+                {g.month} · {formatAmount(g.amount)} × {g.count} = {formatAmount(g.total)}
+              </p>
+              <ReasonDropdown forKey={g.key} />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ReportTab({
   groups,
   topSenders,
@@ -1305,6 +1502,12 @@ function ReportTab({
   applicantName,
   explanations,
   setExplanation,
+  flaggedReasonMode,
+  setFlaggedMode,
+  flaggedReasonChoice,
+  setFlaggedChoice,
+  flaggedReasonOther,
+  setFlaggedOther,
   otherStatementSummary,
   statementCurrencyIssues,
 }: {
@@ -1339,6 +1542,12 @@ function ReportTab({
   applicantName: string;
   explanations: Record<string, string>;
   setExplanation: (rawName: string, value: string) => void;
+  flaggedReasonMode: Record<string, 'same' | 'different'>;
+  setFlaggedMode: (key: string, value: 'same' | 'different') => void;
+  flaggedReasonChoice: Record<string, string>;
+  setFlaggedChoice: (key: string, value: string) => void;
+  flaggedReasonOther: Record<string, string>;
+  setFlaggedOther: (key: string, value: string) => void;
   otherStatementSummary?: StatementSummary | null;
   groups: SourceGroups;
   topSenders: {
@@ -1357,6 +1566,14 @@ function ReportTab({
   const flaggedGroups: FlaggedInflowGroup[] = useMemo(
     () => groupFlaggedInflows(unexplainedInflows, applicantName || undefined),
     [unexplainedInflows, applicantName]
+  );
+  // Direct instruction, off a live screenshot showing 4 separate cards all headed "MARY
+  // OLUWAFUNMILAYO AFENI": "to group all inflows from similar names together" — nests the same
+  // flaggedGroups above one level up, purely for display (see flaggedReasons.ts). flaggedGroups
+  // itself stays untouched so unexplainedGroupCount/incomeDetail below keep their existing meaning.
+  const senderInflowGroups: SenderInflowGroup[] = useMemo(
+    () => nestFlaggedGroupsBySender(flaggedGroups),
+    [flaggedGroups]
   );
   const incomeDetail =
     unexplainedInflows.length === 0
@@ -1723,36 +1940,29 @@ function ReportTab({
         </div>
       </div>
 
-      {flaggedGroups.length > 0 && (
+      {senderInflowGroups.length > 0 && (
         <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
           <h2 className="mb-1 text-sm font-semibold text-[#12232e]">
-            Inflows that need an explanation ({flaggedGroups.length})
+            Inflows that need an explanation ({senderInflowGroups.length})
           </h2>
           <p className="mb-4 text-xs text-[#566a76]">
-            Every credit of ₦50,000 or more with no clear description, grouped by sender, month and
-            amount - so a sender who paid the same amount many times in one month shows up as one row,
-            not one row per payment. One short explanation per row is enough for a reviewer.
+            Every credit of ₦50,000 or more with no clear description, grouped by sender - one card
+            per person, however many months or amounts they show up under. Pick a reason from the
+            dropdown; if the same sender paid you for more than one reason, say so and give each
+            payment its own answer.
           </p>
           <div className="flex flex-col gap-3">
-            {flaggedGroups.map((g) => (
-              <div key={g.key} className="rounded-lg border border-black/10 p-3">
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <p className="text-sm font-medium text-[#12232e]">{g.senderLabel}</p>
-                  <p className="text-xs text-[#566a76]">
-                    {g.month} · {formatAmount(g.amount)} × {g.count} = {formatAmount(g.total)}
-                  </p>
-                </div>
-                <label className="mb-1 mt-2 block text-xs font-medium text-[#566a76]">
-                  What was this for? <span className="font-normal">(one answer covers this whole group)</span>
-                </label>
-                <textarea
-                  value={explanations[g.key] || ''}
-                  onChange={(e) => setExplanation(g.key, e.target.value)}
-                  rows={2}
-                  placeholder="e.g. Weekly contribution from my savings group, repeat customer payment, family support…"
-                  className="w-full rounded-lg border border-black/10 px-2 py-1.5 text-xs text-[#12232e]"
-                />
-              </div>
+            {senderInflowGroups.map((sg) => (
+              <SenderInflowCard
+                key={sg.senderKey}
+                sg={sg}
+                mode={effectiveReasonMode(sg, flaggedReasonMode)}
+                setMode={(v) => setFlaggedMode(sg.senderKey, v)}
+                choice={flaggedReasonChoice}
+                setChoice={setFlaggedChoice}
+                otherText={flaggedReasonOther}
+                setOther={setFlaggedOther}
+              />
             ))}
           </div>
         </div>

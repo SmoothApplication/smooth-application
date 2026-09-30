@@ -3,6 +3,48 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Group "Inflows that need an explanation" by sender, with a same/different-purpose dropdown
+
+Direct instruction, off a live screenshot showing 4 separate cards all headed "MARY
+OLUWAFUNMILAYO AFENI": "to group all inflows from similar names together then you create a button
+that says is it for the same purpose then the purpose has a drop down or for different purposes if
+you click for the same purposes it fills it straight into the excel file that is created that they
+are all for the same purposes if it fills for different purposes it will take the input for each
+purpose that was filled from the drop down menu this was how it was before." The flagged-inflow
+card added in #475/#476 was correctly grouping by (sender, month, amount), but that meant a sender
+with several different flagged payments still showed up as several separate cards - reading as "not
+grouped" even though each individual group was already collapsed. groupFlaggedInflows itself is
+unchanged (a different amount from the same person in the same month may genuinely be for a
+different reason, per the earlier direct instruction that built that grouping); a new
+`lib/statement/flaggedReasons.ts` nests those same sub-groups one level up for display:
+
+- One card per sender. A sender with just one (month, amount) sub-group shows a single reason
+  dropdown, nothing to toggle. A sender with more than one sub-group gets an explicit "Same
+  purpose" / "Different purposes" toggle, defaulting to "Same purpose."
+- The reason is now a dropdown of canonical categories (Family support, Gift, Loan or loan
+  repayment, Business or trade payment, Savings group contribution, Rent collected from a tenant,
+  Refund, Sale of a personal item, or Other with a free-text field) - not raw free text, matching
+  "how it was before" (the pre-rebuild app's "Same reason for all N payments" / "Different reasons"
+  pattern for income-source boxes, restored here for flagged inflows specifically).
+- "Same purpose" applies one resolved reason to every flagged transaction from that sender;
+  "different purposes" gives each (month, amount) sub-group its own dropdown answer.
+
+Wired into the actual downloaded spreadsheet, closing a real gap: the flagged-inflow card's answers
+never reached `buildIncomeBreakdownAoa`'s export before this. `buildIncomeBreakdownAoa` takes a new
+optional 4th argument, `flaggedReasons` - a map keyed by `txnSignature(t)` (a stable date/amount/
+narration signature, since no separate id exists on `ParsedTxn`) built by the new
+`buildFlaggedTxnReasons()`. A flagged transaction's own resolved reason now shows on its own row in
+the export, taking precedence over the (unrelated, pre-existing) per-source-group "Your explanation"
+column - so "same purpose" really does fill the whole sender's rows, and "different purposes" really
+does carry each payment's own answer through, exactly as instructed. All three new answer maps
+(mode/choice/other-text) persist the same way `explanations` already did (StatementSlot.tsx /
+PersistedStatement), so answers survive a reload without re-uploading.
+
+New `lib/statement/__tests__/flaggedReasons.test.ts` (nesting, txnSignature stability, reason
+resolution, same/different-mode defaulting, the export-map builder) plus a new exportBreakdown test
+for the per-transaction precedence behavior. `npx tsc --noEmit` clean, full `npx jest` 532/532
+passing, `node scripts/pii-scan.js` clean (310 files).
+
 ## Restyle every session to match the new homepage mockup (deep-green/gold/cream)
 
 Direct instruction: "based on the attached mock up create a look for session 1 to the last

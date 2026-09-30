@@ -39,6 +39,7 @@
 //      for space with the column widths a spreadsheet reader actually uses.
 import type { SourceGroups } from './types';
 import { extractNarrationReason } from './classify';
+import { txnSignature } from './flaggedReasons';
 
 export type SpreadsheetRow = (string | number)[];
 
@@ -54,7 +55,14 @@ const NON_INCOME_TYPES = new Set(['reversal', 'self', 'interest', 'internal']);
 export function buildIncomeBreakdownAoa(
   groups: SourceGroups,
   displayName: (rawName: string) => string,
-  explanations: Record<string, string> = {}
+  explanations: Record<string, string> = {},
+  // Direct instruction: "if you click for the same purposes it fills it straight into the excel
+  // file... if it fills for different purposes it will take the input for each purpose." Keyed by
+  // txnSignature(t) (see flaggedReasons.ts) so a flagged-inflow answer — whether "same purpose for
+  // the whole sender" or "its own answer per (month, amount) sub-group" — lands on that exact
+  // transaction's own row, taking precedence over the group-level `explanations` shown once on the
+  // group's first row (this is more specific, per-payment information).
+  flaggedReasons: Record<string, string> = {}
 ): SpreadsheetRow[] {
   const aoa: SpreadsheetRow[] = [
     ['Source', 'Type', 'Date', 'Amount (NGN)', 'Reason (from narration)', 'Narration', 'Your explanation'],
@@ -95,6 +103,7 @@ export function buildIncomeBreakdownAoa(
     const explanation = explanations[g.name] || '';
     g.txns.forEach((t, i) => {
       const reason = extractNarrationReason(t.narration, nameWords);
+      const flaggedNote = flaggedReasons[txnSignature(t)];
       aoa.push([
         i === 0 ? displayName(g.name) : '',
         i === 0 ? g.type : '',
@@ -102,9 +111,10 @@ export function buildIncomeBreakdownAoa(
         Math.round(t.credit),
         reason || '',
         t.narration || '(none)',
-        // Shown once on the group's first row, same "shown once" convention as Source/Type above —
-        // one explanation applies to the whole source group, not per individual payment.
-        i === 0 ? explanation : '',
+        // A flagged-inflow answer (specific to this exact transaction) takes precedence and shows
+        // on its own row; otherwise the group-level explanation is shown once on the group's first
+        // row, same "shown once" convention as Source/Type above.
+        flaggedNote || (i === 0 ? explanation : ''),
       ]);
     });
     aoa.push(['', '', '', '', 'Subtotal for ' + displayName(g.name) + ':', g.total, '']);

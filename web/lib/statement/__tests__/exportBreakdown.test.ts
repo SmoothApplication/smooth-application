@@ -4,6 +4,7 @@
 // since it needs the browser's download machinery).
 import { summarizeSourceGroup } from '../classify';
 import { buildIncomeBreakdownAoa } from '../exportBreakdown';
+import { txnSignature } from '../flaggedReasons';
 import { txn } from './testHelpers';
 import type { SourceGroups } from '../types';
 
@@ -129,6 +130,32 @@ test('leaves the explanation column blank for reversal/self/interest/internal gr
   const groups = [g1] as SourceGroups;
   const aoa = buildIncomeBreakdownAoa(groups, identity);
   expect(aoa[2][6]).toBe('');
+});
+
+test('a flagged-inflow reason (txnSignature-keyed) shows on its own row, taking precedence over the group-level explanation', () => {
+  // Direct instruction: "if you click for the same purposes it fills it straight into the excel
+  // file... if it fills for different purposes it will take the input for each purpose." One
+  // transaction from a two-payment source group gets its own flagged-inflow answer; the other
+  // keeps only the group-level explanation, shown once on the group's first row as before.
+  const t1 = txn({ narration: 'NIP/MARY OLUWAFUNMILAYO AFENI/TRF', credit: 100000, dateISO: '2026-08-05' });
+  const t2 = txn({ narration: 'NIP/MARY OLUWAFUNMILAYO AFENI/TRF', credit: 80000, dateISO: '2026-04-05' });
+  const g1 = summarizeSourceGroup('Mary Oluwafunmilayo Afeni', [t1, t2], 'personal');
+  const groups = [g1] as SourceGroups;
+
+  const aoa = buildIncomeBreakdownAoa(
+    groups,
+    identity,
+    { 'Mary Oluwafunmilayo Afeni': 'group-level note' },
+    { [txnSignature(t1)]: 'Family support' }
+  );
+
+  // summarizeSourceGroup sorts a group's txns by date ascending, so t2 (April) is the group's
+  // first row and t1 (August) is its second row - t2 has no flagged answer of its own, so its
+  // row falls back to the group-level explanation (shown once, on the first row).
+  expect(aoa[2][6]).toBe('group-level note');
+  // t1's own flagged answer shows on its own row, even though it isn't the group's first row -
+  // a flagged-inflow answer is specific to that exact transaction and always takes precedence.
+  expect(aoa[3][6]).toBe('Family support');
 });
 
 test('does not exclude a salary/interest/internal bucket name from its own Reason extraction', () => {
