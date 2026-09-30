@@ -13,6 +13,7 @@ import {
 } from '@/lib/opportunities';
 import { TrackerEntry, APP_TRACKER_KEY, normalizeTrackerEntries, isTracked, toggleTrack } from '@/lib/tracker';
 import { TrackerCard } from '@/components/opportunities/TrackerCard';
+import * as secureStorage from '@/lib/security/secureStorage';
 
 // Port of index.html's #opportunitiesGate (~line 1753) — "Funded opportunities & exchange
 // programs", combined on one screen with the personal application tracker (#appTrackerCard), same
@@ -34,7 +35,7 @@ export default function OpportunitiesPage() {
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(APP_TRACKER_KEY);
+      const raw = secureStorage.getItem(APP_TRACKER_KEY);
       if (raw) setEntries(normalizeTrackerEntries(JSON.parse(raw)));
     } catch {
       /* start fresh */
@@ -45,7 +46,7 @@ export default function OpportunitiesPage() {
   useEffect(() => {
     if (!loaded) return;
     try {
-      localStorage.setItem(APP_TRACKER_KEY, JSON.stringify(entries));
+      secureStorage.setItem(APP_TRACKER_KEY, JSON.stringify(entries));
     } catch {
       /* fail silently, same as the rest of this app's autosave */
     }

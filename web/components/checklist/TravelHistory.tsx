@@ -10,6 +10,7 @@ import {
 } from '@/lib/checklist/travelHistory';
 import SessionShell from '@/components/checklist/SessionShell';
 import { COUNTRIES } from '@/lib/checklist/countries';
+import * as secureStorage from '@/lib/security/secureStorage';
 
 // Port of index.html's "Travel Experience" session (task #319+ selection "Build travel history
 // first, then the full report"). See lib/checklist/travelHistory.ts for the ported country lists,
@@ -54,7 +55,7 @@ function combineDate(month: string, year: string): string {
 
 function loadSaved(storageKey: string): SavedTravelHistory | null {
   try {
-    const raw = localStorage.getItem(storageKey);
+    const raw = secureStorage.getItem(storageKey);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as SavedTravelHistory;
     if (!parsed || typeof parsed !== 'object') return null;
@@ -94,7 +95,7 @@ export default function TravelHistory({ countryCode }: TravelHistoryProps) {
     if (!loaded || !firstTimeAnswer) return;
     try {
       const payload: SavedTravelHistory = { firstTimeAnswer, historyRows, overstayRows, hasOverstayed };
-      localStorage.setItem(storageKey, JSON.stringify(payload));
+      secureStorage.setItem(storageKey, JSON.stringify(payload));
     } catch {
       /* ignore */
     }

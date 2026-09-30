@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { TrackerEntry, APP_TRACKER_KEY, normalizeTrackerEntries } from '@/lib/tracker';
 import { TrackerCard } from '@/components/opportunities/TrackerCard';
+import * as secureStorage from '@/lib/security/secureStorage';
 
 // Port of index.html's Personal application tracker (#appTrackerCard / renderTracker(), see
 // index.html ~line 1770 and ~line 12807) — "Phase 2 of the same UNILAG street-test feedback that
@@ -21,7 +22,7 @@ export default function TrackerPage() {
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(APP_TRACKER_KEY);
+      const raw = secureStorage.getItem(APP_TRACKER_KEY);
       if (raw) setEntries(normalizeTrackerEntries(JSON.parse(raw)));
     } catch {
       /* start fresh */
@@ -32,7 +33,7 @@ export default function TrackerPage() {
   useEffect(() => {
     if (!loaded) return;
     try {
-      localStorage.setItem(APP_TRACKER_KEY, JSON.stringify(entries));
+      secureStorage.setItem(APP_TRACKER_KEY, JSON.stringify(entries));
     } catch {
       /* fail silently, same as the rest of this app's autosave */
     }

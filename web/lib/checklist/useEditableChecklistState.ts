@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Answers, DEFAULT_ANSWERS } from '@/lib/checklist/uk';
 import { ALL_CHECKLISTS } from '@/lib/checklist/all';
+import * as secureStorage from '@/lib/security/secureStorage';
 
 // Task #383 (document-checklist split into per-category sessions): a writable counterpart to
 // useChecklistState.ts's read-only mirror. CountryChecklistApp already had this exact
@@ -22,8 +23,8 @@ export function useEditableChecklistState(code: string) {
 
   useEffect(() => {
     try {
-      const a = localStorage.getItem(answersKey);
-      const c = localStorage.getItem(checkedKey);
+      const a = secureStorage.getItem(answersKey);
+      const c = secureStorage.getItem(checkedKey);
       if (a) setAnswers({ ...DEFAULT_ANSWERS, ...JSON.parse(a) });
       if (c) setChecked(JSON.parse(c));
     } catch {
@@ -36,7 +37,7 @@ export function useEditableChecklistState(code: string) {
   useEffect(() => {
     if (!loaded) return;
     try {
-      localStorage.setItem(answersKey, JSON.stringify(answers));
+      secureStorage.setItem(answersKey, JSON.stringify(answers));
     } catch {
       /* ignore */
     }
@@ -45,7 +46,7 @@ export function useEditableChecklistState(code: string) {
   useEffect(() => {
     if (!loaded) return;
     try {
-      localStorage.setItem(checkedKey, JSON.stringify(checked));
+      secureStorage.setItem(checkedKey, JSON.stringify(checked));
     } catch {
       /* ignore */
     }

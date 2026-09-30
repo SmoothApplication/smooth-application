@@ -16,6 +16,7 @@ import { trackEvent } from '@/lib/analytics';
 import ChecklistSidebar from '@/components/checklist/ChecklistSidebar';
 import SaveProgressPanel from '@/components/checklist/SaveProgressPanel';
 import { sessionHref } from '@/lib/checklist/sessions';
+import * as secureStorage from '@/lib/security/secureStorage';
 
 // Phase 4b of task #244: the shared checklist app UI, factored out of the UK-only
 // web/app/checklist/uk/page.tsx (Phase 2) so the same profile-form + categorized-document-list
@@ -87,8 +88,8 @@ export default function CountryChecklistApp({
 
   useEffect(() => {
     try {
-      const a = localStorage.getItem(answersKey);
-      const c = localStorage.getItem(checkedKey);
+      const a = secureStorage.getItem(answersKey);
+      const c = secureStorage.getItem(checkedKey);
       if (a) {
         setAnswers({ ...DEFAULT_ANSWERS, ...JSON.parse(a) });
         setView('checklist');
@@ -96,7 +97,7 @@ export default function CountryChecklistApp({
         // No answers saved for THIS country yet — check for a quiz pre-fill (Phase 4d) from
         // /quiz, which runs before a country is picked and can't know the country-specific key.
         // Only used once as a starting point; from here on this country's own answersKey wins.
-        const quizPrefill = localStorage.getItem('sa_quiz_prefill');
+        const quizPrefill = secureStorage.getItem('sa_quiz_prefill');
         if (quizPrefill) setAnswers({ ...DEFAULT_ANSWERS, ...JSON.parse(quizPrefill) });
       }
       if (c) setChecked(JSON.parse(c));
@@ -110,7 +111,7 @@ export default function CountryChecklistApp({
   useEffect(() => {
     if (!loaded) return;
     try {
-      localStorage.setItem(answersKey, JSON.stringify(answers));
+      secureStorage.setItem(answersKey, JSON.stringify(answers));
     } catch {
       /* ignore */
     }
@@ -119,7 +120,7 @@ export default function CountryChecklistApp({
   useEffect(() => {
     if (!loaded) return;
     try {
-      localStorage.setItem(checkedKey, JSON.stringify(checked));
+      secureStorage.setItem(checkedKey, JSON.stringify(checked));
     } catch {
       /* ignore */
     }

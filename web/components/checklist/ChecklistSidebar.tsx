@@ -15,6 +15,8 @@ import {
   computeFinancials,
 } from '@/lib/checklist/financial';
 import { FINANCIAL_UPDATED_EVENT } from '@/lib/checklist/liveUpdateEvents';
+import * as secureStorage from '@/lib/security/secureStorage';
+import SetupPinPrompt from '@/components/security/SetupPinPrompt';
 
 // Phase 1 of the checklist session/sidebar rebuild (task #380 — user compared the live site
 // against the original GitHub Pages site and asked to match its real structure: a persistent
@@ -71,7 +73,7 @@ export default function ChecklistSidebar({ code, name, checklist, answers, check
   useEffect(() => {
     function loadFinancialInputs() {
       try {
-        const raw = localStorage.getItem(financialKey);
+        const raw = secureStorage.getItem(financialKey);
         if (raw) setFinancialInputs({ ...DEFAULT_FINANCIAL_INPUTS, ...JSON.parse(raw) });
       } catch {
         /* no financial data saved yet — sidebar shows the neutral "Enter your figures" state */
@@ -177,6 +179,13 @@ export default function ChecklistSidebar({ code, name, checklist, answers, check
           </ul>
         </details>
       )}
+
+      {/* Task #508: SetupPinPrompt was built in task #498 but never actually mounted anywhere —
+          this sidebar renders on every checklist session page (see SessionShell.tsx), making it the
+          one persistent, always-visible spot every applicant passes through regardless of which
+          session they're on. The component itself is a no-op (renders null) once a PIN already
+          exists or the applicant has dismissed it once, so this is safe to render unconditionally. */}
+      <SetupPinPrompt />
     </aside>
   );
 }

@@ -11,6 +11,7 @@ import { TravelHistoryRow, OverstayRow } from '@/lib/checklist/travelHistory';
 import { buildNextStepsReport, NextStepsReport as ReportResult, SectionStatus } from '@/lib/checklist/nextSteps';
 import { COUNTRIES } from '@/lib/checklist/countries';
 import SessionShell from '@/components/checklist/SessionShell';
+import * as secureStorage from '@/lib/security/secureStorage';
 
 // Port of index.html's "What to do next" report — renderNextStepsReport() (~line 7483-7592) —
 // task #319+ selection "'What to do next' report", the last of the three prerequisite features
@@ -37,7 +38,7 @@ interface SavedTravelHistory {
 
 function loadJson<T>(storageKey: string): T | null {
   try {
-    const raw = localStorage.getItem(storageKey);
+    const raw = secureStorage.getItem(storageKey);
     if (!raw) return null;
     return JSON.parse(raw) as T;
   } catch {

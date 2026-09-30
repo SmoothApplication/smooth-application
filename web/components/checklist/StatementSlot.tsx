@@ -20,6 +20,7 @@ import StatementDashboard from '@/components/checklist/StatementDashboard';
 import ResumeReminderLinks from '@/components/checklist/ResumeReminderLinks';
 import { trackEvent } from '@/lib/analytics';
 import { syncFinancialInputsFromStatement } from '@/lib/checklist/financeStatementSync';
+import * as secureStorage from '@/lib/security/secureStorage';
 
 // Task #420 (direct request): one statement's whole upload → parse → dashboard lifecycle, pulled
 // out of what used to be the entire body of StatementCheck.tsx so it can be mounted TWICE — once
@@ -57,7 +58,7 @@ function formatDate(d: Date): string {
 
 function loadSaved(storageKey: string): PersistedStatement | null {
   try {
-    const raw = localStorage.getItem(storageKey);
+    const raw = secureStorage.getItem(storageKey);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as PersistedStatement;
     if (!parsed || !Array.isArray(parsed.txns) || parsed.txns.length === 0) return null;
@@ -160,7 +161,7 @@ export default function StatementSlot({
     }
 
     try {
-      const raw = localStorage.getItem(answersStorageKey);
+      const raw = secureStorage.getItem(answersStorageKey);
       if (raw) {
         const parsed = JSON.parse(raw);
         setSpouse({
@@ -218,7 +219,7 @@ export default function StatementSlot({
         employerDeclaredMonthlyIncome,
         businessDeclaredMonthlyIncome,
       };
-      localStorage.setItem(storageKey, JSON.stringify(payload));
+      secureStorage.setItem(storageKey, JSON.stringify(payload));
     } catch {
       /* ignore */
     }
@@ -258,7 +259,7 @@ export default function StatementSlot({
 
   function clearSaved() {
     try {
-      localStorage.removeItem(storageKey);
+      secureStorage.removeItem(storageKey);
     } catch {
       /* ignore */
     }

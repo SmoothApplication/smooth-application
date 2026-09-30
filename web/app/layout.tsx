@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import Analytics from '@/components/Analytics';
+import { AppLockProvider } from '@/lib/security/AppLockContext';
+import AppLockGate from '@/components/security/AppLockGate';
 
 // Design pass (user feedback: "this site needs a UI/UX designer" — live screenshot of the
 // homepage): the app had never set a real typeface anywhere, so every page fell back to the
@@ -102,7 +104,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           manifest.json's existing PWA background_color for brand continuity. */}
       <body className="min-h-screen bg-cream font-sans text-gray-900 antialiased">
         <Analytics />
-        {children}
+        {/* Task #499: wraps the ENTIRE app (landing page, login/admin, quiz, checklist, everything)
+            but only ever changes behavior once an applicant has opted into a PIN on this device —
+            see AppLockContext.tsx's and secureStorage.ts's own header comments for why this is safe
+            to mount here unconditionally rather than scoping it to just the checklist routes. */}
+        <AppLockProvider>
+          <AppLockGate>{children}</AppLockGate>
+        </AppLockProvider>
       </body>
     </html>
   );

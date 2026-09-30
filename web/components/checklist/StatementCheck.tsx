@@ -5,6 +5,7 @@ import StatementSlot from '@/components/checklist/StatementSlot';
 import SessionShell from '@/components/checklist/SessionShell';
 import { COUNTRIES } from '@/lib/checklist/countries';
 import { combineStatementSummaries, StatementSummary } from '@/lib/statement';
+import * as secureStorage from '@/lib/security/secureStorage';
 
 // Generalized out of the original UK-only web/app/checklist/uk/statement/page.tsx (Phase 4 of
 // task #244) so the same bank-statement check can be reused for every supported country's
@@ -57,7 +58,7 @@ export default function StatementCheck({ countryCode }: StatementCheckProps) {
   // "+ Add a second bank statement" again just because they refreshed the page.
   useEffect(() => {
     try {
-      if (localStorage.getItem(slot2Key)) setShowSecondSlot(true);
+      if (secureStorage.getItem(slot2Key)) setShowSecondSlot(true);
     } catch {
       /* ignore */
     }
@@ -66,7 +67,7 @@ export default function StatementCheck({ countryCode }: StatementCheckProps) {
 
   function removeSecondSlot() {
     try {
-      localStorage.removeItem(slot2Key);
+      secureStorage.removeItem(slot2Key);
     } catch {
       /* ignore */
     }

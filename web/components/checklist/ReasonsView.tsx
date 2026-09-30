@@ -5,6 +5,7 @@ import { Answers, DEFAULT_ANSWERS, ChecklistItem, itemApplies } from '@/lib/chec
 import { ALL_CHECKLISTS } from '@/lib/checklist/all';
 import { TravelHistoryRow, OverstayRow, computeTravelExperienceGrade } from '@/lib/checklist/travelHistory';
 import SessionShell from '@/components/checklist/SessionShell';
+import * as secureStorage from '@/lib/security/secureStorage';
 
 // Phase 4c of task #244: a simplified port of index.html's "Reasons" tab/modal — the end-of-flow
 // explanation of WHY each document is asked for. index.html's version sweeps a much wider set of
@@ -43,8 +44,8 @@ export default function ReasonsView({ code, flag, name, visaName, answersKey, ch
 
   useEffect(() => {
     try {
-      const a = localStorage.getItem(answersKey);
-      const c = localStorage.getItem(checkedKey);
+      const a = secureStorage.getItem(answersKey);
+      const c = secureStorage.getItem(checkedKey);
       if (a) setAnswers({ ...DEFAULT_ANSWERS, ...JSON.parse(a) });
       if (c) setChecked(JSON.parse(c));
     } catch {
@@ -54,7 +55,7 @@ export default function ReasonsView({ code, flag, name, visaName, answersKey, ch
     // Read-only, same as every other side feature that feeds this page (StatementCheck's own
     // storage read by BusinessIncomeLedger, etc.) — Travel History owns this key entirely.
     try {
-      const raw = localStorage.getItem(`sa_${code.toLowerCase()}_travelhistory`);
+      const raw = secureStorage.getItem(`sa_${code.toLowerCase()}_travelhistory`);
       if (raw) {
         const parsed = JSON.parse(raw);
         setTravelHistoryRows(Array.isArray(parsed?.historyRows) ? parsed.historyRows : []);

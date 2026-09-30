@@ -3,6 +3,174 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## PIN-lock feature: ready to ship (tasks #496-#500 complete)
+
+Direct client complaint that started this: "he would prefer he can sign out and come back, so that
+his information is not accessible to anyone who gains access to his laptop." All five building
+blocks are now built, wired in, and verified — see the five entries immediately below this one for
+the detail on each: `lib/security/pinLock.ts` (envelope-encryption crypto core, PIN + recovery
+phrase, AES-256-GCM + PBKDF2), `secureStorage.ts` (the encrypted read/write layer, with a
+passthrough mode so nothing changes for anyone who hasn't opted in), the React-side
+`AppLockContext`/`LockScreen`/`SetupPinPrompt`/`SetupPinModal` UI, the root-layout wiring plus the
+18-file migration of every existing `localStorage` call site to go through `secureStorage`, and
+finally a dedicated test pass (34 new Jest cases) covering the crypto core directly and the full
+opt-in → sign-out → unlock → forgot-PIN-use-recovery-phrase lifecycle end to end.
+
+One gap caught before calling this done: `SetupPinPrompt.tsx` (the dismissible "🔒 Lock your saved
+data with a PIN" invitation) was built back in task #498 but had never actually been rendered
+anywhere — task #499's layout wiring only handled the locked/unlocked gate itself, not the opt-in
+entry point. Without it, no applicant would ever see any way to turn this feature on. Fixed by
+mounting `<SetupPinPrompt />` in `ChecklistSidebar.tsx`, which renders on every checklist session
+page regardless of country or which session the applicant is on — the one persistent, always-
+visible spot every applicant passes through. The component is already a no-op (renders `null`) once
+a PIN exists or the applicant has dismissed it once, so this is safe to render unconditionally.
+
+Net effect for anyone who never opts in (100% of applicants as of today): nothing changes at all —
+same plain `localStorage`, same instant loads, no PIN screen ever appears, no new UI clutter beyond
+one dismissible card in the sidebar. For anyone who does set one up: every checklist answer,
+passport field, bank statement analysis, and financial figure is encrypted at rest the moment they
+close the tab, and unreadable again until they type their PIN (or recovery phrase) back in.
+
+Final state: `tsc --noEmit` clean, 589/589 Jest tests passing, PII scan clean (316 files). Nothing
+in this feature is pushed yet — run `.\ship.ps1 "Add PIN-lock / encrypt-at-rest feature"` from this
+folder in PowerShell (or the equivalent `git add -A && git commit -m "..." && git push`) to make it
+live. Worth a quick manual click-through on the deployed site afterward (open any checklist page →
+the "Lock your saved data with a PIN" card in the sidebar → set up a PIN → close the tab → reopen →
+unlock with the PIN, then again with the recovery phrase) before telling any applicant about it,
+since this is the first time any part of this app has ever gated access behind something other than
+a URL.
+
+## PIN-lock feature: dedicated test coverage for the crypto core + full lock/unlock lifecycle
+
+Fifth building block. Every prior test file in `lib/security` exercised exactly one module in
+isolation (pinLock's crypto only incidentally, via other files' setup calls). Nothing had walked
+through the actual sequence a real applicant produces: set up a PIN, save data, sign out, come
+back later, unlock again, and only then trust the data survived. Three new test files close that
+gap, all still within this repo's plain-`node` Jest environment (no jsdom needed — Node 20+ exposes
+the same Web Crypto global a browser does):
+
+`pinLock.test.ts` — dedicated coverage for the crypto core itself for the first time: a correct PIN
+or recovery phrase unwraps to the same DEK either way; a wrong PIN, a single-digit-off PIN, and a
+wrong recovery phrase all fail closed (return null, never throw); `rewrapWithNewPin` (PIN change)
+lets the new PIN in and locks the old one out while leaving the recovery phrase valid; the
+encrypt/decrypt envelope round-trips, produces a different ciphertext each call (random IV), and
+returns null rather than garbage for a wrong DEK or malformed envelope; `generateRecoveryPhrase`
+never emits the visually-ambiguous characters it's documented to exclude.
+
+`lockStore.test.ts` — the plaintext bootstrapping layer (`sa_lock_v1`, `sa_lock_dismissed`) had no
+test file before this, despite everything else in the feature depending on it being correct: a
+`writeLockRecord`/`readLockRecord`/`hasLockRecord` round-trip, confirmation the record is stored as
+genuinely readable plain JSON (not an envelope) before any PIN exists, corrupted JSON failing safe
+rather than throwing, and the SSR no-op path (`typeof window === 'undefined'`) doing nothing rather
+than crashing during a server render.
+
+`fullLockFlow.test.ts` — the closest thing to an end-to-end test this repo's jsdom-less setup
+allows, since AppLockContext.tsx itself is a thin wrapper around exactly this sequence. Walks
+through: a brand-new applicant on passthrough saving/loading plaintext; opting in (setupPin +
+writeLockRecord + unlock) migrating that passthrough data to encrypted with zero data loss or
+re-entry; sign out + simulated tab close/reopen + unlock with the original PIN recovering the exact
+same data; a wrong PIN after reopening never unlocking anything and leaving the on-disk ciphertext
+untouched; a forgotten PIN recovered via the recovery phrase instead; changing the PIN mid-session
+and confirming the old PIN dies while the new PIN and the original recovery phrase both still work;
+the personal-tracker's non-`sa_`-prefixed key (`EXTRA_MANAGED_KEYS`, task #499) surviving the same
+lock/unlock cycle as every `sa_`-prefixed key; and the honest "lost both secrets = permanently
+unrecoverable" case, confirmed to fail safe rather than throw or silently succeed.
+
+One type-check-only wrinkle fixed along the way: three `__tests__` files with no top-level
+import/export are each treated as global scripts by `tsc --noEmit`'s whole-project check (ts-jest
+transpiles them independently and never saw this), so their identically-named local helper classes
+collided the moment a second and third file needed the same `FakeLocalStorage` pattern
+`secureStorage.test.ts` already used. Fixed with a plain `export {};` at the top of each to force
+module scope — cosmetic, no behavior change.
+
+Also marked task #496 (`lib/security/pinLock.ts`) complete in the task tracker — it was fully built,
+typecheck-clean, and already indirectly exercised by every other file in this feature, but had been
+left showing `in_progress` since the file was first written; this batch's dedicated test file is
+what closes it out properly.
+
+Verified: `tsc --noEmit` clean, 589/589 Jest tests passing (34 new, spread across the three files
+above), PII scan clean (316 files). Still not live for any applicant — task #501 is the
+CHANGELOG/handoff step before this whole feature actually ships.
+
+## PIN-lock feature: AppLock wired into the app + all ~20 call sites migrated to secureStorage
+
+Fourth building block of the "sign out" feature, and the one that actually turns it on. Mounted
+`AppLockProvider`/`AppLockGate` at the true app root (`app/layout.tsx`), wrapping every route —
+landing, login, admin, quiz, checklist, tracker, opportunities. Safe on day one because
+`AppLockGate` only ever shows `LockScreen` instead of the real app once a lock record exists on
+disk, which is false for every current applicant until they explicitly opt in.
+
+The 18 files identified in task #494's survey were migrated from raw `localStorage.getItem/
+setItem/removeItem` to the equivalent `secureStorage.*` calls (same keys, same JSON wrapping, same
+try/catch scaffolding — only the object the method is called on changed): `app/tracker/page.tsx`,
+`app/opportunities/page.tsx`, `app/quiz/page.tsx`, `app/checklist/start/page.tsx`,
+`lib/checklist/useChecklistState.ts`, `lib/checklist/useEditableChecklistState.ts`,
+`lib/checklist/financeStatementSync.ts`, and the checklist components CountryChecklistApp,
+ChecklistSidebar, SaveProgressPanel, ReasonsView, PassportCheck, StatementSlot, StatementCheck,
+NextStepsReport, FinancialCalculator, TravelHistory, and BusinessIncomeLedger. `lib/security/
+lockStore.ts`, `pinLock.ts`, and `secureStorage.ts` itself were deliberately left untouched — the
+lock record and setup-dismissed flag must always be plaintext-readable before any PIN exists, and
+the other two files are the security layer, not consumers of it.
+
+Migrating those call sites without more would have silently broken saving/loading for every
+current applicant (secureStorage's original design treated "no PIN ever set up" as permanently
+"locked" — always null reads, no-op writes). Added a `passthrough` mode to `secureStorage.ts`:
+while no lock record exists, `getItem`/`setItem` read and write real `localStorage` directly,
+unencrypted, exactly matching pre-existing behavior; `AppLockContext`'s mount effect turns it on
+via `enablePassthrough()` the moment it confirms no PIN has been set up, and `unlock()` turns it
+off, letting the existing legacy-plaintext-adoption scan sweep up and encrypt everything written
+during passthrough. Also added `EXTRA_MANAGED_KEYS` so the personal-tracker feature's non-`sa_`-
+prefixed storage key (`smoothApplication_oppTracker_v1`) still gets swept into the encrypted cache
+on unlock, without renaming it (renaming would have orphaned every existing applicant's saved
+tracker entries). Added 3 new Jest cases covering passthrough's read/write/transition behavior.
+
+Verified: `tsc --noEmit` clean, 555/555 Jest tests passing (3 new), PII scan clean (316 files).
+Still to come: a dedicated end-to-end verification pass for the lock/unlock/recovery flow itself
+(task #500) before this ships.
+
+## PIN-lock feature: AppLock context + LockScreen UI (not yet wired in)
+
+Third building block of the "sign out" feature. Built the React-side pieces on top of pinLock.ts
+and secureStorage.ts: `AppLockContext.tsx` (provider + `useAppLock()` hook — tracks `checking` /
+`no-pin` / `locked` / `unlocked` status, and exposes `setupPin`, `unlockWithPin`,
+`unlockWithRecoveryPhrase`, and `signOut`), `AppLockGate.tsx` (decides whether to render the real
+app or `LockScreen.tsx`), `LockScreen.tsx` (PIN entry, with a "forgot your PIN?" toggle to the
+recovery-phrase path), and the opt-in setup flow — `SetupPinPrompt.tsx` (a dismissible "🔒 Lock
+your saved data with a PIN" card) and `SetupPinModal.tsx` (choose a PIN, then a mandatory "I've
+written it down" step showing the one-time recovery phrase). Pure shape-validation logic (PIN
+format, recovery-phrase format, the "no-pin vs locked" decision) lives in `appLockState.ts`,
+unit-tested with 13 new Jest cases, since this repo's Jest config has no jsdom and can't render the
+React components directly (same constraint noted in secureStorage.test.ts).
+
+None of this is mounted anywhere yet — deliberately: it only gates rendering when a lock record
+already exists on disk, so wiring it in changes nothing for the ~100% of applicants who haven't
+opted in, but it still needs to go into the root layout and the ~20 existing call sites need to move
+from raw `localStorage` to `secureStorage` first (task #499) before "Set up a PIN" can actually do
+anything for a real applicant.
+
+Verified: `tsc --noEmit` clean, 552/552 Jest tests passing (13 new), PII scan clean (316 files).
+
+## PIN-lock feature: encrypted storage layer (`lib/security/secureStorage.ts`)
+
+Second building block of the "sign out so my data isn't readable on a shared/stolen laptop"
+feature (`lib/security/pinLock.ts` built the PIN/recovery-phrase crypto core; this is the layer
+everything else in the app will read and write through once it's wired in). Since Web Crypto is
+async-only but the ~20 existing call sites read/write `localStorage` synchronously, this module
+does one async step on unlock — decrypt every `sa_`-prefixed value into an in-memory cache — and
+after that exposes synchronous `getItem`/`setItem`/`removeItem` that work against that cache, with
+each `setItem` firing off a background encrypt-and-persist to real `localStorage`. While locked,
+`getItem` always returns null and writes are dropped — no plaintext-fallback path exists. Legacy
+plaintext values found on unlock are adopted into the cache and immediately re-encrypted to disk.
+The lock record and the "setup dismissed" flag (`lockStore.ts`) are explicitly excluded from
+encryption, since they have to be readable before any PIN is typed. Added a 7-case Jest suite
+covering locked no-ops, unlock/persist round-trips, legacy-plaintext migration, `lock()` clearing
+the cache without disturbing what's already on disk, and the never-encrypted keys passing through
+untouched.
+
+Verified: `tsc --noEmit` clean, 539/539 Jest tests passing, PII scan clean (316 files). Still to
+come: the PIN-entry/lock-screen UI and wiring this module into the ~20 existing call sites (not
+yet user-facing).
+
 ## Sortable "Top consistent senders" table (name A→Z/Z→A, amount high→low/low→high)
 
 Direct instruction: "create where we can arrange the names alphabetically or the amount in highest

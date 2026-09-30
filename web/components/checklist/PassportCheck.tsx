@@ -14,6 +14,7 @@ import {
   deserializePassportFields,
   hasPassportFields,
 } from '@/lib/passport/persist';
+import * as secureStorage from '@/lib/security/secureStorage';
 
 // Task #503: the document checklist's "passport" item (lib/checklist/uk.ts etc., id: 'passport',
 // "Valid passport (covers your whole trip)") was never auto-ticked here — an applicant could scan
@@ -28,10 +29,10 @@ function autoTickPassportIfValid(checkedStorageKey: string, fields: FieldState) 
   const validity = getPassportValidityStatus(fields.expiryDate);
   if (!validity || validity.level !== 'ok') return;
   try {
-    const raw = localStorage.getItem(checkedStorageKey);
+    const raw = secureStorage.getItem(checkedStorageKey);
     const current = raw ? (JSON.parse(raw) as Record<string, boolean>) : {};
     if (current.passport) return; // already ticked — nothing changed, don't dispatch a no-op event
-    localStorage.setItem(checkedStorageKey, JSON.stringify({ ...current, passport: true }));
+    secureStorage.setItem(checkedStorageKey, JSON.stringify({ ...current, passport: true }));
     dispatchChecklistUpdated();
   } catch {
     /* ignore — worst case the applicant ticks it by hand on the checklist */
@@ -59,7 +60,7 @@ export type PassportCheckProps = {
 
 function loadSaved(storageKey: string): FieldState | null {
   try {
-    const raw = localStorage.getItem(storageKey);
+    const raw = secureStorage.getItem(storageKey);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as PersistedPassportFields;
     const fields = deserializePassportFields(parsed);
@@ -109,7 +110,7 @@ export default function PassportCheck({ countryCode }: PassportCheckProps) {
     // there's at least one non-empty field; an aborted/empty scan never touches localStorage.
     if (!hasPassportFields(fields)) return;
     try {
-      localStorage.setItem(storageKey, JSON.stringify(serializePassportFields(fields)));
+      secureStorage.setItem(storageKey, JSON.stringify(serializePassportFields(fields)));
     } catch {
       /* ignore */
     }
@@ -118,7 +119,7 @@ export default function PassportCheck({ countryCode }: PassportCheckProps) {
 
   function clearSaved() {
     try {
-      localStorage.removeItem(storageKey);
+      secureStorage.removeItem(storageKey);
     } catch {
       /* ignore */
     }

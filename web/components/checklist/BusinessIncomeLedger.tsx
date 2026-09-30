@@ -26,6 +26,7 @@ import {
   extractAccountHolderName,
   DateAmount,
 } from '@/lib/statement';
+import * as secureStorage from '@/lib/security/secureStorage';
 
 // Port of index.html's Business Income Record (task #319 selection "Business income ledger" —
 // see web/lib/statement/business.ts for the pure filtering/row logic and its scope note). Some
@@ -77,7 +78,7 @@ interface SavedBizLedger {
 
 function loadSaved(storageKey: string): SavedBizLedger | null {
   try {
-    const raw = localStorage.getItem(storageKey);
+    const raw = secureStorage.getItem(storageKey);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as SavedBizLedger;
     if (!parsed || !Array.isArray(parsed.credits)) return null;
@@ -89,7 +90,7 @@ function loadSaved(storageKey: string): SavedBizLedger | null {
 
 function loadPersonalStatement(storageKey: string): PersistedStatement | null {
   try {
-    const raw = localStorage.getItem(storageKey);
+    const raw = secureStorage.getItem(storageKey);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as PersistedStatement;
     if (!parsed || !Array.isArray(parsed.txns)) return null;
@@ -164,7 +165,7 @@ export default function BusinessIncomeLedger({ countryCode }: BusinessIncomeLedg
         businessName,
         detectedHolderName,
       };
-      localStorage.setItem(storageKey, JSON.stringify(payload));
+      secureStorage.setItem(storageKey, JSON.stringify(payload));
     } catch {
       /* ignore */
     }
@@ -204,7 +205,7 @@ export default function BusinessIncomeLedger({ countryCode }: BusinessIncomeLedg
 
   function clearSaved() {
     try {
-      localStorage.removeItem(storageKey);
+      secureStorage.removeItem(storageKey);
     } catch {
       /* ignore */
     }

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { COUNTRIES } from '@/lib/checklist/countries';
 import { trackEvent } from '@/lib/analytics';
+import * as secureStorage from '@/lib/security/secureStorage';
 
 // Phase 1 port of index.html's #consentGate — country picker + guidance-only disclaimer + consent
 // checkbox. Selection is kept in this browser only (localStorage), same as index.html: nothing
@@ -33,7 +34,7 @@ export default function ChecklistStartPage() {
     if (!canContinue || !country) return;
     trackEvent('session_started:' + country.code);
     try {
-      localStorage.setItem('sa_country', country.code);
+      secureStorage.setItem('sa_country', country.code);
     } catch {
       // localStorage unavailable (private browsing, etc.) — country still gets passed via query.
     }

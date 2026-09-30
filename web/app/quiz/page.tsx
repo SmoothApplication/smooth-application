@@ -13,6 +13,7 @@ import {
   quizScore,
 } from '@/lib/quiz-score';
 import { trackEvent } from '@/lib/analytics';
+import * as secureStorage from '@/lib/security/secureStorage';
 
 // Phase 4d of task #244, expanded per user feedback ("the test in the github is 10 questions"):
 // index.html's pre-checklist "confidence quiz" is 10 questions across 2 paged steps with a real
@@ -129,7 +130,7 @@ export default function ConfidenceQuizPage() {
 
   function handleContinue() {
     try {
-      localStorage.setItem(QUIZ_PREFILL_KEY, JSON.stringify(quizAnswersToChecklistPrefill(answers)));
+      secureStorage.setItem(QUIZ_PREFILL_KEY, JSON.stringify(quizAnswersToChecklistPrefill(answers)));
     } catch {
       /* prefill just won't carry over — not fatal, the checklist form still works manually */
     }

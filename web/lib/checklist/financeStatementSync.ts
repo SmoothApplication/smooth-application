@@ -16,6 +16,7 @@
 import { computeMonthlyCashFlow, deserializeTxns, PersistedStatement } from '@/lib/statement';
 import { CF_MONTHS, DEFAULT_FINANCIAL_INPUTS, FinancialInputs } from './financial';
 import { dispatchFinancialUpdated } from './liveUpdateEvents';
+import * as secureStorage from '@/lib/security/secureStorage';
 
 /** Reads every persisted statement (both slots, dual-account support from task #420) for a given
  * country and returns their parsed transactions combined. Shared by FinancialCalculator.tsx (its
@@ -25,7 +26,7 @@ export function readPersistedTxnsForCashFlow(lowerCode: string) {
   const all = [];
   for (const key of keys) {
     try {
-      const raw = localStorage.getItem(key);
+      const raw = secureStorage.getItem(key);
       if (!raw) continue;
       const parsed: PersistedStatement = JSON.parse(raw);
       if (parsed?.txns?.length) all.push(...deserializeTxns(parsed.txns));
@@ -59,7 +60,7 @@ export function syncFinancialInputsFromStatement(lowerCode: string): void {
   const storageKey = `sa_${lowerCode}_financial`;
   let current: FinancialInputs = DEFAULT_FINANCIAL_INPUTS;
   try {
-    const raw = localStorage.getItem(storageKey);
+    const raw = secureStorage.getItem(storageKey);
     if (raw) current = { ...DEFAULT_FINANCIAL_INPUTS, ...JSON.parse(raw) };
   } catch {
     /* start fresh */
@@ -83,7 +84,7 @@ export function syncFinancialInputsFromStatement(lowerCode: string): void {
   if (JSON.stringify(next) === JSON.stringify(current)) return;
 
   try {
-    localStorage.setItem(storageKey, JSON.stringify(next));
+    secureStorage.setItem(storageKey, JSON.stringify(next));
     dispatchFinancialUpdated();
   } catch {
     /* best effort - the applicant's own typed figures are never at risk either way */

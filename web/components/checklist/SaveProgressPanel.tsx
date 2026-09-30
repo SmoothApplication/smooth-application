@@ -5,6 +5,7 @@ import { Answers } from '@/lib/checklist/uk';
 import { DEFAULT_FINANCIAL_INPUTS, FinancialInputs } from '@/lib/checklist/financial';
 import { COUNTRIES } from '@/lib/checklist/countries';
 import { trackEvent } from '@/lib/analytics';
+import * as secureStorage from '@/lib/security/secureStorage';
 
 // Task #421 (save/report-by-email redesign, direct request): "this save file, I want it to be a
 // link or a tab beneath the page where you have your responsibility... when you save, it shows you
@@ -41,7 +42,7 @@ export default function SaveProgressPanel({ code, answers, checked }: SaveProgre
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(financialKey);
+      const raw = secureStorage.getItem(financialKey);
       if (raw) setFinancialInputs({ ...DEFAULT_FINANCIAL_INPUTS, ...JSON.parse(raw) });
     } catch {
       /* no financial data saved yet */
@@ -74,7 +75,7 @@ export default function SaveProgressPanel({ code, answers, checked }: SaveProgre
 
   function readRawStatement(key: string): unknown | null {
     try {
-      const raw = localStorage.getItem(key);
+      const raw = secureStorage.getItem(key);
       return raw ? JSON.parse(raw) : null;
     } catch {
       return null;

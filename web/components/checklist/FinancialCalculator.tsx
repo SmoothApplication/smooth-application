@@ -12,6 +12,7 @@ import SessionShell from '@/components/checklist/SessionShell';
 import { COUNTRIES } from '@/lib/checklist/countries';
 import { computeMonthlyCashFlow } from '@/lib/statement';
 import { readPersistedTxnsForCashFlow } from '@/lib/checklist/financeStatementSync';
+import * as secureStorage from '@/lib/security/secureStorage';
 
 // Direct user report during launch: "when you put in your bank statement... your six months
 // report doesn't show." The original GitHub Pages app auto-filled this section's cash-flow table
@@ -59,7 +60,7 @@ export default function FinancialCalculator({ countryCode }: FinancialCalculator
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(storageKey);
+      const saved = secureStorage.getItem(storageKey);
       if (saved) setInputs({ ...DEFAULT_FINANCIAL_INPUTS, ...JSON.parse(saved) });
     } catch {
       /* start fresh */
@@ -88,7 +89,7 @@ export default function FinancialCalculator({ countryCode }: FinancialCalculator
   useEffect(() => {
     if (!loaded) return;
     try {
-      localStorage.setItem(storageKey, JSON.stringify(inputs));
+      secureStorage.setItem(storageKey, JSON.stringify(inputs));
     } catch {
       /* ignore */
     }

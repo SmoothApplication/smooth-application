@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Answers, DEFAULT_ANSWERS } from '@/lib/checklist/uk';
 import { ALL_CHECKLISTS } from '@/lib/checklist/all';
 import { CHECKLIST_UPDATED_EVENT } from '@/lib/checklist/liveUpdateEvents';
+import * as secureStorage from '@/lib/security/secureStorage';
 
 // Read-only mirror of the answers/checked state CountryChecklistApp owns (sa_<code>_answers /
 // sa_<code>_checked), for pages that need the Documents-readiness score (the sidebar) but aren't
@@ -24,8 +25,8 @@ export function useChecklistState(code: string) {
     const lower = code.toLowerCase();
     function load() {
       try {
-        const a = localStorage.getItem(`sa_${lower}_answers`);
-        const c = localStorage.getItem(`sa_${lower}_checked`);
+        const a = secureStorage.getItem(`sa_${lower}_answers`);
+        const c = secureStorage.getItem(`sa_${lower}_checked`);
         if (a) setAnswers({ ...DEFAULT_ANSWERS, ...JSON.parse(a) });
         if (c) setChecked(JSON.parse(c));
       } catch {
