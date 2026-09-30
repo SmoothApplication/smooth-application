@@ -19,6 +19,7 @@ import {
 import StatementDashboard from '@/components/checklist/StatementDashboard';
 import ResumeReminderLinks from '@/components/checklist/ResumeReminderLinks';
 import { trackEvent } from '@/lib/analytics';
+import { syncFinancialInputsFromStatement } from '@/lib/checklist/financeStatementSync';
 
 // Task #420 (direct request): one statement's whole upload → parse → dashboard lifecycle, pulled
 // out of what used to be the entire body of StatementCheck.tsx so it can be mounted TWICE — once
@@ -177,6 +178,19 @@ export default function StatementSlot({
     setLoaded(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storageKey, answersStorageKey]);
+
+  // Direct user report (live, mid-session): "bank statement has been uploaded and analyzed, yet
+  // finances is reading 0". Seeds sa_<code>_financial's closing balance + cash flow from this
+  // statement the moment it's analyzed (or restored from a previous visit), so the sidebar's
+  // Finances score reflects real evidence without requiring a separate trip through the Financial
+  // calculator session first — see lib/checklist/financeStatementSync.ts for the non-destructive
+  // merge rules. storageKey is always `sa_<lowerCode>_statement` or `sa_<lowerCode>_statement_2`.
+  useEffect(() => {
+    if (!txns || txns.length === 0) return;
+    const match = storageKey.match(/^sa_(.+?)_statement/);
+    if (!match) return;
+    syncFinancialInputsFromStatement(match[1]);
+  }, [txns, storageKey]);
 
   // Save on every change, once loaded.
   useEffect(() => {

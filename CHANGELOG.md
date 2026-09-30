@@ -3,6 +3,43 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Sync Finances readiness score from an analyzed statement; collapse multi-payment sender lists
+
+Two direct live reports in the same sitting.
+
+"bank statement has been uploaded and analyzed, yet finances is reading 0" (screenshot: Documents
+0%/"Getting started", Finances 0%/"Enter your figures", right after fully analyzing a statement).
+Root cause: the sidebar's Finances score (`ChecklistSidebar.tsx`) reads `sa_<code>_financial`,
+historically written only by the separate Financial calculator session — an applicant who'd just
+finished the bank-statement session, with real evidence already sitting there (closing balance,
+months of cash flow), still saw the same neutral state as someone who'd done nothing at all.
+`lib/checklist/financeStatementSync.ts` now derives that evidence from whatever statement(s) have
+been analyzed and seeds `sa_<code>_financial` with it the moment analysis finishes (wired into
+`StatementSlot.tsx`), non-destructively — never overwriting a closing balance or cash-flow row the
+applicant already typed by hand. A new `sa:financial-updated` window event
+(`lib/checklist/liveUpdateEvents.ts`) lets `ChecklistSidebar.tsx` pick the change up immediately,
+without a page reload, since both components are mounted on the same page. Because a percentage
+still needs a trip cost to measure against (a separate field on the Financial calculator), the
+neutral-state label now distinguishes "Statement found — add trip cost" from a plain "Enter your
+figures" when there's truly nothing yet, so the applicant's completed work is acknowledged rather
+than looking ignored. `FinancialCalculator.tsx`'s own existing statement-to-cashflow auto-fill
+(task #454) now shares its txn-reading helper with this new sync path so the two can't drift.
+
+Second report (screenshot, same session): a sender with several flagged payments — 4 from "Xpedite
+Global Concept" — dumped every `month · amount × count` line into one run-on semicolon-separated
+sentence in the "same purpose" view, which got hard to read past a couple of lines. Any sender with
+more than one distinct payment line (`sg.subGroups.length > 1`) now collapses behind a "View N
+payments" `<details>` dropdown, closed by default; a sender with only one line is unchanged.
+
+Files: `web/lib/checklist/financeStatementSync.ts` (new), `web/lib/checklist/liveUpdateEvents.ts`
+(new), `web/components/checklist/StatementSlot.tsx`, `web/components/checklist/ChecklistSidebar.tsx`,
+`web/components/checklist/FinancialCalculator.tsx`, `web/components/checklist/StatementDashboard.tsx`.
+
+Verification: `tsc --noEmit` clean for every touched file (pre-existing, unrelated errors remain
+only in the in-progress `lib/security/pinLock.ts`); full `jest` run green, 532/532 tests passing,
+0 regressions. No automated test yet for the new sync/event path specifically — flagged for
+follow-up alongside the PIN-lock feature's own test pass.
+
 ## Group "Inflows that need an explanation" by sender, with a same/different-purpose dropdown
 
 Direct instruction, off a live screenshot showing 4 separate cards all headed "MARY

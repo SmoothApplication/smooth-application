@@ -14,6 +14,7 @@ import {
   computeFinanceReadiness,
   computeFinancials,
 } from '@/lib/checklist/financial';
+import { FINANCIAL_UPDATED_EVENT } from '@/lib/checklist/liveUpdateEvents';
 
 // Phase 1 of the checklist session/sidebar rebuild (task #380 — user compared the live site
 // against the original GitHub Pages site and asked to match its real structure: a persistent
@@ -68,12 +69,21 @@ export default function ChecklistSidebar({ code, name, checklist, answers, check
   const [financialInputs, setFinancialInputs] = useState<FinancialInputs | null>(null);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(financialKey);
-      if (raw) setFinancialInputs({ ...DEFAULT_FINANCIAL_INPUTS, ...JSON.parse(raw) });
-    } catch {
-      /* no financial data saved yet — sidebar shows the neutral "Enter your figures" state */
+    function loadFinancialInputs() {
+      try {
+        const raw = localStorage.getItem(financialKey);
+        if (raw) setFinancialInputs({ ...DEFAULT_FINANCIAL_INPUTS, ...JSON.parse(raw) });
+      } catch {
+        /* no financial data saved yet — sidebar shows the neutral "Enter your figures" state */
+      }
     }
+    loadFinancialInputs();
+    // Direct user report: after a bank statement is analyzed, StatementSlot.tsx seeds
+    // sa_<code>_financial with the derived closing balance/cash flow and fires this event — without
+    // it, this sidebar (mounted alongside the statement session on the very same page) wouldn't
+    // pick up the new data until a reload, even though the applicant's work just happened.
+    window.addEventListener(FINANCIAL_UPDATED_EVENT, loadFinancialInputs);
+    return () => window.removeEventListener(FINANCIAL_UPDATED_EVENT, loadFinancialInputs);
   }, [financialKey]);
 
   const docsPct = useMemo(() => computeRequiredPercent(checklist, answers, checked), [checklist, answers, checked]);
@@ -85,6 +95,13 @@ export default function ChecklistSidebar({ code, name, checklist, answers, check
   const finResult = useMemo(() => computeFinancials(financialInputs ?? DEFAULT_FINANCIAL_INPUTS), [financialInputs]);
   const finReadiness = useMemo(() => computeFinanceReadiness(finResult), [finResult]);
   const finEntered = finResult.totalCost > 0;
+  // Direct user report: a statement can be fully uploaded and analyzed (real closing balance +
+  // months of cash flow already synced in via financeStatementSync.ts) while totalCost is still 0
+  // because the trip-cost fields live on the separate Financial calculator session. Without this
+  // check that applicant saw the exact same "Enter your figures" neutral state as someone who had
+  // done nothing at all — technically accurate (there's no % to show without a cost to measure
+  // against) but reads as if the statement work wasn't counted. This distinguishes the two.
+  const hasStatementEvidence = finResult.totalFunds > 0 || finResult.hasCashFlowData;
   const finTone = !finEntered
     ? toneClasses('neutral')
     : finReadiness.percent >= 100
@@ -93,7 +110,9 @@ export default function ChecklistSidebar({ code, name, checklist, answers, check
     ? toneClasses('warning')
     : toneClasses('critical');
   const finLabel = !finEntered
-    ? 'Enter your figures'
+    ? hasStatementEvidence
+      ? 'Statement found — add trip cost'
+      : 'Enter your figures'
     : finReadiness.percent >= 100
     ? 'Looking solid'
     : finReadiness.percent >= 50

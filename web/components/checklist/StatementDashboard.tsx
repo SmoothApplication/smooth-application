@@ -1442,14 +1442,34 @@ function SenderInflowCard({
 
       {mode === 'same' ? (
         <>
-          <p className="mt-2 text-xs text-[#566a76]">
-            {sg.subGroups.map((g, i) => (
-              <span key={g.key}>
-                {i > 0 && '; '}
-                {g.month} · {formatAmount(g.amount)} × {g.count}
-              </span>
-            ))}
-          </p>
+          {/* Direct user report (screenshot, live): a sender with several payments — 4 from
+              "Xpedite Global Concept" in the reported case — used to dump every (month, amount)
+              line into one run-on semicolon-separated sentence, which got hard to read once a
+              sender had more than a couple of payments. Any sender with more than one distinct
+              line now collapses behind a "View N payments" toggle instead, closed by default; a
+              sender with only one line (nothing to collapse) still shows it plainly. */}
+          {sg.subGroups.length > 1 ? (
+            <details className="mt-2 text-xs text-[#566a76]">
+              <summary className="cursor-pointer font-medium text-accent">
+                View {sg.subGroups.length} payments
+              </summary>
+              <ul className="mt-1.5 flex flex-col gap-1">
+                {sg.subGroups.map((g) => (
+                  <li key={g.key}>
+                    {g.month} · {formatAmount(g.amount)} × {g.count}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          ) : (
+            <p className="mt-2 text-xs text-[#566a76]">
+              {sg.subGroups.map((g) => (
+                <span key={g.key}>
+                  {g.month} · {formatAmount(g.amount)} × {g.count}
+                </span>
+              ))}
+            </p>
+          )}
           <ReasonDropdown forKey={sg.senderKey} />
         </>
       ) : (

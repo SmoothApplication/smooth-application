@@ -10,30 +10,18 @@ import {
 } from '@/lib/checklist/financial';
 import SessionShell from '@/components/checklist/SessionShell';
 import { COUNTRIES } from '@/lib/checklist/countries';
-import { computeMonthlyCashFlow, deserializeTxns, PersistedStatement } from '@/lib/statement';
+import { computeMonthlyCashFlow } from '@/lib/statement';
+import { readPersistedTxnsForCashFlow } from '@/lib/checklist/financeStatementSync';
 
 // Direct user report during launch: "when you put in your bank statement... your six months
 // report doesn't show." The original GitHub Pages app auto-filled this section's cash-flow table
 // straight from the same statement upload used for the income analysis; this Next.js port left the
 // table pure manual-entry, disconnected from StatementCheck's already-parsed transactions (see
-// lib/statement/cashFlow.ts's own comment for the full root-cause). Reads the SAME localStorage
-// keys StatementSlot.tsx writes to (sa_<code>_statement[/_2]) — read-only here, never written back,
-// so nothing about the statement pages' own behavior changes.
-function readPersistedTxnsForCashFlow(lowerCode: string) {
-  const keys = [`sa_${lowerCode}_statement`, `sa_${lowerCode}_statement_2`];
-  const all = [];
-  for (const key of keys) {
-    try {
-      const raw = localStorage.getItem(key);
-      if (!raw) continue;
-      const parsed: PersistedStatement = JSON.parse(raw);
-      if (parsed?.txns?.length) all.push(...deserializeTxns(parsed.txns));
-    } catch {
-      /* nothing usable under this key */
-    }
-  }
-  return all;
-}
+// lib/statement/cashFlow.ts's own comment for the full root-cause). readPersistedTxnsForCashFlow
+// (lib/checklist/financeStatementSync.ts) reads the SAME localStorage keys StatementSlot.tsx writes
+// to (sa_<code>_statement[/_2]) — read-only here, never written back, so nothing about the
+// statement pages' own behavior changes. Shared with that file's own sync-on-analyze effect (task
+// #502) so the two auto-fill paths can never disagree.
 
 function cashFlowIsEmpty(rows: FinancialInputs['cashFlow']): boolean {
   return rows.every((r) => !r.month && !r.inflow && !r.outflow && !r.balance);
