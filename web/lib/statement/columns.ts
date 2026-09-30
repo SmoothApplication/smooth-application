@@ -62,9 +62,17 @@ export const AMOUNT_RE = /^-?\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?$|^-?\d+\.\d{2}$/;
 // "Withdrawal (N)", "Lodgement", "DR" — so matching has to survive currency symbols/codes glued onto the
 // word and still be exact for bare 2-3 letter abbreviations (so "dr"/"cr"/"bal" don't false-match inside
 // an unrelated word like "address").
+//
+// Real-data finding, from the "proper and easy to read financial analyses & report" quality audit: a
+// real Fidelity Bank statement labels its columns "Pay In"/"Pay Out" — neither matched any keyword
+// here, so detectColumnsAll never found a header, and every row fell back to the weaker order-based
+// heuristic. That heuristic still gets the numbers right, but its narration is the ENTIRE raw line
+// (date, duplicated amount figures, wrapped continuation text and all) rather than the cleaned text
+// buildCleanNarration produces once real columns are known — exactly the "clumsy" narration text this
+// audit was checking for. Added alongside "money in"/"money out", which this already covered.
 export const COL_LABELS: Record<'debit' | 'credit' | 'balance', string[]> = {
-  debit: ['debit', 'withdrawal', 'withdrawals', 'amount debited', 'money out', 'dr'],
-  credit: ['credit', 'deposit', 'deposits', 'lodgement', 'lodgements', 'amount credited', 'money in', 'cr'],
+  debit: ['debit', 'withdrawal', 'withdrawals', 'amount debited', 'money out', 'pay out', 'dr'],
+  credit: ['credit', 'deposit', 'deposits', 'lodgement', 'lodgements', 'amount credited', 'money in', 'pay in', 'cr'],
   balance: ['balance', 'closing balance', 'running balance', 'ledger balance', 'bal'],
 };
 

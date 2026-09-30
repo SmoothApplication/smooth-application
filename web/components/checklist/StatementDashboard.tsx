@@ -27,6 +27,9 @@ import {
   senderPairKey,
   computeMonthlyCashFlow,
   MonthlyCashFlowRow,
+  computeIncomeMatch,
+  buildIncomeMatchMessage,
+  IncomeMatchResult,
 } from '@/lib/statement';
 import { trackEvent } from '@/lib/analytics';
 // Direct user report, live parity check against the original GitHub Pages app: this Report tab was
@@ -209,6 +212,14 @@ interface StatementDashboardProps {
   businessCategoryChoices?: WorkCategoryMap;
   onEmployerCategoryChoicesChange?: (choices: WorkCategoryMap) => void;
   onBusinessCategoryChoicesChange?: (choices: WorkCategoryMap) => void;
+  /** Declared-vs-actual income mismatch check (lib/statement/incomeMatch.ts) — the applicant's own
+   * typed monthly income claim for each of employer/business, compared against what actually lands
+   * from that name in this statement. 0 means "not entered yet" (check stays dormant). Same
+   * uncontrolled-seed-plus-callback pattern as employerName/businessName above. */
+  employerDeclaredMonthlyIncome?: number;
+  onEmployerDeclaredMonthlyIncomeChange?: (v: number) => void;
+  businessDeclaredMonthlyIncome?: number;
+  onBusinessDeclaredMonthlyIncomeChange?: (v: number) => void;
   /** Link to the Report tab's "Financial readiness calculator" cross-reference (see ReportTab
    * below). Defaults to the UK's route so the standalone /checklist/statement-test dev page
    * (StatementUpload.tsx, which doesn't pass this) keeps working unchanged; every real checklist
@@ -247,6 +258,10 @@ export default function StatementDashboard({
   businessCategoryChoices: initialBusinessCategoryChoices,
   onEmployerCategoryChoicesChange,
   onBusinessCategoryChoicesChange,
+  employerDeclaredMonthlyIncome: initialEmployerDeclaredMonthlyIncome = 0,
+  onEmployerDeclaredMonthlyIncomeChange,
+  businessDeclaredMonthlyIncome: initialBusinessDeclaredMonthlyIncome = 0,
+  onBusinessDeclaredMonthlyIncomeChange,
   financialHref = '/checklist/uk/financial',
 }: StatementDashboardProps) {
   const [applicantName, setApplicantName] = useState(initialApplicantName);
@@ -260,6 +275,12 @@ export default function StatementDashboard({
   );
   const [businessCategoryChoices, setBusinessCategoryChoices] = useState<WorkCategoryMap>(
     initialBusinessCategoryChoices || {}
+  );
+  const [employerDeclaredMonthlyIncome, setEmployerDeclaredMonthlyIncome] = useState(
+    initialEmployerDeclaredMonthlyIncome
+  );
+  const [businessDeclaredMonthlyIncome, setBusinessDeclaredMonthlyIncome] = useState(
+    initialBusinessDeclaredMonthlyIncome
   );
   // Direct user report: "when you put in your bank statement, the first thing it shows is a
   // report" - the Report tab (plain-language readiness summary) was meant to be what an applicant
@@ -356,6 +377,14 @@ export default function StatementDashboard({
     onBusinessCategoryChoicesChange?.(businessCategoryChoices);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [businessCategoryChoices]);
+  useEffect(() => {
+    onEmployerDeclaredMonthlyIncomeChange?.(employerDeclaredMonthlyIncome);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [employerDeclaredMonthlyIncome]);
+  useEffect(() => {
+    onBusinessDeclaredMonthlyIncomeChange?.(businessDeclaredMonthlyIncome);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [businessDeclaredMonthlyIncome]);
   const [editingName, setEditingName] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
 
@@ -478,6 +507,23 @@ export default function StatementDashboard({
         ? computeWorkNameCheck({ label: 'business', name: businessName, altName: businessAltName }, txns)
         : null,
     [businessName, businessAltName, txns]
+  );
+
+  // Follow-up to workNameCheck (which only confirms the NAME shows up as a sender): does the
+  // AMOUNT actually landing match what the applicant says that employer/business pays them.
+  const employerIncomeMatch = useMemo(
+    () =>
+      employerCheck
+        ? computeIncomeMatch('employer', employerDeclaredMonthlyIncome, employerCheck)
+        : null,
+    [employerCheck, employerDeclaredMonthlyIncome]
+  );
+  const businessIncomeMatch = useMemo(
+    () =>
+      businessCheck
+        ? computeIncomeMatch('business', businessDeclaredMonthlyIncome, businessCheck)
+        : null,
+    [businessCheck, businessDeclaredMonthlyIncome]
   );
 
   function displayName(rawName: string): string {
@@ -648,6 +694,12 @@ export default function StatementDashboard({
           setEmployerCategoryChoices={setEmployerCategoryChoices}
           businessCategoryChoices={businessCategoryChoices}
           setBusinessCategoryChoices={setBusinessCategoryChoices}
+          employerDeclaredMonthlyIncome={employerDeclaredMonthlyIncome}
+          setEmployerDeclaredMonthlyIncome={setEmployerDeclaredMonthlyIncome}
+          businessDeclaredMonthlyIncome={businessDeclaredMonthlyIncome}
+          setBusinessDeclaredMonthlyIncome={setBusinessDeclaredMonthlyIncome}
+          employerIncomeMatch={employerIncomeMatch}
+          businessIncomeMatch={businessIncomeMatch}
         />
       )}
     </div>
@@ -1174,6 +1226,12 @@ function ReportTab({
   setEmployerCategoryChoices,
   businessCategoryChoices,
   setBusinessCategoryChoices,
+  employerDeclaredMonthlyIncome,
+  setEmployerDeclaredMonthlyIncome,
+  businessDeclaredMonthlyIncome,
+  setBusinessDeclaredMonthlyIncome,
+  employerIncomeMatch,
+  businessIncomeMatch,
 }: {
   totalIncomeIdentified: number;
   incomeSourceCount: number;
@@ -1197,6 +1255,12 @@ function ReportTab({
   setEmployerCategoryChoices: (updater: (prev: WorkCategoryMap) => WorkCategoryMap) => void;
   businessCategoryChoices: WorkCategoryMap;
   setBusinessCategoryChoices: (updater: (prev: WorkCategoryMap) => WorkCategoryMap) => void;
+  employerDeclaredMonthlyIncome: number;
+  setEmployerDeclaredMonthlyIncome: (v: number) => void;
+  businessDeclaredMonthlyIncome: number;
+  setBusinessDeclaredMonthlyIncome: (v: number) => void;
+  employerIncomeMatch: IncomeMatchResult | null;
+  businessIncomeMatch: IncomeMatchResult | null;
 }) {
   const unexplainedTotal = unexplainedInflows.reduce((s, t) => s + t.credit, 0);
   const incomeStatus: 'good' | 'warn' = unexplainedInflows.length === 0 ? 'good' : 'warn';
@@ -1513,6 +1577,9 @@ function ReportTab({
             check={employerCheck}
             categoryChoices={employerCategoryChoices}
             setCategoryChoices={setEmployerCategoryChoices}
+            declaredMonthlyIncome={employerDeclaredMonthlyIncome}
+            setDeclaredMonthlyIncome={setEmployerDeclaredMonthlyIncome}
+            incomeMatch={employerIncomeMatch}
           />
           <WorkNameFields
             label="Business"
@@ -1523,6 +1590,9 @@ function ReportTab({
             check={businessCheck}
             categoryChoices={businessCategoryChoices}
             setCategoryChoices={setBusinessCategoryChoices}
+            declaredMonthlyIncome={businessDeclaredMonthlyIncome}
+            setDeclaredMonthlyIncome={setBusinessDeclaredMonthlyIncome}
+            incomeMatch={businessIncomeMatch}
           />
         </div>
       </div>
@@ -1539,6 +1609,9 @@ function WorkNameFields({
   check,
   categoryChoices,
   setCategoryChoices,
+  declaredMonthlyIncome,
+  setDeclaredMonthlyIncome,
+  incomeMatch,
 }: {
   label: string;
   name: string;
@@ -1548,9 +1621,13 @@ function WorkNameFields({
   check: WorkNameCheckResult | null;
   categoryChoices: WorkCategoryMap;
   setCategoryChoices: (updater: (prev: WorkCategoryMap) => WorkCategoryMap) => void;
+  declaredMonthlyIncome: number;
+  setDeclaredMonthlyIncome: (v: number) => void;
+  incomeMatch: IncomeMatchResult | null;
 }) {
   const idBase = `statement-${label.toLowerCase()}-name`;
   const messages = check ? buildWorkNameCheckMessages(check) : [];
+  const incomeMatchMessage = incomeMatch ? buildIncomeMatchMessage(incomeMatch) : null;
 
   function setCategory(key: string, category: string) {
     setCategoryChoices((prev) => ({ ...prev, [key]: { ...prev[key], category } }));
@@ -1587,6 +1664,26 @@ function WorkNameFields({
             className="w-full rounded-lg border border-black/10 px-3 py-2 text-sm text-[#12232e]"
           />
         </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-[#566a76]" htmlFor={`${idBase}-declared-income`}>
+            What you say this {label.toLowerCase()} pays you/month{' '}
+            <span className="font-normal">(optional — ₦/month)</span>
+          </label>
+          <input
+            id={`${idBase}-declared-income`}
+            type="number"
+            min={0}
+            inputMode="numeric"
+            value={declaredMonthlyIncome || ''}
+            onChange={(e) => setDeclaredMonthlyIncome(Math.max(0, Number(e.target.value) || 0))}
+            placeholder="e.g. 500000"
+            className="w-full rounded-lg border border-black/10 px-3 py-2 text-sm text-[#12232e]"
+          />
+          <p className="mt-1 text-xs text-[#566a76]">
+            We&apos;ll compare this against what actually lands from &quot;{name || `your ${label.toLowerCase()}`}&quot;
+            in this statement.
+          </p>
+        </div>
       </div>
 
       {messages.map((m, i) => (
@@ -1604,6 +1701,17 @@ function WorkNameFields({
           {m.message}
         </div>
       ))}
+
+      {incomeMatchMessage && (
+        <div
+          className={`mt-2 rounded-lg p-3 text-sm ${
+            incomeMatchMessage.status === 'ok' ? 'bg-good-wash text-good' : 'bg-warn-wash text-warn-text'
+          }`}
+        >
+          {incomeMatchMessage.status === 'ok' ? '✅ ' : '⚠️ '}
+          {incomeMatchMessage.message}
+        </div>
+      )}
 
       {check && check.inflowMatches.length > 0 && (
         <div className="mt-2">

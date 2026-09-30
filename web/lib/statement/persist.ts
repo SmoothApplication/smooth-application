@@ -43,6 +43,13 @@ export interface PersistedStatement {
   employerAltName?: string;
   businessName?: string;
   businessAltName?: string;
+  /** Added for the declared-vs-actual income mismatch check (see incomeMatch.ts): the applicant's
+   * self-typed monthly income claim for each of employer/business, compared against what actually
+   * lands from that name in the statement. 0/undefined means "not entered yet" — the check only
+   * activates once a positive number is typed, same optional-for-backward-compat pattern as every
+   * other field on this interface. */
+  employerDeclaredMonthlyIncome?: number;
+  businessDeclaredMonthlyIncome?: number;
   /** Added for the work-payment reason categorization follow-up (see workNameCheck.ts's
    * WorkCategoryMap): the applicant's own confirmed/corrected category per matched employer/
    * business payment, keyed by inflowKey(t). Kept as two separate maps, not one, since the same

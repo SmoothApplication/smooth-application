@@ -11,6 +11,7 @@ export * from './business';
 export * from './businessDrawings';
 export * from './personalNameTally';
 export * from './workNameCheck';
+export * from './incomeMatch';
 export * from './combined';
 export * from './exportBreakdown';
 export * from './supportContact';

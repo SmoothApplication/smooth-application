@@ -97,6 +97,9 @@ export default function StatementSlot({
   const [businessAltName, setBusinessAltName] = useState('');
   const [employerCategoryChoices, setEmployerCategoryChoices] = useState<WorkCategoryMap>({});
   const [businessCategoryChoices, setBusinessCategoryChoices] = useState<WorkCategoryMap>({});
+  // Declared-vs-actual income mismatch check (incomeMatch.ts) — 0 means "not entered yet".
+  const [employerDeclaredMonthlyIncome, setEmployerDeclaredMonthlyIncome] = useState(0);
+  const [businessDeclaredMonthlyIncome, setBusinessDeclaredMonthlyIncome] = useState(0);
 
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -137,6 +140,8 @@ export default function StatementSlot({
       setBusinessAltName(saved.businessAltName || '');
       setEmployerCategoryChoices(saved.employerCategoryChoices || {});
       setBusinessCategoryChoices(saved.businessCategoryChoices || {});
+      setEmployerDeclaredMonthlyIncome(saved.employerDeclaredMonthlyIncome || 0);
+      setBusinessDeclaredMonthlyIncome(saved.businessDeclaredMonthlyIncome || 0);
       setRecalled(true);
     }
 
@@ -180,6 +185,8 @@ export default function StatementSlot({
         businessAltName,
         employerCategoryChoices,
         businessCategoryChoices,
+        employerDeclaredMonthlyIncome,
+        businessDeclaredMonthlyIncome,
       };
       localStorage.setItem(storageKey, JSON.stringify(payload));
     } catch {
@@ -202,6 +209,8 @@ export default function StatementSlot({
     businessAltName,
     employerCategoryChoices,
     businessCategoryChoices,
+    employerDeclaredMonthlyIncome,
+    businessDeclaredMonthlyIncome,
     storageKey,
   ]);
 
@@ -235,6 +244,8 @@ export default function StatementSlot({
     setBusinessAltName('');
     setEmployerCategoryChoices({});
     setBusinessCategoryChoices({});
+    setEmployerDeclaredMonthlyIncome(0);
+    setBusinessDeclaredMonthlyIncome(0);
     setRecalled(false);
     setFile(null);
     setError(null);
@@ -512,6 +523,10 @@ export default function StatementSlot({
         businessCategoryChoices={businessCategoryChoices}
         onEmployerCategoryChoicesChange={setEmployerCategoryChoices}
         onBusinessCategoryChoicesChange={setBusinessCategoryChoices}
+        employerDeclaredMonthlyIncome={employerDeclaredMonthlyIncome}
+        onEmployerDeclaredMonthlyIncomeChange={setEmployerDeclaredMonthlyIncome}
+        businessDeclaredMonthlyIncome={businessDeclaredMonthlyIncome}
+        onBusinessDeclaredMonthlyIncomeChange={setBusinessDeclaredMonthlyIncome}
         financialHref={financialHref}
       />
     </div>

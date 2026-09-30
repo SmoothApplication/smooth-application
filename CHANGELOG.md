@@ -3,6 +3,50 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Flag when declared income doesn't match what's actually landing from that employer/business
+
+Direct follow-up to the "expert-grade" report work above: `workNameCheck.ts` already confirms an
+employer/business NAME shows up as a real inflow sender, but never compared the AMOUNT landing
+against what the applicant actually claims to earn — exactly the kind of judgment call a 20-year
+statement reviewer applies by eye ("salary claimed ₦500k/month, but only ₦50k/month is actually
+landing here") that the pipeline hadn't yet codified. New `lib/statement/incomeMatch.ts`:
+`computeIncomeMatch(label, declaredMonthlyIncome, check)` compares a newly-added "what you say this
+employer/business pays you/month" field against `check.inflowTotal / check.distinctMonthsCount`
+(the average monthly total already confirmed as a direct inflow from that name), with a deliberately
+generous 30% tolerance band (`INCOME_MATCH_TOLERANCE`) so ordinary month-to-month pay variance isn't
+flagged as a mismatch. Three verdicts: `match`, `below_declared` (the actionable case — worded as a
+gap to explain or correct, same reviewer-framed tone as the rest of this engine) and
+`above_declared` (worded as a neutral note, not a warning — extra income landing is not itself
+suspicious). Returns `null` (check stays dormant) until both a declared amount is typed AND the name
+check has already confirmed at least one direct inflow to average against — this never duplicates
+or overrides workNameCheck's own "name not found" flagging.
+
+Wired into `StatementDashboard.tsx`'s existing "Employer/business income match" card
+(`WorkNameFields`): a new "What you say this employer/business pays you/month" number input sits
+alongside the existing name fields, and the resulting message renders directly under the existing
+name-match messages. Persisted via `persist.ts`'s `employerDeclaredMonthlyIncome`/
+`businessDeclaredMonthlyIncome` (optional, backward-compatible with existing saved payloads) and
+`StatementSlot.tsx`'s save/load/clear cycle, same pattern as every other field on this card.
+
+Nine new regression tests covering both null-guard cases, all three verdicts, the exact tolerance
+boundary, and each message's tone/status. `npx tsc --noEmit`: clean; `npx jest`: 487/487 passing, 0
+regressions.
+
+## Recognise "Pay In"/"Pay Out" column headers (fixes clumsy, duplicated-looking narration text)
+
+Second real-data finding from the same real-statement audit: the Fidelity Bank statement's columns
+are headed "Pay In"/"Pay Out" rather than any previously-recognised synonym (Credit/Debit, Money
+In/Money Out, etc.), so `detectColumnsAll` never found a header on it — every row fell back to the
+weaker order-based heuristic, which still gets the debit/credit/balance figures right but sets
+narration to the ENTIRE raw line: date, duplicated amount figures, and wrapped continuation text all
+glued together (e.g. `"24-Aug-26 24-Aug-26 NIP XPEDITE GLOBAL /InBranch NIP at 098 BOO 8,755,000.00
+10,054,240.08 Transfer XPEDITE GL"`). Added `'pay in'`/`'pay out'` to `COL_LABELS` in
+`lib/statement/columns.ts`, alongside the existing `'money in'`/`'money out'` entries. Once column
+detection succeeds, the real `buildCleanNarration` path takes over and the same row instead reads
+`"NIP XPEDITE GLOBAL /InBranch NIP at 098 BOO Transfer XPEDITE GL"` — no duplicated dates or amounts.
+Two new regression tests (header recognition + narration cleanliness). `npx tsc --noEmit`: clean;
+`npx jest`: 478/478 passing, 0 regressions.
+
 ## Let an applicant unlock a password-protected PDF statement inline, instead of a dead end
 
 Direct instruction, prompted by the password-protected-PDF gap the real-statement audit above
