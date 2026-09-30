@@ -101,6 +101,31 @@ async function loadPdfjs() {
   return pdfjsLib;
 }
 
+// Real-data finding, from the "proper and easy to read financial analyses & report" quality audit
+// (11 real founder-supplied statements simulated through this exact pipeline): one upload was
+// password-protected and failed with pdf.js's raw "No password given" message, surfaced to the
+// applicant as a generic "something went wrong, try a different file" error — no indication that
+// the *file itself* was fine and just needed its password typed in. Nigerian bank PDF exports are
+// very commonly password-protected by default (often with the account number, BVN, or date of
+// birth), so this is a real, not-rare failure mode for a busy applicant who doesn't know to look
+// for a "remove password" step before uploading.
+//
+// pdf.js reports this as a `PasswordException` from getDocument() itself (before any page is even
+// touched), with a `.code` distinguishing "no password was given yet" (1, NEED_PASSWORD) from "the
+// password given was wrong" (2, INCORRECT_PASSWORD). This wraps that into a typed error the caller
+// can check for with `instanceof`, so the UI can show an inline password field and retry — instead
+// of the applicant having to go find a separate PDF-unlocking tool before they can even start.
+export class StatementPasswordRequiredError extends Error {
+  /** True once the applicant has already typed a password and it was wrong; false the first time
+   * this file is opened with no password at all. */
+  incorrect: boolean;
+  constructor(incorrect: boolean) {
+    super(incorrect ? 'Incorrect password for this PDF.' : 'This PDF is password-protected.');
+    this.name = 'StatementPasswordRequiredError';
+    this.incorrect = incorrect;
+  }
+}
+
 /** Extract `Line[]` from a PDF File via pdf.js's text layer, bucketed by y-position into physical
  * lines (linesFromTextContent, ported in Phase 1). No OCR fallback here — this stays a pure text-
  * layer read, same as before, since lib/situation/extractLetterText.ts also calls this directly and
@@ -116,11 +141,26 @@ async function loadPdfjs() {
  * minified third-party library, which is consistent with the vague error the applicant saw. Pages
  * are now processed ONE AT A TIME instead (same lower-memory shape the OCR fallback below already
  * used), and a single page that still fails to extract is skipped with a console warning rather
- * than taking the entire statement down - a statement that's 99% readable should still work. */
-export async function getLinesFromPdf(file: File): Promise<Line[]> {
+ * than taking the entire statement down - a statement that's 99% readable should still work.
+ *
+ * `password` is optional and only needed for an encrypted PDF — see StatementPasswordRequiredError
+ * above for what happens when it's missing or wrong. */
+export async function getLinesFromPdf(file: File, password?: string): Promise<Line[]> {
   const pdfjsLib = await loadPdfjs();
   const buf = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  let pdf;
+  try {
+    pdf = await pdfjsLib.getDocument({ data: buf, password }).promise;
+  } catch (err) {
+    // pdf.js's own PasswordException — checked by name rather than instanceof since it's a class
+    // from a dynamically-imported module, which `instanceof` can't reliably match across the
+    // import boundary. code 2 = INCORRECT_PASSWORD (a password WAS tried and was wrong); anything
+    // else (usually 1, NEED_PASSWORD) means no password has been tried yet.
+    if (err && typeof err === 'object' && (err as { name?: string }).name === 'PasswordException') {
+      throw new StatementPasswordRequiredError((err as { code?: number }).code === 2);
+    }
+    throw err;
+  }
   const maxPages = Math.min(pdf.numPages, MAX_TEXT_PAGES);
   const allLines: Line[] = [];
   for (let p = 1; p <= maxPages; p++) {
@@ -165,14 +205,17 @@ async function pdfPageToCanvas(page: any, scale: number): Promise<HTMLCanvasElem
  * order/keyword/balance-delta heuristic takes over for these lines). Pages are OCR'd one at a time
  * (not in parallel) since each Tesseract.recognize() call is itself expensive; a 20-page scanned
  * statement can genuinely take a couple of minutes, same as it did in index.html. */
-export async function getLinesFromPdfWithOcrFallback(file: File): Promise<Line[]> {
-  const textLines = await getLinesFromPdf(file);
+export async function getLinesFromPdfWithOcrFallback(file: File, password?: string): Promise<Line[]> {
+  const textLines = await getLinesFromPdf(file, password);
   const totalChars = textLines.reduce((n, l) => n + l.text.length, 0);
   if (totalChars > OCR_FALLBACK_CHAR_THRESHOLD) return textLines;
 
   const pdfjsLib = await loadPdfjs();
   const buf = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  // getLinesFromPdf above already threw StatementPasswordRequiredError if this file needed a
+  // password it didn't have — reaching this getDocument call means it opened successfully once
+  // already, so no try/catch for PasswordException is needed a second time here.
+  const pdf = await pdfjsLib.getDocument({ data: buf, password }).promise;
   const maxPages = Math.min(pdf.numPages, MAX_OCR_PAGES);
   const pageTexts: string[] = [];
   for (let p = 1; p <= maxPages; p++) {
@@ -197,9 +240,9 @@ export async function getLinesFromImageFile(file: File): Promise<Line[]> {
  * photographed/scanned image) and returns the resulting `Line[]`. A PDF with too little extractable
  * text falls back to OCR automatically (getLinesFromPdfWithOcrFallback); an image file is always
  * OCR'd directly. Throws for anything else. */
-export async function getLinesFromFile(file: File): Promise<Line[]> {
+export async function getLinesFromFile(file: File, password?: string): Promise<Line[]> {
   if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '')) {
-    return getLinesFromPdfWithOcrFallback(file);
+    return getLinesFromPdfWithOcrFallback(file, password);
   }
   if (isSpreadsheetFile(file)) {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -232,15 +275,15 @@ export interface LinesWithMeta {
   ocrUsed: boolean;
 }
 
-export async function getLinesFromFileWithMeta(file: File): Promise<LinesWithMeta> {
+export async function getLinesFromFileWithMeta(file: File, password?: string): Promise<LinesWithMeta> {
   if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '')) {
-    const textLines = await getLinesFromPdf(file);
+    const textLines = await getLinesFromPdf(file, password);
     const totalChars = textLines.reduce((n, l) => n + l.text.length, 0);
     if (totalChars > OCR_FALLBACK_CHAR_THRESHOLD) return { lines: textLines, ocrUsed: false };
     // Same OCR fallback getLinesFromPdfWithOcrFallback runs - duplicated here (rather than having
     // that function report back its own path) so getLinesFromFile's existing callers/behavior stay
     // completely untouched.
-    const lines = await getLinesFromPdfWithOcrFallback(file);
+    const lines = await getLinesFromPdfWithOcrFallback(file, password);
     return { lines, ocrUsed: true };
   }
   if (isSpreadsheetFile(file)) {

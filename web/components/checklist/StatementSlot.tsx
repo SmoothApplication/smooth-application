@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getLinesFromFileWithMeta } from '@/lib/statement/extractFile';
+import { getLinesFromFileWithMeta, StatementPasswordRequiredError } from '@/lib/statement/extractFile';
 import {
   parseStatementLinesWithFallback,
   ParsedTxn,
@@ -106,6 +106,16 @@ export default function StatementSlot({
   // hit, so the error UI can offer a one-tap "message us now" link built specifically for it (see
   // lib/statement/supportContact.ts) — null whenever there's no error to show one for.
   const [failureReason, setFailureReason] = useState<StatementFailureReason | null>(null);
+  // Direct request: "how can an applicant open his/her passworded bank statement... we need to make
+  // it easier" — real Nigerian bank PDF exports are very often password-protected by default, and a
+  // busy applicant shouldn't have to go find a separate PDF-unlock tool before they can even start.
+  // getLinesFromFileWithMeta throws StatementPasswordRequiredError instead of the generic exception
+  // it used to (see extractFile.ts) when the file needs a password; this is that: true once we know
+  // this specific file needs one, so the upload card can swap its usual error banner for an inline
+  // password field + a friendly hint, and retry with whatever the applicant types.
+  const [needsPassword, setNeedsPassword] = useState(false);
+  const [passwordIncorrect, setPasswordIncorrect] = useState(false);
+  const [password, setPassword] = useState('');
 
   // Restore a previously-saved statement on mount — unchanged behavior from before this was split
   // out of StatementCheck.tsx, just keyed by whichever storageKey this instance was given.
@@ -229,6 +239,9 @@ export default function StatementSlot({
     setFile(null);
     setError(null);
     setFailureReason(null);
+    setNeedsPassword(false);
+    setPasswordIncorrect(false);
+    setPassword('');
   }
 
   async function handleAnalyze() {
@@ -238,7 +251,14 @@ export default function StatementSlot({
     setError(null);
     setFailureReason(null);
     try {
-      const { lines, ocrUsed: usedOcr } = await getLinesFromFileWithMeta(file);
+      const { lines, ocrUsed: usedOcr } = await getLinesFromFileWithMeta(
+        file,
+        needsPassword ? password : undefined
+      );
+      // A password (right or wrong) was only ever asked for because a previous attempt needed one;
+      // reaching this line means it worked, so drop that state rather than carry a stale flag.
+      setNeedsPassword(false);
+      setPasswordIncorrect(false);
       if (!lines.length) {
         setError(
           "We tried reading that file — including on-device OCR for a scanned or photographed statement — but couldn't make out any readable text in it. Try a clearer photo/scan (good lighting, holding it flat and steady), or a regular PDF/spreadsheet export from your bank."
@@ -270,6 +290,12 @@ export default function StatementSlot({
       setRecalled(false);
       trackEvent('statement_analysis:completed');
     } catch (err) {
+      if (err instanceof StatementPasswordRequiredError) {
+        setNeedsPassword(true);
+        setPasswordIncorrect(err.incorrect);
+        trackEvent(err.incorrect ? 'statement_analysis:password_incorrect' : 'statement_analysis:password_required');
+        return;
+      }
       const message = err instanceof Error ? err.message : String(err);
       setError(
         `Something went wrong while reading that file (${message}). Try a different PDF or spreadsheet export from your bank.`
@@ -337,17 +363,67 @@ export default function StatementSlot({
               setFile(e.target.files?.[0] ?? null);
               setError(null);
               setFailureReason(null);
+              setNeedsPassword(false);
+              setPasswordIncorrect(false);
+              setPassword('');
             }}
             className="mb-4 block w-full text-sm text-[#12232e] file:mr-3 file:rounded-lg file:border-0 file:bg-accent-wash file:px-3 file:py-2 file:text-sm file:font-medium file:text-accent hover:file:bg-accent/10"
           />
-          <button
-            type="button"
-            disabled={!file || uploading}
-            onClick={handleAnalyze}
-            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {uploading ? 'Analyzing…' : 'Analyze'}
-          </button>
+
+          {needsPassword && (
+            // Direct request: "how can an applicant open his/her passworded bank statement... we
+            // need to make it easier" — instead of a dead end, let them type the password right
+            // here and retry in place. Nigerian bank PDF exports are commonly password-protected by
+            // default (often with the account number, BVN, or date of birth), so a short hint saves
+            // most applicants a trip to find that password.
+            <div className="mb-4 rounded-lg bg-accent-wash p-3" role="status">
+              <label
+                className="mb-1 block text-sm font-medium text-[#12232e]"
+                htmlFor={`${storageKey}-pdf-password`}
+              >
+                🔒 This PDF is password-protected
+                {passwordIncorrect ? ' — that password wasn’t right, try again' : ''}
+              </label>
+              <p className="mb-2 text-xs text-[#4c6270]">
+                Most Nigerian banks protect their statement PDFs by default — check the email or app
+                screen where you downloaded it. Common defaults include your account number, BVN, or
+                date of birth (as DDMMYYYY).
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  id={`${storageKey}-pdf-password`}
+                  type="password"
+                  autoComplete="off"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && file && !uploading && handleAnalyze()}
+                  placeholder="PDF password"
+                  className={`rounded-lg border px-3 py-2 text-sm text-[#12232e] ${
+                    passwordIncorrect ? 'border-warn-text' : 'border-black/20'
+                  }`}
+                />
+                <button
+                  type="button"
+                  disabled={!file || !password || uploading}
+                  onClick={handleAnalyze}
+                  className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {uploading ? 'Unlocking…' : 'Unlock & analyze'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {!needsPassword && (
+            <button
+              type="button"
+              disabled={!file || uploading}
+              onClick={handleAnalyze}
+              className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {uploading ? 'Analyzing…' : 'Analyze'}
+            </button>
+          )}
           {uploading && (
             <p className="mt-2 text-xs text-[#566a76]">
               This can take a few minutes for a scanned or photographed statement — it&apos;s read

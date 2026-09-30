@@ -16,13 +16,24 @@ export function parseLeadingDate(line: string): { date: Date; rest: string } | n
       return { date: d, rest: line.slice(m[0].length) };
     }
   }
-  m = line.match(/^\D{0,6}(\d{1,2})[\s\-\/](jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\s\-,\/]?\s*(\d{4})\b/i);
+  // Real-data finding, off a real Fidelity Bank statement (13-page, ~700-line export): its dates are
+  // "2-Mar-26" — day, abbreviated month, TWO-digit year — not the 4-digit year this regex originally
+  // required. That mismatch meant parseLeadingDate rejected every single row on the statement (its
+  // numeric-slash branch above doesn't match a month NAME either), so the whole document silently
+  // parsed to 0 transactions — no error, just an empty result, on an otherwise perfectly good
+  // statement. Widened to accept 2-4 digit years here too, with the same yy<100 -> +2000 expansion the
+  // numeric-date branch above already uses, so "26" and "2026" both resolve to the same date.
+  m = line.match(/^\D{0,6}(\d{1,2})[\s\-\/](jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\s\-,\/]?\s*(\d{2,4})\b/i);
   if (m) {
     const months: Record<string, number> = {
       jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
     };
-    const d2 = new Date(+m[3], months[m[2].toLowerCase().slice(0, 3)], +m[1]);
-    if (!isNaN(d2.getTime())) return { date: d2, rest: line.slice(m[0].length) };
+    let yy2 = +m[3];
+    if (yy2 < 100) yy2 += 2000;
+    const d2 = new Date(yy2, months[m[2].toLowerCase().slice(0, 3)], +m[1]);
+    if (!isNaN(d2.getTime()) && d2.getFullYear() > 2000 && d2.getFullYear() < 2100) {
+      return { date: d2, rest: line.slice(m[0].length) };
+    }
   }
   m = line.match(/^\D{0,6}(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})\b/);
   if (m) {

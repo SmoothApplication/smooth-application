@@ -3,6 +3,61 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Let an applicant unlock a password-protected PDF statement inline, instead of a dead end
+
+Direct instruction, prompted by the password-protected-PDF gap the real-statement audit above
+surfaced: "how can an applicant open his/her passworded bank statement. most people in this
+category are busy. we need to make it easier." Before this, `getLinesFromPdf` (extractFile.ts)
+let pdf.js's raw `PasswordException` bubble up as a generic thrown error, so an applicant who
+uploaded an encrypted statement just saw "Something went wrong while reading that file" — a dead
+end that implicitly told them to go find a separate tool to strip the password before they could
+even start.
+
+`getLinesFromPdf` now passes an optional `password` through to `pdfjsLib.getDocument`, and wraps
+its `PasswordException` in a new typed `StatementPasswordRequiredError` (distinguishing "no
+password tried yet" from "that password was wrong" via `.incorrect`) — threaded through
+`getLinesFromPdfWithOcrFallback`, `getLinesFromFile`, and `getLinesFromFileWithMeta` so every
+existing caller keeps working unchanged when no password is needed. `StatementSlot.tsx` (the real
+upload flow) catches this specific error and swaps its usual error banner for an inline password
+field right there on the upload card — with a short hint ("many banks default to your account
+number, BVN, or date of birth as DDMMYYYY") — so a busy applicant retries in place instead of
+leaving the page. Wrong password re-shows the same field with a "that password wasn't right, try
+again" cue rather than starting over.
+
+New regression test for the error class's own shape (`StatementPasswordRequiredError`'s
+`.incorrect` flag is what the UI branches on); `extractFile.ts` itself stays untestable end-to-end
+under Jest since it's browser-only (pdf.js/File API), same as the rest of that file always has
+been. `npx tsc --noEmit`: clean. `npx jest`: 476/476 passing, 0 regressions.
+
+## Fix: 2-digit-year month-name dates ("2-Mar-26") silently parsed to zero transactions
+
+Direct instruction: "proper and easy to read financial analyses & report is the soul of the
+website... Simulate the above bank statements and send me the PDF report" — a quality audit that
+ran 11 real, founder-supplied bank statements through the actual production parsing/scoring
+pipeline (Node-side, using the same compiled `lib/statement/*` + `lib/checklist/financial.ts`
+logic and the same `pdfjs-dist` text extraction the browser uses) rather than synthetic fixtures,
+to prove the Financial Summary Status column and Top-senders ratio (shipped earlier this session)
+hold up on real, messy statements.
+
+Found a real bug this way: one statement dates its rows "2-Mar-26" — day, abbreviated month name,
+TWO-digit year — and `parseLeadingDate`'s month-name regex only ever accepted a FOUR-digit year.
+Every row on that statement was silently rejected (no error, no transactions, just an empty
+result) on an otherwise perfectly good 13-page, ~700-line export. Widened the regex in
+`lib/statement/parse.ts` to accept 2–4 digit years after a month name, with the same `yy < 100 →
++2000` expansion the numeric-date branch already used, so "26" and "2026" resolve identically.
+After the fix that statement parses 382 real transactions and scores GOOD (7 of 9) instead of 0.
+
+Also confirmed (not yet fixed, flagged for follow-up): password-protected PDF statements can't be
+opened at all by either the live app or this audit (both use the same `pdf.js` extraction) — no
+specific guidance is shown to an applicant who hits this; and statements using the column-major
+fallback (whole vertical Date/Balance columns rather than row-by-row) correctly recover every
+transaction and balance figure but leave narration blank by design, so their Top-senders
+concentration reads 0% even when every inflow is genuine — worth a UI caveat when that fallback
+fires.
+
+Two new regression tests added (`two-digit-year-month-name-date.test.ts`). `npx jest`: 475/475
+passing, 0 regressions.
+
 ## Gate the income-breakdown spreadsheet behind an email address
 
 Direct instruction, on the statement page's Analysis tab: "make sure you request for email once
