@@ -911,6 +911,43 @@ function AnalysisTab({
   const topSendersRatio = totalInflow6mo > 0 ? topSendersTotal / totalInflow6mo : 0;
   const topSendersGood = topSendersRatio >= 0.5;
 
+  // Direct instruction: "create where we can arrange the names alphabetically or the amount in
+  // highest or lowest form" — sorting this table only ever changes display order, never the
+  // underlying topSenders.list the totals/ratio/duplicate-merge logic above and below still read
+  // from, so re-sorting can't silently change what counts as "good to go" or which senders show up
+  // in the 6-months-recurring warning further down.
+  const [senderSort, setSenderSort] = useState<{ key: 'name' | 'total'; dir: 'asc' | 'desc' } | null>(
+    null
+  );
+
+  function toggleSenderSort(key: 'name' | 'total') {
+    setSenderSort((prev) => {
+      if (prev && prev.key === key) return { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' };
+      // Sensible first click per column: names read naturally A→Z, amounts read naturally
+      // highest-first (matching the table's original default order).
+      return { key, dir: key === 'name' ? 'asc' : 'desc' };
+    });
+  }
+
+  const sortedSenders = useMemo(() => {
+    if (!senderSort) return topSenders.list;
+    const list = [...topSenders.list];
+    list.sort((a, b) => {
+      const cmp =
+        senderSort.key === 'name'
+          ? displayName(a.name).localeCompare(displayName(b.name))
+          : a.total - b.total;
+      return senderSort.dir === 'asc' ? cmp : -cmp;
+    });
+    return list;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [topSenders.list, senderSort]);
+
+  function sortArrow(key: 'name' | 'total') {
+    if (!senderSort || senderSort.key !== key) return '';
+    return senderSort.dir === 'asc' ? ' ▲' : ' ▼';
+  }
+
   return (
     <div className="flex flex-col gap-5">
       {groups.missingSalaryMonths && groups.missingSalaryMonths.length > 0 && (
@@ -1091,14 +1128,30 @@ function AnalysisTab({
               <thead>
                 <tr className="border-b border-black/10 text-xs uppercase tracking-wide text-[#566a76]">
                   <th className="py-2 pr-2">#</th>
-                  <th className="py-2 pr-2">Sender</th>
+                  <th className="py-2 pr-2">
+                    <button
+                      type="button"
+                      onClick={() => toggleSenderSort('name')}
+                      className="font-medium uppercase tracking-wide text-[#566a76] hover:text-accent"
+                    >
+                      Sender{sortArrow('name')}
+                    </button>
+                  </th>
                   <th className="py-2 pr-2 text-right">Distinct months</th>
                   <th className="py-2 pr-2 text-right">Payment(s)</th>
-                  <th className="py-2 text-right">Total</th>
+                  <th className="py-2 text-right">
+                    <button
+                      type="button"
+                      onClick={() => toggleSenderSort('total')}
+                      className="font-medium uppercase tracking-wide text-[#566a76] hover:text-accent"
+                    >
+                      Total{sortArrow('total')}
+                    </button>
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {topSenders.list.map((s, i) => {
+                {sortedSenders.map((s, i) => {
                   const isEditingThis = editingName === s.name;
                   const otherSenders = topSenders.list.filter((o) => o.name !== s.name);
                   return (

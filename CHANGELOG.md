@@ -3,6 +3,23 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Sortable "Top consistent senders" table (name A→Z/Z→A, amount high→low/low→high)
+
+Direct instruction: "create where we can arrange the names alphabetically or the amount in highest
+or lowest form" (screenshot of the Analysis tab's per-sender consistency table). `AnalysisTab`'s
+Sender and Total column headers are now clickable — first click on Sender sorts A→Z, first click
+on Total sorts highest-first (matching the table's previous unsorted default), and a second click
+on the same header reverses direction; a small ▲/▼ shows which column and direction is active.
+Sorting only ever changes display order (`sortedSenders`, a re-ordered copy) — the underlying
+`topSenders.list` still feeds the total/ratio/duplicate-merge/6-months-recurring logic elsewhere on
+the page unchanged, so re-sorting can't affect what counts as "good to go" or which senders trigger
+the recurring-inflow warning.
+
+File: `web/components/checklist/StatementDashboard.tsx`.
+
+Verification: `tsc --noEmit` clean; full `jest` run green, 532/532 tests passing, 0 regressions;
+`node scripts/pii-scan.js` clean (316 files).
+
 ## Fix Documents score not moving after a valid passport scan; reason dropdown for every income source, any amount; warn before emailing an unfinished breakdown
 
 Three items from the same session.
