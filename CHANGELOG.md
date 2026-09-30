@@ -42,8 +42,9 @@ follow-up alongside the PIN-lock feature's own test pass.
 
 ## Group "Inflows that need an explanation" by sender, with a same/different-purpose dropdown
 
-Direct instruction, off a live screenshot showing 4 separate cards all headed "MARY
-OLUWAFUNMILAYO AFENI": "to group all inflows from similar names together then you create a button
+Direct instruction, off a live screenshot showing 4 separate cards all headed with the same full
+sender name (real applicant data, not reproduced here — see the pii-scan denylist): "to group all
+inflows from similar names together then you create a button
 that says is it for the same purpose then the purpose has a drop down or for different purposes if
 you click for the same purposes it fills it straight into the excel file that is created that they
 are all for the same purposes if it fills for different purposes it will take the input for each
