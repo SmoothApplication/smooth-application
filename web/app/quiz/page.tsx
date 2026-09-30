@@ -327,7 +327,7 @@ export default function ConfidenceQuizPage() {
                 <button
                   type="submit"
                   disabled={!reportEmail.trim() || reportEmailStatus === 'saving'}
-                  className="rounded-md bg-accent px-3 py-2 text-sm font-semibold text-white transition-all duration-150 hover:bg-[#0e5a80] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+                  className="rounded-full bg-accent px-3 py-2 text-sm font-semibold text-white transition-all duration-150 hover:bg-accent-dark active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {reportEmailStatus === 'saving' ? 'Sending…' : 'Get full report'}
                 </button>

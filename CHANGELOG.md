@@ -3,6 +3,52 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Restyle every session to match the new homepage mockup (deep-green/gold/cream)
+
+Direct instruction: "based on the attached mock up create a look for session 1 to the last
+session." A new homepage mockup (Claude Design export) proposed a dark-forest-green/cream/gold
+"premium authority" look, replacing the site's original plain white/blue/system-sans-serif look —
+but only the homepage itself was designed; every other page (quiz, checklist sessions, statement
+dashboard, financial calculator, tracker, opportunities) was still the old palette, which would
+have been a jarring mismatch if the new homepage shipped alone. This pass retints the *existing*
+design-token system app-wide rather than hand-restyling each page, since almost every session
+already consumes a small set of shared Tailwind tokens/classes:
+
+- `tailwind.config.ts`: `accent` (the one shared brand/CTA color used everywhere) changed from
+  blue (`#12699a`) to deep forest green (`#145c44`), with a new `accent.dark` hover shade
+  (`#0c3d2d`) and a lighter `accent.wash` (`#e3efe8`). Added a new `gold` token
+  (`#c08a28`/`#96690f` dark/`#fbf0d9` wash) for the mockup's amber highlight accents, and a new
+  `cream`/`cream.soft` token (`#f7f5f0`/`#faf8f3`) for the warm body background — `#f7f5f0`
+  reuses the value `manifest.json`'s PWA `background_color` already had, so this is brand
+  continuity, not a new color from nowhere. Kept `good` (teal-green, status-only) and `warn`
+  distinct from the new `accent` green so a brand button is never visually confused with a
+  "status: good" badge.
+- `app/globals.css`: checkbox `accent-color` and the focus-ring `box-shadow` (the two values that
+  can't reach a Tailwind token directly) updated to match the new green. `.btn-primary` is now
+  pill-shaped (`rounded-full`, was `rounded-lg`) with `hover:bg-accent-dark` replacing a hardcoded
+  hex. Added `.btn-gold` for the occasional secondary/highlight CTA.
+- `app/layout.tsx`: site-wide `<body>` background changed from `bg-gray-50` to `bg-cream`; the
+  mobile-browser-chrome `<meta name="theme-color">` changed from `#1b6fa8` to `#145c44`.
+- `components/checklist/SessionShell.tsx` (the shared header/progress-bar/Back-Next chrome
+  rendered by every numbered session, 1 through the final Reasons session): sticky bar background
+  retinted from a cool blue-white to the new warm `cream.soft`; the "Reasons" pill switched from a
+  hardcoded dark navy to `bg-accent` so it reads as the new brand green.
+- Swept the remaining few hardcoded old-blue literals that weren't wired to the `accent` token and
+  so wouldn't have picked up the retint automatically: the homepage's main CTA button
+  (`app/page.tsx`), the quiz's "Get full report" button (`app/quiz/page.tsx`), and a left-border
+  accent on the Final review session's "Are you ready?" card (`FinalReviewSession.tsx`) — all
+  three now reference `accent`/`accent-dark` instead of a hex.
+
+Deliberately not done in this pass, disclosed rather than silently skipped: a serif/display
+headline typeface (the app only has Inter wired via `next/font`; matching the mockup's headline
+treatment would mean adding a second web font, a separate decision); rebuilding the homepage
+itself from the mockup (that's the mockup's own job when the user deploys it — this pass makes
+every *other* session consistent with it, not the other way round); and the admin dashboard
+(`app/admin/*`), which intentionally uses its own separate `brand` token and wasn't touched.
+
+Verified: `npx tsc --noEmit` clean, full `npx jest` 515/515 passing (no logic touched, only
+className/token values), `node scripts/pii-scan.js` clean (310 files).
+
 ## Warn (never block) when a statement isn't a current, genuine 6-month window
 
 Direct instruction, verbatim: "the applicant should be given a warning. It will still be

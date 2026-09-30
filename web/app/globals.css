@@ -12,9 +12,16 @@
      Not a full component library rewrite — just names for the patterns already used everywhere,
      so new and edited pages converge on one version instead of drifting further apart. */
 
+/* Homepage-mockup restyle ("session 1 to the last session" pass): retinted the checkbox accent
+   and focus ring to the new deep-green brand color (was the old blue, #12699a), and switched the
+   primary button to a pill shape to match the mockup's rounded CTAs. Everything below still
+   derives from the `accent`/`gold`/`cream` Tailwind tokens (tailwind.config.ts) wherever Tailwind
+   utility classes can reach — these two raw CSS values can't use a Tailwind token directly
+   (accent-color and box-shadow aren't @apply-able the same way), so they're hand-kept in sync
+   with accent.DEFAULT (#145c44) as a plain hex/rgba. */
 @layer base {
   input[type='checkbox'] {
-    accent-color: #12699a;
+    accent-color: #145c44;
     width: 1rem;
     height: 1rem;
   }
@@ -26,7 +33,7 @@
   textarea:focus-visible {
     outline: 2px solid transparent;
     outline-offset: 2px;
-    box-shadow: 0 0 0 3px rgba(18, 105, 154, 0.35);
+    box-shadow: 0 0 0 3px rgba(20, 92, 68, 0.35);
   }
 }
 
@@ -36,9 +43,17 @@
     @apply rounded-2xl border border-black/5 bg-white shadow-[0_8px_30px_-6px_rgba(18,35,46,0.10)];
   }
 
-  /* The solid accent CTA button used for every "primary" action (Continue, Start, Email me…). */
+  /* The solid accent CTA button used for every "primary" action (Continue, Start, Email me…).
+     Pill-shaped (rounded-full) and using the accent-dark token for hover, matching the new
+     mockup's button treatment. */
   .btn-primary {
-    @apply rounded-lg bg-accent px-4 py-3 text-center font-semibold text-white transition-all duration-150 hover:bg-[#0e5a80] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100;
+    @apply rounded-full bg-accent px-5 py-3 text-center font-semibold text-white transition-all duration-150 hover:bg-accent-dark active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100;
+  }
+
+  /* Secondary gold CTA — for the occasional highlight action that shouldn't compete with the
+     primary green button (e.g. a "see pricing" or premium-tier nudge). Used sparingly. */
+  .btn-gold {
+    @apply rounded-full bg-gold px-5 py-3 text-center font-semibold text-white transition-all duration-150 hover:bg-gold-dark active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100;
   }
 
   /* Text inputs and selects — one consistent border/radius/padding instead of the mix of

@@ -77,7 +77,7 @@ export default function FinalReviewSession({ code }: FinalReviewSessionProps) {
   return (
     <SessionShell code={code} name={name} session="final-review">
       <div className="flex flex-col gap-4">
-        <section className="rounded-lg border-l-4 border-l-[#1b6fa8] border border-black/10 bg-white p-4">
+        <section className="rounded-lg border-l-4 border-l-accent border border-black/10 bg-white p-4">
           <h2 className="mb-1 text-sm font-semibold text-[#12232e]">Are you ready?</h2>
           {requiredCount === 0 ? (
             <p className="text-sm text-[#4c6270]">

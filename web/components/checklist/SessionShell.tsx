@@ -38,7 +38,9 @@ export default function SessionShell({ code, name, session, children }: SessionS
   return (
     <main className="mx-auto flex min-h-screen max-w-5xl flex-col gap-5 p-6 pb-16 lg:flex-row lg:items-start">
       <div className="flex min-w-0 flex-1 flex-col gap-5">
-        <div className="sticky top-0 z-10 -mx-6 border-b border-black/10 bg-[#f7fafb]/95 px-6 py-3 backdrop-blur lg:mx-0 lg:rounded-lg lg:border">
+        {/* Homepage-mockup restyle: warm cream-tinted bar (was a cool blue-white, #f7fafb) so the
+            sticky chrome on every session matches the new cream/green palette. */}
+        <div className="sticky top-0 z-10 -mx-6 border-b border-black/10 bg-cream-soft/95 px-6 py-3 backdrop-blur lg:mx-0 lg:rounded-lg lg:border">
           <div className="flex items-start justify-between gap-3">
             <p className="text-xs font-medium text-[#566a76]">
               Session {idx + 1} of {total}:{' '}
@@ -59,7 +61,7 @@ export default function SessionShell({ code, name, session, children }: SessionS
             {session !== 'reasons' && (
               <Link
                 href={`/checklist/${code.toLowerCase()}/reasons`}
-                className="shrink-0 whitespace-nowrap rounded-full bg-[#12232e] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90"
+                className="shrink-0 whitespace-nowrap rounded-full bg-accent px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90"
               >
                 📖 Reasons
               </Link>

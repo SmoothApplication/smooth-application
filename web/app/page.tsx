@@ -91,7 +91,7 @@ export default function HomePage() {
 
         <Link
           href="/quiz"
-          className="mt-2 block rounded-lg bg-accent px-6 py-4 text-center text-lg font-extrabold uppercase tracking-wide text-white transition-all duration-150 hover:bg-[#0e5a80] active:scale-[0.98]"
+          className="mt-2 block rounded-full bg-accent px-6 py-4 text-center text-lg font-extrabold uppercase tracking-wide text-white transition-all duration-150 hover:bg-accent-dark active:scale-[0.98]"
         >
           Click here before you apply
         </Link>

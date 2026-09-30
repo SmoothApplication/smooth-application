@@ -90,14 +90,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={inter.variable}>
       <head>
-        <meta name="theme-color" content="#1b6fa8" />
+        {/* Homepage-mockup restyle: matches the new deep-green accent (was #1b6fa8, the old blue). */}
+        <meta name="theme-color" content="#145c44" />
         {/* eslint-disable-next-line react/no-danger */}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }}
         />
       </head>
-      <body className="min-h-screen bg-gray-50 font-sans text-gray-900 antialiased">
+      {/* Homepage-mockup restyle: warm cream sitewide background (was bg-gray-50), matching
+          manifest.json's existing PWA background_color for brand continuity. */}
+      <body className="min-h-screen bg-cream font-sans text-gray-900 antialiased">
         <Analytics />
         {children}
       </body>
