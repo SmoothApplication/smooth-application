@@ -73,6 +73,18 @@ function base64ToBytes(b64: string): Uint8Array {
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
 
+// Root cause of the web-test/Vercel-build CI failure on this file: the DOM lib this repo's
+// TypeScript version ships with narrowed `BufferSource` to require a view whose `.buffer` is
+// exactly `ArrayBuffer` (excluding `SharedArrayBuffer`). Every `Uint8Array` this module produces
+// (from `getRandomBytes`/`base64ToBytes`) is always backed by a real `ArrayBuffer` at runtime —
+// nothing here ever touches a SharedArrayBuffer — but its *type* is the wider `Uint8Array<ArrayBufferLike>`,
+// which no longer structurally satisfies that narrowed `BufferSource`. This one helper narrows it
+// back down at the handful of call sites that pass raw bytes into `crypto.subtle.*`, rather than
+// scattering the same cast across every call.
+function asBufferSource(bytes: Uint8Array): BufferSource {
+  return bytes as unknown as BufferSource;
+}
+
 /** Derives an AES-256-GCM key from a short secret (the PIN, or the recovery phrase) + salt via
  * PBKDF2. The derived key is used only to wrap/unwrap the real DEK — never to encrypt app data
  * directly — so it deliberately isn't marked extractable. */
@@ -80,7 +92,7 @@ async function deriveWrappingKey(secret: string, salt: Uint8Array, iterations: n
   const subtle = getSubtle();
   const baseKey = await subtle.importKey('raw', textEncoder.encode(secret), 'PBKDF2', false, ['deriveKey']);
   return subtle.deriveKey(
-    { name: 'PBKDF2', salt, iterations, hash: 'SHA-256' },
+    { name: 'PBKDF2', salt: asBufferSource(salt), iterations, hash: 'SHA-256' },
     baseKey,
     { name: 'AES-GCM', length: 256 },
     false,
@@ -128,13 +140,13 @@ export async function setupPin(pin: string): Promise<SetupResult> {
   const pinIvBytes = getRandomBytes(IV_BYTES);
   const pinKey = await deriveWrappingKey(pin, pinSaltBytes, PBKDF2_ITERATIONS);
   const subtle = getSubtle();
-  const wrappedByPin = await subtle.encrypt({ name: 'AES-GCM', iv: pinIvBytes }, pinKey, dekBytes);
+  const wrappedByPin = await subtle.encrypt({ name: 'AES-GCM', iv: asBufferSource(pinIvBytes) }, pinKey, asBufferSource(dekBytes));
 
   const recoveryPhrase = generateRecoveryPhrase();
   const recoverySaltBytes = getRandomBytes(SALT_BYTES);
   const recoveryIvBytes = getRandomBytes(IV_BYTES);
   const recoveryKey = await deriveWrappingKey(normalizeRecoveryPhrase(recoveryPhrase), recoverySaltBytes, PBKDF2_ITERATIONS);
-  const wrappedByRecovery = await subtle.encrypt({ name: 'AES-GCM', iv: recoveryIvBytes }, recoveryKey, dekBytes);
+  const wrappedByRecovery = await subtle.encrypt({ name: 'AES-GCM', iv: asBufferSource(recoveryIvBytes) }, recoveryKey, asBufferSource(dekBytes));
 
   const lockRecord: LockRecord = {
     v: 1,
@@ -162,9 +174,9 @@ async function unwrap(
     const key = await deriveWrappingKey(secret, base64ToBytes(saltB64), iterations);
     const subtle = getSubtle();
     const plainBuf = await subtle.decrypt(
-      { name: 'AES-GCM', iv: base64ToBytes(ivB64) },
+      { name: 'AES-GCM', iv: asBufferSource(base64ToBytes(ivB64)) },
       key,
-      base64ToBytes(wrappedB64)
+      asBufferSource(base64ToBytes(wrappedB64))
     );
     return bytesToBase64(new Uint8Array(plainBuf));
   } catch {
@@ -199,7 +211,7 @@ export async function rewrapWithNewPin(lockRecord: LockRecord, dek: string, newP
   const pinIvBytes = getRandomBytes(IV_BYTES);
   const pinKey = await deriveWrappingKey(newPin, pinSaltBytes, PBKDF2_ITERATIONS);
   const subtle = getSubtle();
-  const wrappedByPin = await subtle.encrypt({ name: 'AES-GCM', iv: pinIvBytes }, pinKey, dekBytes);
+  const wrappedByPin = await subtle.encrypt({ name: 'AES-GCM', iv: asBufferSource(pinIvBytes) }, pinKey, asBufferSource(dekBytes));
   return {
     ...lockRecord,
     pinSalt: bytesToBase64(pinSaltBytes),
@@ -218,9 +230,9 @@ const ENVELOPE_PREFIX = 'sa_enc1:';
 export async function encryptWithDek(dek: string, plaintext: string): Promise<string> {
   const subtle = getSubtle();
   const keyBytes = base64ToBytes(dek);
-  const key = await subtle.importKey('raw', keyBytes, { name: 'AES-GCM' }, false, ['encrypt']);
+  const key = await subtle.importKey('raw', asBufferSource(keyBytes), { name: 'AES-GCM' }, false, ['encrypt']);
   const iv = getRandomBytes(IV_BYTES);
-  const cipherBuf = await subtle.encrypt({ name: 'AES-GCM', iv }, key, textEncoder.encode(plaintext));
+  const cipherBuf = await subtle.encrypt({ name: 'AES-GCM', iv: asBufferSource(iv) }, key, asBufferSource(textEncoder.encode(plaintext)));
   return ENVELOPE_PREFIX + bytesToBase64(iv) + '.' + bytesToBase64(new Uint8Array(cipherBuf));
 }
 
@@ -234,11 +246,11 @@ export async function decryptWithDek(dek: string, envelope: string): Promise<str
   try {
     const subtle = getSubtle();
     const keyBytes = base64ToBytes(dek);
-    const key = await subtle.importKey('raw', keyBytes, { name: 'AES-GCM' }, false, ['decrypt']);
+    const key = await subtle.importKey('raw', asBufferSource(keyBytes), { name: 'AES-GCM' }, false, ['decrypt']);
     const plainBuf = await subtle.decrypt(
-      { name: 'AES-GCM', iv: base64ToBytes(parts[0]) },
+      { name: 'AES-GCM', iv: asBufferSource(base64ToBytes(parts[0])) },
       key,
-      base64ToBytes(parts[1])
+      asBufferSource(base64ToBytes(parts[1]))
     );
     return textDecoder.decode(plainBuf);
   } catch {
