@@ -3,6 +3,27 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Clarity: done checklist items collapse out of the way instead of staying in the flat list
+
+Another "perceived length" follow-up, from a quick mockup demo the user asked to see first ("show
+me a demo of what you have in mind" → "deploy your best"): a document-checklist category session
+showed every item flat regardless of checked state, so an applicant who'd already ticked 2 of 5
+items in a category still scrolled past those 2 every time to see what was left.
+`ChecklistCategorySession.tsx` now splits each list (the category's main items, and each subcat's
+own items) into still-to-do and already-done, via a new pure `splitDoneTodo()` helper in
+`lib/checklist/splitDoneTodo.ts`. Todo items render exactly as before; done items move into a
+closed-by-default "✓ N done — show" disclosure underneath, still checkable/uncheckable from inside
+it, just out of the way by default. The category header also gained a small "X of Y done" chip, so
+progress is visible at a glance without needing to open anything.
+
+Also checked the matching idea for the country consent page (fold the 3 always-visible disclaimer
+bullets into the existing "Read the full disclaimer" toggle) — turned out the bullets are already
+inside that same `<details>` in the real code, only the headline sits outside it, so no change was
+needed there; the demo mockup had been slightly off on this one screen.
+
+New test file `lib/checklist/__tests__/splitDoneTodo.test.ts` (5 tests) locks down the split logic
+in isolation. Full suite: 94/94 test files, 626/626 tests passing; `tsc --noEmit` clean.
+
 ## Clarity: Funded opportunities removed from the front page
 
 Direct user feedback (screenshot of the homepage top bar, followed by a clarifying message): the
