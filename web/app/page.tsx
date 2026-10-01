@@ -147,6 +147,19 @@ export default function HomePage() {
               <span>✓ Free</span>
               <span>✓ About 2 minutes</span>
               <span>✓ Personal to your situation</span>
+              {/* Real client feedback (forwarded WhatsApp message, shared by the user): someone who'd
+                  only seen the site from the outside said "I don't know if anybody would readily just
+                  upload details like their international passport and bank statement to a random
+                  site" — a hesitation that, until now, nothing on the homepage itself addressed. The
+                  one accurate reassurance that answers it directly ("processed entirely in your
+                  browser, never uploaded anywhere" — true end-to-end per StatementUpload.tsx/
+                  PassportScan.tsx's own file-level comments) previously only existed buried in the
+                  LAST item of a 6-item collapsed FAQ accordion near the page bottom, or in the trust
+                  card shown after finishing the quiz (task #396, deliberately deferred to right
+                  before document upload) — never visible to someone who lands on the homepage and
+                  doesn't click further. Matches this same row's existing ✓-prefixed, one-line style;
+                  no new section, no layout change. */}
+              <span>🔒 Docs stay on your device — never uploaded</span>
             </div>
           </div>
 

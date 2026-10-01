@@ -3,6 +3,26 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Homepage: surface the "docs never leave your device" reassurance above the fold
+
+Real feedback: the user shared a forwarded WhatsApp message from someone who'd only seen the site
+from the outside — "I don't know if anybody would readily just upload details like their
+international passport and bank statement to a random site." An audit of the homepage found that
+hesitation wasn't unreasonable: the one line that directly answers it ("processed entirely in your
+browser, never uploaded anywhere" — true end-to-end, per `StatementUpload.tsx`/`PassportScan.tsx`)
+only existed in two places, both reached late — the LAST item of a 6-item collapsed FAQ accordion
+near the page bottom (`<details>`, click required), and the trust card shown after finishing the
+10-question quiz (deliberately deferred to right before document upload, per task #396). Nothing
+in the hero — the first thing anyone sees — mentioned it at all; its existing trust row only said
+"✓ Free · ✓ About 2 minutes · ✓ Personal to your situation."
+
+Added a fourth line to that same hero row: "🔒 Docs stay on your device — never uploaded" — same
+one-line style as its neighbors, no new section or layout change. The FAQ item and the post-quiz
+trust card are untouched; this just stops the homepage itself from staying silent on the one
+concern most likely to make a first-time visitor bounce before ever reaching the quiz.
+
+Verified: `npx tsc --noEmit` (clean), `npx jest` (595/595 passing, 87/87 suites, no regressions).
+
 ## Fix: leading-wrapped narration text silently dropped (real client's employer name lost)
 
 Real client finding: the user had personally extracted a client's (Adepeju Popoola, Providus
