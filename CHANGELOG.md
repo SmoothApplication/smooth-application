@@ -3,6 +3,23 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Clarity: Funded opportunities removed from the front page
+
+Direct user feedback (screenshot of the homepage top bar, followed by a clarifying message): the
+site is for visa/financial-readiness prep, and "Funded opportunities" (scholarships/exchange
+programs) is an unrelated tangent competing for attention on the one page meant to pull someone in
+on that readiness pitch — "let's face it by removing funded opportunities from there and embed it
+within the website as it is in any other place but it should not be on the front page."
+
+Removed from `app/page.tsx` in both places it appeared: the header nav (`#how-it-works` / "Free
+checklists" / ~~"Funded opportunities"~~ / "Readiness Kits" / FAQ / Sign in) and the footer's "Get
+ready" link list. The `/opportunities` page itself is untouched — still reachable from where it
+already fit the flow before this change, `app/checklist/start/page.tsx`'s own "🎓 Funded
+opportunities" line (task #407), just no longer surfaced on the front page itself.
+
+`tsc --noEmit` clean; full suite still 93/93 test files, 621/621 tests passing (no test referenced
+the removed nav/footer text).
+
 ## Fix: skip the "Where are you in the process?" gate for visa-free countries (GH/KE/MA)
 
 Direct user feedback (screenshot of Ghana's situation gate): "once you click Ghana, you do not

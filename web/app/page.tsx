@@ -91,9 +91,13 @@ function Header() {
           <Link href="/checklist/start" className="hover:text-[#12232e]">
             Free checklists
           </Link>
-          <Link href="/opportunities" className="hover:text-[#12232e]">
-            Funded opportunities
-          </Link>
+          {/* Direct user feedback: Funded opportunities isn't part of what this site is for — the
+              homepage pulls someone in on financial-readiness/visa prep, and opportunities is an
+              unrelated tangent that just adds clutter up front. Removed from both this header nav
+              and the footer's "Get ready" list below (previously duplicated in both places) — the
+              /opportunities page itself is untouched and still reachable from where it actually
+              fits the flow (app/checklist/start/page.tsx's own "🎓 Funded opportunities" line next
+              to "Coming soon", task #407), just not surfaced on the front page any more. */}
           <a href="#readiness-kits" className="hover:text-[#12232e]">
             Readiness Kits
           </a>
@@ -432,11 +436,6 @@ export default function HomePage() {
               <li>
                 <Link href="/checklist/start" className="hover:text-accent">
                   Free checklists
-                </Link>
-              </li>
-              <li>
-                <Link href="/opportunities" className="hover:text-accent">
-                  Funded opportunities
                 </Link>
               </li>
               <li>
