@@ -120,8 +120,23 @@ export const NARRATION_WRAP_SKIP_RE =
 // an existing one — genuine trailing text is reference-number/merchant-detail continuation
 // ("/0000232...", "<AMAZON.CO.UK*...>"), never a transaction-type word. Stopping here leaves any
 // such line for mergeLeadingNarrationLines to correctly claim as the FOLLOWING row's leading text.
+//
+// Direct user report, same real Providus statement, a second instance of this exact wrap pattern
+// this regex didn't yet cover: "ACCOUNT TRANSFERS MOB: TRF FROM POPOOLA" sat on its own line
+// immediately above a dated row reading "...ADEPEJU ADETUTU 65******2249 TO WOSH VENTURES...". The
+// applicant's own name is "POPOOLA ADEPEJU ADETUTU" — "POPOOLA" is the last word of THIS orphan
+// line, the rest of her name opens the dated row below it, and neither "account" nor "transfers"
+// was in the keyword list, so the forward pass (above) swallowed this whole line as trailing text
+// of the PRECEDING (unrelated REMITA) transaction instead of leaving it for the backward pass to
+// correctly prepend here. The applicant's name then showed up truncated to just "Adepeju Adetutu"
+// everywhere this wrap pattern occurred — and, far more visibly, the half-sentence fragments this
+// produced ("...MOB: TRF FROM POPOOLA", "...MOB: TRF TO POPOOLA", etc.) got mistaken for distinct
+// garbled "sender names" sharing a few words with her real name, surfacing as a wall of nonsense
+// "same person — merge?" prompts in the Top 10 senders table. Added "account\s*transfers?" here so
+// this bank's own transaction-type phrasing is recognised exactly like "outward transfer"/"remita"
+// above.
 export const TRANSACTION_TYPE_OPENER_RE =
-  /^(outward|inward|point\s+of\s+sale|commission|vat\b|stamp\s*duty|duty|remita|nip\b|pos\b|atm\b|ussd\b|fee\b|charge\b|interest\b|withdrawal|deposit|reversal|rvsl\b|loan\b|salary\b|trf\b|neft\b|rtgs\b|ft\b|mobile|transfer|airtime|bill\s*payment|standing\s*order|direct\s*debit|card\s*payment|cheque|chq\b)/i;
+  /^(outward|inward|point\s+of\s+sale|commission|vat\b|stamp\s*duty|duty|remita|nip\b|pos\b|atm\b|ussd\b|fee\b|charge\b|interest\b|withdrawal|deposit|reversal|rvsl\b|loan\b|salary\b|trf\b|neft\b|rtgs\b|ft\b|mobile|account\s*transfers?|transfer|airtime|bill\s*payment|standing\s*order|direct\s*debit|card\s*payment|cheque|chq\b)/i;
 
 export function mergeWrappedNarrationLines(lines: Line[]): Line[] {
   const out: Line[] = [];

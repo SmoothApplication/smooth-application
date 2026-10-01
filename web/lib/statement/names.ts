@@ -481,6 +481,29 @@ export const RECIPIENT_MARKERS = ['TO', 'IFO'];
 // field pattern outside Remita narrations, so this is safe to apply unconditionally.
 const REMITA_NARRATION_FIELD_RE = /\bU\s*:/i;
 
+// Direct user report, same real Providus statement, a THIRD distinct narration bug (not a line-
+// wrap issue this time): "INWARD TRANSFER (N) FROM FBN/ POPOOLA ADEPEJU ADETUTU-FIPIBPSPOPOOLA
+// ADEPEJU ADPHUBOUTWARD23015711POPOOLA ADEPEJU ADETUTUPOPOPOP/000016260722142819002399411432" is
+// FBN's own narration format for this transfer TYPE: it prints the sender's name ONCE cleanly
+// ("POPOOLA ADEPEJU ADETUTU"), then glues an internal channel/session-ID blob directly onto more
+// repeats of that SAME name with no delimiting space at all ("-FIPIBPS" + "POPOOLA", "ADPHUBOUTWARD"
+// + a session number + "POPOOLA", "ADETUTU" + "POPOPOP"). Every one of those glued words still
+// "looks name-shaped" (has a vowel) and isn't a recognised stopword, so without this check the run
+// just kept absorbing them, producing a single garbled 9-word candidate name — which then surfaced
+// as a wall of nonsensical "same person — merge?" prompts in the UI (sharing a few words with the
+// applicant's real name, because they're literally built FROM it).
+//
+// The structural tell: once a real name is already a couple of words into a run, a LATER word that
+// repeats-with-extra-letters one of THOSE EARLIER WORDS (contains it as a substring, and is itself
+// longer) is never a genuine continuation of the same person's name — a real name doesn't restate
+// an earlier word of itself glued to other letters. Checked against every existing narration fixture
+// in this codebase's test suite with no match, so this is safe to apply unconditionally: once it
+// fires, the rest of this narration is treated as corrupted channel/session noise and dropped,
+// keeping only the clean name already built before it.
+function wordRepeatsEarlierRunWord(word: string, current: string[]): boolean {
+  return current.some((prior) => prior.length >= 4 && word.length > prior.length && word.indexOf(prior) !== -1);
+}
+
 export function extractNameCandidatesDetailed(narration: string): NameCandidate[] {
   const remitaField = REMITA_NARRATION_FIELD_RE.exec(narration || '');
   const narrationForNames = remitaField ? (narration || '').slice(0, remitaField.index) : narration;
@@ -489,6 +512,7 @@ export function extractNameCandidatesDetailed(narration: string): NameCandidate[
   let current: string[] = [];
   let lastStopword: string | null = null;
   let runMarker: string | null = null;
+  let corrupted = false;
   function flush() {
     if (current.length >= 2) {
       runs.push({ name: trimTrailingNonNameWords(trimLeadingBoilerplate(current)).join(' '), precededBy: runMarker });
@@ -498,7 +522,12 @@ export function extractNameCandidatesDetailed(narration: string): NameCandidate[
     current = [];
   }
   raw.forEach((w) => {
-    if (!w) return;
+    if (corrupted || !w) return;
+    if (current.length > 0 && w.length >= 3 && wordRepeatsEarlierRunWord(w, current)) {
+      flush();
+      corrupted = true;
+      return;
+    }
     if (BANK_NARRATION_STOPWORDS.indexOf(w) !== -1 || LIMITED_SUFFIX_RE.test(w)) {
       flush();
       lastStopword = w;

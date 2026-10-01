@@ -110,6 +110,28 @@ test('a long chain of consecutive dated rows, each needing a leading-merge, does
   expect(txns.map((t) => t.credit)).toEqual([600000, 600000, 600000, 600000]);
 });
 
+test('"ACCOUNT TRANSFERS" on its own leading line is recognised as a transaction-type opener, not stolen as trailing narration (applicant\'s own name recovered)', () => {
+  // Direct user report, same real Providus statement: a SECOND instance of the leading-wrap pattern
+  // above, with a different transaction-type phrase this regex didn't yet cover ("ACCOUNT TRANSFERS
+  // MOB: TRF FROM <name>" instead of "REMITA INFLOW R-.../<name>"). Before this fix, the forward
+  // pass swallowed "ACCOUNT TRANSFERS MOB: TRF FROM POPOOLA" whole as the PRECEDING (unrelated)
+  // transaction's trailing text, so the applicant's own name ("POPOOLA ADEPEJU ADETUTU") showed up
+  // truncated to just "ADEPEJU ADETUTU" on every transaction narrated this way — and, far more
+  // visibly, produced a wall of nonsense "same person — merge?" prompts in the Top 10 senders table
+  // (half-sentence fragments sharing a few words with her real name).
+  const lines: Line[] = [
+    header,
+    row('18-03-2026', 'SOME UNRELATED CHARGE', '50.00', '1,100,441.15'),
+    plain('ACCOUNT TRANSFERS MOB: TRF FROM POPOOLA'),
+    row('19-03-2026', 'ADEPEJU ADETUTU 65******2249 TO WOSH VENTURES', '86,820.00', '1,013,621.15'),
+  ];
+
+  const txns = parseStatementLinesWithFallback(lines);
+  expect(txns.length).toBe(2);
+  expect(txns[0].narration).not.toMatch(/POPOOLA/i);
+  expect(txns[1].narration).toMatch(/POPOOLA ADEPEJU ADETUTU/i);
+});
+
 test('a column-header row is never absorbed as leading narration, even against a general (non-Providus) header wording', () => {
   const genericHeader: Line = {
     text: 'Date Narration Money Out Money In Balance',

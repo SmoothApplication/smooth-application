@@ -3,6 +3,58 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fix: applicant's own name truncated/garbled on two more real narration shapes (same statement)
+
+Direct user report, live site, same real Providus statement as the REMITA fix below: "the name of
+the applicant was not extracted and ... there are jargons in the name because if the name ... was
+extracted which is Adepeju Adetutu Popoola [it] would have been seen ... rather than putting all
+the jargon words." Two distinct, previously-unhandled narration shapes were responsible:
+
+**1. A second "leading narration wrap" pattern parse.ts's `TRANSACTION_TYPE_OPENER_RE` didn't yet
+cover.** Some of this bank's transaction rows narrate as "ACCOUNT TRANSFERS MOB: TRF FROM POPOOLA"
+on their OWN physical line, immediately above the next dated row ("...ADEPEJU ADETUTU 65******2249
+TO WOSH VENTURES..."). Since "account transfers" wasn't in the recognised transaction-type-opener
+keyword list (only "remita", "outward", "commission", etc. were), the forward-wrap pass swallowed
+that whole line as the PRECEDING (unrelated) transaction's trailing text instead of leaving it for
+the backward pass to correctly prepend — so the applicant's own name showed up truncated to just
+"Adepeju Adetutu" everywhere this wrap pattern occurred. Added `account\s*transfers?` to the opener
+regex (same mechanism that already handled the REMITA case below).
+
+**2. A genuinely new bug class: a glued, repeated-name narration format.** Some inward transfers
+narrate as "INWARD TRANSFER (N) FROM FBN/ POPOOLA ADEPEJU ADETUTU-FIPIBPSPOPOOLA ADEPEJU
+ADPHUBOUTWARD23015711POPOOLA ADEPEJU ADETUTUPOPOPOP/...": the bank prints the sender's name once
+cleanly, then glues an internal channel/session-ID blob directly onto further repeats of that SAME
+name with no delimiting space at all. Every glued word still "looks name-shaped" (has a vowel) and
+isn't a recognised stopword, so `extractNameCandidatesDetailed` (`lib/statement/names.ts`) just kept
+absorbing them into one garbled 9-word candidate — which then surfaced as a wall of nonsensical
+"same person — merge?" prompts in the Top 10 senders table (half-sentence fragments sharing a few
+words with her real name, because they're literally built from it).
+
+Fixed with a new structural check: a later word that repeats-with-extra-letters an EARLIER word
+already in the same candidate run (contains it as a substring, and is itself longer) can never be a
+genuine continuation of the same person's name — a real name doesn't restate an earlier word of
+itself glued to other letters. Once detected, the rest of that narration is dropped as corrupted
+channel/session noise, keeping only the clean name already built before it. Checked against every
+existing narration fixture in this codebase's test suite with zero matches, so this is safe to apply
+unconditionally.
+
+Verified against the real statement: both garbled "Popoola Adepeju Adetutu Fipibps..." / "...Fipbr
+Popoola Adepeju Adtrf..." singleton groups are gone from the Top 10 senders table and
+`pendingDuplicates` list; her name now surfaces cleanly as "Popoola Adepeju Adetutu" /
+"Adepeju Adetutu Popoola" wherever it appears, merged correctly instead of scattered. The already-
+fixed REMITA/NIGERIAN grouping (below) is unaffected — still one group of 12, same total.
+
+Added `lib/statement/__tests__/leading-wrap-narration.test.ts` (1 new test: the "ACCOUNT TRANSFERS"
+leading-wrap case) and `lib/statement/__tests__/glued-repeated-name-narration.test.ts` (4 new tests:
+single-narration cleanup, a second glued-suffix shape, both merging into one sender group, and a
+check that ordinary two-word names are unaffected).
+
+Note for the applicant: this fix applies to future parses — her already-uploaded statement's stored
+transactions won't reflect it until she re-uploads the same PDF ("Upload a different statement" on
+the statement page), since the garbled text was baked in at parse time, before this fix existed.
+
+Verified: `npx tsc --noEmit` (clean), `npx jest` (608/608 passing, 90/90 suites, no regressions).
+
 ## Fix: REMITA-paid employer inflows splitting into garbled singleton sender groups
 
 Live user report: a real applicant's 12 genuinely-same-employer inflow transactions (paid via
