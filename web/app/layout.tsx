@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { Inter, Lora } from 'next/font/google';
 import './globals.css';
 import Analytics from '@/components/Analytics';
 import { AppLockProvider } from '@/lib/security/AppLockContext';
@@ -11,6 +11,16 @@ import AppLockGate from '@/components/security/AppLockGate';
 // unpolished. Inter is a free, self-hosted (via next/font/google, no external request at runtime)
 // typeface built for UI text at small sizes, applied once here so every page inherits it.
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
+
+// Task #505 (Phase 1 of the homepage mockup rebuild, #506): the mockup's headlines use a
+// high-contrast serif with friendly, moderate-stroke-contrast curves and a distinctive italic (see
+// the hero's "before" and section headers like "A refusal costs more than the fee") — Lora is the
+// closest free, self-hosted Google Font match, and (like Inter above) loads via next/font/google so
+// there's no external request at runtime. Exposed as its own CSS variable rather than replacing
+// Inter outright: Inter stays the body/UI text font everywhere (form fields, buttons, the checklist
+// itself), and this is opt-in per-element via Tailwind's new `font-serif` utility (see
+// tailwind.config.ts) — used only for headline-weight text on the marketing homepage, not sitewide.
+const lora = Lora({ subsets: ['latin'], variable: '--font-lora' });
 
 // Direct request: "create SEO for this website." Until now, smoothapplication.com's ONLY metadata
 // was a generic placeholder ("Applicant accounts and admin dashboards...") that didn't even
@@ -90,7 +100,7 @@ const JSON_LD = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="en" className={`${inter.variable} ${lora.variable}`}>
       <head>
         {/* Homepage-mockup restyle: matches the new deep-green accent (was #1b6fa8, the old blue). */}
         <meta name="theme-color" content="#145c44" />

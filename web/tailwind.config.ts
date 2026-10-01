@@ -9,6 +9,10 @@ const config: Config = {
         // Tailwind's own `font-sans` (the default on <body>, and Tailwind's implicit default
         // everywhere else) resolve to Inter instead of the browser's system font stack.
         sans: ['var(--font-inter)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        // Task #505: the mockup's headline typeface (Lora, via next/font/google — see
+        // app/layout.tsx). Opt-in via `font-serif`, used for headline-weight text only (currently
+        // the rebuilt homepage, task #506) — body/UI text everywhere else stays on `font-sans`/Inter.
+        serif: ['var(--font-lora)', 'ui-serif', 'Georgia', 'serif'],
       },
       colors: {
         // Admin-dashboard accent — kept separate from `accent` (the actual applicant-facing

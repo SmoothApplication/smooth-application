@@ -3,6 +3,53 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Homepage rebuild to match the mockup (tasks #505-506)
+
+Tasks #479-487 (earlier batch) only extracted the mockup's colors and applied them to the existing
+app chrome (SessionShell, checklist pages) — the actual homepage (`app/page.tsx`) itself was never
+rebuilt to match the mockup's real layout. This batch does that.
+
+**#505 (design tokens, Phase 1):** the one token the earlier palette pass didn't add was the
+mockup's serif headline typeface — every page still fell back to Inter for headlines too. Added
+Lora via `next/font/google` (same self-hosted, no-extra-request pattern already used for Inter),
+exposed as a `--font-lora` CSS variable in `app/layout.tsx`, and wired up as Tailwind's `font-serif`
+utility in `tailwind.config.ts`. Opt-in per element, not a sitewide swap — body/UI text (forms,
+buttons, the checklist itself) stays on Inter; `font-serif` is for headline-weight text only.
+
+**#506 (homepage rebuild, Phase 2):** rebuilt `app/page.tsx` from the ground up to match the
+mockup's structure: a header with real nav links (How it works, Free checklists, Funded
+opportunities, FAQ, Sign in), a hero with the serif headline and an illustrative sample-checklist
+panel, the "why preparation matters" stat band, a 3-step "how it works" section, a "common red
+flags" grid, an FAQ accordion, a closing CTA banner, and a full footer with real per-country
+checklist links.
+
+Two sections from the mockup are deliberately NOT here, per the user's own call when asked
+(the mockup only had `[PRICE]` placeholders and quotes literally reading "[Add a real quote from a
+past applicant]" — nothing real to ship):
+- A "Readiness Kits" paid-tier pricing section — no real product or price exists yet.
+- A testimonials/experience-stats band ("99% approval rate", "20 yrs", "50+ forms", "100+
+  applicants") — none of these figures are backed by real, sourced data the way every other number
+  on this page is (the "why preparation matters" stat band is carried over verbatim from the
+  previous homepage, same UK Home Office / Schengen sources, same still-unresolved caveat about the
+  UK's April 2026 fee rise making the £115-per-refusal input a little stale).
+
+Both sections can be added later once there's an actual priced product or actual testimonials to
+show — nothing architectural blocks adding them, they were just left out rather than shipped as if
+real. The "common red flags" grid (unexplained lump sums, income mismatches, trip-vs-savings,
+unproven ties to home) is NOT invented copy — it describes checks this app's statement analysis and
+financial-readiness tools already run for real. The FAQ answers are honest descriptions of the
+app's actual scope and behavior (free, not a guarantee, 8 real countries, browser-only processing),
+not marketing claims. The footer's "Contact" link reuses the existing WhatsApp support channel
+(`lib/statement/supportContact.ts`'s `FOUNDER_WHATSAPP_NUMBER`, already used elsewhere in the app)
+rather than inventing a new contact method.
+
+Not verified via a local `next build` — this sandbox has no network access to fonts.googleapis.com,
+so `next/font/google` fails to fetch even for Inter (which already builds fine in production today)
+purely because of that restriction, not a code issue. Verified instead: `tsc --noEmit` clean,
+589/589 Jest tests passing (no regressions), PII scan clean (329 files). Worth a visual check on
+Vercel's preview/production build once pushed, since this is the first real end-to-end render of
+the new layout.
+
 ## PIN-lock feature: ready to ship (tasks #496-#500 complete)
 
 Direct client complaint that started this: "he would prefer he can sign out and come back, so that
