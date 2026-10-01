@@ -37,6 +37,13 @@ const ANALYTICS_SITE_CODE = 'smoothapplication';
 //                                     "travel-history", "reasons", "tracker" (CountryChecklistApp.tsx)
 //   app:statement_analysis:attempted / :completed — the bank-statement analyzer funnel
 //                                     (StatementCheck.tsx)
+//   app:readiness_kits_view        — the homepage's Readiness Kits section scrolled into view
+//                                     (components/ReadinessKits.tsx), fired once per page load
+//   app:readiness_kits_cta_click:<kit> — a "Get my ___" CTA clicked; <kit> is "document_review" or
+//                                     "full_case_review" (ReadinessKits.tsx) — paired with
+//                                     :readiness_kits_view so the GoatCounter dashboard shows a
+//                                     real view→click conversion rate, not just raw click counts
+//                                     (task #513, direct request)
 // Task #419 (direct request: "I want it to count as it counts before so I can trace the number of
 // people who hit the website"): previously this script only loaded — and so only ever counted
 // anything — the first time a `trackEvent()` call happened to fire on a given page (a country

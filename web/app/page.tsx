@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { COUNTRIES } from '@/lib/checklist/countries';
 import { FOUNDER_WHATSAPP_NUMBER } from '@/lib/statement/supportContact';
+import ReadinessKits, { ReadinessKit } from '@/components/ReadinessKits';
 
 // Task #506 (Phase 2 of the homepage mockup rebuild — #505 added the Lora serif font token this
 // builds on). Replaces the stats-led front door from task #395/#396 with a fuller homepage matching
@@ -29,8 +30,14 @@ const WHATSAPP_HREF = `https://wa.me/${FOUNDER_WHATSAPP_NUMBER}`;
 // older $4/₦22,000 "first 100 applicants" test-promo price in SituationGate.tsx was retired to
 // match (see that file's own comment) rather than leaving two different prices for the same
 // service live at once.
-const READINESS_KITS = [
+//
+// `slug` (task #513, direct request: funnel tracking + a request log) feeds two things the plain
+// `name` string can't: a stable GoatCounter event suffix that survives a future copy/price edit to
+// `name`, and the `kit` value stored in readiness_kit_requests (migration
+// 0006_readiness_kit_requests.sql) — see components/ReadinessKits.tsx for where both are used.
+const READINESS_KITS: ReadinessKit[] = [
   {
+    slug: 'document_review',
     name: 'Document Review',
     priceNaira: '₦35,000',
     priceUsd: 'about $22',
@@ -41,6 +48,7 @@ const READINESS_KITS = [
     whatsappMessage: "Hi, I'd like to get the Document Review (₦35,000). Here's what I'm applying for:",
   },
   {
+    slug: 'full_case_review',
     name: 'Full Case Review + Correction Plan',
     priceNaira: '₦95,000',
     priceUsd: 'about $60',
@@ -60,6 +68,10 @@ const TESTIMONIALS = [
   { quote: 'He made me see the errors in my bank statement.', name: 'PJ' },
   { quote: 'I have not seen someone explain to me what inflows can do to my application.', name: 'Sam' },
   { quote: 'With what you wrote for me based on my inflow, I was able to get my Visa.', name: 'Femi' },
+  {
+    quote: 'He used my bank statement to fill my form, thereby enabling me to get my visa.',
+    name: 'Debo',
+  },
 ];
 
 function Header() {
@@ -296,41 +308,10 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Readiness Kits — paid human review tiers, see READINESS_KITS above for sourcing notes. */}
-      <section id="readiness-kits" className="mx-auto max-w-6xl px-4 py-16">
-        <p className="text-xs font-semibold uppercase tracking-wide text-accent">Want a second pair of eyes?</p>
-        <h2 className="mt-2 max-w-2xl font-serif text-3xl font-semibold text-[#12232e]">
-          The checklist is free. If you want someone experienced to check it for you, that&apos;s here too.
-        </h2>
-        <p className="mt-3 max-w-2xl text-sm text-[#4c6270]">
-          These are paid, done-by-hand reviews — not automated, and separate from the free Quick Check
-          and checklist above.
-        </p>
-        <div className="mt-8 grid gap-6 sm:grid-cols-2">
-          {READINESS_KITS.map((kit) => (
-            <div key={kit.name} className="card-surface border-t-4 border-accent p-6">
-              <p className="font-serif text-2xl font-bold text-[#12232e]">
-                {kit.priceNaira} <span className="text-lg font-semibold">{kit.name}</span>
-              </p>
-              <p className="mt-1 text-sm italic text-[#8a99a3]">
-                {kit.priceUsd} · delivered within {kit.deliveryDays}
-              </p>
-              <p className="mt-4 text-sm text-[#4c6270]">{kit.description}</p>
-              <p className="mt-4 text-sm text-[#12232e]">
-                <span className="font-semibold">Best for:</span> {kit.bestFor}
-              </p>
-              <a
-                href={`https://wa.me/${FOUNDER_WHATSAPP_NUMBER}?text=${encodeURIComponent(kit.whatsappMessage)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-4 inline-block font-semibold text-accent underline"
-              >
-                Get my {kit.name} →
-              </a>
-            </div>
-          ))}
-        </div>
-      </section>
+      {/* Readiness Kits — paid human review tiers. Pulled into its own client component
+          (components/ReadinessKits.tsx) for the view/click tracking it needs — see that file and
+          READINESS_KITS above for the full sourcing/tracking notes. */}
+      <ReadinessKits kits={READINESS_KITS} whatsappNumber={FOUNDER_WHATSAPP_NUMBER} />
 
       {/* Testimonials — real client quotes, see TESTIMONIALS above for sourcing notes. */}
       <section className="bg-accent-wash px-4 py-16">
@@ -339,7 +320,7 @@ export default function HomePage() {
           <h2 className="mt-2 max-w-2xl font-serif text-3xl font-semibold text-[#12232e]">
             From people who used the Document Review.
           </h2>
-          <div className="mt-8 grid gap-4 sm:grid-cols-3">
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {TESTIMONIALS.map((t) => (
               <div key={t.name} className="card-surface p-6">
                 <p className="font-serif text-lg italic leading-snug text-[#12232e]">&ldquo;{t.quote}&rdquo;</p>

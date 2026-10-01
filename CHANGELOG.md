@@ -3,6 +3,40 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## 4th testimonial + Readiness Kits funnel tracking + request log (task #513)
+
+Three asks from the same message, all closing gaps in the Readiness Kits feature shipped last
+batch (#511):
+
+**4th testimonial.** Added Debo's quote ("He used my bank statement to fill my form, thereby
+enabling me to get my visa.") to the `TESTIMONIALS` array in `app/page.tsx`. The grid is now 4
+cards (`sm:grid-cols-2 lg:grid-cols-4`, was 3).
+
+**Funnel tracking.** There was no way to see whether the free Quick Check → paid Readiness Kits
+upsell was actually converting — GoatCounter had pageviews but no view→click funnel for this
+section specifically. Extracted the Readiness Kits section out of `app/page.tsx` into its own
+client component, `components/ReadinessKits.tsx`, so it can use an `IntersectionObserver` to fire
+`app:readiness_kits_view` once when the section scrolls into view, and fire
+`app:readiness_kits_cta_click:<kit>` on each "Get my ___" click. Paired together on the GoatCounter
+dashboard, these give a real view→click conversion rate per kit instead of just raw click counts.
+Documented both event names in `lib/analytics.ts`'s existing event-name comment block.
+
+**Request log.** Right now a "Get my Document Review" click just opens WhatsApp — nothing in the
+app records that it happened, so the only way to track order volume was manually, in WhatsApp or
+email. Added a lightweight, deliberately anonymous log: a new `readiness_kit_requests` table
+(migration `0006_readiness_kit_requests.sql`, applied directly to production via the Supabase MCP
+tool — kit, price label, timestamp, and a `new`/`contacted`/`done` status, RLS-gated so only
+`admin_users` can read or update rows and only the service role can insert), a `POST`/`PATCH`
+API route at `app/api/readiness-kit-request/route.ts`, and a new admin page at
+`/admin/readiness-kits` (linked from the admin nav) showing total/not-yet-contacted/per-kit counts
+plus a table with a status dropdown. Deliberately not a CRM — no name, email or phone is collected,
+since a homepage click carries no identity until the applicant actually messages on WhatsApp;
+this is just a count of what was requested and when, so volume doesn't have to be tracked by hand
+anymore.
+
+Verified: `npx tsc --noEmit` (clean), `npx jest` (589/589 passing, 86/86 suites, no regressions),
+and `node scripts/pii-scan.js` (334 files after `git add -A` picked up the new files, clean).
+
 ## Real testimonials + serif/cream treatment on auth and legal pages (task #512)
 
 Two follow-ups, both closing out gaps flagged in earlier sessions:
