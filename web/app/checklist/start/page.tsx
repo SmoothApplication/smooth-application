@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { COUNTRIES } from '@/lib/checklist/countries';
+import { COUNTRIES, isTravelReadinessCountry } from '@/lib/checklist/countries';
 import { trackEvent } from '@/lib/analytics';
 import * as secureStorage from '@/lib/security/secureStorage';
 
@@ -48,8 +48,19 @@ export default function ChecklistStartPage() {
     // /situation page first (index.html's #situationGate, shown after the consent gate and before
     // the checklist) rather than straight to the checklist — see
     // components/checklist/SituationGate.tsx.
+    //
+    // Direct user feedback (screenshot of GH's situation gate, part of the same "perceived length"
+    // push as the chapter-grouped session header): "once you click Ghana, you do not need this
+    // page." Confirmed why — GH/KE/MA are visa-free "travel readiness" countries (see
+    // isTravelReadinessCountry's own comment in lib/checklist/countries.ts), so every option on
+    // that gate ("Refused before", "Already paid & filled", "Re-Applying") is a visa-application
+    // concept that doesn't apply to them. Those 3 codes skip straight to the real checklist's first
+    // session instead of stopping at a gate with nothing relevant to ask. UK/CA/EU/ZA/ET DO have a
+    // real visa or e-Visa application behind them, so the gate still earns its place for those.
     const readyPorted = ['UK', 'CA', 'EU', 'ZA', 'GH', 'KE', 'ET', 'MA'];
-    if (country.code === 'UK') {
+    if (isTravelReadinessCountry(country.code)) {
+      router.push(`/checklist/${country.code.toLowerCase()}/statement`);
+    } else if (country.code === 'UK') {
       router.push('/checklist/uk/situation');
     } else if (readyPorted.includes(country.code)) {
       router.push(`/checklist/${country.code.toLowerCase()}/situation`);

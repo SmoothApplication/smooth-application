@@ -3,6 +3,34 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fix: skip the "Where are you in the process?" gate for visa-free countries (GH/KE/MA)
+
+Direct user feedback (screenshot of Ghana's situation gate): "once you click Ghana, you do not
+need this page." Right call, and the reason makes sense once you look at what the page actually
+asks: "Refused before", "Already paid & filled", and "Re-Applying" are all visa-application
+concepts. Ghana, Kenya, and Morocco are visa-free "travel readiness" countries for Nigerian
+passport holders (see each one's own `visaName` in `lib/checklist/countries.ts`) — there's no visa
+to have been refused for, no fee to have already paid, nothing to be re-applying for. Every option
+on the gate was irrelevant to someone preparing one of these 3 trips, so it was a pure extra click
+with nothing real to offer — directly the kind of thing the tester's "too many questions" feedback
+was about.
+
+New `isTravelReadinessCountry()` / `TRAVEL_READINESS_CODES` in `lib/checklist/countries.ts` is the
+one source of truth for which 3 codes these are (previously duplicated as a private constant only
+inside the generic situation route, and only used there for "trip" vs. "application" wording).
+`app/checklist/start/page.tsx`'s Continue handler now routes GH/KE/MA straight to their checklist's
+first session instead of through `/situation`. `app/checklist/[country]/situation/page.tsx` itself
+now redirects away for these 3 codes as a safety net, in case anyone still lands on that URL
+directly (an old bookmark, the back button, a shared link) — so it's never a dead end, just an
+invisible pass-through. UK/CA/EU/ZA (real visa applications) and ET (a real e-Visa application)
+are unaffected — the gate's refusal-letter reading aid, paid-form finance cross-check, and
+re-applying history fields are all still exactly where they were for those 5.
+
+New test file `lib/checklist/__tests__/countries.test.ts` (4 tests) locks down which codes count as
+travel-readiness, including a cross-check against each country's own `visaName` text so the two
+can't quietly drift apart. Full suite: 93/93 test files, 621/621 tests passing; `tsc --noEmit`
+clean.
+
 ## Clarity: session header shows "Step 1 of 6" chapters instead of "Session 1 of 18"
 
 Real tester feedback (a forwarded WhatsApp message from a friend testing the UK flow): "the sites

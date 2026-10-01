@@ -139,3 +139,21 @@ export const COUNTRIES: CountryInfo[] = [
   { code: 'CN', flag: '🇨🇳', name: 'China', visaName: 'China visitor visa', ready: false },
   { code: 'US', flag: '🇺🇸', name: 'United States', visaName: 'US visitor visa (B1/B2)', ready: false },
 ];
+
+// Direct user feedback (screenshot of GH's "Where are you in the process?" situation gate):
+// "once you click Ghana, you do not need this page." Confirmed why: GH/KE/MA are visa-free
+// "travel readiness" countries (see each one's own visaName above) — there is no visa to have
+// been "Refused" for, no visa fee "Already paid", and nothing to be "Re-Applying" for, so every
+// option on that gate is a visa-application concept that doesn't apply to these 3 countries. The
+// gate still makes sense for UK/CA/EU/ZA/ET, which ARE real visa/e-Visa applications.
+//
+// This single source of truth replaces the local `TRAVEL_READINESS_CODES` constant that used to
+// live only in app/checklist/[country]/situation/page.tsx (and was only used there, to pick
+// "application" vs. "trip" wording) — now also consulted by app/checklist/start/page.tsx to skip
+// the situation gate outright for these 3 codes, and by the generic situation route itself as a
+// safety net against anyone reaching that URL directly (an old bookmark, the back button, etc.).
+export const TRAVEL_READINESS_CODES = ['GH', 'KE', 'MA'];
+
+export function isTravelReadinessCountry(code: string): boolean {
+  return TRAVEL_READINESS_CODES.includes(code.toUpperCase());
+}

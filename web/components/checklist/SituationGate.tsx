@@ -47,7 +47,11 @@ export type SituationGateProps = {
   name: string;
   /** Whether this country doesn't require a visa at all (Ghana/Kenya/Morocco's "travel readiness"
    * countries) — changes "visa application" to "trip" in the contact messages below, same as
-   * index.html's destName(). */
+   * index.html's destName(). As of the fix that made app/checklist/[country]/situation/page.tsx
+   * redirect GH/KE/MA away from this component entirely (direct user feedback: "once you click
+   * Ghana, you do not need this page" — every option here is a visa-application concept that
+   * doesn't apply to a visa-free country), no caller passes `true` here any more; left in place
+   * rather than deleted in case a future travel-readiness country still wants these follow-ups. */
   isTravelReadiness?: boolean;
   /** The actual checklist page — where "Continue to my checklist" and "See my full checklist
    * instead" land. */
