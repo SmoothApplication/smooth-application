@@ -8,19 +8,51 @@ import { FOUNDER_WHATSAPP_NUMBER } from '@/lib/statement/supportContact';
 // red flags, FAQ, closing CTA, full footer) and the forest-green/gold/cream palette + serif
 // headlines already extracted into tailwind.config.ts back in task #479-487.
 //
-// Two things the mockup showed that are deliberately NOT here, per the user's own call when asked
-// (AskUserQuestion, this session): a "Readiness Kits" paid-tier pricing section (the mockup only
-// had "[PRICE]" placeholders — no real product or price exists yet) and a testimonials/experience-
-// stats band ("99% approval rate", "20 yrs", placeholder quotes like "[Add a real quote from a past
-// applicant]") — none of that is backed by real, sourced data the way every other figure on this
-// page is (see the sourcing comment below), so it's left out rather than shipped as if it were real.
-// Both can be added later once there's an actual product/price or actual testimonials to show.
+// One thing the mockup showed that is still deliberately NOT here, per the user's own call when
+// asked (AskUserQuestion, task #506): a testimonials/experience-stats band ("99% approval rate",
+// "20 yrs", placeholder quotes like "[Add a real quote from a past applicant]") — none of that is
+// backed by real, sourced data the way every other figure on this page is (see the sourcing
+// comment below), so it's left out rather than shipped as if it were real. Can be added once
+// there are actual testimonials to show.
 //
 // The "why preparation matters" figures are carried over verbatim from the previous homepage
 // (task #395/#396) — same sources, same caveat about the UK's April 2026 fee rise making the
 // £115-per-refusal input stale (still unresolved, still flagged here rather than silently fixed).
 const COVERED_COUNTRIES = COUNTRIES.filter((c) => c.ready);
 const WHATSAPP_HREF = `https://wa.me/${FOUNDER_WHATSAPP_NUMBER}`;
+
+// "Readiness Kits" paid-tier section (direct request, with real pricing/copy supplied by the
+// user — this is what the mockup's "[PRICE]" placeholders were standing in for back in #506, now
+// filled with the real thing instead of guessed numbers). Same CTA pattern already used for the
+// paid Document Review offer in SituationGate.tsx: a WhatsApp link with a pre-filled message,
+// no actual checkout/payment flow — the human on the other end of WhatsApp handles that. The
+// ₦35,000 Document Review price here is also now the single source of truth for that offer; the
+// older $4/₦22,000 "first 100 applicants" test-promo price in SituationGate.tsx was retired to
+// match (see that file's own comment) rather than leaving two different prices for the same
+// service live at once.
+const READINESS_KITS = [
+  {
+    name: 'Document Review',
+    priceNaira: '₦35,000',
+    priceUsd: 'about $22',
+    deliveryDays: '3 working days',
+    description:
+      "A person with twenty years' experience reviews your complete application pack: passport, statements, employment letters, sponsor documents and your draft form answers. You get a written report that lists every issue in order of how likely it is to cause a refusal, and exactly what to change or add.",
+    bestFor: 'people applying within the next 4 weeks who want a second pair of eyes.',
+    whatsappMessage: "Hi, I'd like to get the Document Review (₦35,000). Here's what I'm applying for:",
+  },
+  {
+    name: 'Full Case Review + Correction Plan',
+    priceNaira: '₦95,000',
+    priceUsd: 'about $60',
+    deliveryDays: '5 working days',
+    description:
+      'Everything in the Document Review, plus a 30-day plan to fix what can be fixed before you apply: how to explain unexplained inflows, how to align your statements with your income, what a sponsor letter needs to say, and how to answer the questions applicants most often get wrong. Includes one round of follow-up questions by email.',
+    bestFor: 'applicants whose free check flagged financial issues, and anyone who has been refused before.',
+    whatsappMessage:
+      "Hi, I'd like to get the Full Case Review + Correction Plan (₦95,000). Here's what I'm applying for:",
+  },
+];
 
 function Header() {
   return (
@@ -42,6 +74,9 @@ function Header() {
           <Link href="/opportunities" className="hover:text-[#12232e]">
             Funded opportunities
           </Link>
+          <a href="#readiness-kits" className="hover:text-[#12232e]">
+            Readiness Kits
+          </a>
           <a href="#faq" className="hover:text-[#12232e]">
             FAQ
           </a>
@@ -250,6 +285,42 @@ export default function HomePage() {
           <Link href="/quiz" className="btn-primary mt-8 inline-block">
             Check my application
           </Link>
+        </div>
+      </section>
+
+      {/* Readiness Kits — paid human review tiers, see READINESS_KITS above for sourcing notes. */}
+      <section id="readiness-kits" className="mx-auto max-w-6xl px-4 py-16">
+        <p className="text-xs font-semibold uppercase tracking-wide text-accent">Want a second pair of eyes?</p>
+        <h2 className="mt-2 max-w-2xl font-serif text-3xl font-semibold text-[#12232e]">
+          The checklist is free. If you want someone experienced to check it for you, that&apos;s here too.
+        </h2>
+        <p className="mt-3 max-w-2xl text-sm text-[#4c6270]">
+          These are paid, done-by-hand reviews — not automated, and separate from the free Quick Check
+          and checklist above.
+        </p>
+        <div className="mt-8 grid gap-6 sm:grid-cols-2">
+          {READINESS_KITS.map((kit) => (
+            <div key={kit.name} className="card-surface border-t-4 border-accent p-6">
+              <p className="font-serif text-2xl font-bold text-[#12232e]">
+                {kit.priceNaira} <span className="text-lg font-semibold">{kit.name}</span>
+              </p>
+              <p className="mt-1 text-sm italic text-[#8a99a3]">
+                {kit.priceUsd} · delivered within {kit.deliveryDays}
+              </p>
+              <p className="mt-4 text-sm text-[#4c6270]">{kit.description}</p>
+              <p className="mt-4 text-sm text-[#12232e]">
+                <span className="font-semibold">Best for:</span> {kit.bestFor}
+              </p>
+              <a
+                href={`https://wa.me/${FOUNDER_WHATSAPP_NUMBER}?text=${encodeURIComponent(kit.whatsappMessage)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-4 inline-block font-semibold text-accent underline"
+              >
+                Get my {kit.name} →
+              </a>
+            </div>
+          ))}
         </div>
       </section>
 

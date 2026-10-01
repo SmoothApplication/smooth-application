@@ -334,7 +334,7 @@ export default function SituationGate({
   }
 
   function paidMessage() {
-    return `Hi, I've already paid the fee and filled my ${destName()} form. I'm interested in the paid Document Review (70% off for the first 100 applicants - $4 instead of $14) before my appointment.`;
+    return `Hi, I've already paid the fee and filled my ${destName()} form. I'm interested in the paid Document Review (₦35,000) before my appointment.`;
   }
 
   // Task #416 follow-up: prefilled with the actual numbers when the self-check below turns up a
@@ -861,9 +861,9 @@ export default function SituationGate({
           </div>
 
           <p className="mb-3 text-sm text-[#4c6270]">
-            We&apos;re testing a paid Document Review - a real person checks your form, passport and statements for completeness
-            and quality before your appointment, from $4 (about ₦6,600) for our first 100 applicants. Message us and attach what
-            you&apos;d like reviewed.
+            A paid Document Review is also available - a person with twenty years&apos; experience checks your form, passport
+            and statements for completeness and quality before your appointment, for ₦35,000 (about $22), delivered within 3
+            working days. Message us and attach what you&apos;d like reviewed.
           </p>
           <div className="flex flex-wrap gap-2">
             <a

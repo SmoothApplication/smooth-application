@@ -3,6 +3,40 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Real "Readiness Kits" pricing on the homepage (task #511)
+
+The homepage rebuild (#506) deliberately left out the mockup's "Readiness Kits" pricing section
+because the mockup only had `[PRICE]` placeholders — no real product or price existed yet. The
+user has now supplied the real thing: two paid, human-reviewed tiers, with real prices, delivery
+times and copy (screenshots of the intended card design, this session).
+
+Added a new `READINESS_KITS` section to `app/page.tsx`, placed between "Common red flags" and
+"FAQ" (same funnel order as the rest of the page: free check → problem awareness → paid upsell →
+questions → CTA), plus a "Readiness Kits" link in the header nav:
+- **Document Review** — ₦35,000 (about $22), delivered within 3 working days. A person with
+  twenty years' experience reviews the applicant's full pack (passport, statements, employment
+  letters, sponsor documents, draft form answers) and returns a written report ranking every
+  issue by refusal risk.
+- **Full Case Review + Correction Plan** — ₦95,000 (about $60), delivered within 5 working days.
+  Everything in the Document Review plus a 30-day correction plan and one round of follow-up
+  questions by email.
+
+Each card's CTA (`Get my {tier} →`) opens WhatsApp with a pre-filled message naming the tier and
+price — same no-checkout, human-handles-it-from-there pattern already used for the paid Document
+Review offer in `SituationGate.tsx`, not a new payment flow.
+
+**Price conflict, caught and fixed (direct question to the user, this session):** `SituationGate.tsx`
+already had a live "Document Review" offer (shown to applicants who've already paid their visa
+fee) priced as a "testing" promo — $4 / ₦6,600, "70% off for the first 100 applicants" (original
+framing from task #143, full price $14/₦22,000). Shipping the new ₦35,000 homepage price alongside
+that old promo price would have meant two different prices for a service with the same name, live
+at the same time. Per the user's explicit choice, the old promo offer was retired and
+`SituationGate.tsx`'s copy, CTA message, and WhatsApp/email pre-fill text now all read ₦35,000 (about
+$22) — `app/page.tsx`'s `READINESS_KITS` array is the single source of truth for that price.
+
+Verified: `npx tsc --noEmit` (clean), `npx jest` (589/589 passing, no regressions), and
+`node scripts/pii-scan.js` (329 files, clean).
+
 ## Extend serif/cream treatment to the rest of the app (task #510)
 
 Task #509 brought the homepage's `font-serif` headlines and `bg-cream` background to the quiz and
