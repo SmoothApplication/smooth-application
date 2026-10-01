@@ -65,7 +65,7 @@ export default function StatementUpload() {
   return (
     <main className="mx-auto flex min-h-screen max-w-4xl flex-col gap-5 p-8">
       <div>
-        <h1 className="text-xl font-semibold text-[#12232e]">Statement check (test page)</h1>
+        <h1 className="font-serif text-xl font-semibold text-[#12232e]">Statement check (test page)</h1>
         <p className="mt-1 text-sm text-[#4c6270]">
           Upload a bank statement (PDF, Excel export, or a clear photo/scan) to see what we can read
           from it.

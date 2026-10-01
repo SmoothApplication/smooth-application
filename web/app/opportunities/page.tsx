@@ -60,11 +60,11 @@ export default function OpportunitiesPage() {
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-5 p-6 pb-16">
       <div>
-        <h1 className="text-xl font-semibold text-[#12232e]">🎓 Funded opportunities &amp; exchange programs</h1>
+        <h1 className="font-serif text-xl font-semibold text-[#12232e]">🎓 Funded opportunities &amp; exchange programs</h1>
         <p className="mt-1 text-sm text-[#4c6270]">Browse real, currently-running programs — no visa pick or checklist needed.</p>
       </div>
 
-      <div className="rounded-lg border border-black/10 bg-white p-4">
+      <div className="card-surface p-4">
         <p className="text-sm text-[#4c6270]">
           Can&apos;t yet afford the trip you&apos;re preparing for? These are real, currently-running programs -
           scholarships, exchanges, and fellowships - that cover some or all of the cost for students in Nigeria. This
@@ -139,7 +139,7 @@ function OpportunityCard({
 }) {
   const meta = PATHWAY_META[opportunity.pathway];
   return (
-    <div className="rounded-lg border border-black/10 bg-[#f7fafb] p-4">
+    <div className="rounded-lg border border-black/10 bg-cream-soft p-4">
       <span
         className="inline-block rounded-full px-2 py-0.5 text-[10px] font-medium text-white"
         style={{ backgroundColor: meta.color }}

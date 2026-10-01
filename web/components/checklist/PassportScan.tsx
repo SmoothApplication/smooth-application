@@ -290,7 +290,7 @@ export default function PassportScan({
       {standalone && !startedWithSavedFields && (
         <>
           <div>
-            <h1 className="text-xl font-semibold text-[#12232e]">{title}</h1>
+            <h1 className="font-serif text-xl font-semibold text-[#12232e]">{title}</h1>
             <p className="mt-1 text-sm text-[#4c6270]">{description}</p>
           </div>
         </>
@@ -500,7 +500,7 @@ export default function PassportScan({
               <summary className="cursor-pointer text-accent">
                 Show raw OCR text (debug — test page only)
               </summary>
-              <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap rounded-lg bg-[#f7fafb] p-3 text-[11px] text-[#12232e]">
+              <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap rounded-lg bg-cream-soft p-3 text-[11px] text-[#12232e]">
                 {rawText}
               </pre>
             </details>

@@ -164,7 +164,7 @@ export default function CountryChecklistApp({
     return (
       <main className="mx-auto flex min-h-screen max-w-lg flex-col gap-5 p-8">
         <div>
-          <h1 className="text-xl font-semibold text-[#12232e]">
+          <h1 className="font-serif text-xl font-semibold text-[#12232e]">
             {flag} A few quick questions
           </h1>
           <p className="mt-1 text-sm text-[#4c6270]">
@@ -204,7 +204,7 @@ export default function CountryChecklistApp({
               actively ticks the confirm checkbox below, same "don't silently assume" pattern as
               the rest of this form. */}
           {answers.married && (
-            <div className="ml-6 flex flex-col gap-2 rounded-md border border-black/10 bg-[#f7fafb] p-3 text-[#4c6270]">
+            <div className="ml-6 flex flex-col gap-2 rounded-md border border-black/10 bg-cream-soft p-3 text-[#4c6270]">
               <label className="flex flex-col gap-1">
                 <span className="text-xs font-medium text-[#12232e]">Spouse&apos;s name (optional)</span>
                 <input
@@ -383,7 +383,7 @@ export default function CountryChecklistApp({
   return (
     <main className="mx-auto flex min-h-screen max-w-5xl flex-col gap-5 p-6 pb-16 lg:flex-row lg:items-start">
       <div className="flex min-w-0 flex-1 flex-col gap-5">
-      <div className="rounded-lg border border-black/10 bg-[#f7fafb] px-6 py-3">
+      <div className="rounded-lg border border-black/10 bg-cream-soft px-6 py-3">
         <div className="flex items-center justify-between gap-2 text-sm">
           <span className="min-w-0 truncate font-semibold text-[#12232e]">
             {flag} {name} {visaName} checklist
@@ -504,7 +504,7 @@ export default function CountryChecklistApp({
             </ul>
             {subcats.map((sc) => (
               <div key={sc}>
-                <h3 className="border-t border-black/10 bg-[#f7fafb] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[#566a76]">
+                <h3 className="border-t border-black/10 bg-cream-soft px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[#566a76]">
                   {sc}
                 </h3>
                 <ul className="divide-y divide-black/5">

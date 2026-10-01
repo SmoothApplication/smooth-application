@@ -91,7 +91,7 @@ export default function ReasonsView({ code, flag, name, visaName, answersKey, ch
   return (
     <SessionShell code={code} name={name} session="reasons">
       <div>
-        <h1 className="text-xl font-semibold text-[#12232e]">
+        <h1 className="font-serif text-xl font-semibold text-[#12232e]">
           📖 {flag} Reasons
         </h1>
         <p className="mt-1 text-sm text-[#4c6270]">

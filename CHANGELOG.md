@@ -3,6 +3,36 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Extend serif/cream treatment to the rest of the app (task #510)
+
+Task #509 brought the homepage's `font-serif` headlines and `bg-cream` background to the quiz and
+checklist-start screens. This batch finishes the job across every other screen an applicant
+actually visits: the 11 checklist-flow session components (`SituationGate`, `CountryChecklistApp`'s
+profile view, `FinancialCalculator`, `StatementCheck`, `StatementUpload`, `PassportCheck`,
+`PassportScan`, `BusinessIncomeLedger`, `TravelHistory`, `NextStepsReport`, `ReasonsView`), plus
+`/opportunities`, `/tracker` (via the shared `TrackerCard` component), and `/account`.
+
+Two mechanical changes, applied consistently:
+- Every screen's `<h1>` (and the tracker card's `<h2>`) picked up `font-serif`, matching the
+  homepage's headline treatment — these all already shared the exact same
+  `text-xl font-semibold text-[#12232e]` class, so this was a single consistent addition, not a
+  per-page judgment call.
+- Every remaining `bg-[#f7fafb]` (a cool blue-white left over from before the cream palette pass,
+  tasks #479-487) was swapped for the matching cream token: `bg-cream` for full-page canvases
+  (`SituationGate`'s entry screen), `bg-cream-soft` for inset panels/cards that sit on top of the
+  cream body (category header bars, info boxes, the tracker's per-entry rows, opportunity cards) —
+  `cream-soft` is literally the token `tailwind.config.ts` defines for exactly this purpose.
+  `app/account/page.tsx` and `TrackerCard`'s outer wrapper also switched from a plain
+  `bg-white border` combo to the shared `.card-surface` class already used everywhere else.
+
+Deliberately NOT touched: the small uppercase "eyebrow" labels and category-header bars (these
+match the homepage's own non-serif treatment for that kind of text), and the auth/legal pages
+(login, forgot/reset/create-password, privacy, terms) — the user scoped this pass to the checklist
+flow, tracker, opportunities and account pages specifically.
+
+Verified: `npx tsc --noEmit` (clean), `npx jest` (589/589 passing, no regressions), and
+`node scripts/pii-scan.js` (329 files, clean).
+
 ## Extend homepage serif/card treatment to quiz + checklist start (task #509)
 
 The homepage rebuild (#506) introduced `font-serif` (Lora) headlines and a `bg-cream` page

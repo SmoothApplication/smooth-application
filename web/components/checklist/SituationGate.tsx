@@ -372,12 +372,12 @@ export default function SituationGate({
     // that same pattern here: restored `min-h-screen`, added `items-center justify-center`, so the
     // leftover space splits evenly above and below instead of collecting in one block underneath —
     // still no forced scrollbar for short content, but the whole viewport is now the styled
-    // `bg-[#f7fafb]` canvas (matching the homepage's own background) instead of ending partway
+    // `bg-cream` canvas (matching the homepage's own background) instead of ending partway
     // down into a plain white gap.
-    <main className="flex min-h-screen items-center justify-center bg-[#f7fafb] px-4 py-10">
+    <main className="flex min-h-screen items-center justify-center bg-cream px-4 py-10">
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
         <div>
-          <h1 className="text-xl font-semibold text-[#12232e]">🧭 Where are you in the process?</h1>
+          <h1 className="font-serif text-xl font-semibold text-[#12232e]">🧭 Where are you in the process?</h1>
           <p className="mt-1 text-sm text-[#4c6270]">Just so we can point you the right way - answering doesn&apos;t change what&apos;s ahead unless you want it to.</p>
         </div>
 
@@ -760,7 +760,7 @@ export default function SituationGate({
                       key={f.value}
                       type="button"
                       onClick={() => setPaidDeclaredAmount(String(f.value))}
-                      className="rounded-full border border-black/10 bg-[#f7fafb] px-2.5 py-1 text-xs font-medium text-[#12232e] hover:bg-black/5"
+                      className="rounded-full border border-black/10 bg-cream-soft px-2.5 py-1 text-xs font-medium text-[#12232e] hover:bg-black/5"
                     >
                       {f.raw}
                     </button>
@@ -896,7 +896,7 @@ export default function SituationGate({
           many times it was actually used, (4) the most recent trip taken on it, and (5) a
           per-trip "how many days did you spend" list — sized automatically to match (3) via the
           effect above, so ticking "3" grows exactly 3 day-boxes without the applicant having to
-          add rows by hand. Each trip gets its own small box (bg-[#f7fafb] card) inside a
+          add rows by hand. Each trip gets its own small box (bg-cream-soft card) inside a
           responsive grid — the literal "make it in a box" instruction — rather than one plain
           list, so a single long list of numbers doesn't blur together. Ephemeral component state
           only, same as the refused-follow-up fields above — nothing is sent or saved until the
@@ -984,7 +984,7 @@ export default function SituationGate({
               </p>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {reappTripDays.map((days, i) => (
-                  <div key={i} className="rounded-lg border border-black/10 bg-[#f7fafb] p-2">
+                  <div key={i} className="rounded-lg border border-black/10 bg-cream-soft p-2">
                     <label className="mb-1 block text-[11px] font-medium text-[#566a76]" htmlFor={`reapp-trip-days-${i}`}>
                       Trip {i + 1}
                     </label>

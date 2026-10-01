@@ -139,7 +139,7 @@ export default function SaveProgressPanel({ code, answers, checked }: SaveProgre
       </div>
 
       {(emailStep === 'form' || emailStep === 'sending' || emailStep === 'error') && (
-        <div className="mt-3 rounded-lg border border-black/10 bg-[#f7fafb] p-3">
+        <div className="mt-3 rounded-lg border border-black/10 bg-cream-soft p-3">
           <p className="text-xs text-[#4c6270]">
             We&apos;ll send a PDF of your {countryName} checklist progress — responsibilities answers, document status,
             financial readiness, and bank statement summary — to this email, along with a link to create a password

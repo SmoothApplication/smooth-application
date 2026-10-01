@@ -60,7 +60,7 @@ export default function ChecklistCategorySession({ code, catIndex }: ChecklistCa
             </ul>
             {subcats.map((sc) => (
               <div key={sc}>
-                <h3 className="border-t border-black/10 bg-[#f7fafb] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[#566a76]">
+                <h3 className="border-t border-black/10 bg-cream-soft px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[#566a76]">
                   {sc}
                 </h3>
                 <ul className="divide-y divide-black/5">

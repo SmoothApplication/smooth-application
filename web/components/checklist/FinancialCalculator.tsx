@@ -150,7 +150,7 @@ export default function FinancialCalculator({ countryCode }: FinancialCalculator
   return (
     <SessionShell code={countryCode} name={countryName} session="financial">
       <div>
-        <h1 className="text-xl font-semibold text-[#12232e]">💰 Financial readiness calculator</h1>
+        <h1 className="font-serif text-xl font-semibold text-[#12232e]">💰 Financial readiness calculator</h1>
         <p className="mt-1 text-sm text-[#4c6270]">
           A rough, personal estimate of trip cost vs. the funds a reviewer typically wants to see — not a quote or a guarantee.
         </p>

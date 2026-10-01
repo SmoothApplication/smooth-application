@@ -47,8 +47,8 @@ export function TrackerCard({
   }
 
   return (
-    <div className="rounded-lg border border-black/10 bg-white p-4">
-      <h2 className="text-base font-semibold text-[#12232e]">📋 My application tracker</h2>
+    <div className="card-surface p-4">
+      <h2 className="font-serif text-base font-semibold text-[#12232e]">📋 My application tracker</h2>
       <p className="mt-1 text-sm text-[#4c6270]">
         Applying to more than one program above? Keep track of where each one stands. This stays on this device only —
         same &quot;nothing leaves your browser&quot; rule as the rest of this tool.
@@ -118,7 +118,7 @@ function TrackerRow({
   onRemove: () => void;
 }) {
   return (
-    <div className="rounded-lg border border-black/10 bg-[#f7fafb] p-4">
+    <div className="rounded-lg border border-black/10 bg-cream-soft p-4">
       <h3 className="text-sm font-semibold text-[#12232e]">{entry.name || 'Untitled'}</h3>
       <div className="mt-2 flex flex-wrap gap-3">
         <div className="min-w-[160px] flex-1">

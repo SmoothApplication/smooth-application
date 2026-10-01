@@ -135,7 +135,7 @@ export default function PassportCheck({ countryCode }: PassportCheckProps) {
     <SessionShell code={countryCode} name={countryName} session="passport">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h1 className="text-xl font-semibold text-[#12232e]">🛂 Passport scan</h1>
+          <h1 className="font-serif text-xl font-semibold text-[#12232e]">🛂 Passport scan</h1>
           <p className="mt-1 text-sm text-[#4c6270]">
             Photograph or upload your passport&apos;s photo page and we&apos;ll try to read the details
             automatically.

@@ -183,7 +183,7 @@ export default function ResponsibilitiesSession({ code }: ResponsibilitiesSessio
             </select>
           </label>
           {answers.married && (
-            <div className="ml-6 flex flex-col gap-2 rounded-md border border-black/10 bg-[#f7fafb] p-3 text-[#4c6270]">
+            <div className="ml-6 flex flex-col gap-2 rounded-md border border-black/10 bg-cream-soft p-3 text-[#4c6270]">
               <label className="flex flex-col gap-1">
                 <span className="text-xs font-medium text-[#12232e]">Spouse&apos;s name (optional)</span>
                 <input
@@ -421,7 +421,7 @@ export default function ResponsibilitiesSession({ code }: ResponsibilitiesSessio
             </label>
           </div>
 
-          <div className="rounded-md border border-black/10 bg-[#f7fafb] p-3">
+          <div className="rounded-md border border-black/10 bg-cream-soft p-3">
             <p className="mb-1 text-sm font-semibold text-[#12232e]">Estimated yearly cost of living</p>
             <p className="mb-2 text-xs text-[#4c6270]">
               Rent is pre-filled with a typical range for your state/LGA, adjusted for how many bedrooms you picked above,

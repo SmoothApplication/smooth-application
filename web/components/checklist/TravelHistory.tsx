@@ -131,7 +131,7 @@ export default function TravelHistory({ countryCode }: TravelHistoryProps) {
   return (
     <SessionShell code={countryCode} name={countryName} session="travel-history">
       <div>
-        <h1 className="text-xl font-semibold text-[#12232e]">🌍 Travel Experience</h1>
+        <h1 className="font-serif text-xl font-semibold text-[#12232e]">🌍 Travel Experience</h1>
         <p className="mt-1 text-sm text-[#4c6270]">
           Your past travel — or a plan to start building some — is one of the things a reviewer weighs
           alongside your finances and passport.

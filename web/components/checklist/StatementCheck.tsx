@@ -81,7 +81,7 @@ export default function StatementCheck({ countryCode }: StatementCheckProps) {
   return (
     <SessionShell code={countryCode} name={countryName} session="statement">
       <div>
-        <h1 className="text-xl font-semibold text-[#12232e]">🏦 Bank statement check</h1>
+        <h1 className="font-serif text-xl font-semibold text-[#12232e]">🏦 Bank statement check</h1>
         <p className="mt-1 text-sm text-[#4c6270]">
           Upload a bank statement to see who&apos;s paying you, and whether a reviewer would find any
           gaps. If your salary account can&apos;t receive other income, add your second account below
