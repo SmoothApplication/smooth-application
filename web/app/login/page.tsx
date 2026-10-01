@@ -37,7 +37,7 @@ function LoginForm() {
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col p-8 pt-14 sm:pt-24">
       <div className="card-surface p-6">
-        <h1 className="mb-4 text-xl font-semibold text-[#12232e]">Sign in</h1>
+        <h1 className="mb-4 font-serif text-xl font-semibold text-[#12232e]">Sign in</h1>
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           <input
             type="email"
@@ -64,7 +64,7 @@ function LoginForm() {
             {loading ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
-        <Link href="/forgot-password" className="mt-3 inline-block text-sm text-[#0b7a6e] underline">
+        <Link href="/forgot-password" className="mt-3 inline-block text-sm text-accent underline">
           Forgot password?
         </Link>
       </div>

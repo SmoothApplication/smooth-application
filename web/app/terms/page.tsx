@@ -8,7 +8,7 @@ export default function TermsPage() {
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-5 p-6 pb-16">
       <div>
-        <h1 className="text-xl font-semibold text-[#12232e]">Terms of Use</h1>
+        <h1 className="font-serif text-xl font-semibold text-[#12232e]">Terms of Use</h1>
         <p className="mt-1 text-xs text-[#566a76]">Last updated September 2026</p>
       </div>
 

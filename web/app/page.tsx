@@ -8,12 +8,11 @@ import { FOUNDER_WHATSAPP_NUMBER } from '@/lib/statement/supportContact';
 // red flags, FAQ, closing CTA, full footer) and the forest-green/gold/cream palette + serif
 // headlines already extracted into tailwind.config.ts back in task #479-487.
 //
-// One thing the mockup showed that is still deliberately NOT here, per the user's own call when
-// asked (AskUserQuestion, task #506): a testimonials/experience-stats band ("99% approval rate",
-// "20 yrs", placeholder quotes like "[Add a real quote from a past applicant]") — none of that is
-// backed by real, sourced data the way every other figure on this page is (see the sourcing
-// comment below), so it's left out rather than shipped as if it were real. Can be added once
-// there are actual testimonials to show.
+// The mockup's testimonials/experience-stats band ("99% approval rate", "20 yrs") is still NOT
+// here — those were unsourced placeholder numbers (task #506) and still are; no real figures for
+// them have been supplied. The three real quotes below (direct from the user, this session) are a
+// different thing: actual client testimonials, not stats, so they're shown as quotes attributed by
+// first name/initials only — exactly what was given, nothing invented or rounded up alongside them.
 //
 // The "why preparation matters" figures are carried over verbatim from the previous homepage
 // (task #395/#396) — same sources, same caveat about the UK's April 2026 fee rise making the
@@ -52,6 +51,15 @@ const READINESS_KITS = [
     whatsappMessage:
       "Hi, I'd like to get the Full Case Review + Correction Plan (₦95,000). Here's what I'm applying for:",
   },
+];
+
+// Real client testimonials, supplied directly by the user (this session) — shown as quotes, not
+// rounded into a stat like "99% approval rate" (there's no data behind a number like that). Kept
+// to exactly what was given: first name/initials only, no added detail about who they are.
+const TESTIMONIALS = [
+  { quote: 'He made me see the errors in my bank statement.', name: 'PJ' },
+  { quote: 'I have not seen someone explain to me what inflows can do to my application.', name: 'Sam' },
+  { quote: 'With what you wrote for me based on my inflow, I was able to get my Visa.', name: 'Femi' },
 ];
 
 function Header() {
@@ -321,6 +329,24 @@ export default function HomePage() {
               </a>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* Testimonials — real client quotes, see TESTIMONIALS above for sourcing notes. */}
+      <section className="bg-accent-wash px-4 py-16">
+        <div className="mx-auto max-w-6xl">
+          <p className="text-xs font-semibold uppercase tracking-wide text-accent">What applicants say</p>
+          <h2 className="mt-2 max-w-2xl font-serif text-3xl font-semibold text-[#12232e]">
+            From people who used the Document Review.
+          </h2>
+          <div className="mt-8 grid gap-4 sm:grid-cols-3">
+            {TESTIMONIALS.map((t) => (
+              <div key={t.name} className="card-surface p-6">
+                <p className="font-serif text-lg italic leading-snug text-[#12232e]">&ldquo;{t.quote}&rdquo;</p>
+                <p className="mt-3 text-sm font-semibold text-accent">— {t.name}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 

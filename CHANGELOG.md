@@ -3,6 +3,32 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Real testimonials + serif/cream treatment on auth and legal pages (task #512)
+
+Two follow-ups, both closing out gaps flagged in earlier sessions:
+
+**Testimonials.** The homepage rebuild (#506) left out the mockup's testimonials band because its
+quotes were placeholders ("[Add a real quote from a past applicant]") alongside unsourced stats
+("99% approval rate", "20 yrs"). The user has now supplied three real client quotes (first
+name/initials only — PJ, Sam, Femi). Added a `TESTIMONIALS` section to `app/page.tsx`, between
+Readiness Kits and FAQ. Deliberately shown as quotes only, not rounded into a fabricated stat —
+the unsourced "99% approval rate"-style numbers are still not here, since no real figures for
+those were given.
+
+**Auth and legal pages.** The serif/cream passes (#509, #510) covered the homepage, quiz,
+checklist flow, tracker, opportunities and account — but not login, forgot-password,
+reset-password, create-password, privacy or terms, which were still on the pre-rebrand styling.
+Added `font-serif` to all 10 of these pages' `<h1>`s (all shared the identical
+`text-xl font-semibold text-[#12232e]` class, so this was mechanical, not a per-page judgment
+call). Also caught two stray `text-[#0b7a6e]` links (login's "Forgot password?", forgot-password's
+"Back to sign in") — `#0b7a6e` is actually the separate admin-dashboard `brand` color
+(`tailwind.config.ts`), not the applicant-facing `accent` green used everywhere else, so these
+were quietly off-palette; switched both to `text-accent`. None of these pages needed a background
+fix — they never override the body's `bg-cream`, so they already matched.
+
+Verified: `npx tsc --noEmit` (clean), `npx jest` (589/589 passing, no regressions), and
+`node scripts/pii-scan.js` (329 files, clean).
+
 ## Real "Readiness Kits" pricing on the homepage (task #511)
 
 The homepage rebuild (#506) deliberately left out the mockup's "Readiness Kits" pricing section

@@ -117,7 +117,7 @@ function ResetPasswordForm() {
     return (
       <main className="mx-auto flex min-h-screen max-w-sm flex-col items-center p-8 pt-20 text-center sm:pt-32">
         <div className="card-surface w-full p-6">
-          <h1 className="mb-2 text-xl font-semibold text-[#12232e]">This link has expired</h1>
+          <h1 className="mb-2 font-serif text-xl font-semibold text-[#12232e]">This link has expired</h1>
           <p className="text-sm text-[#4c6270]">
             Reset links only work once and expire after a while. Go back to the sign-in page and
             request a fresh one.
@@ -130,7 +130,7 @@ function ResetPasswordForm() {
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col p-8 pt-14 sm:pt-24">
       <div className="card-surface p-6">
-        <h1 className="mb-2 text-xl font-semibold text-[#12232e]">Set a new password</h1>
+        <h1 className="mb-2 font-serif text-xl font-semibold text-[#12232e]">Set a new password</h1>
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           <input
             type={visible ? 'text' : 'password'}

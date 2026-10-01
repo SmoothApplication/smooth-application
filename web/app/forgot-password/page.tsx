@@ -39,12 +39,12 @@ export default function ForgotPasswordPage() {
     return (
       <main className="mx-auto flex min-h-screen max-w-sm flex-col p-8 pt-14 sm:pt-24">
         <div className="card-surface p-6">
-          <h1 className="mb-2 text-xl font-semibold text-[#12232e]">Check your email</h1>
+          <h1 className="mb-2 font-serif text-xl font-semibold text-[#12232e]">Check your email</h1>
           <p className="text-sm text-[#4c6270]">
             If <b>{email}</b> has an account here, we&apos;ve sent a link to reset the password. It
             only works once and expires after a while.
           </p>
-          <Link href="/login" className="mt-4 inline-block text-sm text-[#0b7a6e] underline">
+          <Link href="/login" className="mt-4 inline-block text-sm text-accent underline">
             Back to sign in
           </Link>
         </div>
@@ -55,7 +55,7 @@ export default function ForgotPasswordPage() {
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col p-8 pt-14 sm:pt-24">
       <div className="card-surface p-6">
-        <h1 className="mb-2 text-xl font-semibold text-[#12232e]">Reset your password</h1>
+        <h1 className="mb-2 font-serif text-xl font-semibold text-[#12232e]">Reset your password</h1>
         <p className="mb-6 text-sm text-[#4c6270]">
           Enter the email on your account and we&apos;ll send you a link to set a new password.
         </p>
@@ -73,7 +73,7 @@ export default function ForgotPasswordPage() {
             {submitting ? 'Sending…' : 'Send reset link'}
           </button>
         </form>
-        <Link href="/login" className="mt-4 inline-block text-sm text-[#0b7a6e] underline">
+        <Link href="/login" className="mt-4 inline-block text-sm text-accent underline">
           Back to sign in
         </Link>
       </div>
