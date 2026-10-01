@@ -3,6 +3,44 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Clarity: session header shows "Step 1 of 6" chapters instead of "Session 1 of 18"
+
+Real tester feedback (a forwarded WhatsApp message from a friend testing the UK flow): "the sites
+process looks too long Like too many questions." The flow itself wasn't actually cut — it's the
+same 18 sessions for the UK, same questions, same document checklist. What changed is purely how
+the running total is presented to the applicant, because "Session 1 of 18" is a discouraging number
+to see before you've even started, and it gets worse on countries with more document-checklist
+categories.
+
+New `lib/checklist/chapters.ts` groups the existing flat session list (`buildSessionOrder` in
+`sessions.ts` — untouched, including its locked-down `sessions.test.ts` assertions) into 6 named
+chapters that stay 6 regardless of country: Income & finances, Passport & travel history, Your
+details, What to do next, Document checklist, Review & submit. The many per-category
+`checklist:${number}` sessions (5-6 depending on country) all collapse into the single "Document
+checklist" chapter, which is exactly the part of the old raw count that scaled the worst.
+`SessionShell.tsx`'s header now reads "Step {chapter} of 6: {chapter name}" with a smaller secondary
+line underneath showing the actual session label and, inside the document-checklist chapter, "category
+N of M" so the applicant doesn't lose fine-grained orientation — just the scary headline number.
+
+Deliberately did NOT add a time estimate ("~25 minutes left") alongside this — there's no real
+per-session completion-time data in this app to back a number like that, and a wrong guess would
+cost more trust than the old framing ever did. A smaller, honest step count is a safe improvement;
+a made-up time estimate isn't.
+
+New test file `lib/checklist/__tests__/chapters.test.ts` (5 tests) locks down: chapter count is
+fixed at 6 for both a long-checklist country (UK) and a short one (GH); the first session an
+applicant sees (statement, due to the existing flow-order permutation) is chapter 1 of 6; every
+`checklist:N` session shares one chapter with a correctly counted sub-position; final-review and
+reasons share the last chapter; and a single-session chapter shows no sub-position noise. Full
+suite: 92/92 test files, 617/617 tests passing; `tsc --noEmit` clean.
+
+Still open from the same tester feedback (deferred — the user chose to prioritize this "perceived
+length" fix first): the trust/privacy half of the same message — "I don't know if anybody would
+readily just upload details like their international passport and bank statement to a random
+site" — which calls for making the "your documents never leave your device" guarantee prominent
+*before* the upload screen, not just beside it, and surfacing a manual-entry alternative to
+scanning. Not yet started.
+
 ## Feature: the app now notices a stale statement analysis itself, instead of relying on a label
 
 Direct user pushback on the previous entry's button relabel: "this is not user friendly, the user

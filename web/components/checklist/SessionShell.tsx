@@ -6,6 +6,7 @@ import ChecklistSidebar from '@/components/checklist/ChecklistSidebar';
 import SaveProgressPanel from '@/components/checklist/SaveProgressPanel';
 import { useChecklistState } from '@/lib/checklist/useChecklistState';
 import { buildSessionOrder, SessionKey, prevSessionHref, nextSessionHref } from '@/lib/checklist/sessions';
+import { chapterInfoForSession } from '@/lib/checklist/chapters';
 
 // The shared shell for the 3-session flow added in task #381 (see lib/checklist/sessions.ts for the
 // full scope note): a "Session X of N" nav bar with progress pills and Back/Next, the persistent
@@ -28,6 +29,16 @@ export default function SessionShell({ code, name, session, children }: SessionS
   const order = buildSessionOrder(code);
   const idx = order.findIndex((s) => s.key === session);
   const total = order.length;
+  // Tester feedback (forwarded WhatsApp message, verbatim): "the sites process looks too long Like
+  // too many questions." The flat "Session 1 of 18" framing below was honest but discouraging before
+  // the applicant even started — a 6-category document checklist pushes the raw count well past what
+  // "18 sessions" sounds like once you're actually moving through them. chapterInfoForSession groups
+  // the SAME underlying flat `order` (unchanged — buildSessionOrder and its locked-down test
+  // assertions aren't touched) into a small, fixed number of named chapters (6, regardless of how
+  // many document-checklist categories this country has), so the headline number the applicant sees
+  // first stays small and constant across every country. See lib/checklist/chapters.ts for the full
+  // rationale, including why this is a step count and not a fabricated time estimate.
+  const chapter = chapterInfoForSession(order, idx);
   const prev = prevSessionHref(code, session);
   const next = nextSessionHref(code, session);
   // Task #418 (direct request): "move 'still missing' to the last session" — the sidebar is
@@ -42,10 +53,20 @@ export default function SessionShell({ code, name, session, children }: SessionS
             sticky chrome on every session matches the new cream/green palette. */}
         <div className="sticky top-0 z-10 -mx-6 border-b border-black/10 bg-cream-soft/95 px-6 py-3 backdrop-blur lg:mx-0 lg:rounded-lg lg:border">
           <div className="flex items-start justify-between gap-3">
-            <p className="text-xs font-medium text-[#566a76]">
-              Session {idx + 1} of {total}:{' '}
-              <span className="font-semibold text-[#12232e]">{order[idx]?.label}</span>
-            </p>
+            <div>
+              <p className="text-xs font-medium text-[#566a76]">
+                Step {chapter.chapterIndex + 1} of {chapter.chapterCount}:{' '}
+                <span className="font-semibold text-[#12232e]">{chapter.chapterLabel}</span>
+              </p>
+              {/* Secondary line — keeps the exact page identity visible (same label this bar always
+                  showed) and, inside the document-checklist chapter where this actually varies by
+                  country, shows the applicant's real position within that chapter ("category 2 of
+                  6") without that number dominating the headline above it. */}
+              <p className="mt-0.5 text-[11px] text-[#8a97a0]">
+                {chapter.subLabel}
+                {chapter.subPosition ? ` · ${chapter.subPosition.index} of ${chapter.subPosition.count}` : ''}
+              </p>
+            </div>
             {/* Task #391 (mobile audit): this used to be a `fixed bottom-5 right-5` pill that stayed
                 on screen during scroll, matching the original's own persistent floating "Reasons"
                 tab — but "fixed" meant it sat over whatever content happened to be in that screen
