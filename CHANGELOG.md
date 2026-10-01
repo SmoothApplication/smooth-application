@@ -3,6 +3,18 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Clarity: "Upload a different statement" reworded to "Re-analyze (same or different file)"
+
+Direct user question: "why upload another bank statement, why not a refresh button that allows you
+to re-upload." The button already did exactly that — `clearSaved` in `StatementSlot.tsx` just clears
+the saved analysis and reopens the file picker, no different from a "refresh" action — but its old
+label ("Upload a different statement") read as "you need a new document," which is exactly backwards
+when what an applicant actually needs (e.g. after a parsing fix ships) is to re-feed the SAME file.
+There's no raw-file-bytes cache to refresh FROM — only the parsed results are ever persisted, by
+design (see `lib/statement/persist.ts`) — so re-running a fixed parser genuinely does require picking
+the file again; this change only fixes the label so that requirement reads clearly instead of as a
+mandate to find a different document. No logic changed. Verified: `npx tsc --noEmit` (clean).
+
 ## Fix: applicant's own name truncated/garbled on two more real narration shapes (same statement)
 
 Direct user report, live site, same real Providus statement as the REMITA fix below: "the name of

@@ -551,8 +551,15 @@ export default function StatementSlot({
           </p>
         </div>
         <div className="flex items-center gap-3">
+          {/* Direct user question: "why not a refresh button?" — this button already IS that: no raw
+              file bytes are ever kept (only the parsed results, by design — see persist.ts), so the
+              only way to re-run a fixed/updated parser is to hand it the file again. The old label
+              ("Upload a different statement") read as "pick a new document", which confused an
+              applicant who just needed to re-feed the SAME file after a parsing fix shipped. Re-worded
+              to make clear this re-analyzes the file they already have, same file or a new one either
+              way. */}
           <button type="button" onClick={clearSaved} className="text-xs text-accent underline">
-            Upload a different statement
+            Re-analyze (same or different file)
           </button>
           {onRemove && (
             <button type="button" onClick={onRemove} className="text-xs text-[#566a76] underline">
