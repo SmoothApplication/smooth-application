@@ -22,6 +22,19 @@ export interface Line {
    * mergeWrappedNarrationLines) — kept separate from the row's own date/amount cells so
    * buildCleanNarration can drop the duplicated date/amount text while keeping this. */
   __wrapExtra?: string;
+  /** Continuation narration text absorbed from LEADING wrapped lines, i.e. narration that starts
+   * on a physical line BEFORE this row's own date/amount line (see mergeLeadingNarrationLines) —
+   * the mirror image of __wrapExtra. Kept separate for the same reason: buildCleanNarration needs
+   * to prepend it without risking any date-shaped text being duplicated. */
+  __wrapLeadExtra?: string;
+  /** True once this Line represents a genuine transaction row (its ORIGINAL text started with a
+   * leading date), set the moment that's first established and preserved through every later
+   * merge. Needed because mergeLeadingNarrationLines prepends leading-wrap text onto a row's own
+   * .text, which means parseLeadingDate(line.text) can no longer re-detect "this is a dated row"
+   * from the text alone afterwards — re-deriving it from the (now-decorated) text instead of
+   * trusting this flag was the exact bug that cascaded into merging almost the whole statement's
+   * transactions into one chain. */
+  __isTxnRow?: boolean;
 }
 
 /** A detected debit/credit/balance header occurrence: which line index it was found on, and the

@@ -369,6 +369,21 @@ export const ACCOUNT_NAME_LABEL_RE = [
   /full\s*name\s*[:\-]\s*([A-Za-z][A-Za-z.,'\-\s]{3,60})/i,
 ];
 
+// Real-world finding (Providus statement, task: "it did not read her name"): some banks print their
+// header as a TABLE rather than "Label: Value" lines — e.g. Providus's PDF text extracts as
+// "CUST. NAME              POPOOLA ADEPEJU ADETUTU                                 START DATE ..."
+// with no colon/hyphen at all, just column alignment via a long run of spaces. None of the
+// colon-anchored patterns above ever match that, so the name silently went undetected. This is a
+// second pass, tried only if the colon-based patterns found nothing: same label words, but the
+// separator is "a long run of spaces" instead of ":"/"-", and the captured name is terminated by
+// the NEXT long run of spaces (i.e. the start of the next column) rather than by length/keyword
+// heuristics — which is a much more precise stop condition for a genuinely tabular layout.
+export const ACCOUNT_NAME_TABULAR_LABEL_RE = [
+  /cust\.?\s*name\s{2,}([A-Za-z][A-Za-z.,'\-]*(?:\s[A-Za-z][A-Za-z.,'\-]*){0,5})(?=\s{2,}|$)/i,
+  /acct\.?\s*name\s{2,}([A-Za-z][A-Za-z.,'\-]*(?:\s[A-Za-z][A-Za-z.,'\-]*){0,5})(?=\s{2,}|$)/i,
+  /account\s*name\s{2,}([A-Za-z][A-Za-z.,'\-]*(?:\s[A-Za-z][A-Za-z.,'\-]*){0,5})(?=\s{2,}|$)/i,
+];
+
 export function extractAccountHolderName(text: string): string | null {
   if (!text) return null;
   for (let i = 0; i < ACCOUNT_NAME_LABEL_RE.length; i++) {
@@ -382,6 +397,13 @@ export function extractAccountHolderName(text: string): string | null {
         .split(/\d{2,}|\bno\.?\b|\bnumber\b|\baccount\b|\bacct\b|\bbranch\b|\bsort\s*code\b|\biban\b|\bbvn\b|\baddress\b|\bstatement\b|\bperiod\b|\bcurrency\b|\bdate\b|\btype\b|\bbalance\b|\bcustomer\b|\bholder\b/i)[0]
         .replace(/\s+/g, ' ')
         .trim();
+      if (raw.length >= 4 && /[A-Za-z]{2,}\s+[A-Za-z]{2,}/.test(raw)) return raw;
+    }
+  }
+  for (let i = 0; i < ACCOUNT_NAME_TABULAR_LABEL_RE.length; i++) {
+    const m = text.match(ACCOUNT_NAME_TABULAR_LABEL_RE[i]);
+    if (m && m[1]) {
+      const raw = m[1].replace(/\s+/g, ' ').trim();
       if (raw.length >= 4 && /[A-Za-z]{2,}\s+[A-Za-z]{2,}/.test(raw)) return raw;
     }
   }

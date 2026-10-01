@@ -103,6 +103,26 @@ export const NARRATION_WRAP_MAX_LEN = 80;
 export const NARRATION_WRAP_SKIP_RE =
   /^(page\s+\d+|statement of account|continued|end of statement|generated on|printed on|download app|chat with leo|our website|head office\s*:|africa.s global bank|customer care|call\s*(centre|center)|toll[\s\-]?free|www\.|contact us)\b/i;
 
+// Real-world finding, off the same real Providus statement that exposed the leading-wrap gap
+// (mergeLeadingNarrationLines below): this bank's narration cell wraps on BOTH sides of the
+// dated row — some leftover text trails the row that holds row N's own date/amount figures, AND
+// a fresh line immediately above the NEXT row (N+1) opens ITS narration. Both of those orphan
+// lines pass every eligibility check above (no date, no amount, short, not page furniture), so
+// without this guard, THIS forward-walking pass claims both of them as row N's trailing text —
+// stealing row N+1's leading line before mergeLeadingNarrationLines ever gets a chance to see it.
+// Concretely: "...50.00 104,817.40" (row N, a VAT charge) was swallowing "REMITA INFLOW
+// R-1450507303/NIGERIAN" as its own trailing continuation, so by the time row N+1 (a completely
+// unrelated ₦3,786,435 salary allowance from "NIGERIAN UPSTREAM PETROLEUM") was parsed, the ONE
+// word that identified its employer was already gone — spent on the wrong transaction.
+//
+// A line that OPENS with a recognisable transaction-type keyword ("REMITA", "OUTWARD",
+// "COMMISSION", "POINT OF SALE", ...) reads as the START of a new narration, not the tail end of
+// an existing one — genuine trailing text is reference-number/merchant-detail continuation
+// ("/0000232...", "<AMAZON.CO.UK*...>"), never a transaction-type word. Stopping here leaves any
+// such line for mergeLeadingNarrationLines to correctly claim as the FOLLOWING row's leading text.
+export const TRANSACTION_TYPE_OPENER_RE =
+  /^(outward|inward|point\s+of\s+sale|commission|vat\b|stamp\s*duty|duty|remita|nip\b|pos\b|atm\b|ussd\b|fee\b|charge\b|interest\b|withdrawal|deposit|reversal|rvsl\b|loan\b|salary\b|trf\b|neft\b|rtgs\b|ft\b|mobile|transfer|airtime|bill\s*payment|standing\s*order|direct\s*debit|card\s*payment|cheque|chq\b)/i;
+
 export function mergeWrappedNarrationLines(lines: Line[]): Line[] {
   const out: Line[] = [];
   let i = 0;
@@ -124,6 +144,7 @@ export function mergeWrappedNarrationLines(lines: Line[]): Line[] {
       if (parseLeadingDate(nextText)) break; // the next real row starts here
       if (extractAmountTokens(nextText).length > 0) break; // a real data row, not wrapped text
       if (NARRATION_WRAP_SKIP_RE.test(nextText)) break; // page furniture, not narration
+      if (TRANSACTION_TYPE_OPENER_RE.test(nextText)) break; // the NEXT row's own leading text, not ours
       mergedText += ' ' + nextText;
       extraText += (extraText ? ' ' : '') + nextText;
       consumed++;
@@ -131,12 +152,112 @@ export function mergeWrappedNarrationLines(lines: Line[]): Line[] {
     // __wrapExtra keeps just the absorbed continuation text separate from the row's own date/amount
     // cells, so a display-narration rebuild (buildCleanNarration) can drop the duplicated date/amount
     // text while still keeping every bit of genuine wrapped narration that was stitched on here.
+    // Tag every genuinely-dated row with __isTxnRow — whether or not it absorbed trailing text —
+    // so the LATER mergeLeadingNarrationLines pass can trust this flag instead of re-parsing
+    // .text for a leading date (see the Line type's own comment for why that re-derivation is
+    // unsafe once leading text gets prepended).
     out.push(
       consumed
-        ? { text: mergedText, parts: line.parts, __page: line.__page, __wrapExtra: extraText }
-        : line
+        ? { text: mergedText, parts: line.parts, __page: line.__page, __wrapExtra: extraText, __isTxnRow: true }
+        : { ...line, __isTxnRow: true }
     );
     i += 1 + consumed;
+  }
+  return out;
+}
+
+// Real-world finding, off a real Providus statement (direct client report: "it did not read her
+// name" led to a deeper look, which surfaced this): mergeWrappedNarrationLines above only ever
+// absorbs a wrapped narration's TRAILING continuation (text on the line(s) AFTER a dated row).
+// Providus's own line layout wraps narrations the other way too — part of the narration sits on a
+// physical line BEFORE the dated row, e.g. "REMITA INFLOW R-1450507303/NIGERIAN" on its own line,
+// immediately followed by the dated row "31-03-2026 ... U:2NDQUARTERALLOWANCES2026TOSTAFF:CBN:/
+// 901450 ... 3,786,435.00 ...". The word "NIGERIAN" is the ONLY thing in the whole narration that
+// identifies this (and eleven other) payments as coming from the same employer; losing it meant the
+// name-extraction logic was left trying to make sense of "U NDQUARTERALLOWANCES TOSTAFF CBN" alone
+// and produced a differently-garbled, unrelated-looking name for nearly every one of that employer's
+// payments instead of recognising them as one recurring income source.
+//
+// This is the mirror image of mergeWrappedNarrationLines: for each dated line, walk BACKWARD
+// absorbing immediately preceding lines that look unambiguously like leftover leading narration
+// (same safety checks: no date/amount of their own, same page, short, not page furniture), and
+// prepend them. Deliberately runs AFTER mergeWrappedNarrationLines, not before: that pass has
+// already claimed everything it will as some earlier row's TRAILING text and removed it from the
+// array, so by the time this pass walks backward from a dated row, anything still sitting there
+// was never claimed as someone else's trailing continuation — there's no ambiguity left to resolve.
+//
+// One extra risk this pass has that the trailing one doesn't: walking backward from the very FIRST
+// transaction in a statement runs straight into that statement's own header block (the account's
+// name/number/currency fields, and the "TXN DATE / REMARKS / DEBIT / CREDIT / BALANCE" column
+// header), which can easily be short enough and date/amount-free enough to otherwise look exactly
+// like genuine wrapped narration. NARRATION_WRAP_HEADER_RE and looksLikeColumnHeaderRow guard
+// specifically against absorbing that into the first transaction's narration.
+export const NARRATION_WRAP_HEADER_RE =
+  /^(cust\.?\s*name|acct?\.?\s*name|a\/?c\s*name|account\s*name|account\s*title|client\s*name|name\s*of\s*(?:account\s*)?holder|address|acc\.?\s*no\.?|a\/?c\s*no\.?|account\s*no\.?|acc\.?\s*type|account\s*type|currency|branch|sort\s*code|iban|bvn|statement\s*period|opening\s*bal|closing\s*bal)\b/i;
+
+// Deliberately NOT tied to one bank's exact header wording ("TXN DATE ... REMARKS ... DEBIT ...")
+// since every statement format phrases its own column header row differently ("Date Narration
+// Debit Credit Balance", "Date Narration Money Out Money In Balance", etc — see the existing
+// wrapped-narration / slash-date-money-columns / pay-in-pay-out-column-labels fixtures). Counting
+// how many recognised column-header WORDS a line contains, rather than requiring an exact phrase,
+// catches the header regardless of which bank's wording it uses; 3+ is deliberately conservative so
+// a genuine narration line that happens to mention one of these words in passing (e.g. "...BALANCE
+// DUE...") isn't mistaken for the header.
+const COLUMN_HEADER_KEYWORDS = [
+  /\bdate\b/, /\bdebit\b/, /\bcredit\b/, /\bbalance\b/, /\bnarration\b/, /\bdescription\b/,
+  /\bremarks?\b/, /\bparticulars?\b/, /\bmoney\s*in\b/, /\bmoney\s*out\b/, /\bpay\s*in\b/, /\bpay\s*out\b/,
+  /\bwithdrawal\b/, /\bdeposit\b/, /\btransaction\s*date\b/, /\bvalue\s*date\b/, /\bchannel\b/,
+];
+
+export function looksLikeColumnHeaderRow(text: string): boolean {
+  const lower = (text || '').toLowerCase();
+  const hits = COLUMN_HEADER_KEYWORDS.reduce((n, re) => n + (re.test(lower) ? 1 : 0), 0);
+  return hits >= 3;
+}
+
+export function mergeLeadingNarrationLines(lines: Line[]): Line[] {
+  const out: Line[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    // __isTxnRow (set below, and inherited from mergeWrappedNarrationLines's own merged entries -
+    // see the Line type's own comment) is what decides "is this really a dated transaction row",
+    // NOT re-parsing .text for a leading date: once a lead line gets prepended onto a row below, that
+    // row's .text no longer STARTS with its date (the lead text now does), so re-deriving "dated-
+    // ness" from .text after that point would wrongly read every already-merged transaction as
+    // orphan narration and cascade into merging almost the entire statement into one chain - exactly
+    // what happened the first time this was written without the flag.
+    const isDated = line.__isTxnRow || !!parseLeadingDate(line.text);
+    if (!isDated) {
+      out.push(line);
+      continue;
+    }
+    let take = 0;
+    while (take < NARRATION_WRAP_MAX_LINES && out.length - take > 0) {
+      const prev = out[out.length - 1 - take];
+      const prevText = (prev.text || '').trim();
+      if (prev.__page !== line.__page) break; // never wrap across a page boundary
+      if (!prevText || prevText.length > NARRATION_WRAP_MAX_LEN) break;
+      if (prev.__isTxnRow) break; // a real preceding row - stop, nothing left to claim
+      if (extractAmountTokens(prevText).length > 0) break; // a real data row, not wrapped text
+      if (NARRATION_WRAP_SKIP_RE.test(prevText)) break; // page furniture, not narration
+      if (NARRATION_WRAP_HEADER_RE.test(prevText)) break; // the statement's own account/header field
+      if (looksLikeColumnHeaderRow(prevText)) break; // the "TXN DATE / REMARKS / ..." column header
+      take++;
+    }
+    if (take > 0) {
+      const leadLines = out.splice(out.length - take, take).map((l) => (l.text || '').trim());
+      const leadText = leadLines.join(' ');
+      out.push({
+        text: leadText + ' ' + line.text,
+        parts: line.parts,
+        __page: line.__page,
+        __wrapExtra: line.__wrapExtra,
+        __wrapLeadExtra: leadText,
+        __isTxnRow: true,
+      });
+    } else {
+      out.push({ ...line, __isTxnRow: true });
+    }
   }
   return out;
 }
@@ -201,7 +322,8 @@ export function mergeSplitDateLines(lines: Line[]): Line[] {
 export function buildCleanNarration(
   line: Line,
   excludeX: Record<number, boolean> | null,
-  wrapExtra?: string
+  wrapExtra?: string,
+  wrapLeadExtra?: string
 ): string {
   // Deliberately starts from '', not line.text — some real statement rows carry NO narration text of
   // their own on the dated/amount line at all (the whole description sits on a wrapped continuation
@@ -223,7 +345,9 @@ export function buildCleanNarration(
       .replace(/\s+/g, ' ')
       .trim();
   }
-  const cleaned = (partsText + (wrapExtra ? ' ' + wrapExtra : '')).replace(/\s+/g, ' ').trim();
+  const cleaned = ((wrapLeadExtra ? wrapLeadExtra + ' ' : '') + partsText + (wrapExtra ? ' ' + wrapExtra : ''))
+    .replace(/\s+/g, ' ')
+    .trim();
   return cleaned || line.text;
 }
 
@@ -237,7 +361,14 @@ export function parseStatementLines(lines: Line[]): ParsedTxn[] {
   const txns: ParsedTxn[] = [];
   let runningBalance: number | null = null;
   lines.forEach((line, lineIdx) => {
-    const parsed = parseLeadingDate(line.text);
+    // mergeLeadingNarrationLines prepends absorbed leading-wrap text onto the row's own .text (see
+    // its own comment, and the Line type's __isTxnRow comment), so the date is no longer at the very
+    // start of .text for a row that got any leading text merged on. Strip exactly that prefix back
+    // off (we stashed it verbatim in __wrapLeadExtra) before re-deriving "is this a dated row" here,
+    // rather than re-parsing the decorated text as-is — which is what silently turned a 649-
+    // transaction real statement into 34 the first time this was built.
+    const dateSource = line.__wrapLeadExtra ? line.text.slice(line.__wrapLeadExtra.length + 1) : line.text;
+    const parsed = parseLeadingDate(dateSource);
     if (!parsed) return;
 
     while (hdrPtr + 1 < headerOccurrences.length && headerOccurrences[hdrPtr + 1].index <= lineIdx) hdrPtr++;
@@ -331,7 +462,9 @@ export function parseStatementLines(lines: Line[]): ParsedTxn[] {
     }
 
     runningBalance = balance as number;
-    const narrationText = excludeX ? buildCleanNarration(line, excludeX, line.__wrapExtra) : line.text;
+    const narrationText = excludeX
+      ? buildCleanNarration(line, excludeX, line.__wrapExtra, line.__wrapLeadExtra)
+      : line.text;
     txns.push({ date: parsed.date, credit, debit, balance: balance as number, narration: narrationText });
   });
   return txns;
@@ -475,7 +608,7 @@ export function tryColumnMajorStatementParse(allLines: Line[]): ParsedTxn[] {
 export function parseStatementLinesWithFallback(
   lines: Line[]
 ): ParsedTxn[] & { __usedColumnMajorFallback?: boolean } {
-  const txns = parseStatementLines(mergeWrappedNarrationLines(mergeSplitDateLines(lines)));
+  const txns = parseStatementLines(mergeLeadingNarrationLines(mergeWrappedNarrationLines(mergeSplitDateLines(lines))));
   if (txns.length >= 2) {
     markAmountMatchedReversals(txns);
     return txns;

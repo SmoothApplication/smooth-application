@@ -37,6 +37,25 @@ test('recognises "Client Name" / "Account Title" / "Name of Customer" / "Full Na
   expect(extractAccountHolderName('Full Name: TOLU ADEBAYO\nStatement Period: 01/01/2026')).toMatch(/TOLU ADEBAYO/i);
 });
 
+test('recognises tabular (no-colon) "CUST. NAME" header — real Providus statement format (user report: "it did not read her name")', () => {
+  // Providus (and similar) print the header as a column table, not "Label: Value" lines — pdftotext
+  // -layout extracts this as one long line with the value separated from the label by a run of
+  // spaces (column alignment), not a colon. The old colon-anchored patterns never matched this at
+  // all, so the holder name silently went undetected for every Providus statement.
+  const statementText =
+    'CUST. NAME              POPOOLA ADEPEJU ADETUTU                                             START DATE          11-03-2026\n' +
+    'ADDRESS                 47, EMILY AKINOLA STREET AKOKA                                      END DATE            11-09-2026\n' +
+    'ACC. NO.                6507032249                                                          OPENING BAL.       1,288,940.58';
+  const holder = extractAccountHolderName(statementText);
+  expect(holder).toMatch(/POPOOLA ADEPEJU ADETUTU/i);
+  expect(namesLooselyMatch('Adepeju Popoola', holder as string)).toBe('ok');
+});
+
+test('tabular "ACCT. NAME" / "ACCOUNT NAME" (no colon) variants also match', () => {
+  expect(extractAccountHolderName('ACCT. NAME     CHIDI OKAFOR     ACC. NO.     1234567890')).toMatch(/CHIDI OKAFOR/i);
+  expect(extractAccountHolderName('ACCOUNT NAME     BOLA ADENIYI     BRANCH     IKEJA')).toMatch(/BOLA ADENIYI/i);
+});
+
 test('returns null (no check performed) when the statement format is not recognised at all', () => {
   expect(extractAccountHolderName('SOME RANDOM STATEMENT TEXT WITH NO RECOGNISED LABEL')).toBeNull();
   // Guard: with no applicant name typed in, there is nothing to cross-check against, so the caller

@@ -3,6 +3,71 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fix: leading-wrapped narration text silently dropped (real client's employer name lost)
+
+Real client finding: the user had personally extracted a client's (Adepeju Popoola, Providus
+account) major inflows into her own spreadsheet and compared it against what the app produced for
+the same statement. Her manual analysis correctly found one employer — NIGERIAN UPSTREAM PETROLEUM
+(NUPRC) — paying 12 recurring REMITA salary/allowance credits totalling ₦34,708,376.20. The app's
+own parser split those same 12 transactions into unrelated-looking, garbled groups instead.
+
+Root cause — Providus (and apparently others) wraps narration text on the physical line **before**
+a dated row, not just after: `REMITA INFLOW R-1450507303/NIGERIAN` sits on its own line,
+immediately followed by the dated row carrying the actual amount. `mergeWrappedNarrationLines`
+(existing) only ever absorbed **trailing** continuation lines; nothing absorbed this leading line,
+so "NIGERIAN" — the only identifier of the employer in the entire narration — was silently dropped
+on every one of these 12 transactions.
+
+Added `mergeLeadingNarrationLines` (`lib/statement/parse.ts`) as the mirror-image backward-walking
+pass, run after the existing trailing-merge. Two more bugs surfaced while building and verifying it
+against the real 2121-line/649-transaction statement (jest's small hand-crafted fixtures didn't
+exercise either):
+
+1. The existing trailing-merge pass was already greedily absorbing the *next* row's own leading
+   line as if it were trailing text of the row above (both looked identical in isolation: no date,
+   no amount, short, not page furniture). Added `TRANSACTION_TYPE_OPENER_RE` so trailing-merge stops
+   before claiming a line that looks like the start of a new transaction, leaving it for
+   `mergeLeadingNarrationLines` to claim correctly instead.
+2. Once a leading line is prepended onto a row's `.text`, that row no longer *starts* with its date
+   — re-deriving "is this a real transaction row" by re-parsing `.text` after that point (which both
+   the backward walk and `parseStatementLines` itself were doing) wrongly read every already-merged
+   row as orphan narration belonging to the row below it, cascading almost the entire statement
+   (649 transactions) down to 34. Fixed by adding a dedicated `__isTxnRow` flag to `Line`, set once
+   when a row's dated-ness is first established and trusted from then on instead of re-parsed, and
+   by having `parseStatementLines` strip the known `__wrapLeadExtra` prefix back off before looking
+   for the row's date rather than parsing the decorated text as-is.
+
+Re-ran the real statement end-to-end after the fix: still exactly 649 transactions (not collapsed),
+and all 12 REMITA transactions now carry "NIGERIAN" in their narration, matching the user's own
+manual analysis. Added `lib/statement/__tests__/leading-wrap-narration.test.ts` (4 tests): the basic
+leading-merge recovery, the opener-guard regression, a 4-consecutive-dated-row cascade regression
+(the one case a single isolated fixture can't catch), and a general (non-Providus) column-header
+guard check.
+
+Verified: `npx tsc --noEmit` (clean), `npx jest` (595/595 passing, 87/87 suites, no regressions),
+and `node scripts/pii-scan.js` (335 files, clean).
+
+## Fix: Providus statement holder name not detected (tabular header, no colon)
+
+Real client report: a new client's (Providus account) statement didn't get her name read at all.
+Root cause — Providus prints its header as a column table, not "Label: Value" lines. Extracted
+text reads `CUST. NAME              POPOOLA ADEPEJU ADETUTU                      START DATE ...`:
+the label and value are separated by column alignment (a long run of spaces), not a colon or
+hyphen. Every pattern in `extractAccountHolderName` (`lib/statement/names.ts`) was anchored on
+`:`/`-` right after the label, so this format matched nothing — the name-tally cross-check and the
+applicant-name auto-fill (#443) both silently skipped for every Providus statement.
+
+Added `ACCOUNT_NAME_TABULAR_LABEL_RE` — the same label words (`CUST. NAME`, `ACCT. NAME`,
+`ACCOUNT NAME`), but matched with a run of 2+ spaces as the separator and terminated at the next
+column gap, rather than by length or keyword heuristics. Tried as a fallback only when the
+existing colon-based patterns find nothing, so no existing statement format's behavior changes.
+Verified against the real statement's extracted header text (`POPOOLA ADEPEJU ADETUTU` is
+recovered correctly, and loosely matches "Adepeju Popoola" via the existing word-order-independent
+`namesLooselyMatch`). Added two regression tests.
+
+Verified: `npx tsc --noEmit` (clean), `npx jest` (591/591 passing, 86/86 suites), and
+`node scripts/pii-scan.js` (334 files, clean).
+
 ## 4th testimonial + Readiness Kits funnel tracking + request log (task #513)
 
 Three asks from the same message, all closing gaps in the Readiness Kits feature shipped last
