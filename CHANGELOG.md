@@ -3,6 +3,46 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fix: REMITA-paid employer inflows splitting into garbled singleton sender groups
+
+Live user report: a real applicant's 12 genuinely-same-employer inflow transactions (paid via
+Remita, Nigeria's payment-gateway/government-payroll rail) were showing up in "Income sources" as
+many separate, garbled groups — `"Remita Inflow R Nigerian U Oneoffproductivityrecognitionall"`,
+`"Remita Inflow R Nigerian U Ndquarterallowances Tostaff"`, etc. — instead of one combined employer
+group. The applicant had manually extracted the same statement into her own spreadsheet ("PJ BANK
+ANALYSIS") and correctly grouped all 12 as one employer; she asked the app to "follow the pattern"
+she used there.
+
+Root cause: Remita's own narration format appends a free-text payment description after a literal
+`U:` field separator — `"REMITA INFLOW R-<ref>/<SENDER NAME> U:<description>:CBN:<code>/..."` — and
+`extractNameCandidatesDetailed` (`lib/statement/names.ts`) had no concept of that boundary, so it
+absorbed the ever-varying description into the extracted "name," making every transaction's name
+unique even though the sender was identical every time.
+
+Two changes to `names.ts`:
+- `REMITA_NARRATION_FIELD_RE` (`/\bU\s*:/i`) truncates the narration at `U:` before name extraction
+  runs at all, so the varying description text is never considered.
+- `trimLeadingBoilerplate` strips Remita's own `"REMITA INFLOW R"` reference/transaction-type
+  boilerplate from the front of an already-built candidate name, for display. Tried first via
+  `BANK_NARRATION_STOPWORDS` (the existing mechanism for words like "NIP"/"TRF") — that backfired:
+  a stopword flushes/discards the whole run, and the one real word left over ("NIGERIAN") then had
+  no `SENDER_MARKERS` context, so `flush()`'s own single-word-discard rule silently dropped it,
+  returning zero candidates. `trimLeadingBoilerplate` instead trims the already-validated run
+  (after the length check that decided it was worth keeping) so it never risks that discard.
+
+Verified end-to-end against the real statement (not just synthetic fixtures): all 12 REMITA/
+NIGERIAN transactions now merge into one `getTopConsistentSenders` group, displayed as "Nigerian"
+(boilerplate stripped, no garbled description text), with a total of ₦34,708,376.20 — matching the
+applicant's own manually-computed figure exactly.
+
+Added `lib/statement/__tests__/remita-boilerplate-and-field-separator.test.ts` (4 tests): the `U:`
+truncation + boilerplate strip on a single narration, a 2+-word sender name surviving the same
+trim, all 12 differently-worded real-style narrations merging into one group with the correct
+total, and a check that the `U:` truncation doesn't regress an ordinary non-REMITA narration that
+happens to contain a colon.
+
+Verified: `npx tsc --noEmit` (clean), `npx jest` (603/603 passing, 89/89 suites, no regressions).
+
 ## Fix: Documents/Finances readiness scores stuck at 0% after a same-session statement upload
 
 Live user report, screenshot of `/checklist/uk/statement`: a statement that had just been

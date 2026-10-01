@@ -76,6 +76,29 @@ export const BANK_NARRATION_STOPWORDS = [
   'ETZ',
 ];
 
+// Real finding, off a real Providus statement (direct comparison against the applicant's own manual
+// extraction of the same statement): "REMITA INFLOW R" is Remita's own payment-gateway/transaction-
+// type/reference-field boilerplate, printed at the START of every narration it generates
+// ("REMITA INFLOW R-<ref>/<SENDER NAME> U:..."), regardless of which employer or payer is actually
+// behind the payment. Tried adding "REMITA"/"INFLOW" to BANK_NARRATION_STOPWORDS above first (same
+// mechanism as "NIP"/"TRF"/"MOB" etc.) — that backfired: a stopword FLUSHES the run entirely and
+// resets runMarker to null, so by the time the real sender word ("NIGERIAN") started its own fresh
+// run, it was a lone single word with no SENDER_MARKERS context, which flush() always discards (see
+// its own comment) — the whole candidate vanished instead of just losing its boilerplate prefix.
+// This trims the boilerplate off the FRONT of an already-built, already-long-enough run instead,
+// AFTER the length check that decided the run was worth keeping — so "Remita Inflow R Nigerian"
+// (4 words, clears the >=2 minimum) becomes "Nigerian" for DISPLAY, without ever being at risk of
+// the single-word discard that a stopword-flush would trigger.
+const LEADING_BOILERPLATE_RUNS: string[][] = [['REMITA', 'INFLOW', 'R']];
+function trimLeadingBoilerplate(words: string[]): string[] {
+  for (const pattern of LEADING_BOILERPLATE_RUNS) {
+    if (words.length > pattern.length && pattern.every((w, i) => words[i] === w)) {
+      return words.slice(pattern.length);
+    }
+  }
+  return words;
+}
+
 // Trims narration junk off the RIGHT end of an already-built name run, but only when it's confident
 // enough to do so safely: the run must open with two consecutive recognised name words (a plausible
 // "firstname surname"), AND the word being trimmed must come after at least one short (1-2 letter)
@@ -440,15 +463,35 @@ export const RECIPIENT_MARKERS = ['TO', 'IFO'];
 // non-stopword flush. extractNameCandidates() below is the plain-string view every existing caller
 // already expects; extractNameCandidatesDetailed() is for callers that need to know which side of a
 // FROM/TO-style narration a name came from.
+// Real-world finding, off a real Providus statement (direct comparison against the applicant's own
+// manual extraction of the same statement, which correctly grouped these as ONE employer): Remita-
+// formatted inflow narrations ("REMITA INFLOW R-<ref>/<SENDER NAME> U:<free-text description>:CBN:
+// <code>/...") use "U:" as a literal field separator between the sender's own name and Remita's
+// free-text payment description — e.g. "REMITA INFLOW R-1445788162/NIGERIAN U:STAFFSALARYFORMARCH
+// 2026:CBN:...". Without stopping at that marker, the payment description (which is DIFFERENT on
+// every single payment — STAFFSALARYFORMARCH vs STAFFSALARYFORAPRIL vs ENDOFNEGOTIATIONBONUS vs
+// EMPLOYEEFAMILYBURIALASSISTANCE, and so on) got glued onto the end of the sender-name run below,
+// because it's full of vowels and "looks name-shaped" exactly like any other word. The result: 12
+// genuinely-same-employer transactions each produced a different, unique "name", and got scattered
+// across a dozen separate singleton groups in the UI instead of being recognized as one consistent,
+// recurring income source (which the applicant's own spreadsheet already had right). Truncating at
+// the literal "U:" field marker — a structural fact about Remita's own narration format, not a
+// guess about word length or content — fixes this for any Remita-paid employer generally, not just
+// this one. No existing narration fixture in this codebase's test suite contains this exact "U:"
+// field pattern outside Remita narrations, so this is safe to apply unconditionally.
+const REMITA_NARRATION_FIELD_RE = /\bU\s*:/i;
+
 export function extractNameCandidatesDetailed(narration: string): NameCandidate[] {
-  const raw = (narration || '').toUpperCase().replace(/[^A-Z\s]/g, ' ').split(/\s+/);
+  const remitaField = REMITA_NARRATION_FIELD_RE.exec(narration || '');
+  const narrationForNames = remitaField ? (narration || '').slice(0, remitaField.index) : narration;
+  const raw = (narrationForNames || '').toUpperCase().replace(/[^A-Z\s]/g, ' ').split(/\s+/);
   const runs: NameCandidate[] = [];
   let current: string[] = [];
   let lastStopword: string | null = null;
   let runMarker: string | null = null;
   function flush() {
     if (current.length >= 2) {
-      runs.push({ name: trimTrailingNonNameWords(current).join(' '), precededBy: runMarker });
+      runs.push({ name: trimTrailingNonNameWords(trimLeadingBoilerplate(current)).join(' '), precededBy: runMarker });
     } else if (current.length === 1 && SENDER_MARKERS.indexOf(runMarker as string) !== -1) {
       runs.push({ name: current[0], precededBy: runMarker });
     }
