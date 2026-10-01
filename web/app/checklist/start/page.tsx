@@ -67,7 +67,7 @@ export default function ChecklistStartPage() {
     // `max-w-3xl` (768px) container that the 4-box country grid (task #405) is visually modeled
     // on, so the boxes here were cramped compared to their homepage counterparts. Widened to
     // `max-w-3xl` to match exactly.
-    <main className="flex min-h-screen items-center justify-center bg-[#f7fafb] p-6">
+    <main className="flex min-h-screen items-center justify-center bg-cream p-6">
       <div className="card-surface w-full max-w-3xl p-8">
         {/* Task #406: header changed from a stacked icon-then-title (icon box on its own row,
             "Smooth Application" on the row below) to the homepage's own side-by-side header
@@ -78,7 +78,7 @@ export default function ChecklistStartPage() {
           <span className="grid h-9 w-9 place-items-center rounded-full bg-accent-wash text-lg" aria-hidden>
             🛂
           </span>
-          <span className="text-lg font-semibold text-[#12232e]">Smooth Application</span>
+          <span className="font-serif text-lg font-semibold text-[#12232e]">Smooth Application</span>
         </div>
 
         <label className="mb-3 block text-sm font-medium text-[#12232e]">

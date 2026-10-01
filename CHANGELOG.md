@@ -3,6 +3,25 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Extend homepage serif/card treatment to quiz + checklist start (task #509)
+
+The homepage rebuild (#506) introduced `font-serif` (Lora) headlines and a `bg-cream` page
+background, but the two screens an applicant actually lands on right after the homepage —
+`/quiz` (all three of its screens: the question pages, the result screen, and the relocated
+trust/privacy card) and `/checklist/start` (the country picker) — still used the older
+`bg-[#f7fafb]` background and plain-sans `text-lg font-semibold`/`text-xl font-semibold`
+headings, so the visual hand-off from the new homepage into the actual flow felt inconsistent.
+
+Changed both files' `<main>` background from `bg-[#f7fafb]` to `bg-cream` (matching the
+homepage and the global body background in `app/layout.tsx`), and added `font-serif` to each
+screen's headline-weight text: the "Smooth Application" logo wordmark (quiz trust card,
+checklist start header) and the `<h1>`s ("A few quick questions", "Here's what we noticed").
+Everything else — layout, copy, card components, colors — is unchanged; this is purely the
+typography/background consistency pass the user asked for after seeing the homepage live.
+
+Verified: `npx tsc --noEmit` (clean), `npx jest` (589/589 passing, no regressions), and
+`node scripts/pii-scan.js` (329 files, clean) — the same bar used for the homepage rebuild.
+
 ## Homepage rebuild to match the mockup (tasks #505-506)
 
 Tasks #479-487 (earlier batch) only extracted the mockup's colors and applied them to the existing

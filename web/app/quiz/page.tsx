@@ -141,7 +141,7 @@ export default function ConfidenceQuizPage() {
     return (
       // Relocated from the old pre-quiz `!started` gate (task #396 — see file-level comment).
       // Layout/centering unchanged from task #392's fix.
-      <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#f7fafb] p-6">
+      <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-cream p-6">
         <div className="relative w-full max-w-2xl">
           <div
             className="pointer-events-none absolute left-1/2 top-1/2 h-[36rem] w-[36rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent/10 blur-3xl"
@@ -152,7 +152,7 @@ export default function ConfidenceQuizPage() {
               <span className="grid h-9 w-9 place-items-center rounded-full bg-accent-wash text-lg" aria-hidden>
                 ⚡
               </span>
-              <span className="text-lg font-semibold text-[#12232e]">Smooth Application</span>
+              <span className="font-serif text-lg font-semibold text-[#12232e]">Smooth Application</span>
               <span className="rounded-full bg-good-wash px-2 py-0.5 text-xs font-bold tracking-wide text-good">
                 FREE
               </span>
@@ -259,9 +259,9 @@ export default function ConfidenceQuizPage() {
     return (
       // Same fix as the !started screen above (task #392) — vertically center this short result
       // card too, instead of pinning it near the top with a large blank gap underneath.
-      <main className="flex min-h-screen items-center justify-center bg-[#f7fafb] p-6">
+      <main className="flex min-h-screen items-center justify-center bg-cream p-6">
         <div className="card-surface w-full max-w-2xl p-8">
-          <h1 className="text-xl font-semibold text-[#12232e]">Here&apos;s what we noticed</h1>
+          <h1 className="font-serif text-xl font-semibold text-[#12232e]">Here&apos;s what we noticed</h1>
 
           <div className="mt-3 flex items-center gap-2 rounded-lg bg-accent-wash px-3 py-2.5 text-sm font-semibold text-[#12232e]">
             <span aria-hidden>{tierCopy.icon}</span>
@@ -396,7 +396,7 @@ export default function ConfidenceQuizPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-lg flex-col gap-5 bg-[#f7fafb] p-8 pt-10 sm:pt-16">
+    <main className="mx-auto flex min-h-screen max-w-lg flex-col gap-5 bg-cream p-8 pt-10 sm:pt-16">
       <div>
         <div className="mb-2 flex items-center gap-2 text-xs font-medium text-[#566a76]">
           <span>Step {page} of {QUIZ_PAGE_COUNT}</span>
@@ -407,7 +407,7 @@ export default function ConfidenceQuizPage() {
             />
           </div>
         </div>
-        <h1 className="text-xl font-semibold text-[#12232e]">A few quick questions</h1>
+        <h1 className="font-serif text-xl font-semibold text-[#12232e]">A few quick questions</h1>
         <p className="mt-1 text-sm text-[#4c6270]">We&apos;ll carry these straight into your checklist.</p>
       </div>
 
