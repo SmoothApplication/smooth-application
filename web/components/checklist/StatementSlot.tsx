@@ -15,6 +15,8 @@ import {
   StatementSummary,
   StatementFailureReason,
   buildStatementHelpWhatsAppHref,
+  CURRENT_PARSER_VERSION,
+  isStatementStale,
 } from '@/lib/statement';
 import StatementDashboard from '@/components/checklist/StatementDashboard';
 import ResumeReminderLinks from '@/components/checklist/ResumeReminderLinks';
@@ -106,6 +108,12 @@ export default function StatementSlot({
 }: StatementSlotProps) {
   const [loaded, setLoaded] = useState(false);
   const [recalled, setRecalled] = useState(false);
+  // Direct user pushback: "the user would not know he needs to upload another bank statement" —
+  // relabeling the re-upload button only helps someone who already suspects something's stale. This
+  // is the actual fix: every saved statement is stamped with the parser version that produced it
+  // (see parserVersion.ts), so the app itself can notice a parsing/name-cleanup fix has shipped
+  // since this one was analyzed and say so plainly, instead of leaving that invisible.
+  const [stale, setStale] = useState(false);
 
   const [label, setLabel] = useState(defaultLabel);
   const [editingLabel, setEditingLabel] = useState(false);
@@ -184,6 +192,7 @@ export default function StatementSlot({
       setEmployerDeclaredMonthlyIncome(saved.employerDeclaredMonthlyIncome || 0);
       setBusinessDeclaredMonthlyIncome(saved.businessDeclaredMonthlyIncome || 0);
       setRecalled(true);
+      setStale(isStatementStale(saved.parserVersion));
     }
 
     try {
@@ -240,6 +249,7 @@ export default function StatementSlot({
         businessCategoryChoices,
         employerDeclaredMonthlyIncome,
         businessDeclaredMonthlyIncome,
+        parserVersion: CURRENT_PARSER_VERSION,
       };
       secureStorage.setItem(storageKey, JSON.stringify(payload));
     } catch {
@@ -321,6 +331,7 @@ export default function StatementSlot({
     setEmployerDeclaredMonthlyIncome(0);
     setBusinessDeclaredMonthlyIncome(0);
     setRecalled(false);
+    setStale(false);
     setFile(null);
     setError(null);
     setFailureReason(null);
@@ -362,6 +373,7 @@ export default function StatementSlot({
         return;
       }
       setTxns(result);
+      setStale(false); // a freshly-parsed statement always reflects the running app's CURRENT_PARSER_VERSION
       const fullStatementText = lines.map((l) => l.text || '').join(' ');
       const holderName = extractAccountHolderName(fullStatementText);
       setDetectedHolderName(holderName);
@@ -553,11 +565,9 @@ export default function StatementSlot({
         <div className="flex items-center gap-3">
           {/* Direct user question: "why not a refresh button?" — this button already IS that: no raw
               file bytes are ever kept (only the parsed results, by design — see persist.ts), so the
-              only way to re-run a fixed/updated parser is to hand it the file again. The old label
-              ("Upload a different statement") read as "pick a new document", which confused an
-              applicant who just needed to re-feed the SAME file after a parsing fix shipped. Re-worded
-              to make clear this re-analyzes the file they already have, same file or a new one either
-              way. */}
+              only way to re-run a fixed/updated parser is to hand it the file again. Label kept
+              generic here since the STALE banner below (when it applies) carries the actual "why"
+              and the direct call to action — this is just the always-available fallback route. */}
           <button type="button" onClick={clearSaved} className="text-xs text-accent underline">
             Re-analyze (same or different file)
           </button>
@@ -569,7 +579,29 @@ export default function StatementSlot({
         </div>
       </div>
 
-      {recalled && (
+      {/* Direct user pushback: "the user would not know he needs to upload another bank statement" —
+          a quiet "recalled" status message (still shown below when NOT stale) never told anyone a
+          fix shipped. When it IS stale, this replaces that with a visible, actionable prompt: it
+          names the reason ("we've improved how statements are read"), states what to do in plain
+          language, and puts the SAME action (clearSaved) directly on a real button right here,
+          rather than relying on the applicant to notice and go find the small text link above. */}
+      {stale && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-warn-wash p-3 text-sm text-warn-text" role="status">
+          <span>
+            ✨ We&apos;ve improved how we read bank statements since you last uploaded this one — some details
+            below may be out of date. Re-upload the same file to refresh them.
+          </span>
+          <button
+            type="button"
+            onClick={clearSaved}
+            className="shrink-0 rounded-md bg-warn-text px-3 py-1.5 text-xs font-semibold text-white"
+          >
+            Refresh this statement
+          </button>
+        </div>
+      )}
+
+      {recalled && !stale && (
         <div className="rounded-lg bg-accent-wash p-3 text-sm text-accent" role="status">
           📄 Statement recalled from your last visit — no need to re-upload.
         </div>

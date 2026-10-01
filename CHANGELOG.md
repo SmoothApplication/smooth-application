@@ -3,6 +3,31 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Feature: the app now notices a stale statement analysis itself, instead of relying on a label
+
+Direct user pushback on the previous entry's button relabel: "this is not user friendly, the user
+would not know he needs to upload another bank statement." Fair — a clearer label only helps someone
+who already suspects something's wrong. Nothing previously told an applicant that a parsing fix had
+shipped at all; she'd only find out if someone personally told her to re-upload.
+
+Real fix: every saved statement is now stamped with the parser version that produced it
+(`CURRENT_PARSER_VERSION` in the new `lib/statement/parserVersion.ts`, threaded through
+`PersistedStatement.parserVersion` in `persist.ts`). On load, `StatementSlot.tsx` compares the saved
+version against the running app's and — if behind — shows a visible banner right at the top of the
+statement card: "We've improved how we read bank statements since you last uploaded this one — some
+details below may be out of date," with a real "Refresh this statement" button on it, not just a
+small text link. A statement saved before this stamp existed (every payload uploaded until now,
+including the REMITA/"ACCOUNT TRANSFERS"/glued-name fixes above) is always treated as stale, since
+there's no way to know what it was analyzed with and in practice every real fix to date predates this
+stamp anyway. The existing "Re-analyze (same or different file)" link stays as the always-available
+fallback route; the new banner is what actually tells an applicant WHY she might want to use it.
+`CURRENT_PARSER_VERSION` gets bumped by hand whenever a future change would meaningfully alter what
+gets extracted from the same raw statement text — not for UI-only changes.
+
+Added `lib/statement/__tests__/parserVersion.test.ts` (4 tests: current version isn't stale, an
+older version is, a payload with no stamp at all is always stale, a hypothetical future version
+isn't). Verified: `npx tsc --noEmit` (clean), `npx jest` (612/612 passing, 91/91 suites).
+
 ## Clarity: "Upload a different statement" reworded to "Re-analyze (same or different file)"
 
 Direct user question: "why upload another bank statement, why not a refresh button that allows you

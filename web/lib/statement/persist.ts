@@ -82,6 +82,11 @@ export interface PersistedStatement {
    * are worth double-checking against the real statement. See extractFile.ts's
    * getLinesFromFileWithMeta. Optional for backward-compat with payloads saved before this existed. */
   ocrUsed?: boolean;
+  /** Stamped at save time with CURRENT_PARSER_VERSION (see parserVersion.ts) — lets the app notice
+   * when a parsing/name-cleanup fix has shipped since this statement was last analyzed, and tell the
+   * applicant plainly rather than leaving that invisible. Optional/undefined for every payload saved
+   * before this existed, which isStatementStale() always treats as stale. */
+  parserVersion?: number;
 }
 
 export function serializeTxns(txns: ParsedTxn[]): PersistedTxn[] {

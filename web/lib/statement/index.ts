@@ -7,6 +7,7 @@ export * from './parse';
 export * from './names';
 export * from './classify';
 export * from './persist';
+export * from './parserVersion';
 export * from './business';
 export * from './businessDrawings';
 export * from './personalNameTally';
