@@ -3,6 +3,44 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fix: Documents/Finances readiness scores stuck at 0% after a same-session statement upload
+
+Live user report, screenshot of `/checklist/uk/statement`: a statement that had just been
+uploaded and analyzed (649 transactions found, closing balance shown) still left the sidebar
+reading Documents 0%/"Getting started" and Finances 0%/"Enter your figures" — looking identical to
+the two bugs already fixed in #502/#503, but on a path those fixes didn't cover.
+
+**Finances** was a real regression hiding inside #502's own fix. `StatementSlot.tsx` has two
+`useEffect`s that both fire in the same commit when a fresh upload sets `txns`: one persists the
+just-parsed statement to `sa_<code>_statement`, the other (`syncFinancialInputsFromStatement`,
+`financeStatementSync.ts`) re-reads that SAME key to seed `sa_<code>_financial`. React runs a
+component's effects in declaration order, and the sync effect was declared FIRST — so on a
+brand-new upload it ran before the save effect had written anything, read an empty key, and
+silently no-opped. It only ever worked on a reload/recall, because by then the save from the PRIOR
+visit was already sitting in storage. Fixed by reordering the two effects (save, then sync) —
+`financeStatementSync.ts` itself was already correct, just called too early.
+
+**Documents** was a real, previously-unaddressed gap, parallel to #503's passport fix but never
+extended to statements. #503 taught `PassportCheck.tsx` to auto-tick `sa_<code>_checked.passport`
+the moment a valid passport is scanned; nothing analogous existed for the bank-statement item, so
+it stayed unticked until the applicant separately found and ticked a checkbox on a different page.
+Added the same pattern to `StatementSlot.tsx` (`autoTickBankStatementIfAnalyzed`), firing the
+moment a statement successfully parses. The checklist item's id differs by country —
+`bankStatements` (UK/EU/Canada/South Africa/Ethiopia) vs `proofOfFunds` (Ghana/Kenya/Morocco) —
+so both are set; whichever doesn't exist in a given country's checklist is simply inert. Like
+#503, only ever sets these to `true`, so a manual tick elsewhere is never undone.
+
+Added `lib/checklist/__tests__/financeStatementSync.test.ts` (4 tests) covering the sync
+function's own correctness — this repo has no React component-test harness (jest runs in plain
+`node`, not jsdom), so the effect-ordering race itself isn't directly reproducible in a unit test,
+but this locks down that the function does the right thing once a statement is genuinely in
+storage, correctly no-ops when it isn't (the exact failure mode), never overwrites hand-typed
+figures, and correctly combines both statement slots (dual-account support, #420).
+
+Verified: `npx tsc --noEmit` (clean), `npx jest` (599/599 passing, 88/88 suites, no regressions).
+Live-verify on smoothapplication.com after push is still owed — this fix couldn't be exercised
+end-to-end without a real upload in a real browser session.
+
 ## Homepage: surface the "docs never leave your device" reassurance above the fold
 
 Real feedback: the user shared a forwarded WhatsApp message from someone who'd only seen the site

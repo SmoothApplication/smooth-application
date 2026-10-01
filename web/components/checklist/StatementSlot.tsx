@@ -20,7 +20,33 @@ import StatementDashboard from '@/components/checklist/StatementDashboard';
 import ResumeReminderLinks from '@/components/checklist/ResumeReminderLinks';
 import { trackEvent } from '@/lib/analytics';
 import { syncFinancialInputsFromStatement } from '@/lib/checklist/financeStatementSync';
+import { dispatchChecklistUpdated } from '@/lib/checklist/liveUpdateEvents';
 import * as secureStorage from '@/lib/security/secureStorage';
+
+// Direct user report (live, mid-session, screenshot of /checklist/uk/statement): a statement
+// analyzed to 649 transactions, yet the sidebar's "Documents" readiness score still read 0%/
+// "Getting started". Root cause, parallel to task #503's passport fix (PassportCheck.tsx — see
+// that file's own comment): nothing on this page ever wrote to sa_<code>_checked, so the
+// document-checklist's bank-statement item stayed unticked until the applicant separately
+// remembered to go tick a checkbox on a different page. The item's id differs by country —
+// 'bankStatements' (uk/eu/ca/za/et) vs 'proofOfFunds' (gh/ke/ma) — so both are set; whichever one
+// isn't part of a given country's checklist is simply inert (computeRequiredPercent only counts
+// ids that actually appear in that checklist). Only ever sets these to true, same as #503, so a
+// manual tick elsewhere is never undone by this.
+function autoTickBankStatementIfAnalyzed(checkedStorageKey: string) {
+  try {
+    const raw = secureStorage.getItem(checkedStorageKey);
+    const current = raw ? (JSON.parse(raw) as Record<string, boolean>) : {};
+    if (current.bankStatements && current.proofOfFunds) return; // already ticked — nothing changed
+    secureStorage.setItem(
+      checkedStorageKey,
+      JSON.stringify({ ...current, bankStatements: true, proofOfFunds: true })
+    );
+    dispatchChecklistUpdated();
+  } catch {
+    /* ignore — worst case the applicant ticks it by hand on the checklist */
+  }
+}
 
 // Task #420 (direct request): one statement's whole upload → parse → dashboard lifecycle, pulled
 // out of what used to be the entire body of StatementCheck.tsx so it can be mounted TWICE — once
@@ -180,20 +206,16 @@ export default function StatementSlot({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storageKey, answersStorageKey]);
 
-  // Direct user report (live, mid-session): "bank statement has been uploaded and analyzed, yet
-  // finances is reading 0". Seeds sa_<code>_financial's closing balance + cash flow from this
-  // statement the moment it's analyzed (or restored from a previous visit), so the sidebar's
-  // Finances score reflects real evidence without requiring a separate trip through the Financial
-  // calculator session first — see lib/checklist/financeStatementSync.ts for the non-destructive
-  // merge rules. storageKey is always `sa_<lowerCode>_statement` or `sa_<lowerCode>_statement_2`.
-  useEffect(() => {
-    if (!txns || txns.length === 0) return;
-    const match = storageKey.match(/^sa_(.+?)_statement/);
-    if (!match) return;
-    syncFinancialInputsFromStatement(match[1]);
-  }, [txns, storageKey]);
-
-  // Save on every change, once loaded.
+  // Save on every change, once loaded. Declared BEFORE the finance-sync effect below — React runs a
+  // component's useEffect hooks in declaration order within the same commit, and the sync effect
+  // reads this slot's statement back OUT of storage (see its own comment), so it must run after this
+  // one has actually written the just-parsed statement, not before. Getting this backwards was a
+  // real, reported bug: a brand-new upload sets txns, which puts BOTH effects on deps and fires them
+  // in the same commit — if the sync effect ran first (as it originally did, further down in the
+  // file), it read storage before this effect had saved anything, silently found nothing, and never
+  // seeded sa_<code>_financial at all. The Finances sidebar score then stayed stuck at 0% ("Enter
+  // your figures") for a same-session upload, only ever working after a reload/recall (when this
+  // effect's PRIOR write was already sitting in storage by the time the sync effect ran).
   useEffect(() => {
     if (!loaded || !txns || txns.length === 0) return;
     try {
@@ -247,6 +269,24 @@ export default function StatementSlot({
     businessDeclaredMonthlyIncome,
     storageKey,
   ]);
+
+  // Direct user report (live, mid-session): "bank statement has been uploaded and analyzed, yet
+  // finances is reading 0". Seeds sa_<code>_financial's closing balance + cash flow from this
+  // statement the moment it's analyzed (or restored from a previous visit), so the sidebar's
+  // Finances score reflects real evidence without requiring a separate trip through the Financial
+  // calculator session first — see lib/checklist/financeStatementSync.ts for the non-destructive
+  // merge rules. storageKey is always `sa_<lowerCode>_statement` or `sa_<lowerCode>_statement_2`.
+  // MUST run after the save effect above (see that effect's comment for why) — kept declared second.
+  // Also auto-ticks the document checklist's bank-statement item (see autoTickBankStatementIfAnalyzed
+  // above) — same trigger (a successfully analyzed statement), so it lives in the same effect rather
+  // than a third one duplicating this effect's guard conditions.
+  useEffect(() => {
+    if (!txns || txns.length === 0) return;
+    const match = storageKey.match(/^sa_(.+?)_statement/);
+    if (!match) return;
+    syncFinancialInputsFromStatement(match[1]);
+    autoTickBankStatementIfAnalyzed(`sa_${match[1]}_checked`);
+  }, [txns, storageKey]);
 
   // Report this slot's summary up to the parent (for the combined balance card) any time the
   // things that feed it change. Reports `null` while there's nothing parsed yet, same as
