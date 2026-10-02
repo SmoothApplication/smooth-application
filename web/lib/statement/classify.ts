@@ -33,32 +33,20 @@ export function isReversalNarration(narrationOrTxn: string | ParsedTxn | null | 
   return !!(isTxn && (narrationOrTxn as ParsedTxn).__amountMatchedReversal);
 }
 
-// User-reported real case, off an actual Opay statement: automatic daily interest credits on Opay's
-// "OWealth" savings wallet narrate as e.g. "07 Aug 2026 01:40:30 OWealth Interest Earned -- Mobile uJ
-// 260808994uHYYGJHzJblKYq3Jmt1" — no sender name at all, just a timestamp, the product name, and a
-// long opaque reference token. The name-extraction logic had never seen this shape before, so it swept
-// "Earned"/"Mobile"/"Owealth" plus that reference token in as if they were a person's name, producing
-// garbled "sender" groups. This is automatic interest on the applicant's own money, not income from a
-// person or company, so it's detected and routed to its own clearly-labelled bucket before name
-// extraction ever runs on it — same treatment as a reversal or a self-transfer. Matched on "interest
-// earned" generally (not just "owealth") so the same fix covers any other bank/wallet's own-worded
-// interest-credit narration.
+// Real Opay case: auto interest credits narrate with no sender name at all ("OWealth Interest
+// Earned -- Mobile uJ 260808994..."), which used to get swept into name extraction and produce
+// garbled sender groups from the reference token. Routed to its own bucket before name extraction
+// runs, same as a reversal or self-transfer. Matches "interest earned" generally so it covers other
+// wallets' own wording too, not just Opay's.
 export function isInterestEarnedNarration(narration: string | null | undefined): boolean {
   return /\binterest\s*earned\b/i.test(narration || '');
 }
 
-// Real-data finding (two genuine Opay wallet/savings statements for the same applicant): beyond the
-// "OWealth Interest Earned" credits already handled above, Opay's auto-save/sub-balance feature
-// generates several OTHER credit narrations that are just as clearly not income — the applicant's own
-// money moving between their main wallet and its OWealth/Targets/SafeBox sub-balances — but none of
-// them contain the word "interest" so isInterestEarnedNarration doesn't catch them: "Auto-save to
-// OWealth Balance", "OWealth Withdrawal(Transaction Payment)", "OWealth Deposit(from Targets)",
-// "OWealth Deposit(from Fixed)", "OWealth Deposit(Transaction Refund)", "Targets Deposit", "SafeBox
-// Deposit"/"SafeBox Withdrawal". None of these name a sender at all, so before this fix they fell
-// through to candidate-name extraction and landed in "Other / one-off inflows" — technically harmless,
-// but still surfaced as an unexplained inflow needing a reason/category, when it's actually just
-// internal wallet bookkeeping. Matched generically on the product-feature vocabulary rather than only
-// Opay's exact wording, so the same fix covers another wallet's similarly-worded internal transfer.
+// Opay's auto-save/sub-balance feature generates credit narrations with no "interest" wording
+// ("Auto-save to OWealth Balance", "Targets Deposit", "SafeBox Withdrawal", etc.) that name no
+// sender and are just the applicant's own money moving between wallet sub-balances — previously
+// fell through to "Other / one-off inflows" as a spurious unexplained-inflow. Matched on the
+// general product-feature vocabulary so another wallet's similar wording is covered too.
 export const INTERNAL_WALLET_MOVEMENT_RE =
   /\bowealth\s*(deposit|withdrawal)\b|\bauto-?save\b|\btargets?\s*(deposit|withdrawal)\b|\bsafebox\s*(deposit|withdrawal)\b/i;
 
@@ -66,16 +54,11 @@ export function isInternalWalletMovementNarration(narration: string | null | und
   return INTERNAL_WALLET_MOVEMENT_RE.test(narration || '');
 }
 
-// User-reported real case: 13 small credits narrated "Mobile USSDAirtime N500.00 to ..." and "SMS
-// NOTIFICATION CHARGE FOR ..." got swept into the auto-detected "Salary" bucket — every one of these
-// is under ₦2,500, so identifyStableIncome's round-to-nearest-₦5,000 bucketing collapsed them all
-// into the SAME rounded amount (₦0), which then looked like a recurring "stable income" figure purely
-// by coincidence of rounding. Whatever these actually are, they are never personal/employer income and
-// should never be counted as any kind of inflow needing an income-source explanation.
-// NOTE: AIRTIME is deliberately NOT wrapped in \b...\b on its left side — real narrations run it
-// straight into the channel code with no separator ("Mobile USSDAirtime N500.00..."), so a leading
-// word-boundary check would never match inside "USSDAirtime" at all. "airtime" as a bare substring is
-// distinctive enough on its own to not need one.
+// Small airtime/SMS-charge credits under ₦2,500 used to round into the same ₦0 bucket under
+// identifyStableIncome's ₦5,000 rounding and get mistaken for recurring "stable income" — these are
+// never personal/employer income regardless. AIRTIME has no leading \b: real narrations run it
+// straight into the channel code with no separator ("Mobile USSDAirtime..."), so a word-boundary
+// check would never match inside it; the bare substring is distinctive enough alone.
 export const NON_INCOME_CHARGE_RE =
   /\bSMS\s*NOTIFICATION\b|AIRTIME|\bDATA\s*BUNDLE\b|\bRECHARGE\b|\bCARD\s*MAINTENANCE\b|\bACCOUNT\s*MAINTENANCE\b|\bSTAMP\s*DUTY\b|\bVAT\s*CHARGE\b|\bCOMMISSION\s*ON\s*TURNOVER\b/i;
 
@@ -560,26 +543,15 @@ export function applySenderDuplicateDecisions(
   return { merged, pending };
 }
 
-// Ported from index.html's getTopConsistentSenders (~lines 13680-13717). Ranks every named sender by
-// how many DISTINCT MONTHS they've paid in first (a sender who pays a little every month for a year is
-// stronger evidence of reliable income than one who paid a lot once), then by payment count, then by
-// total amount, as a tiebreaker. Reuses the exact same sender-extraction/merge/dedupe pipeline as
-// buildIncomeSourceBreakdown (senderSideCandidates -> toTitleCase -> mergeNameVariants ->
-// applySenderDuplicateDecisions) so a name here is keyed identically to a group name there — a caller
-// applying a "Fix name" display correction can use the same correction map for both.
+// Port of index.html's getTopConsistentSenders (~13680-13717): ranks named senders by distinct
+// months paid (steadier > one big payment), then count, then total. Shares the same sender
+// extraction/merge/dedupe pipeline as buildIncomeSourceBreakdown, so a "Fix name" correction map
+// keyed off one applies to the other. Doesn't apply name corrections itself — that's UI state, out
+// of scope for this pure module.
 //
-// Deliberately does NOT apply any name correction itself (unlike the original, which called into its
-// own UI-only displaySourceName) — that's persisted UI state out of scope for this pure-logic module;
-// callers with a correction map apply it themselves using the returned (raw, extracted) `name`.
-// Direct port of index.html's getTopInflows (~line 13635) — deliberately simple and NOT the same
-// thing as getTopConsistentSenders just below: this ranks by raw amount (the single biggest
-// individual transactions on the statement), while getTopConsistentSenders ranks by how many
-// distinct months a sender recurs across. index.html showed both as separate boxes ("Top 10
-// inflows" and "Top 10 most consistent senders") because they answer different reviewer
-// questions — "what's the biggest single payment in?" vs "who pays me steadily?" — so this was
-// never meant to be replaced by the other; it was simply never carried over in the Next.js port
-// (task #430, found via a live audit against the original GitHub Pages site's "Advanced details"
-// dropdown, which still lists it as its own shortcut).
+// getTopInflows below is NOT a duplicate of this: it ranks by single largest transaction amount,
+// a different question ("biggest payment?" vs "who pays steadily?") — port of index.html's
+// getTopInflows (~13635), restored in task #430 after being dropped from the initial port.
 export function getTopInflows(txns: ParsedTxn[], n?: number): ParsedTxn[] {
   return txns
     .filter((t) => t.credit > 0)
@@ -714,25 +686,17 @@ export function mergeNameVariants(namedGroups: Record<string, ParsedTxn[]>): Rec
 }
 
 // ---- "Self" inflow detection ----
-// User instruction, off a real statement: several inflows show the account holder's OWN name in the
-// "SENDER" field — a known quirk of some transfer/collection channels, where the narration's sender
-// label gets populated with the receiving account's own registered name rather than a genuine third
-// party. Left unhandled, these got mis-swept into "Salary" or into their own "Personal" sender box.
-// Resolves the statement's own account-holder name from whichever full name recurs most often on the
-// RECIPIENT (TO/IFO) side of THIS statement's own credit narrations — more reliable than the typed
-// passport-name field alone, which real statements have shown can differ from however the bank account
-// is actually registered (a maiden name, a shortened form, extra/missing middle names) — falling back
-// to the typed applicant name if no recipient-side name recurs at all.
+// Some transfer channels populate the "SENDER" field with the receiving account's OWN registered
+// name rather than a genuine third party, which used to mis-sweep these into "Salary" or a stray
+// "Personal" box. We resolve the statement's own holder name(s) from whatever full name recurs on
+// the RECIPIENT (TO/IFO) side of this statement's own credit narrations — more reliable than the
+// typed passport name, which can differ from bank registration (maiden name, shortened form,
+// missing middle names) — falling back to the typed name if nothing recurs.
 //
-// Real-data finding, off a real Sterling statement: the SAME account holder shows up on the RECIPIENT
-// side of different transactions narrated with DIFFERENT subsets/orderings of a longer real name — all
-// genuinely referring to one person, none of them the applicant's typed passport name verbatim, and no
-// single one of them necessarily recurs the MOST often. Picking only the single best-recurring variant
-// (still exposed below as detectStatementHolderName for whichever caller wants just one) silently
-// discarded every other variant, so a genuine self-transfer narrated with a less-common variant fell
-// through to "no clear sender name" / a personal box instead of Self. detectStatementHolderNames
-// returns EVERY variant that recurs at least twice, so a self-check can match a candidate against any
-// of them, not just whichever one happened to recur most.
+// Returns every name variant that recurs at least twice, not just the single most common one: a
+// real Sterling statement showed the same person under several different subsets/orderings of
+// their full name, none dominant, so matching against only the top variant missed genuine
+// self-transfers narrated with a less-common one.
 export function detectStatementHolderNames(txns: ParsedTxn[], applicantName?: string | null): string[] {
   const buckets: Record<string, number> = {}; // lowercased name -> count
   txns.forEach((t) => {
@@ -756,17 +720,11 @@ export function detectStatementHolderName(txns: ParsedTxn[], applicantName?: str
   return variants.length ? variants[0] : null;
 }
 
-// A candidate counts as "self" if it fully matches ANY resolved holder-name variant
-// (isLikelyApplicantsOwnName, via namesLooselyMatch) OR — ONLY when the candidate is a single bare
-// word ("SENDER: MARY") — shares at least one significant (3+ letter) word with any of them. That
-// single-word restriction is deliberate and was tightened after a real regression: an EARLIER version
-// of this check fired on any shared significant word regardless of candidate length, which wrongly
-// caught a full "Mary Smith" sender as "self" purely because she shares the applicant's surname
-// ("Smith") — exactly the shared-surname pattern the existing Family grouping (sharesSurname) is there
-// to catch instead. A multi-word candidate carries other identifying words beyond the shared one; if
-// those don't ALSO match a holder-name variant, it names a genuinely different person (most often
-// family), not the applicant. A single bare word has no such "other" identity to weigh against, so any
-// significant overlap there is still a strong enough signal — narrowed, not removed.
+// A candidate counts as "self" if it fully matches any resolved holder-name variant, or — only when
+// the candidate is a single bare word ("SENDER: MARY") — shares a significant (3+ letter) word with
+// one. The single-word restriction matters: an earlier version matched on any shared significant
+// word regardless of length, which wrongly caught a full "Mary Smith" sender as self just for
+// sharing the applicant's surname — that's the Family grouping's job (sharesSurname), not this one.
 export function looksLikeSelfInflow(candidateName: string, applicantName: string | null | undefined, holderNames?: string[] | null): boolean {
   if (isLikelyApplicantsOwnName(candidateName, applicantName)) return true;
   const variants = holderNames || [];
@@ -796,22 +754,14 @@ export function buildIncomeSourceBreakdown(
   // holder-name variant, exactly like the auto-detected ones above, rather than needing its own
   // separate check.
   if (maidenName && maidenName.trim()) accountHolderNames = accountHolderNames.concat([maidenName.trim()]);
-  // User-reported bug, off a real statement: a single, isolated ₦18,730 payment with a blank/coded
-  // narration got swept into "Salary", even though it has nothing to do with the declared employer.
-  // Root cause: the applicant's OWN roughly-₦20,000 self-transfers (many of them, across many months)
-  // rounded to the exact same ₦5,000 bucket and, since identifyStableIncome/identifyIncomeSourceName
-  // ran on ALL credits with no awareness of Self at all, established ₦20,000 as "the" stable recurring
-  // amount purely off money moving between the applicant's own accounts — a bucket that then had room
-  // for one more blank-narration payment to ride along for free. Self-transfers aren't anyone's income
-  // and should never be able to manufacture a false "stable income" pattern in the first place, so
-  // they're filtered out here, before the stable-amount detection even runs — the same treatment
-  // reversals and bank-fee narrations already get.
+  // Self-transfers must be excluded before stable-amount detection runs, or they can manufacture a
+  // false "stable income" bucket: a real case had the applicant's own recurring ~₦20,000
+  // self-transfers round into the same ₦5,000 bucket as a genuinely unrelated ₦18,730 payment, which
+  // then got misclassified as "Salary". Same treatment reversals/bank-fees already get.
   //
-  // Uses senderSideCandidatesForSelfCheck (NOT senderSideCandidates) here deliberately: a self-transfer
-  // narrated with the applicant's EXACT full typed name has its only candidate stripped by
-  // senderSideCandidates' own isLikelyApplicantsOwnName filter, leaving candidates=[] —
-  // indistinguishable from a genuinely blank narration, so it could never be recognized as Self and
-  // would ride along in whatever stable-amount bucket matched instead.
+  // Uses senderSideCandidatesForSelfCheck, not senderSideCandidates: the latter's
+  // isLikelyApplicantsOwnName filter strips a self-transfer's only candidate when it's narrated with
+  // the applicant's exact full name, leaving it indistinguishable from a blank narration.
   const nonSelfTxns = txns.filter((t) => {
     if (!t.credit) return true;
     const selfCheckCandidates = senderSideCandidatesForSelfCheck(t.narration);

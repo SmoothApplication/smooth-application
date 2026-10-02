@@ -3,7 +3,7 @@
 // pattern as uk.ts (Phase 2). Phase 4a of task #244 ports the remaining 7 countries.
 // Kenya added Nigeria to its eTA/visa-exempt list in July 2025, so this checklist is shorter and
 // has no formal "application"/"visa history"/"translations" sections.
-import { Answers, ChecklistItem } from './uk';
+import { Answers, ChecklistItem } from './types';
 
 export const CAT_ORDER_KE = [
   'Identity & travel documents',

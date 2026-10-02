@@ -9,7 +9,7 @@
 // computeFinancials() — but that function's pure FinancialResult doesn't carry the DOM-pill
 // good/warning/critical/neutral vocabulary the original reads (readinessStatusFromPill), nor the
 // unexplained-inflow count that vocabulary itself depends on (a bank-statement-scan-derived signal,
-// window.__lastUnexplainedInflows, that isn't part of FinancialResult). computeFinanceReadiness()
+// window.__lastUnexplainedInflows, that isn't part of FinancialResult). computeFinanceReadinessProxy()
 // below is a deliberately simplified 3-state proxy built from FinancialResult alone:
 //   - balance: 'missing' (nothing entered) / 'needs_review' (entered but not yet at the 2x buffer,
 //     or no trip cost to compare against — the original's warning/critical/"detected, no trip cost"
@@ -58,7 +58,9 @@ export const INCOME_VARIANCE_THRESHOLD = 0.4;
 
 // Port of the balancePillEl/incomePillEl classification (index.html ~8347-8423), reduced to a
 // 3-state proxy over FinancialResult alone — see this file's header comment for what's lost.
-export function computeFinanceReadiness(financial: FinancialResult): FinanceReadinessProxy {
+// Named *Proxy to avoid colliding with the unrelated computeFinanceReadiness in financial.ts,
+// which returns a single capped percent for the sidebar score, not this 3-state breakdown.
+export function computeFinanceReadinessProxy(financial: FinancialResult): FinanceReadinessProxy {
   const haveBalanceFigure = financial.totalFunds > 0;
   let balanceStatus: FinanceSubStatus;
   if (!haveBalanceFigure) {
@@ -188,7 +190,7 @@ export function computeTravelHistorySection(
 }
 
 // Port of renderNextStepsReport()'s finance block (index.html ~7542-7558), fed by
-// computeFinanceReadiness() above instead of readinessStatusFromPill().
+// computeFinanceReadinessProxy() above instead of readinessStatusFromPill().
 export function computeFinanceSection(
   proxy: FinanceReadinessProxy,
   authority: string,
@@ -307,7 +309,7 @@ export function buildNextStepsReport(inputs: NextStepsInputs): NextStepsReport {
     inputs.visaShortLabel
   );
 
-  const financeProxy = computeFinanceReadiness(inputs.financial);
+  const financeProxy = computeFinanceReadinessProxy(inputs.financial);
   const { section: financeSection, financeEntered, financeStrong } = computeFinanceSection(
     financeProxy,
     inputs.authority,

@@ -4,7 +4,7 @@
 // nextSteps.ts's header comment for what that proxy deliberately loses).
 
 import {
-  computeFinanceReadiness,
+  computeFinanceReadinessProxy,
   computePassportSection,
   computeTravelHistorySection,
   computeFinanceSection,
@@ -53,20 +53,20 @@ function fullyStrongFinancial(): FinancialResult {
   });
 }
 
-describe('computeFinanceReadiness', () => {
+describe('computeFinanceReadinessProxy', () => {
   test('missing when nothing entered', () => {
-    const result = computeFinanceReadiness(financialWith());
+    const result = computeFinanceReadinessProxy(financialWith());
     expect(result.balanceStatus).toBe('missing');
     expect(result.incomeStatus).toBe('missing');
   });
 
   test('balance looks_complete when funds cover the 2x buffer', () => {
-    const result = computeFinanceReadiness(readyFinancial());
+    const result = computeFinanceReadinessProxy(readyFinancial());
     expect(result.balanceStatus).toBe('looks_complete');
   });
 
   test('balance needs_review when funds entered but below the buffer', () => {
-    const result = computeFinanceReadiness(
+    const result = computeFinanceReadinessProxy(
       financialWith({
         costs: { flightPerAdult: 500000, accomPerNight: 20000, nights: 5, transport: 0, shopping: 0, sightseeing: 0 },
         funds: { closingBalance: 100000, forexSavings: 0 },
@@ -76,12 +76,12 @@ describe('computeFinanceReadiness', () => {
   });
 
   test('balance needs_review when funds entered but no trip cost to compare against', () => {
-    const result = computeFinanceReadiness(financialWith({ funds: { closingBalance: 500000, forexSavings: 0 } }));
+    const result = computeFinanceReadinessProxy(financialWith({ funds: { closingBalance: 500000, forexSavings: 0 } }));
     expect(result.balanceStatus).toBe('needs_review');
   });
 
   test('income looks_complete with steady, gap-free cash flow', () => {
-    const result = computeFinanceReadiness(steadyCashFlow());
+    const result = computeFinanceReadinessProxy(steadyCashFlow());
     expect(result.incomeStatus).toBe('looks_complete');
   });
 
@@ -92,7 +92,7 @@ describe('computeFinanceReadiness', () => {
       outflow: 50000,
       balance: '150000',
     }));
-    const result = computeFinanceReadiness(financialWith({ cashFlow }));
+    const result = computeFinanceReadinessProxy(financialWith({ cashFlow }));
     expect(result.incomeStatus).toBe('needs_review');
   });
 
@@ -101,7 +101,7 @@ describe('computeFinanceReadiness', () => {
       { month: '2024-01', inflow: 50000, outflow: 10000, balance: '' },
       { month: '2024-02', inflow: 900000, outflow: 10000, balance: '' },
     ];
-    const result = computeFinanceReadiness(financialWith({ cashFlow }));
+    const result = computeFinanceReadinessProxy(financialWith({ cashFlow }));
     expect(result.incomeStatus).toBe('needs_review');
   });
 });

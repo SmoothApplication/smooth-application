@@ -99,27 +99,19 @@ function trimLeadingBoilerplate(words: string[]): string[] {
   return words;
 }
 
-// Trims narration junk off the RIGHT end of an already-built name run, but only when it's confident
-// enough to do so safely: the run must open with two consecutive recognised name words (a plausible
-// "firstname surname"), AND the word being trimmed must come after at least one short (1-2 letter)
-// connector — the same reference-code-fragment pattern already described above ("Fg Ij"). That second
-// condition is deliberate: a real narration where an unrecognised word follows the name DIRECTLY (no
-// connector in between) is left completely untouched, so this never disturbs the existing
-// "similar-but-different sender" duplicate-prompt handling elsewhere, which relies on exactly that kind
-// of trailing text to tell two look-alike senders apart.
-// User feedback: rather than only reacting to each new piece of narration junk one word at a time, also
-// check candidate names against a bundled list of common Yoruba, Igbo, Hausa, English and German first
-// names and surnames — so a run like "Chidinma Okeke Fg Ij Support" can be recognised as "a real name,
-// then reference-code noise, then narration text" and trimmed back to just the name automatically,
-// without needing "SUPPORT" specifically stopworded. Deliberately NOT exhaustive and NOT used to
-// reject/flag a name as invalid — Nigeria has far more names than any bundled list can cover, and a real
-// sender's name that just isn't on this list should never be treated as suspicious. This is only ever a
-// positive signal ("this looks like a real name"), used to decide where a name run should STOP, never to
-// decide a run isn't a name at all. Deliberately excludes common Nigerian "virtue names" that double as
-// everyday words (Grace, Gift, Faith, Praise, Blessing, Comfort, Precious, Victory, Mercy, Joy, Peace,
-// Charity, Success) — those are exactly the words that also show up as narration REASON text ("gift for
-// birthday"), so recognising them here would risk trimming a genuine name just as easily as it trims
-// real junk; safer to leave those cases to a manual "Fix name" correction than to guess wrong either way.
+// Trims narration junk off the right end of a name run only when confident: the run must open with
+// two consecutive recognised name words, and the trimmed word must follow a short (1-2 letter)
+// connector — the same reference-code pattern as "Fg Ij" above. An unrecognised word that follows
+// the name directly (no connector) is left untouched, so this never disturbs the existing
+// similar-but-different-sender duplicate-prompt handling elsewhere.
+//
+// COMMON_PERSONAL_NAME_WORDS below (Yoruba/Igbo/Hausa/English/German) is a positive-only signal —
+// never used to reject a name as invalid, since no bundled list covers every real Nigerian name —
+// used only to decide where a name run should stop (e.g. "Chidinma Okeke Fg Ij Support" trims back
+// to the name without "SUPPORT" needing its own stopword). Deliberately excludes virtue names that
+// double as everyday words (Grace, Gift, Faith, Blessing, Mercy, Joy, Peace, Charity, Success, etc.)
+// since those also appear as narration reason text ("gift for birthday") — trimming on them would
+// risk cutting a genuine name as often as real junk, so those cases go to manual "Fix name" instead.
 export const COMMON_PERSONAL_NAME_WORDS = [
   // Yoruba
   'ADEBAYO', 'ADEWALE', 'ADEYEMI', 'ADEKUNLE', 'OLUWASEUN', 'DAMILOLA', 'AYODELE', 'AYOMIDE', 'FOLAKE',
@@ -458,48 +450,27 @@ export const SENDER_MARKERS = ['SENDER', 'FROM', 'FRM'];
 // own account, almost by definition.
 export const RECIPIENT_MARKERS = ['TO', 'IFO'];
 
-// Returns [{name, precededBy}] — precededBy is the stopword token (if any) that was flushed
-// immediately before this run started, or null if the run opens the narration / follows a
-// non-stopword flush. extractNameCandidates() below is the plain-string view every existing caller
-// already expects; extractNameCandidatesDetailed() is for callers that need to know which side of a
-// FROM/TO-style narration a name came from.
-// Real-world finding, off a real Providus statement (direct comparison against the applicant's own
-// manual extraction of the same statement, which correctly grouped these as ONE employer): Remita-
-// formatted inflow narrations ("REMITA INFLOW R-<ref>/<SENDER NAME> U:<free-text description>:CBN:
-// <code>/...") use "U:" as a literal field separator between the sender's own name and Remita's
-// free-text payment description — e.g. "REMITA INFLOW R-1445788162/NIGERIAN U:STAFFSALARYFORMARCH
-// 2026:CBN:...". Without stopping at that marker, the payment description (which is DIFFERENT on
-// every single payment — STAFFSALARYFORMARCH vs STAFFSALARYFORAPRIL vs ENDOFNEGOTIATIONBONUS vs
-// EMPLOYEEFAMILYBURIALASSISTANCE, and so on) got glued onto the end of the sender-name run below,
-// because it's full of vowels and "looks name-shaped" exactly like any other word. The result: 12
-// genuinely-same-employer transactions each produced a different, unique "name", and got scattered
-// across a dozen separate singleton groups in the UI instead of being recognized as one consistent,
-// recurring income source (which the applicant's own spreadsheet already had right). Truncating at
-// the literal "U:" field marker — a structural fact about Remita's own narration format, not a
-// guess about word length or content — fixes this for any Remita-paid employer generally, not just
-// this one. No existing narration fixture in this codebase's test suite contains this exact "U:"
-// field pattern outside Remita narrations, so this is safe to apply unconditionally.
+// Returns [{name, precededBy}] — precededBy is the stopword token (if any) flushed immediately
+// before this run started, or null if the run opens the narration / follows a non-stopword flush.
+// extractNameCandidates() below is the plain-string view every existing caller expects;
+// extractNameCandidatesDetailed() is for callers that need to know which side of a FROM/TO-style
+// narration a name came from.
+//
+// REMITA_NARRATION_FIELD_RE: Remita inflow narrations use "U:" as a literal field separator between
+// the sender's name and a free-text payment description ("REMITA INFLOW R-.../NIGERIAN
+// U:STAFFSALARYFORMARCH..."). Without truncating there, that description — different on every
+// payment — glued onto the sender-name run (it's vowel-rich and "looks name-shaped" too), so 12
+// genuinely-same-employer transactions each produced a unique name instead of one recurring source.
+// "U:" is a structural fact of Remita's format, not a content guess, so this applies unconditionally.
 const REMITA_NARRATION_FIELD_RE = /\bU\s*:/i;
 
-// Direct user report, same real Providus statement, a THIRD distinct narration bug (not a line-
-// wrap issue this time): "INWARD TRANSFER (N) FROM FBN/ POPOOLA ADEPEJU ADETUTU-FIPIBPSPOPOOLA
-// ADEPEJU ADPHUBOUTWARD23015711POPOOLA ADEPEJU ADETUTUPOPOPOP/000016260722142819002399411432" is
-// FBN's own narration format for this transfer TYPE: it prints the sender's name ONCE cleanly
-// ("POPOOLA ADEPEJU ADETUTU"), then glues an internal channel/session-ID blob directly onto more
-// repeats of that SAME name with no delimiting space at all ("-FIPIBPS" + "POPOOLA", "ADPHUBOUTWARD"
-// + a session number + "POPOOLA", "ADETUTU" + "POPOPOP"). Every one of those glued words still
-// "looks name-shaped" (has a vowel) and isn't a recognised stopword, so without this check the run
-// just kept absorbing them, producing a single garbled 9-word candidate name — which then surfaced
-// as a wall of nonsensical "same person — merge?" prompts in the UI (sharing a few words with the
-// applicant's real name, because they're literally built FROM it).
-//
-// The structural tell: once a real name is already a couple of words into a run, a LATER word that
-// repeats-with-extra-letters one of THOSE EARLIER WORDS (contains it as a substring, and is itself
-// longer) is never a genuine continuation of the same person's name — a real name doesn't restate
-// an earlier word of itself glued to other letters. Checked against every existing narration fixture
-// in this codebase's test suite with no match, so this is safe to apply unconditionally: once it
-// fires, the rest of this narration is treated as corrupted channel/session noise and dropped,
-// keeping only the clean name already built before it.
+// wordRepeatsEarlierRunWord: a real FBN narration format prints a sender's name once cleanly then
+// glues an internal channel/session-ID blob onto more repeats of that same name with no delimiting
+// space ("POPOOLA ADEPEJU ADETUTU-FIPIBPSPOPOOLA ADEPEJU ADPHUBOUTWARD23015711..."). Each glued
+// fragment still looks name-shaped, so the run kept absorbing them into one garbled 9-word name. The
+// tell: a later word that repeats-with-extra-letters an earlier word in the same run is never a
+// genuine continuation — once it fires, the rest of the narration is dropped as channel/session
+// noise, keeping only the clean name built before it.
 function wordRepeatsEarlierRunWord(word: string, current: string[]): boolean {
   return current.some((prior) => prior.length >= 4 && word.length > prior.length && word.indexOf(prior) !== -1);
 }

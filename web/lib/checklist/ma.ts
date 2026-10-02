@@ -3,7 +3,7 @@
 // pattern as uk.ts (Phase 2). Phase 4a of task #244 ports the remaining 7 countries.
 // Morocco is visa-free for ordinary Nigerian passport holders (stays up to 30 days), so this
 // checklist is shorter and has no formal "application"/"visa history"/"translations" sections.
-import { Answers, ChecklistItem } from './uk';
+import { Answers, ChecklistItem } from './types';
 
 export const CAT_ORDER_MA = [
   'Identity & travel documents',

@@ -1,7 +1,7 @@
 // Ported from index.html's CHECKLIST_EU / CAT_ORDER_EU (as of the September 2026 index.html).
 // Item text, tips, and conditional appliesIf logic are carried over verbatim/faithfully — same
 // pattern as uk.ts (Phase 2). Phase 4a of task #244 ports the remaining 7 countries.
-import { Answers, ChecklistItem } from './uk';
+import { Answers, ChecklistItem } from './types';
 
 export const CAT_ORDER_EU = [
   'Identity & application',

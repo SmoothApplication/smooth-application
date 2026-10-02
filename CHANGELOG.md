@@ -3,6 +3,52 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Code-quality pass: naming collision, misplaced shared type, comment density, god component
+
+Prompted by outside feedback on the live site ("too AI... send the repo to a dev to rewrite") —
+treated as a structural-review question rather than dismissed, and verified with real measurements
+(line counts, grep counts, a comment-block scanner) rather than going on vibes. Four issues found,
+all fixed with zero behavior change (same logic, same tests, same UI):
+
+**1. Naming collision.** Two unrelated functions were both called `computeFinanceReadiness`:
+`lib/checklist/financial.ts`'s version (a capped percent for the sidebar score) and
+`lib/checklist/nextSteps.ts`'s version (a 3-state balance/income proxy, `FinanceReadinessProxy`).
+Renamed the less-externally-used one (only consumed within `nextSteps.ts` and its own test file) to
+`computeFinanceReadinessProxy`, matching its own return-type name. The widely-imported
+`financial.ts` version (consumed by `ChecklistSidebar.tsx` and `lib/report/buildReportPayload.ts`)
+is untouched.
+
+**2. Misplaced shared type.** `Answers`/`ChecklistItem` and the generic scoring functions
+(`itemApplies`, `computeOverallPercent`, `computeRequiredPercent`, `requiredStatus`,
+`missingRequiredItems`) lived inside the UK-specific `lib/checklist/uk.ts`, despite being used by
+every country's checklist. Moved verbatim into a new `lib/checklist/types.ts`; `uk.ts` now
+re-exports everything from it (`export * from './types'`), so every existing import path
+(`from '@/lib/checklist/uk'` or `from './uk'`) keeps working unchanged. The 7 other country files
+(`ca.ts`, `et.ts`, `eu.ts`, `gh.ts`, `ke.ts`, `ma.ts`, `za.ts`) were updated to import the generic
+pieces straight from `./types`.
+
+**3. Comment density.** `lib/statement/classify.ts` (954→904 lines), `lib/statement/names.ts`
+(757→728 lines), and `components/checklist/StatementDashboard.tsx` had narrative "Real-data
+finding, off a real statement..." style comments running 30-37% of all lines. Condensed each block
+down to its essential facts (what bug, what data proved it, what the fix does) — every concrete
+number/finding stays, only the scaffolding language was trimmed.
+
+**4. God component.** `StatementDashboard.tsx` was 2317 lines with 61 props, 14 `useState`, and 17
+`useEffect` on the default export alone — but its logic was already cleanly separated into distinct
+top-level functions (`AnalysisTab`, `SourceGroupCard`, `SenderInflowCard`, `ReportTab`,
+`WorkNameFields`, plus small helpers `formatAmount`/`formatDate`/`sourceTypeBadge`/`statusPill`/
+`NarrationDecoder`), just all crammed into one file. Moved each into its own file under
+`components/checklist/statement-dashboard/` (`shared.tsx` for the small cross-cutting helpers,
+`SourceGroupCard.tsx`, `SenderInflowCard.tsx`, `AnalysisTab.tsx`, `WorkNameFields.tsx`,
+`ReportTab.tsx`), with the main `StatementDashboard.tsx` now just the orchestrator (state, data
+pipeline, tab switch) importing `AnalysisTab`/`ReportTab` back in. 2317 → 737 lines. Verified via
+grep before moving anything that the main component body never used the small helpers directly
+except `NO_EXPLANATION_NOTE` (used once, in the spreadsheet-email gate) — that one import was kept,
+the rest were removed along with their now-dead imports.
+
+Verification: `npx tsc --noEmit` clean, full `npx jest` suite green (95 suites / 632 tests, zero
+regressions) after each of the four fixes.
+
 ## Fix: holder name not auto-filling from a real tabular statement, despite the matching regex already existing
 
 Real user report, with a real uploaded statement: "name was not extracted. and it did not follow
