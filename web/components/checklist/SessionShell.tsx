@@ -4,6 +4,7 @@ import { ReactNode } from 'react';
 import Link from 'next/link';
 import ChecklistSidebar from '@/components/checklist/ChecklistSidebar';
 import SaveProgressPanel from '@/components/checklist/SaveProgressPanel';
+import SiteFeedbackPanel from '@/components/checklist/SiteFeedbackPanel';
 import { useChecklistState } from '@/lib/checklist/useChecklistState';
 import { buildSessionOrder, SessionKey, prevSessionHref, nextSessionHref } from '@/lib/checklist/sessions';
 import { chapterInfoForSession } from '@/lib/checklist/chapters';
@@ -128,6 +129,13 @@ export default function SessionShell({ code, name, session, children }: SessionS
             into the page content itself, per the confirmed "apply to all pages" placement — this
             renders beneath every session's own content, not in the sidebar. */}
         <SaveProgressPanel code={code} answers={answers} checked={checked} />
+
+        {/* Task #537/#538 (direct request, following the UX audit): replaces the "share with 50
+            people" one-off poll idea with an ongoing on-site mechanism — real applicants leave honest
+            feedback as they actually use the live site. Same non-floating placement convention as
+            SaveProgressPanel directly above (task #391's anti-overlap fix), collapsed by default so it
+            never competes with the Back/Next nav for attention. */}
+        <SiteFeedbackPanel countryCode={code} />
       </div>
 
       <ChecklistSidebar

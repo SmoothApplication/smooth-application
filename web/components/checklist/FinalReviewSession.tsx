@@ -5,6 +5,7 @@ import { COUNTRIES } from '@/lib/checklist/countries';
 import { computeRequiredPercent, missingRequiredItems } from '@/lib/checklist/uk';
 import { useEditableChecklistState } from '@/lib/checklist/useEditableChecklistState';
 import SessionShell from '@/components/checklist/SessionShell';
+import PersonalLetterPanel from '@/components/checklist/PersonalLetterPanel';
 
 // Task #386 (Final review/declaration session, the last piece of the original 14-session ground
 // truth — see lib/checklist/sessions.ts's header comment): port of the original's "review" session,
@@ -173,6 +174,8 @@ export default function FinalReviewSession({ code }: FinalReviewSessionProps) {
             </p>
           )}
         </section>
+
+        <PersonalLetterPanel code={code} />
       </div>
     </SessionShell>
   );

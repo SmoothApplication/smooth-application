@@ -1,11 +1,22 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { COUNTRIES, isTravelReadinessCountry } from '@/lib/checklist/countries';
 import { trackEvent } from '@/lib/analytics';
 import * as secureStorage from '@/lib/security/secureStorage';
+import SituationGate from '@/components/checklist/SituationGate';
+
+// Task #540 (redesign option A — audit found 4 near-identical full-screen gates in a row before any
+// real content: quiz result, privacy notice, country picker, situation picker; direct go-ahead on
+// the proposal's recommendation to collapse them). Every ready, non-travel-readiness country has a
+// real "where are you in the process?" step — see components/checklist/SituationGate.tsx — kept
+// here as the single source of truth for which route each of its 3 href props points to, mirroring
+// exactly what app/checklist/uk/situation/page.tsx and app/checklist/[country]/situation/page.tsx
+// already pass. Those two route files are left in place, unlinked, as a safety net for anyone who
+// still has an old bookmark or hits the back button to them.
+const READY_PORTED = ['UK', 'CA', 'EU', 'ZA', 'GH', 'KE', 'ET', 'MA'];
 
 // Phase 1 port of index.html's #consentGate — country picker + guidance-only disclaimer + consent
 // checkbox. Selection is kept in this browser only (localStorage), same as index.html: nothing
@@ -30,6 +41,39 @@ export default function ChecklistStartPage() {
   }, []);
   const comingSoonCountries = useMemo(() => COUNTRIES.filter((c) => !c.ready), []);
 
+  // Task #540: GH/KE/MA are visa-free "travel readiness" countries (see isTravelReadinessCountry's
+  // own comment in lib/checklist/countries.ts) with no situation gate at all — direct user
+  // feedback confirmed "once you click Ghana, you do not need this page," since every option on
+  // that gate is a visa-application concept that doesn't apply to them. Every OTHER ready country
+  // does have a real situation step, which now renders inline below (see situationHrefs/
+  // showSituation) instead of as a separate full-screen route.
+  const situationHrefs = useMemo(() => {
+    if (!country) return null;
+    const code = country.code;
+    if (code === 'UK') return { statement: '/checklist/uk/statement', passport: '/checklist/uk/passport' };
+    if (READY_PORTED.includes(code) && !isTravelReadinessCountry(code)) {
+      const c = code.toLowerCase();
+      return { statement: `/checklist/${c}/statement`, passport: `/checklist/${c}/passport` };
+    }
+    return null;
+  }, [country]);
+  const showSituation = canContinue && !!country && !!situationHrefs && !isTravelReadinessCountry(country.code);
+
+  // Fires once the country+consent step is actually settled — for a travel-readiness country
+  // that's still the explicit Continue click below (handleContinue); for everyone else it's the
+  // moment the inline situation step appears, since there's no separate "continue" click to that
+  // step any more (the 4-gates-to-2 redesign — see the file-level comment at the top).
+  useEffect(() => {
+    if (showSituation && country) {
+      trackEvent('session_started:' + country.code);
+      try {
+        secureStorage.setItem('sa_country', country.code);
+      } catch {
+        // localStorage unavailable (private browsing, etc.) — not fatal, just no resume pointer.
+      }
+    }
+  }, [showSituation, country]);
+
   function handleContinue() {
     if (!canContinue || !country) return;
     trackEvent('session_started:' + country.code);
@@ -44,26 +88,12 @@ export default function ChecklistStartPage() {
     // selectable here (COUNTRIES marks them ready:false), so this else-branch is unreachable for
     // them, but /checklist?country=CODE stays as a safety-net fallback for any future addition.
     //
-    // Ported situation gate (task #312+): every ready country now routes through its own
-    // /situation page first (index.html's #situationGate, shown after the consent gate and before
-    // the checklist) rather than straight to the checklist — see
-    // components/checklist/SituationGate.tsx.
-    //
-    // Direct user feedback (screenshot of GH's situation gate, part of the same "perceived length"
-    // push as the chapter-grouped session header): "once you click Ghana, you do not need this
-    // page." Confirmed why — GH/KE/MA are visa-free "travel readiness" countries (see
-    // isTravelReadinessCountry's own comment in lib/checklist/countries.ts), so every option on
-    // that gate ("Refused before", "Already paid & filled", "Re-Applying") is a visa-application
-    // concept that doesn't apply to them. Those 3 codes skip straight to the real checklist's first
-    // session instead of stopping at a gate with nothing relevant to ask. UK/CA/EU/ZA/ET DO have a
-    // real visa or e-Visa application behind them, so the gate still earns its place for those.
-    const readyPorted = ['UK', 'CA', 'EU', 'ZA', 'GH', 'KE', 'ET', 'MA'];
+    // Task #540: this button is only ever shown/enabled for a travel-readiness country now (see
+    // showSituation above) — every other ready country's situation step renders inline instead of
+    // through this click, so the old UK/readyPorted routing branches that used to live here moved
+    // to situationHrefs.
     if (isTravelReadinessCountry(country.code)) {
       router.push(`/checklist/${country.code.toLowerCase()}/statement`);
-    } else if (country.code === 'UK') {
-      router.push('/checklist/uk/situation');
-    } else if (readyPorted.includes(country.code)) {
-      router.push(`/checklist/${country.code.toLowerCase()}/situation`);
     } else {
       router.push(`/checklist?country=${country.code}`);
     }
@@ -201,18 +231,39 @@ export default function ChecklistStartPage() {
           <span>I understand this is guidance only, not immigration advice — full details are in the disclaimer above.</span>
         </label>
 
-        <button type="button" onClick={handleContinue} disabled={!canContinue} className="btn-primary w-full">
-          Continue
-        </button>
-        <p className="mt-2 text-center text-xs text-[#566a76]">
-          {!country
-            ? 'Pick a country to continue.'
-            : !country.ready
-            ? "This country isn't available yet — pick United Kingdom or Canada for now."
-            : !agreed
-            ? 'Tick the box above to continue.'
-            : ''}
-        </p>
+        {/* Task #540: for a travel-readiness country (no situation step at all) this is still the
+            one Continue click straight to the checklist. For every other ready country, the
+            situation step now appears inline right below instead of behind this button — see
+            showSituation above — so this button is hidden rather than duplicating what
+            SituationGate's own "Continue to my checklist" link already does. */}
+        {!showSituation && (
+          <>
+            <button type="button" onClick={handleContinue} disabled={!canContinue} className="btn-primary w-full">
+              Continue
+            </button>
+            <p className="mt-2 text-center text-xs text-[#566a76]">
+              {!country
+                ? 'Pick a country to continue.'
+                : !country.ready
+                ? "This country isn't available yet — pick United Kingdom or Canada for now."
+                : !agreed
+                ? 'Tick the box above to continue.'
+                : ''}
+            </p>
+          </>
+        )}
+
+        {showSituation && situationHrefs && country && (
+          <div className="mt-2 border-t border-black/10 pt-6">
+            <SituationGate
+              embedded
+              name={country.name}
+              checklistHref={situationHrefs.statement}
+              statementHref={situationHrefs.statement}
+              passportHref={situationHrefs.passport}
+            />
+          </div>
+        )}
 
         <Link href="/" className="mt-4 block text-center text-xs text-accent underline">
           ← Back

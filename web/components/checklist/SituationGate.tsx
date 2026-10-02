@@ -61,6 +61,12 @@ export type SituationGateProps = {
   statementHref: string;
   /** The passport-scan page — the refusal-routing target for an older non-financial letter. */
   passportHref: string;
+  /** True when rendered inline on /checklist/start (task #540, redesign option A — "4 gates become
+   * 2") instead of its own full-screen route. Drops the outer <main>/min-h-screen centering and the
+   * "← Back" link, which would be redundant one scroll up — the caller already supplies the page
+   * chrome. Standalone usage (the dedicated /situation routes below, kept as a safety net for old
+   * bookmarks/back-button) is unaffected. */
+  embedded?: boolean;
 };
 
 export default function SituationGate({
@@ -69,6 +75,7 @@ export default function SituationGate({
   checklistHref,
   statementHref,
   passportHref,
+  embedded,
 }: SituationGateProps) {
   const router = useRouter();
   const [kind, setKind] = useState<SituationKind | null>(null);
@@ -355,35 +362,12 @@ export default function SituationGate({
     return lines.join('\n');
   }
 
-  return (
-    // Task #409 (direct request, screenshot): "make it the same size with the homepage" — widened
-    // from `max-w-lg` (512px) to `max-w-3xl` (768px), matching the homepage's own container
-    // (app/page.tsx) and the country picker's (app/checklist/start/page.tsx, task #406) exactly.
-    // Task #411 (direct request, screenshot): "make the size like the homepage, reduce the white
-    // spaces under" — dropped `min-h-screen` from this page's single <main> so the page's height
-    // would follow its (short) content instead of always padding out to full-screen.
-    // Task #413 (direct request, annotated screenshot): on a taller/desktop browser window, that
-    // fix just moved the same problem below the *document* instead of below the *content* — the
-    // page ended at ~635px, but a ~965px-tall window still shows ~330px of plain blank canvas
-    // under it, which reads exactly like the "lots of white space beneath" complaint this was
-    // meant to fix. This page only has 4 boxes + one button (much less content than the homepage's
-    // two stat grids + CTA + sources line), so no realistic amount of margin/padding makes its
-    // *content* as tall as the homepage's — the fix isn't to inflate the boxes, it's to stop
-    // treating the leftover space as something to eliminate and instead use it deliberately, the
-    // same way this app already handles every other short-content screen: /checklist/start (task
-    // #406) and the quiz intro/result screens (app/quiz/page.tsx) both center their card with
-    // `flex min-h-screen items-center justify-center` rather than pinning it to the top. Applying
-    // that same pattern here: restored `min-h-screen`, added `items-center justify-center`, so the
-    // leftover space splits evenly above and below instead of collecting in one block underneath —
-    // still no forced scrollbar for short content, but the whole viewport is now the styled
-    // `bg-cream` canvas (matching the homepage's own background) instead of ending partway
-    // down into a plain white gap.
-    <main className="flex min-h-screen items-center justify-center bg-cream px-4 py-10">
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
-        <div>
-          <h1 className="font-serif text-xl font-semibold text-[#12232e]">🧭 Where are you in the process?</h1>
-          <p className="mt-1 text-sm text-[#4c6270]">Just so we can point you the right way - answering doesn&apos;t change what&apos;s ahead unless you want it to.</p>
-        </div>
+  const body = (
+    <>
+      <div>
+        <h1 className="font-serif text-xl font-semibold text-[#12232e]">🧭 Where are you in the process?</h1>
+        <p className="mt-1 text-sm text-[#4c6270]">Just so we can point you the right way - answering doesn&apos;t change what&apos;s ahead unless you want it to.</p>
+      </div>
 
       {/* Task #408 (direct request, screenshot): "following the same principle of the home page
           design, turn the 3 bars into boxes make the 4th box 'Re-Applying'" — the 3 stacked
@@ -1042,9 +1026,30 @@ export default function SituationGate({
           <p className="mt-2 text-center text-xs text-[#566a76]">Pick one of the options above to continue.</p>
         </div>
       )}
-      <Link href="/checklist/start" className="text-center text-xs text-accent underline">
-        ← Back
-      </Link>
+    </>
+  );
+
+  // Task #540 (redesign option A, direct go-ahead on the audit's "4 gates -> 2" proposal): embedded
+  // mode drops the outer <main>/min-h-screen centering and the "← Back" link (redundant one scroll
+  // up) when this renders inline on /checklist/start instead of its own full-screen route — see
+  // that page for where this is mounted now. Standalone usage below (the dedicated /situation
+  // routes, kept as a safety net for old bookmarks/back-button) is completely unchanged.
+  if (embedded) {
+    return <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">{body}</div>;
+  }
+
+  return (
+    // Task #409 (direct request, screenshot): "make it the same size with the homepage" — widened
+    // from `max-w-lg` (512px) to `max-w-3xl` (768px), matching the homepage's own container
+    // (app/page.tsx) and the country picker's (app/checklist/start/page.tsx, task #406) exactly.
+    // Task #411/#413: centered with `flex min-h-screen items-center justify-center` so leftover
+    // space on a short page splits evenly above/below instead of collecting in one block beneath.
+    <main className="flex min-h-screen items-center justify-center bg-cream px-4 py-10">
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
+        {body}
+        <Link href="/checklist/start" className="text-center text-xs text-accent underline">
+          ← Back
+        </Link>
       </div>
     </main>
   );

@@ -43,13 +43,16 @@ import * as secureStorage from '@/lib/security/secureStorage';
 // read ANOTHER intro card before they even see a question felt like a redundant gate — so the old
 // `!started` intro screen (brand header, FREE badge, trust bullets, "Start the quick check" button)
 // no longer gates entry: clicking the homepage CTA now drops the applicant straight into quiz
-// question 1. That same card's content didn't get deleted, though — it got relocated to AFTER the
-// quiz result (see the `showTrust` state below), on the reasoning that the trust/privacy reassurance
-// matters most right before the applicant is asked to hand over a passport photo and bank
-// statements in the real checklist, not before five multiple-choice questions with no document
-// upload at all. The button on that relocated card changed from "Start the quick check" (no longer
-// applicable — the quiz is already done) to "Continue to pick your country →", taking over the job
-// the result screen's own continue button used to do directly.
+// question 1. That same card's content didn't get deleted, though — it got relocated to the result
+// screen below, on the reasoning that the trust/privacy reassurance matters most right before the
+// applicant is asked to hand over a passport photo and bank statements in the real checklist, not
+// before five multiple-choice questions with no document upload at all.
+//
+// Task #540 (redesign option A, direct go-ahead on the audit's "4 gates -> 2" proposal): that
+// relocated content used to be its OWN full-screen takeover (a `showTrust` state gating a second
+// screen after the result), one of the 4 near-identical gates the audit found in a row before any
+// real content. It's now a compact footer strip directly on this result screen instead — see the
+// `done` block below — since it's reassurance copy, not a decision that needs a dedicated screen.
 //
 // One deliberate deviation from the literal original text, unchanged from before: the country list
 // implied by this card's copy covers all 8 countries actually live today (UK/Canada/Schengen/South
@@ -73,9 +76,6 @@ export default function ConfidenceQuizPage() {
   const [page, setPage] = useState(1);
   const [answers, setAnswers] = useState<QuizAnswers>(DEFAULT_QUIZ_ANSWERS);
   const [done, setDone] = useState(false);
-  // Task #396: gates the relocated trust/privacy card (see the file-level comment above) — shown
-  // after the result screen's own "Continue" click, before handing off to /checklist/start.
-  const [showTrust, setShowTrust] = useState(false);
   const router = useRouter();
 
   const [reportEmail, setReportEmail] = useState('');
@@ -135,124 +135,6 @@ export default function ConfidenceQuizPage() {
       /* prefill just won't carry over — not fatal, the checklist form still works manually */
     }
     router.push('/checklist/start');
-  }
-
-  if (done && showTrust) {
-    return (
-      // Relocated from the old pre-quiz `!started` gate (task #396 — see file-level comment).
-      // Layout/centering unchanged from task #392's fix.
-      <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-cream p-6">
-        <div className="relative w-full max-w-2xl">
-          <div
-            className="pointer-events-none absolute left-1/2 top-1/2 h-[36rem] w-[36rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent/10 blur-3xl"
-            aria-hidden
-          />
-          <div className="card-surface relative w-full max-w-2xl p-8">
-            <div className="mb-5 flex flex-wrap items-center gap-2">
-              <span className="grid h-9 w-9 place-items-center rounded-full bg-accent-wash text-lg" aria-hidden>
-                ⚡
-              </span>
-              <span className="font-serif text-lg font-semibold text-[#12232e]">Smooth Application</span>
-              <span className="rounded-full bg-good-wash px-2 py-0.5 text-xs font-bold tracking-wide text-good">
-                FREE
-              </span>
-            </div>
-
-            {/* Task #393 (PickFu cold-tester poll — see CHANGELOG): 5/5 respondents who only saw a
-                two-sentence description of this site (no login, passport scanner, bank statement
-                analyzer) flagged trust/privacy as their single biggest hesitation, and a second
-                group weren't sure what the site does itself vs. elsewhere (e.g. whether "tracking"
-                talks to the actual visa system). Now shown right before the applicant is asked to
-                hand over a passport photo and bank statements in the real checklist (task #396),
-                which is arguably where this reassurance carries the most weight anyway.
-                Task #400 (direct request, numbered breakdown of the two trust sentences into 4
-                shorter lines): "convert these ... lines of statement into boxes like the home
-                page" — the two paragraphs above became a 2x2 grid of 4 stat-style cards, reusing
-                the exact same treatment as the quiz result grid (task #397-#399): first two cards
-                white/`text-good`, last two dark navy/`text-warn`, fixed by position, same
-                `text-xl font-extrabold` headline weight, same `p-6` padding. "under it add 'Pick
-                Your Country'" is the heading directly below the grid, introducing the existing
-                Continue button (unchanged). */}
-            <div className="mb-5 grid gap-3 sm:grid-cols-2">
-              <div className="card-surface p-6">
-                <p className="text-xl font-extrabold leading-snug text-good">
-                  <span aria-hidden>🔒</span> Everything runs on your device
-                </p>
-              </div>
-              <div className="card-surface p-6">
-                <p className="text-xl font-extrabold leading-snug text-good">
-                  Your international passport and bank statements are never uploaded anywhere
-                </p>
-              </div>
-              <div className="rounded-2xl bg-[#12232e] p-6 text-white">
-                <p className="text-xl font-extrabold leading-snug text-warn">
-                  <span aria-hidden>📋</span> This is a personal prep tool, not the government&apos;s
-                  system
-                </p>
-              </div>
-              <div className="rounded-2xl bg-[#12232e] p-6 text-white">
-                <p className="text-xl font-extrabold leading-snug text-warn">
-                  It doesn&apos;t submit your application or check its official status for you
-                </p>
-              </div>
-            </div>
-
-            {/* Task #403 (direct request, screenshot): the "Pick Your Country" heading (added in
-                task #400, right above this same button) was removed — the button's own label
-                ("Continue to pick your country →") already says the same thing, so the heading was
-                pure repetition sitting right on top of it. */}
-            <button type="button" onClick={handleContinue} className="btn-primary mt-1 w-full">
-              Continue to pick your country →
-            </button>
-
-            <details className="mt-5 rounded-lg border border-black/10 p-3 text-sm text-[#4c6270]">
-              <summary className="cursor-pointer font-medium text-[#12232e]">What you need to know</summary>
-              <div className="mt-2 flex flex-col gap-2">
-                <p>
-                  <b>What&apos;s actually in here:</b> a readiness checklist per country, a passport
-                  photo-page reader, and a bank statement reader that flags gaps a visa reviewer might
-                  question (irregular deposits, thin balances) — all just checks against your own
-                  documents, not a submission to anyone.
-                </p>
-                <p>
-                  <b>Cost:</b> 🆓 free, always.
-                </p>
-                <p>
-                  <b>Who it&apos;s for:</b> 🇳🇬 built for Nigerian applicants.
-                </p>
-                <p>
-                  <b>Don&apos;t take our word for it:</b>{' '}
-                  <a
-                    href="https://github.com/SmoothApplication/smooth-application"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-accent underline"
-                  >
-                    the source code is public
-                  </a>
-                  .
-                </p>
-                <p>
-                  <b>Not an approval predictor:</b> this is guidance, not immigration advice — it checks how
-                  ready your documents and evidence look, not your chances of approval. Only the consulate or
-                  embassy decides that.
-                </p>
-              </div>
-            </details>
-
-            <p className="mt-6 text-center text-xs text-[#566a76]">
-              <Link href="/privacy" className="text-accent underline">
-                Privacy Policy
-              </Link>{' '}
-              ·{' '}
-              <Link href="/terms" className="text-accent underline">
-                Terms of Use
-              </Link>
-            </p>
-          </div>
-        </div>
-      </main>
-    );
   }
 
   if (done) {
@@ -339,11 +221,70 @@ export default function ConfidenceQuizPage() {
             </form>
           )}
 
-          {/* Task #396: this used to call handleContinue() directly. Now opens the relocated
-              trust/privacy card (above) as one more screen before actually navigating away — see
-              the file-level comment for why that card moved here. */}
-          <button type="button" onClick={() => setShowTrust(true)} className="btn-primary mt-5 w-full">
-            Continue →
+          {/* Task #540 (redesign option A, direct go-ahead): this used to be its own full-screen
+              takeover (gate #2 of the 4 near-identical gates the audit found — quiz result,
+              privacy notice, country picker, situation picker, each a separate full-screen click).
+              The reassurance content is real and still shown — see task #393's PickFu-poll finding
+              that trust/privacy is the #1 hesitation — but it's reassurance copy, not a decision
+              that needs a dedicated screen, so it's now a compact footer strip right here instead.
+              "What you need to know" below is the same content the old screen's own <details>
+              held, verbatim. */}
+          <div className="mt-5 rounded-lg bg-black/5 p-3 text-xs text-[#4c6270]">
+            <p className="font-medium text-[#12232e]">
+              🔒 Everything above runs on your device — your passport and bank statements are never
+              uploaded anywhere.
+            </p>
+            <p className="mt-1">
+              This is a personal prep tool, not the government&apos;s system — it doesn&apos;t submit your
+              application or check its official status for you.
+            </p>
+            <details className="mt-2">
+              <summary className="cursor-pointer font-medium text-[#12232e]">What you need to know</summary>
+              <div className="mt-2 flex flex-col gap-2">
+                <p>
+                  <b>What&apos;s actually in here:</b> a readiness checklist per country, a passport
+                  photo-page reader, and a bank statement reader that flags gaps a visa reviewer might
+                  question (irregular deposits, thin balances) — all just checks against your own
+                  documents, not a submission to anyone.
+                </p>
+                <p>
+                  <b>Cost:</b> 🆓 free, always.
+                </p>
+                <p>
+                  <b>Who it&apos;s for:</b> 🇳🇬 built for Nigerian applicants.
+                </p>
+                <p>
+                  <b>Don&apos;t take our word for it:</b>{' '}
+                  <a
+                    href="https://github.com/SmoothApplication/smooth-application"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-accent underline"
+                  >
+                    the source code is public
+                  </a>
+                  .
+                </p>
+                <p>
+                  <b>Not an approval predictor:</b> this is guidance, not immigration advice — it checks
+                  how ready your documents and evidence look, not your chances of approval. Only the
+                  consulate or embassy decides that.
+                </p>
+              </div>
+            </details>
+            <p className="mt-2">
+              <Link href="/privacy" className="text-accent underline">
+                Privacy Policy
+              </Link>{' '}
+              ·{' '}
+              <Link href="/terms" className="text-accent underline">
+                Terms of Use
+              </Link>
+            </p>
+          </div>
+
+          <button type="button" onClick={handleContinue} className="btn-primary mt-4 w-full">
+            Continue to pick your country →
           </button>
 
           {/* Task #402: small "Reasons" tab holding the "not a prediction" caveat, in the

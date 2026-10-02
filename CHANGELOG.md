@@ -3,6 +3,105 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Redesign: 4 gates collapsed to 2, Report tab split into accordion sections
+
+Direct go-ahead on the UX audit's redesign proposal (option A + option B — see the "On-site
+honest feedback widget" entry below for the audit itself). Pure UI regrouping: no parsing,
+classification, scoring, or persistence logic changed, and the full jest suite (654 tests) and
+`tsc --noEmit` both pass unchanged.
+
+**Option A — 4 near-identical full-screen gates become 2.** The audit found the same 2x2-card,
+single-CTA template four times in a row before any real content: quiz result, a separate privacy
+notice, the country picker, and the situation picker.
+- `app/quiz/page.tsx`: the privacy/consent screen (`showTrust`, its own full-screen takeover) is
+  gone — its content (device-only, never uploaded, not official, prep tool) is now a compact
+  footer strip directly on the quiz result screen, since it's reassurance copy, not a decision
+  that needs a dedicated screen. The result screen's own "Continue" now goes straight to
+  `/checklist/start`.
+- `components/checklist/SituationGate.tsx`: new `embedded` prop drops the outer `<main>`/
+  min-h-screen centering and the "← Back" link when rendered inline instead of on its own route.
+  All existing logic (refusal-letter reading aid, translate, paid-finance cross-check, re-applying
+  fields) is untouched.
+- `app/checklist/start/page.tsx`: for every ready, non-travel-readiness country, the situation
+  step now renders inline right below the country/consent picker instead of behind a second
+  "Continue" click to a separate route. Travel-readiness countries (Ghana/Kenya/Morocco, which
+  never had a situation step) are unaffected. The dedicated `/checklist/uk/situation` and
+  `/checklist/[country]/situation` routes are left in place, unlinked, as a safety net for old
+  bookmarks or the back button.
+
+**Option B — the Report tab's flat scroll becomes 4 named accordion sections.** The audit's
+clearest finding: "Your financial report is ready" (a bulleted summary) and "Financial summary"
+(a 9-row table) scored nearly the same figures back-to-back in two formats.
+- `components/checklist/statement-dashboard/ReportTab.tsx`: every existing card is unchanged —
+  same component, same props — just regrouped under `<details>`/`<summary>` headers (the same
+  pattern already used for "Documents best avoided" and item-tips) instead of one flat stack:
+  **Your result** (open by default: the bulleted summary + the 3 quick-stat boxes), **Income
+  sources** (collapsed, teaser shows the source count: employer/business income match), **Cash
+  flow** (collapsed: the monthly table + the financial-summary table, now next to each other
+  instead of next to the bulleted summary they used to duplicate), **Anything flagged**
+  (collapsed by default, auto-opens when there's something to review: income/balance status +
+  the per-sender unexplained-inflow cards).
+
+## On-site "honest feedback" widget
+
+Follow-up to the live-site UX audit ("I'm getting a lot of feedback that it's too clumsy"): the
+original ask was to share the site with 50 people for review, but replaces that one-off poll with
+an ongoing mechanism — real applicants leave honest reactions as they actually use the live site.
+
+**New `site_feedback` table** (migration `0007_site_feedback.sql`), deliberately anonymous — no
+name or email, just `page_path` (so admin can see which screen is generating complaints), an
+optional `sentiment` pick (confusing/fine/great), an optional free-text `message`, and a
+new/reviewed `status` for triage. Same anonymous-insert-via-service-role / admin-read-and-update-
+via-RLS pattern as `readiness_kit_requests`.
+
+**New `SiteFeedbackPanel.tsx`**, mounted on every checklist session in `SessionShell.tsx`
+immediately after `SaveProgressPanel` — collapsed by default (a one-line prompt) so it never
+competes with the session's own Back/Next nav, non-floating per the task #391 anti-overlap lesson.
+Posts to `/api/site-feedback`.
+
+**New `/admin/feedback`** page (mirroring `/admin/readiness-kits`): stat cards for total feedback,
+not-yet-reviewed count, "marked confusing" count, and the single most-complained-about page, plus
+a table with a status dropdown per row.
+
+The separate UX audit and redesign proposal (what's actually clumsy about the site today, and a
+proposed restructure) is a written document, not a code change — nothing from that proposal has
+been implemented; it's awaiting a decision on which option to greenlight.
+
+## Auto-generated personal supporting letter (Final review session)
+
+Direct request, from a working UK visa consultant: "I usually write a personal letter... I share
+that personal letter after the whole application is done. I want you to create a personal letter
+once the person gives every document that is needed... before you create it, let it tell you that
+it is insufficient." Modeled directly on a real consultant-written letter (verified fact-by-fact
+against an actual client's bank statement, payslip and VAF during the design pass, which also
+caught a fabricated transaction and an inaccurate salary breakdown in that sample).
+
+**New `lib/letter/` pure-logic module** (country-generic, not UK-only): `checkLetterSufficiency`
+checks the applicant has — a detected name, a declared employment status with employer/business
+name, a bank statement with transactions and a positive closing balance, at least one recognisable
+income source, a stated purpose of visit, travel dates, and a home address — and returns the exact
+list of what's still missing rather than a bare refusal. Only once that passes does
+`buildLetterPayload` assemble the same 5-section structure the sample letter uses (Employment /
+Income / Savings and investments / Purpose and plan of visit / Ties to Nigeria) from data this app
+has already computed — `buildIncomeSourceBreakdown`'s income-source groups for the salary/itemized-
+payments split, `combineStatementSummaries` for the savings figures, the Financial calculator's
+trip dates for the purpose section — and `renderLetterText` turns it into the final plain-text
+letter (UK gets "The Entry Clearance Officer, UK Visas and Immigration,"; every other country gets
+a generic "The Visa Officer" address).
+
+**New `PersonalLetterPanel.tsx`**, mounted at the end of the Final review/declaration session (the
+true last session before Reasons) — self-contained, same "read my own encrypted localStorage given
+just a country code" pattern as `SaveProgressPanel.tsx`, so it needed no new props threaded through
+`StatementCheck`/`StatementDashboard`/`ReportTab`. Re-derives the same income breakdown the Report
+tab already shows (never a second, possibly-drifting computation) from the same persisted statement
+payload(s). Shows the specific missing-items list when insufficient; once sufficient, offers
+"Generate my personal letter" with copy-to-clipboard and a plain-text download — nothing leaves the
+browser, matching this engine's existing privacy guarantee.
+
+22 new tests (`lib/letter/__tests__/`) covering every sufficiency gap and payload-assembly case
+(salary vs. itemized groups, excluded self/reversal/interest/internal/other types, the income-row
+cap, UK vs. generic salutation). Full suite: 97 suites / 654 tests passing, `tsc --noEmit` clean.
+
 ## Code-quality pass: naming collision, misplaced shared type, comment density, god component
 
 Prompted by outside feedback on the live site ("too AI... send the repo to a dev to rewrite") —
