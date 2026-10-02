@@ -9,6 +9,7 @@ import {
   deserializeTxns,
   PersistedStatement,
   extractAccountHolderName,
+  lineTextPreservingColumnGaps,
   SpouseSponsorDeclaration,
   WorkCategoryMap,
   summarizeStatement,
@@ -374,7 +375,13 @@ export default function StatementSlot({
       }
       setTxns(result);
       setStale(false); // a freshly-parsed statement always reflects the running app's CURRENT_PARSER_VERSION
-      const fullStatementText = lines.map((l) => l.text || '').join(' ');
+      // Built from lineTextPreservingColumnGaps, NOT the plain `.text` field — see that function's
+      // own comment in lib/statement/columns.ts for why: a real statement's "CUST. NAME<wide
+      // gap>POPOOLA ADEPEJU ADETUTU" header only survives this way, since `.text` collapses the
+      // exact whitespace run extractAccountHolderName's tabular pattern depends on. Scoped only to
+      // this one call — `lines` itself (used just above for parseStatementLinesWithFallback) is
+      // untouched, so nothing else in the parse pipeline is affected.
+      const fullStatementText = lines.map((l) => lineTextPreservingColumnGaps(l) || '').join(' ');
       const holderName = extractAccountHolderName(fullStatementText);
       setDetectedHolderName(holderName);
       setOcrUsed(usedOcr);

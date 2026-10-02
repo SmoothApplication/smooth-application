@@ -8,6 +8,14 @@
 export interface LinePart {
   x: number;
   str: string;
+  /** This item's rendered width (pdf.js's own TextItem.width, same units as `x`), when the source
+   * provides one — real PDF text-layer items always do; synthesized parts (OCR/plaintext/
+   * spreadsheet, which have no `parts` at all) never reach here. Used by
+   * lineTextPreservingColumnGaps (columns.ts) to tell a genuine column gap apart from ordinary
+   * same-cell word spacing — see that function's own comment. Optional and additive: every
+   * existing reader of LinePart ignores it, so this carries no risk to anything already built on
+   * `.x`/`.str` alone. */
+  w?: number;
 }
 
 /** One "line" of statement text — either a real PDF text-layer line (with x-positioned parts,

@@ -3,6 +3,49 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Fix: holder name not auto-filling from a real tabular statement, despite the matching regex already existing
+
+Real user report, with a real uploaded statement: "name was not extracted. and it did not follow
+the manual pattern i did." The statement's header reads exactly like the Providus-style tabular
+shape `ACCOUNT_NAME_TABULAR_LABEL_RE` (task #514) was built for — `CUST. NAME   POPOOLA ADEPEJU
+ADETUTU` — yet the Applicant's full name field stayed empty.
+
+Root cause was upstream of that regex, not in it. `linesFromTextContent` (`lib/statement/columns.ts`)
+builds each line's `.text` field by joining pdf.js's positioned text items and then collapsing
+every whitespace run down to exactly one space (`.replace(/\s+/g, ' ')`). pdf.js represents a wide
+column gap purely through item x-position, never as literal space characters, so by the time that
+collapsed text reaches `extractAccountHolderName` (`names.ts`), no 2+-space run survives anywhere —
+the tabular regex's `\s{2,}` requirement can never match, no matter how clean the real column
+layout is. The existing jest coverage for this exact regex gave false confidence: it fed
+`extractAccountHolderName` a hand-built string literal with the spacing already preserved, never
+exercising this join step at all.
+
+Verified against the user's actual uploaded PDF with a throwaway pdf.js item-position inspection
+script (now deleted): same-cell/same-phrase gaps (two date parts, words within one bank name)
+measured 8-14pt end-to-end; genuine label-to-value column gaps measured 30pt or more.
+
+Fix is narrowly scoped to the one call site that feeds text to `extractAccountHolderName`:
+- `LinePart` (`lib/statement/types.ts`) gained an optional `w` field carrying pdf.js's own
+  `TextItem.width` for each positioned text run.
+- `linesFromTextContent` now threads that width through alongside `x`/`str`.
+- A new pure function, `lineTextPreservingColumnGaps` (`lib/statement/columns.ts`), rebuilds a
+  line's text from its still-intact `parts` instead of the already-collapsed `.text`, inserting a
+  literal double space only where the gap between two consecutive items' real blank space (end of
+  one item to the start of the next, not raw x-to-x distance, which a long label's own width could
+  trip on its own) is wide enough to be a genuine column boundary (`COLUMN_GAP_THRESHOLD = 20`,
+  calibrated against the real 8-14pt vs 30pt+ clusters above). Falls back to an ordinary single
+  space whenever width data is missing on either side, rather than guessing.
+- `StatementSlot.tsx` now builds the text fed to `extractAccountHolderName` via this function
+  instead of the old `lines.map(l => l.text).join(' ')`. The `lines` array itself, and every other
+  consumer of `.text` (narration building, column-header detection, amount parsing), is untouched —
+  this only changes what the holder-name detector sees.
+
+New tests in `lib/statement/__tests__/column-gap-preserving-holder-name.test.ts` exercise the real
+pipeline shape (synthetic pdf.js-style `parts` with x/width, not a pre-spaced string literal) and
+include a test that demonstrates the old collapsed `.text` behaviour failing on the same input,
+closing the coverage gap the hand-built-string tests left open. Full suite: 95 suites / 632 tests
+passing, `tsc --noEmit` clean.
+
 ## Clarity: done checklist items collapse out of the way instead of staying in the flat list
 
 Another "perceived length" follow-up, from a quick mockup demo the user asked to see first ("show

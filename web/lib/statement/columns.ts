@@ -11,9 +11,9 @@ import type { Line, ColumnOccurrence, ColumnPositions } from './types';
  * physical lines by shared y-position (within 2pt), then sorts each bucket's parts left-to-right
  * by x. Buckets are sorted top-to-bottom (descending y, since PDF y grows upward). */
 export function linesFromTextContent(tc: {
-  items: { str: string; transform: number[] }[];
+  items: { str: string; transform: number[]; width?: number }[];
 }): Line[] {
-  const buckets: { y: number; parts: { x: number; str: string }[] }[] = [];
+  const buckets: { y: number; parts: { x: number; str: string; w?: number }[] }[] = [];
   tc.items.forEach((it) => {
     if (!it.str || !it.str.trim()) return;
     const y = it.transform[5];
@@ -29,7 +29,11 @@ export function linesFromTextContent(tc: {
       b = { y, parts: [] };
       buckets.push(b);
     }
-    b.parts.push({ x, str: it.str });
+    // `width` (pdf.js's own TextItem.width) is kept alongside `x`/`str` — see LinePart's own
+    // comment in types.ts for why: it's what lets lineTextPreservingColumnGaps below tell a real
+    // column boundary apart from ordinary same-cell word spacing, something the collapsed `.text`
+    // field this function also produces can no longer do once `.replace(/\s+/g, ' ')` has run.
+    b.parts.push({ x, str: it.str, w: it.width });
   });
   buckets.sort((a, b) => b.y - a.y);
   return buckets
@@ -54,6 +58,56 @@ export function linesFromPlainText(text: string): Line[] {
     .split('\n')
     .map((t) => ({ text: t, parts: [] }))
     .filter((l) => l.text.trim());
+}
+
+// Real-data finding (task "name was not extracted... did not follow the manual pattern" — a real
+// Providus statement whose header literally reads "CUST. NAME   POPOOLA ADEPEJU ADETUTU" with wide
+// column-aligned spacing): Line.text above collapses EVERY whitespace run down to exactly one
+// space, including the wide x-gap pdf.js represents purely through item POSITION rather than
+// literal space characters — by the time `extractAccountHolderName` (names.ts) ever sees the
+// joined statement text, no 2+-space run survives anywhere, so its tabular "CUST. NAME<2+
+// spaces>NAME<2+ spaces>" pattern (added for this exact statement shape, see
+// ACCOUNT_NAME_TABULAR_LABEL_RE's own comment) can never match — even though a passing unit test
+// for that regex gave false confidence, because it fed the regex a hand-built string with the
+// spacing already preserved, never exercising this join step at all.
+//
+// This reconstructs a line's text from its still-intact `parts` (x-positioned, exactly like
+// linesFromTextContent builds them) instead of reusing the already-collapsed `.text`, inserting a
+// literal double space wherever the gap between two consecutive parts is wide enough to be a real
+// column boundary rather than ordinary same-cell word spacing. Calibrated against this statement's
+// own real x-positions: same-cell/same-phrase gaps (e.g. two date parts, or words within one bank
+// name) measured 8-14pt; genuine label-to-value column gaps measured 30pt or more (several ran into
+// the hundreds for widely separated amount/balance columns) — so 20pt sits safely in the gap
+// between those two real clusters without needing per-line font-size data this shape doesn't carry.
+// Only used for the specific "find the account holder's name" pass below — NOT swapped in for the
+// shared `.text` field everywhere else (narration building, column-header detection, amount
+// parsing all keep reading `.text` exactly as before), so this carries no risk to any of that
+// already-locked-down behaviour.
+//
+// Measured against this real gap, not raw x-to-x distance (which conflates a long label's own
+// width with actual blank space): same-cell/same-phrase blank gaps (two date parts, words within
+// one bank name) measured 8-14pt end-to-end; genuine label-to-value column gaps measured 30pt or
+// more. 20 sits safely between those two real clusters.
+export const COLUMN_GAP_THRESHOLD = 20;
+
+export function lineTextPreservingColumnGaps(line: Line): string {
+  if (!line.parts || line.parts.length === 0) return line.text;
+  const sorted = [...line.parts].sort((a, b) => a.x - b.x);
+  let out = '';
+  for (let i = 0; i < sorted.length; i++) {
+    if (i > 0) {
+      const prev = sorted[i - 1];
+      // Only ever WIDEN a gap to a column-boundary double-space when both items carry a real
+      // width to measure the actual blank space from — without one, this falls back to an
+      // ordinary single space (the same as before this function existed) rather than guessing
+      // from raw x-distance, which a long label's own width could trip on its own.
+      const hasWidths = typeof prev.w === 'number' && typeof sorted[i].x === 'number';
+      const blankGap = hasWidths ? sorted[i].x - (prev.x + (prev.w as number)) : null;
+      out += blankGap !== null && blankGap >= COLUMN_GAP_THRESHOLD ? '  ' : ' ';
+    }
+    out += sorted[i].str;
+  }
+  return out.replace(/[ \t]{3,}/g, '  ').trim();
 }
 
 export const AMOUNT_RE = /^-?\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?$|^-?\d+\.\d{2}$/;
