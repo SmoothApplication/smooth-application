@@ -3,6 +3,9 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Unreleased - top senders
+- Top 10 senders table hides the employer once the Salary / Allowances cards are filled in (it is already explained there); the table total follows the rows shown.
+
 ## Unreleased - employer prompt + hooks guard
 - Analysis tab: once the Salary / Allowances cards are filled in, the "paid you in N of your last 6 months - who is this?" prompt no longer shows for the employer.
 - Test that fails if a React hook is placed after an early return in the letter panel or statement dashboard (the cause of the Final review crash).

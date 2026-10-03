@@ -80,6 +80,9 @@ export function AnalysisTab({
   const salaryGroupsExplained = splitSalaryForSheet(groups).filter((g) => g.type === 'salary' && !!explanations[g.name]);
   const coveredBySalary = (senderName: string) =>
     salaryGroupsExplained.some((g) => g.txns.some((t) => (t.narration || '').toUpperCase().includes(senderName.toUpperCase())));
+  // The employer is already shown (and explained) in the Salary / Allowances cards, so it is left out of the
+  // Top 10 table and its total. The concentration check further down still counts every sender.
+  const shownSenders = topSenders.list.filter((s) => !coveredBySalary(s.name));
   const topSendersTotal = topSenders.list.reduce((s, x) => s + x.total, 0);
   const totalInflow6mo = cashFlowRows.reduce((s, r) => s + r.inflow, 0);
   const topSendersRatio = totalInflow6mo > 0 ? topSendersTotal / totalInflow6mo : 0;
@@ -301,7 +304,7 @@ export function AnalysisTab({
             ))}
           </div>
         )}
-        {topSenders.list.length === 0 ? (
+        {shownSenders.length === 0 ? (
           <p className="text-sm text-[#566a76]">No named senders were found on this statement.</p>
         ) : (
           <div className="overflow-x-auto">
@@ -332,7 +335,7 @@ export function AnalysisTab({
                 </tr>
               </thead>
               <tbody>
-                {sortedSenders.map((s, i) => {
+                {sortedSenders.filter((s) => !coveredBySalary(s.name)).map((s, i) => {
                   const isEditingThis = editingName === s.name;
                   const otherSenders = topSenders.list.filter((o) => o.name !== s.name);
                   return (
@@ -404,9 +407,9 @@ export function AnalysisTab({
               <tfoot>
                 <tr className="font-semibold text-[#12232e]">
                   <td className="py-2 pr-2" colSpan={4}>
-                    Total from these {topSenders.list.length} sender{topSenders.list.length === 1 ? '' : 's'}
+                    Total from these {shownSenders.length} sender{shownSenders.length === 1 ? '' : 's'}
                   </td>
-                  <td className="py-2 text-right">{formatAmount(topSendersTotal)}</td>
+                  <td className="py-2 text-right">{formatAmount(shownSenders.reduce((a, x) => a + x.total, 0))}</td>
                 </tr>
               </tfoot>
             </table>
