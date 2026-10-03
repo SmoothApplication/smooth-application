@@ -15,6 +15,10 @@ describe('detectBankName', () => {
     const lines = ['STATEMENT OF ACCOUNT', 'CUST. NAME  POPOOLA', ...Array(60).fill('row'), "Note, all products and services are subject to ProvidusBank Plc's existing Terms"];
     expect(detectBankName(lines)).toBe('Providus Bank');
   });
+  it('a short header ends at the column titles, so the first transaction is never read as header', () => {
+    const lines = ['STATEMENT OF ACCOUNT', 'CUST. NAME  A B', 'ACC. NO. 1', 'CURRENCY NGN', 'TXN DATE VAL DATE REMARKS DEBIT CREDIT BALANCE', '02-03-2026 02-03-2026 OUTWARD TRANSFER TO GLOBUS BANK|UNICAF 50,000.00 950,000.00', "ProvidusBank Plc's Terms"];
+    expect(detectBankName(lines)).toBe('Providus Bank');
+  });
   it('returns null when no bank is named', () => {
     expect(detectBankName(['Account statement', 'Opening balance'])).toBeNull();
   });

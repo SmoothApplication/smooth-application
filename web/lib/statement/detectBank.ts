@@ -52,9 +52,14 @@ function firstBank(text: string, selfIdentifiedOnly: boolean): string | null {
  * issuer (… Plc / … Limited). Transaction narrations name other banks ("TO GLOBUS BANK") and are never used.
  */
 export function detectBankName(lines: string[]): string | null {
+  // The account header ends where the column titles or the first dated row begin.
+  const end = lines.findIndex(
+    (l, i) => i > 0 && (/debit.*credit|credit.*debit|pay\s*in.*pay\s*out/i.test(l) || /^\s*\d{1,2}[-/ ][A-Za-z0-9]{2,4}[-/ ]\d{2,4}\b/.test(l))
+  );
+  const header = lines.slice(0, Math.min(end === -1 ? 8 : end, 40)).join(' \n ');
   return (
-    firstBank(lines.slice(0, 8).join(' \n '), false) ||
-    firstBank(lines.slice(0, 8).join(' \n '), true) ||
+    firstBank(header, false) ||
+    firstBank(header, true) ||
     firstBank(lines.slice(-40).join(' \n '), true)
   );
 }
