@@ -10,6 +10,7 @@ import {
   getTopInflows,
   buildIncomeBreakdownAoa,
   findUnexplainedLargeInflows,
+  isEmployerPaymentTxn,
   buildPersonalNameTallyMessage,
   SpouseSponsorDeclaration,
   computeWorkNameCheck,
@@ -508,7 +509,11 @@ export default function StatementDashboard({
     }
   }
 
-  const unexplainedInflows = useMemo(() => findUnexplainedLargeInflows(txns, minInflow), [txns, minInflow]);
+  // Payments from the declared employer are salary/allowances, not unexplained inflows.
+  const unexplainedInflows = useMemo(
+    () => findUnexplainedLargeInflows(txns, minInflow).filter((t) => !isEmployerPaymentTxn(employerName, t)),
+    [txns, minInflow, employerName]
+  );
 
   // Same nesting ReportTab uses to render the "Inflows that need an explanation" cards, recomputed
   // here purely so the Download-spreadsheet flow (above) can build the per-transaction reason map

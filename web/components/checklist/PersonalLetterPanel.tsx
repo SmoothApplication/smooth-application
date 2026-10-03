@@ -90,6 +90,13 @@ export default function PersonalLetterPanel({ code, inline = false }: PersonalLe
   useEffect(() => {
     const d = readJson<Partial<LetterDetails>>(detailsKey);
     if (d) setDetails({ ...EMPTY_DETAILS, ...d });
+    // Hand a saved employer name to the statement cards above (they only learn it from this box).
+    if (d?.employerName && typeof window !== 'undefined') {
+      const send = () =>
+        window.dispatchEvent(new CustomEvent('sa:employer-name', { detail: { code: lowerCode, name: d.employerName } }));
+      send();
+      setTimeout(send, 400);
+    }
     const f = readJson<Partial<FinancialInputs>>(financialKey);
     if (f) setDates({ travelDate: f.travelDate || '', returnDate: f.returnDate || '' });
     setDetailsLoaded(true);

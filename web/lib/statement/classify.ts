@@ -768,6 +768,16 @@ export interface IncomeBreakdownOptions {
   employerName?: string;
 }
 
+/** True when the payment came from the applicant's declared employer: the employer's words appear in the
+ * narration, or the Remita remitter (which the bank cuts short) is the start of the typed name. */
+export function isEmployerPaymentTxn(employerName: string | null | undefined, t: ParsedTxn): boolean {
+  const employer = (employerName || '').trim();
+  if (!employer) return false;
+  if (findInflowsMatchingName(employer, [t]).matches.length) return true;
+  const remitter = extractRemitaRemitter(t.narration);
+  return !!remitter && remitter.length >= 4 && employer.toLowerCase().indexOf(remitter.toLowerCase()) === 0;
+}
+
 export function buildIncomeSourceBreakdown(
   allTxns: ParsedTxn[],
   applicantName: string | null | undefined,
