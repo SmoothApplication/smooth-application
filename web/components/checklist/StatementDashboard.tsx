@@ -233,7 +233,7 @@ export default function StatementDashboard({
   // sees first after uploading, matching the original GitHub Pages app's own flow, not the
   // Analysis tab's raw per-sender breakdown. Still just a UI default - switching tabs afterward
   // works exactly the same either way.
-  const [tab, setTab] = useState<'statement' | 'income' | 'workplace' | 'report'>('statement');
+  const [tab, setTab] = useState<'statement' | 'income' | 'workplace' | 'report' | 'letter'>('statement');
 
   // Task follow-up: "it is not extracting name from bank statement" -- detectedHolderName was
   // already being computed (extractAccountHolderName in lib/statement/names.ts) but only ever fed
@@ -690,6 +690,7 @@ export default function StatementDashboard({
             ['income', 'Income sources'],
             ['workplace', 'Workplace income'],
             ['report', 'Report'],
+            ['letter', 'Personal letter'],
           ] as const
         ).map(([key, label]) => (
           <button
@@ -991,9 +992,10 @@ export default function StatementDashboard({
           setExplanation={setExplanation}
           resolveSenderDuplicate={resolveSenderDuplicate}
         />
-          {reportExtras}
         </ReportTab>
       )}
+      {/* Kept mounted (just hidden) so the letter text stays saved for the spreadsheet. */}
+      <div className={tab === 'letter' ? '' : 'hidden'}>{reportExtras}</div>
     </div>
   );
 }

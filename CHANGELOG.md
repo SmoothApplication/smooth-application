@@ -3,6 +3,10 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Unreleased - separate letter tab, clearer earnings lines
+- The personal supporting letter now has its own "Personal letter" tab beside Report (kept mounted so the spreadsheet still gets the letter text).
+- Form answers: monthly salary (exact statement average), monthly allowances/bonuses and their total are now separate lines. Employer pay cards also replace stale saved reasons with the standard Salary/Allowance label.
+
 ## Unreleased - allowances card
 - Workplace income: the Allowances card now pre-selects "Allowance or bonus from my employer" and shows Confirmed (the label did not match the dropdown option before).
 

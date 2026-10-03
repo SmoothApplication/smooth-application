@@ -47,6 +47,21 @@ export function monthlyNetSalary(groups: SourceGroups): number {
   return use.reduce((a, t) => a + t.credit, 0) / use.length;
 }
 
+/** Average monthly allowances/bonuses from the employer (salary-group credits that are not salary). */
+export function monthlyAllowances(groups: SourceGroups): number {
+  const sal = groups.find((g) => g.type === 'salary');
+  if (!sal) return 0;
+  const extras = sal.txns.filter((t) => t.credit > 0 && !isSalaryNarrationText(t.narration));
+  // Only meaningful when real salary credits exist alongside them.
+  if (!extras.length || !sal.txns.some((t) => t.credit > 0 && isSalaryNarrationText(t.narration))) return 0;
+  const byMonth = new Map<string, number>();
+  extras.forEach((t) => {
+    const k = `${t.date.getFullYear()}-${t.date.getMonth()}`;
+    byMonth.set(k, (byMonth.get(k) || 0) + t.credit);
+  });
+  return extras.reduce((a, t) => a + t.credit, 0) / byMonth.size;
+}
+
 export function averageMonthlySpend(txns: ParsedTxn[]): number {
   const debits = txns.filter((t) => t.debit > 0);
   if (!debits.length) return 0;
@@ -64,11 +79,24 @@ export function buildFormAnswers(i: FormAnswersInput): FormAnswer[] {
     out.push({ question: 'Date you started working for this employer', answer: i.startedWhen });
     out.push({ question: 'Describe your job', answer: i.jobDescription });
   }
+  const allow = monthlyAllowances(i.groups);
   out.push({
-    question: 'How much do you earn each month - after tax?',
+    question: allow ? 'Monthly salary - after tax' : 'How much do you earn each month - after tax?',
     answer: net ? both(net, i.ratePerGbp) : '',
     note: net ? 'The average salary credit on your statement - the same figure as in your letter.' : 'No salary found on the statement yet.',
   });
+  if (allow) {
+    out.push({
+      question: 'Monthly allowances and bonuses from your employer',
+      answer: both(allow, i.ratePerGbp),
+      note: 'Average per month of the allowance and bonus credits on your statement.',
+    });
+    out.push({
+      question: 'How much do you earn each month - after tax? (salary + allowances)',
+      answer: both(net + allow, i.ratePerGbp),
+      note: 'Salary plus allowances added together - use this total on the form.',
+    });
+  }
   const savings = i.closingBalance + i.otherSavingsTotal;
   out.push({
     question: 'How much money do you have in savings?',

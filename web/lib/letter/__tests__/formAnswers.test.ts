@@ -31,6 +31,16 @@ describe('form answers', () => {
     expect(earn.answer).toBe(`${(avg / 597.4).toFixed(2)} GBP (₦${Math.round(avg).toLocaleString('en-NG')})`);
     expect(a.find((x) => x.question === 'Your job title')!.answer).toBe('Senior Regulatory Officer');
   });
+  it('lists salary, allowances and their total on separate lines', () => {
+    const al = [t('2026-03-31', 5000000, 0, 'NIGERIAN U:HOUSING ALLOWANCE'), t('2026-04-30', 7000000, 0, 'NIGERIAN U:TRANSPORT ALLOWANCE')];
+    const sTx = salaryTxns.map((x) => ({ ...x, narration: 'NIGERIAN U: STAFF SALARY' }));
+    const g = [{ ...groups[0], txns: [...sTx, ...al] }] as unknown as SourceGroups;
+    const a = buildFormAnswers({ groups: g, txns, closingBalance: 0, otherSavingsTotal: 0, employed: true, selfEmployed: false, employerName: '', jobTitle: '', startedWhen: '', jobDescription: '', ratePerGbp: 0, plannedSpendNgn: 0, travelDate: '', returnDate: '' });
+    const sal = (654071.67 * 2 + 648358.4 * 3) / 5;
+    expect(a.find((x) => x.question === 'Monthly salary - after tax')!.answer).toBe(`₦${Math.round(sal).toLocaleString('en-NG')}`);
+    expect(a.find((x) => x.question.startsWith('Monthly allowances'))!.answer).toBe('₦6,000,000');
+    expect(a.find((x) => x.question.includes('salary + allowances'))!.answer).toBe(`₦${Math.round(sal + 6000000).toLocaleString('en-NG')}`);
+  });
   it('naira only when no rate is given', () => {
     const a = buildFormAnswers({ groups, txns, closingBalance: 1000000, otherSavingsTotal: 0, employed: true, selfEmployed: false, employerName: '', jobTitle: '', startedWhen: '', jobDescription: '', ratePerGbp: 0, plannedSpendNgn: 0, travelDate: '', returnDate: '' });
     expect(a.find((x) => x.question.startsWith('How much money do you have'))!.answer).toBe('₦1,000,000');
