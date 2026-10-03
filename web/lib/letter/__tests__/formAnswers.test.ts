@@ -46,6 +46,10 @@ describe('letter with personal details', () => {
     ],
     totalInflow: 0, totalOutflow: 0, openingBalance: 0, closingBalance: 4687534, financialInputs: null,
   };
+  it('mentions the payslip and says it matches the salary credits', () => {
+    const p = buildLetterPayload({ ...base, jobTitle: '', startedWhen: '', jobDescription: '', previousEmployment: '', plans: '', otherSavings: [], payslip: { month: 'September 2026', gross: 1077976.42, net: 648358.4 } } as never);
+    expect(p.incomeParagraphs.join(' ')).toContain('My payslip for September 2026 shows gross monthly pay of');
+  });
   it('uses job title, start, description, previous job, plans and other accounts', () => {
     const p = buildLetterPayload({
       ...base, jobTitle: 'Senior Regulatory Officer', startedWhen: 'August 2025', jobDescription: 'I handle HR administration',

@@ -45,6 +45,8 @@ export interface LetterInput {
   previousEmployment?: string;
   plans?: string;
   otherSavings?: OtherSavingsRow[];
+  /** Read from an uploaded payslip (optional). */
+  payslip?: { month: string; gross: number; net: number };
 }
 
 export interface OtherSavingsRow {

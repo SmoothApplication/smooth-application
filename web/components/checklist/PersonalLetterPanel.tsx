@@ -10,9 +10,10 @@ import {
   StatementSummary,
   SourceGroups,
 } from '@/lib/statement';
+import { readDocumentText } from '@/lib/letter/readDocument';
 import { trackEvent } from '@/lib/analytics';
 import SavedIndicator from '@/components/checklist/SavedIndicator';
-import { buildFormAnswers, OtherSavingsRow, suggestEmployerNames, hasSalaryLikeIncome, EmployerSuggestion, checkLetterSufficiency, buildLetterPayload, renderLetterText, LetterInput, buildLetterDocxBlob, needsHelpWithBalance, shortfall, helpWhatsAppHref, feesPaymentHref, hasFeesPaymentLink } from '@/lib/letter';
+import { buildFormAnswers, OtherSavingsRow, suggestEmployerNames, hasSalaryLikeIncome, EmployerSuggestion, checkLetterSufficiency, buildLetterPayload, renderLetterText, LetterInput, buildLetterDocxBlob, parsePayslipText, parseFlightText, needsHelpWithBalance, shortfall, helpWhatsAppHref, feesPaymentHref, hasFeesPaymentLink } from '@/lib/letter';
 import { computeWorkNameCheck } from '@/lib/statement/workNameCheck';
 import type { ParsedTxn } from '@/lib/statement/types';
 import { NIGERIA_STATES, NIGERIA_STATES_LGA } from '@/lib/checklist/nigeriaLocations';
@@ -41,14 +42,14 @@ export type PersonalLetterPanelProps = {
 };
 
 type LetterDetails = {
-  bankName: string; applicantName: string; employerName: string; businessName: string; phone: string; email: string;
+  payslipMonth: string; payslipGross: number; payslipNet: number; bankName: string; applicantName: string; employerName: string; businessName: string; phone: string; email: string;
   jobTitle: string; startedWhen: string; jobDescription: string; previousEmployment: string; plans: string;
   otherSavings: OtherSavingsRow[]; ratePerGbp: string; plannedSpend: string;
 };
 const EMPTY_DETAILS: LetterDetails = {
   applicantName: '', employerName: '', businessName: '', phone: '', email: '',
   jobTitle: '', startedWhen: '', jobDescription: '', previousEmployment: '', plans: '',
-  otherSavings: [], ratePerGbp: '', plannedSpend: '', bankName: '',
+  otherSavings: [], ratePerGbp: '', plannedSpend: '', bankName: '', payslipMonth: '', payslipGross: 0, payslipNet: 0,
 };
 const PURPOSES: { value: string; label: string }[] = [
   { value: 'tourism', label: 'Tourism / holiday' },
@@ -114,6 +115,29 @@ export default function PersonalLetterPanel({ code, inline = false }: PersonalLe
     setDetails(next);
     try { secureStorage.setItem(detailsKey, JSON.stringify(next)); } catch { /* ignore */ }
   }
+  const [docMsg, setDocMsg] = useState('');
+  async function onPayslip(f: File | undefined) {
+    if (!f) return;
+    setDocMsg('Reading your payslip on this device...');
+    try {
+      const p = parsePayslipText(await readDocumentText(f));
+      if (!p) { setDocMsg('Could not read a net pay figure from that file. You can still continue without it.'); return; }
+      saveDetails({ ...details, payslipMonth: p.month, payslipGross: p.gross, payslipNet: p.net });
+      trackEvent('payslip_read');
+      setDocMsg(`Payslip read: net pay ₦${Math.round(p.net).toLocaleString('en-NG')}${p.gross ? `, gross ₦${Math.round(p.gross).toLocaleString('en-NG')}` : ''}${p.month ? ` (${p.month})` : ''}. It is now in your letter.`);
+    } catch { setDocMsg('Could not read that file. You can still continue without it.'); }
+  }
+  async function onFlight(f: File | undefined) {
+    if (!f) return;
+    setDocMsg('Reading your flight reservation on this device...');
+    try {
+      const r = parseFlightText(await readDocumentText(f));
+      if (!r) { setDocMsg('Could not find the travel dates in that file. Type them in instead.'); return; }
+      saveDates({ travelDate: r.outboundISO, returnDate: r.returnISO });
+      trackEvent('flight_read');
+      setDocMsg(`Flight read: leaving ${r.outboundISO}, returning ${r.returnISO}. The dates below are filled in.`);
+    } catch { setDocMsg('Could not read that file. Type the dates in instead.'); }
+  }
   function saveDates(next: { travelDate: string; returnDate: string }) {
     setDates(next);
     try {
@@ -167,6 +191,7 @@ export default function PersonalLetterPanel({ code, inline = false }: PersonalLe
       phone: details.phone,
       email: details.email,
       jobTitle: details.jobTitle,
+      payslip: details.payslipNet > 0 ? { month: details.payslipMonth, gross: details.payslipGross, net: details.payslipNet } : undefined,
       startedWhen: details.startedWhen,
       jobDescription: details.jobDescription,
       previousEmployment: details.previousEmployment,
@@ -335,6 +360,14 @@ export default function PersonalLetterPanel({ code, inline = false }: PersonalLe
           {PURPOSES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
       </label>
+      <div className="rounded-lg border border-black/10 bg-[#faf9f6] p-2 text-xs text-[#4c6270]">
+        <p className="font-semibold text-[#12232e]">Upload to fill things in (read on your phone, never sent anywhere)</p>
+        <div className="mt-1 flex flex-wrap gap-3">
+          <label>Payslip <input type="file" accept="application/pdf,image/*" onChange={(e) => onPayslip(e.target.files?.[0])} /></label>
+          <label>Flight reservation <input type="file" accept="application/pdf,image/*" onChange={(e) => onFlight(e.target.files?.[0])} /></label>
+        </div>
+        {docMsg && <p className="mt-1 text-[#12232e]">{docMsg}</p>}
+      </div>
       <div className="grid grid-cols-2 gap-2">
         <label className="text-xs text-[#4c6270]">Travel date
           <input type="date" className={inputCls} value={dates.travelDate} onChange={(e) => saveDates({ ...dates, travelDate: e.target.value })} />

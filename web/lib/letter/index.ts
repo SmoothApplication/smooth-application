@@ -6,3 +6,4 @@ export * from './employerSuggest';
 export * from './formAnswers';
 export * from './helpOffer';
 export * from './renderLetterDocx';
+export * from './documentParsers';

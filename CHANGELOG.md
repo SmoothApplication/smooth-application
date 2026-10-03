@@ -3,6 +3,10 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Unreleased - payslip and flight upload
+- Letter panel: upload a payslip (reads net/gross pay and month) and a flight reservation (fills travel and return dates). Read on-device with OCR fallback; nothing is uploaded.
+- Letter income paragraph cites the payslip and says when net pay matches the statement salary credits.
+
 ## Unreleased - spreadsheet polish
 - Excel: real sortable dates and 2-decimal amounts, column widths, stray spaces removed from narration references, junk reasons like "TO <name>" left blank, employer groups always "Confirmed".
 - What to do: tip to get an employer letter when allowances exceed regular salary.

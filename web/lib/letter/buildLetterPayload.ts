@@ -72,6 +72,15 @@ export function buildLetterPayload(input: LetterInput): LetterPayload {
         salaryBase.length === 1 ? '' : 's'
       } between ${fmtDate(new Date(Math.min(...dates)))} and ${fmtDate(new Date(Math.max(...dates)))} (total ${fmt(baseTotal)}).`
     );
+    if (input.payslip && input.payslip.net > 0) {
+      const ps = input.payslip;
+      const close = Math.abs(ps.net - avgMonthly) / avgMonthly < 0.02;
+      incomeParagraphs.push(
+        `My payslip${ps.month ? ` for ${ps.month}` : ''} shows ${ps.gross > 0 ? `gross monthly pay of ${fmt(ps.gross)} and ` : ''}net pay of ${fmt(ps.net)}${
+          close ? ', which matches the salary credited to my account.' : '.'
+        }`
+      );
+    }
     const months = new Set(salaryBase.map((t) => `${t.date.getFullYear()}-${t.date.getMonth()}`)).size;
     if (months >= 2) {
       incomeParagraphs.push(
