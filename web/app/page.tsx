@@ -146,6 +146,12 @@ export default function HomePage() {
               >
                 See how it works
               </a>
+              <Link
+                href="/checklist/uk/statement?focus=1"
+                className="rounded-full border border-black/10 px-5 py-3 text-center font-semibold text-accent hover:bg-black/5"
+              >
+                Just check my bank statement
+              </Link>
             </div>
             <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-[#4c6270]">
               <span>✓ Free</span>

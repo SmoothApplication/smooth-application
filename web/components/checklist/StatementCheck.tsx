@@ -51,6 +51,15 @@ export default function StatementCheck({ countryCode }: StatementCheckProps) {
   const countryName = countryInfo?.name || countryCode;
 
   const [showSecondSlot, setShowSecondSlot] = useState(false);
+  // Statement-only mode (?focus=1): no session bar, sidebar or questions - just upload, review, download.
+  const [focus, setFocus] = useState(false);
+  useEffect(() => {
+    try {
+      setFocus(new URLSearchParams(window.location.search).get('focus') === '1');
+    } catch {
+      /* ignore */
+    }
+  }, []);
   const [summary1, setSummary1] = useState<StatementSummary | null>(null);
   const [summary2, setSummary2] = useState<StatementSummary | null>(null);
 
@@ -78,8 +87,8 @@ export default function StatementCheck({ countryCode }: StatementCheckProps) {
   const combined =
     summary1 || summary2 ? combineStatementSummaries([summary1, summary2].filter((s): s is StatementSummary => !!s)) : null;
 
-  return (
-    <SessionShell code={countryCode} name={countryName} session="statement">
+  const body = (
+    <>
       <div>
         <h1 className="font-serif text-xl font-semibold text-[#12232e]">🏦 Bank statement check</h1>
         <p className="mt-1 text-sm text-[#4c6270]">
@@ -151,6 +160,26 @@ export default function StatementCheck({ countryCode }: StatementCheckProps) {
           </div>
         </div>
       )}
+    </>
+  );
+
+  if (focus) {
+    return (
+      <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-5 bg-cream p-4 sm:p-6">
+        <div className="flex items-center justify-between gap-3">
+          <a href="/" className="text-sm font-semibold text-[#12232e]">Smooth Application</a>
+          <a href={`/checklist/${lowerCode}/statement`} className="text-xs text-accent underline">
+            Want the full checklist? Open it →
+          </a>
+        </div>
+        {body}
+      </main>
+    );
+  }
+
+  return (
+    <SessionShell code={countryCode} name={countryName} session="statement">
+      {body}
     </SessionShell>
   );
 }

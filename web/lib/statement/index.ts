@@ -22,3 +22,4 @@ export * from './finalSummary';
 export * from './flaggedReasons';
 export * from './suggestReason';
 export * from './researchNotes';
+export * from './actionPlan';

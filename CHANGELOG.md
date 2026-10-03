@@ -3,6 +3,12 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Simpler path: statement-only mode + plain-language plan
+
+- New homepage link "Just check my bank statement" opens `/checklist/uk/statement?focus=1`: no quiz, session bar or sidebar, only upload, review and download (a link to the full checklist stays at the top).
+- The Report tab now shows "What to do", "What not to do" and "Ways to make your application easier", written in plain words from the numbers already computed on-device (`lib/statement/actionPlan.ts`). The downloaded workbook gets a matching "What to do" sheet.
+- No data leaves the device for any of this.
+
 ## Research notes per sender (consultant due-diligence)
 
 - Each income-source card has "📝 Add a research note": free text for what you found about the sender (e.g. "Dental clinic in Lagos - real"). It stays on the card and is saved/restored with the other answers (stored under a `note::` key in the existing explanations record, so no new storage).

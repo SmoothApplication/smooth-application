@@ -26,6 +26,7 @@ import {
   buildFlaggedTxnReasons,
   suggestReasonForGroup,
   describeGroupForSheet,
+  ActionPlan,
   getResearchNote,
   reviewStatusFor,
   REVIEW_STATUS_LABEL,
@@ -247,6 +248,7 @@ export default function StatementDashboard({
     initialNameCorrections || {}
   );
   const [explanations, setExplanations] = useState<Record<string, string>>(initialExplanations || {});
+  const [actionPlan, setActionPlan] = useState<ActionPlan | null>(null);
   const [senderDuplicateDecisions, setSenderDuplicateDecisions] = useState<Record<string, 'merge' | 'separate'>>(
     initialSenderDuplicateDecisions || {}
   );
@@ -465,6 +467,15 @@ export default function StatementDashboard({
       const ws = XLSX.utils.aoa_to_sheet(aoa);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Income Breakdown');
+      if (actionPlan) {
+        const planAoa: string[][] = [['What to do next - in plain words'], []];
+        planAoa.push(['WHAT TO DO'], ...actionPlan.doList.map((t) => [t]), []);
+        planAoa.push(['WHAT NOT TO DO'], ...actionPlan.dontList.map((t) => [t]), []);
+        planAoa.push(['WAYS TO MAKE YOUR APPLICATION EASIER'], ...actionPlan.easierList.map((t) => [t]));
+        const ps = XLSX.utils.aoa_to_sheet(planAoa);
+        ps['!cols'] = [{ wch: 110 }];
+        XLSX.utils.book_append_sheet(wb, ps, 'What to do');
+      }
       const base64 = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
       const res = await fetch('/api/email-income-breakdown', {
         method: 'POST',
@@ -742,6 +753,7 @@ export default function StatementDashboard({
         />
       ) : (
         <ReportTab
+          onActionPlan={setActionPlan}
           groups={groups}
           topSenders={topSenders}
           totalIncomeIdentified={totalIncomeIdentified}

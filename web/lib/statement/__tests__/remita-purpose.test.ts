@@ -59,3 +59,22 @@ test('all salary payments land in one Salary group; allowances stay with the emp
   expect(emp.count).toBe(2);
   expect(emp.txns.some((t) => /SALARY/i.test(t.narration))).toBe(false);
 });
+
+import { buildActionPlan } from '../actionPlan';
+describe('action plan', () => {
+  const base = { openingBalance: 100000, closingBalance: 2000000, totalInflow: 5e6, totalOutflow: 3e6, recommendedFundsFloor: 1e6, hasSalaryIncome: true, hasOtherRecurringIncome: false, statementCurrencyIssues: [] as ('stale' | 'short_span')[], unexplainedGroupCount: 0 };
+  test('healthy statement gets a short, positive do-list but still the standing do-nots', () => {
+    const p = buildActionPlan(base);
+    expect(p.doList.some((d) => /employment letter/i.test(d))).toBe(true);
+    expect(p.dontList.length).toBeGreaterThanOrEqual(3);
+    expect(p.easierList.length).toBeGreaterThan(2);
+  });
+  test('problems turn into plain actions', () => {
+    const p = buildActionPlan({ ...base, closingBalance: 200000, unexplainedGroupCount: 2, statementCurrencyIssues: ['stale'], totalOutflow: 9e6 });
+    const t = p.doList.join(' ');
+    expect(t).toMatch(/fresh statement/);
+    expect(t).toMatch(/2 still need/);
+    expect(t).toMatch(/Build your balance/);
+    expect(t).toMatch(/Spend less/);
+  });
+});

@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode, useMemo } from 'react';
+import { ReactNode, useEffect, useMemo } from 'react';
 import {
   ParsedTxn,
   SourceGroups,
@@ -17,6 +17,8 @@ import {
   nestFlaggedGroupsBySender,
   SenderInflowGroup,
   effectiveReasonMode,
+  buildActionPlan,
+  ActionPlan,
 } from '@/lib/statement';
 import { computeFinancials, DEFAULT_FINANCIAL_INPUTS } from '@/lib/checklist/financial';
 import { INCOME_VARIANCE_THRESHOLD } from '@/lib/checklist/nextSteps';
@@ -58,6 +60,7 @@ export function ReportTab({
   applicantName,
   explanations,
   setExplanation,
+  onActionPlan,
   flaggedReasonMode,
   setFlaggedMode,
   flaggedReasonChoice,
@@ -98,6 +101,7 @@ export function ReportTab({
   applicantName: string;
   explanations: Record<string, string>;
   setExplanation: (rawName: string, value: string) => void;
+  onActionPlan?: (plan: ActionPlan) => void;
   flaggedReasonMode: Record<string, 'same' | 'different'>;
   setFlaggedMode: (key: string, value: 'same' | 'different') => void;
   flaggedReasonChoice: Record<string, string>;
@@ -204,6 +208,26 @@ export function ReportTab({
     statementCurrencyIssues,
     unexplainedGroupCount: flaggedGroups.length,
   });
+  const actionPlan = useMemo(
+    () =>
+      buildActionPlan({
+        openingBalance,
+        closingBalance,
+        totalInflow,
+        totalOutflow,
+        recommendedFundsFloor: RECOMMENDED_FUNDS_FLOOR,
+        hasSalaryIncome,
+        hasOtherRecurringIncome,
+        statementCurrencyIssues,
+        unexplainedGroupCount: flaggedGroups.length,
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [openingBalance, closingBalance, totalInflow, totalOutflow, hasSalaryIncome, hasOtherRecurringIncome, statementCurrencyIssues.join(','), flaggedGroups.length]
+  );
+  useEffect(() => {
+    onActionPlan?.(actionPlan);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [actionPlan]);
 
   // Task #541 (redesign option B, direct go-ahead on the audit's proposal — see that doc's section
   // 2/4B): this tab used to stack 8-10 cards in one flat scroll with no sub-navigation, and items 5
@@ -249,6 +273,32 @@ export function ReportTab({
               </ul>
             </div>
           )}
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="rounded-xl bg-good-wash p-3">
+              <p className="text-xs font-semibold text-good">✅ What to do</p>
+              <ul className="mt-1.5 flex flex-col gap-1.5">
+                {actionPlan.doList.map((t) => (
+                  <li key={t} className="text-xs text-[#12232e]">• {t}</li>
+                ))}
+              </ul>
+            </div>
+            <div className="rounded-xl bg-warn-wash p-3">
+              <p className="text-xs font-semibold text-warn-text">🚫 What not to do</p>
+              <ul className="mt-1.5 flex flex-col gap-1.5">
+                {actionPlan.dontList.map((t) => (
+                  <li key={t} className="text-xs text-[#12232e]">• {t}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+          <div className="mt-3 rounded-xl bg-accent-wash p-3">
+            <p className="text-xs font-semibold text-accent">💡 Ways to make your application easier</p>
+            <ul className="mt-1.5 flex flex-col gap-1.5">
+              {actionPlan.easierList.map((t) => (
+                <li key={t} className="text-xs text-[#12232e]">• {t}</li>
+              ))}
+            </ul>
+          </div>
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div className="rounded-2xl border border-black/10 bg-white p-4">
