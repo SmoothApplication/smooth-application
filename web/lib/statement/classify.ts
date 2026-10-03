@@ -385,12 +385,20 @@ export function isBlankNarration(narration: string | null | undefined): boolean 
 // (below) is what keeps that list from reading as "clumsy" when the same sender/amount repeats
 // many times in a month — the grouping, not a cap, is what the direct instruction actually asked
 // for ("group them... ask for narration" rather than "show fewer of them").
-export function findUnexplainedLargeInflows(txns: ParsedTxn[]): ParsedTxn[] {
-  const credits = txns.filter((t) => t.credit > 0 && !isReversalNarration(t));
+// `minAmount` (user request: a selectable ₦50,000 / ₦100,000 / ₦200,000 floor, with everything below
+// ₦50,000 "strictly ignored"): when given, NOTHING below it is flagged — not even a blank narration,
+// which the default (no minAmount) still flags at any amount for backward compatibility.
+export function findUnexplainedLargeInflows(txns: ParsedTxn[], minAmount?: number): ParsedTxn[] {
+  const credits = txns.filter(
+    (t) => t.credit > 0 && !isReversalNarration(t) && (minAmount === undefined || t.credit >= minAmount)
+  );
   if (!credits.length) return [];
+  const floor = minAmount === undefined ? UNEXPLAINED_INFLOW_MIN_AMOUNT : minAmount;
   const flagged = credits.filter((t) => {
-    if (isBlankNarration(t.narration)) return true; // flagged regardless of amount - no narration to judge by
-    if (t.credit < UNEXPLAINED_INFLOW_MIN_AMOUNT) return false;
+    // Flagged regardless of amount when no floor was given (no narration to judge by); with a floor,
+    // `credits` above has already removed everything beneath it.
+    if (isBlankNarration(t.narration)) return true;
+    if (t.credit < floor) return false;
     const lower = (t.narration || '').toLowerCase();
     return !INFLOW_DESC_KEYWORDS.some((k) => lower.indexOf(k) !== -1);
   });
@@ -740,12 +748,25 @@ export function looksLikeSelfInflow(candidateName: string, applicantName: string
   return false;
 }
 
+export interface IncomeBreakdownOptions {
+  /** Inflows below this amount are ignored entirely (never shown, never counted). Default 0 = keep all. */
+  minInflow?: number;
+  /** When true, reversals are dropped from the breakdown instead of shown as their own group. */
+  dropReversals?: boolean;
+}
+
 export function buildIncomeSourceBreakdown(
-  txns: ParsedTxn[],
+  allTxns: ParsedTxn[],
   applicantName: string | null | undefined,
   maidenName?: string | null,
-  sourceExplanations: Record<string, { category: string; detail: string }> = {}
+  sourceExplanations: Record<string, { category: string; detail: string }> = {},
+  options: IncomeBreakdownOptions = {}
 ): SourceGroups {
+  // User request: "strictly ignore all inflows from N49,999 to N1" and a selectable ₦50k/₦100k/₦200k
+  // floor. Applied up front so holder-name detection, stable-income detection and every group below see
+  // only qualifying inflows. Debits are kept untouched (they have no credit and are skipped below anyway).
+  const minInflow = options.minInflow || 0;
+  const txns = minInflow > 0 ? allTxns.filter((t) => !t.credit || t.credit >= minInflow) : allTxns;
   let accountHolderNames = detectStatementHolderNames(txns, applicantName);
   // User request: a married woman's bank statement can carry her maiden name on some transactions (an
   // account opened before marriage, a recipient-side name that was never updated, a relative still
@@ -795,7 +816,9 @@ export function buildIncomeSourceBreakdown(
     // all, not even as an unexplained inflow needing a reason.
     if (isNonIncomeChargeNarration(t.narration)) return;
     if (isReversalNarration(t)) {
-      reversalTxns.push(t);
+      // User request: "Reversals in any form are not inflows needed by the consular... ignore all
+      // reversals in your bank generation report." Dropped entirely when asked, rather than shown.
+      if (!options.dropReversals) reversalTxns.push(t);
       return;
     }
     // Automatic interest credit (e.g. Opay's "OWealth Interest Earned") — checked before name

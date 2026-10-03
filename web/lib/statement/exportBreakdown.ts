@@ -62,10 +62,19 @@ export function buildIncomeBreakdownAoa(
   // the whole sender" or "its own answer per (month, amount) sub-group" — lands on that exact
   // transaction's own row, taking precedence over the group-level `explanations` shown once on the
   // group's first row (this is more specific, per-payment information).
-  flaggedReasons: Record<string, string> = {}
+  flaggedReasons: Record<string, string> = {},
+  // Consultant-review columns (optional so existing callers/tests keep the original 7-column shape):
+  // when given, two extra columns are appended — our suggested reason and whether the applicant
+  // confirmed it, edited it, or hasn't answered yet — so the sheet can go back to a reviewer as a
+  // "true or false" record.
+  review?: (g: SourceGroups[number]) => { suggested: string; status: string }
 ): SpreadsheetRow[] {
+  const extra = (a: string, b: string): SpreadsheetRow => (review ? [a, b] : []);
   const aoa: SpreadsheetRow[] = [
-    ['Source', 'Type', 'Date', 'Amount (NGN)', 'Reason (from narration)', 'Narration', 'Your explanation'],
+    [
+      'Source', 'Type', 'Date', 'Amount (NGN)', 'Reason (from narration)', 'Narration', 'Your explanation',
+      ...extra('Suggested reason', 'Review status'),
+    ],
     [
       "Note: \"Reason\" is auto-extracted from the raw \"Narration\" text in the next column - always double-check it against the original wording, especially if it looks off.",
     ],
@@ -101,6 +110,7 @@ export function buildIncomeBreakdownAoa(
         ? g.name.toUpperCase().split(/\s+/)
         : [];
     const explanation = explanations[g.name] || '';
+    const rv = review && !NON_INCOME_TYPES.has(g.type) ? review(g) : { suggested: '', status: '' };
     g.txns.forEach((t, i) => {
       const reason = extractNarrationReason(t.narration, nameWords);
       const flaggedNote = flaggedReasons[txnSignature(t)];
@@ -115,12 +125,13 @@ export function buildIncomeBreakdownAoa(
         // on its own row; otherwise the group-level explanation is shown once on the group's first
         // row, same "shown once" convention as Source/Type above.
         flaggedNote || (i === 0 ? explanation : ''),
+        ...extra(i === 0 ? rv.suggested : '', i === 0 ? rv.status : ''),
       ]);
     });
-    aoa.push(['', '', '', '', 'Subtotal for ' + displayName(g.name) + ':', g.total, '']);
+    aoa.push(['', '', '', '', 'Subtotal for ' + displayName(g.name) + ':', g.total, '', ...extra('', '')]);
     aoa.push([]);
   });
 
-  aoa.push(['', '', '', '', 'GRAND TOTAL:', grandTotal, '']);
+  aoa.push(['', '', '', '', 'GRAND TOTAL:', grandTotal, '', ...extra('', '')]);
   return aoa;
 }

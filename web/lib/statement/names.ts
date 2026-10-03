@@ -47,6 +47,9 @@ export const BANK_NARRATION_STOPWORDS = [
   // "PDC:MGMT_FEE...", "PDC:INTEREST_RATE...") are batch/product codes, not a person or company's name.
   'PDC', 'LOAN', 'DISBURSAL', 'DISBURAL', 'REPAYMENT', 'MGMT', 'MANAGEMENT', 'INSURE', 'INSURANCE', 'INTEREST',
   'RATE', 'FEE', 'FMOBAMPC',
+  // Free-text notes and channel words glued onto real names on a Providus statement ("...CLINIC_EVENT
+  // FUNDS", "LADENIKA ADEBOWALE-HAPPY BIRTHDAY SIS", "TRANSFER BETWEEN CUSTOMERS TRZL-...").
+  'EVENT', 'FUNDS', 'HAPPY', 'BIRTHDAY', 'BDAY', 'SIS', 'CUSTOMERS', 'BETWEEN', 'TRZL', 'BO',
   // Same statement, a third finding: "CPWInward:<ref>/<name>..." — a wallet/collections-channel
   // inward-transfer code, not a sender's name.
   'CPWINWARD', 'CPW',
@@ -74,6 +77,11 @@ export const BANK_NARRATION_STOPWORDS = [
   // "eTZ:<sender name>-<note>" — "ETZ" is eTranzact, an interbank real-time-transfer channel/processor,
   // not part of the sender's name.
   'ETZ',
+  // User-reported, off a real Providus statement: "ETI NXG MOBILE TRF TO ZIB Refund Olamide O FRM EKIM
+  // HANNAH I <ref>" was glueing "Refund" onto the front of the sender; "ISW petrol/AT117 ..." produced
+  // a fake sender called "Petrol At"; "UPI-... /PURCHASE|SANN" glued "Purchase" onto a name. All are
+  // narration words or channel labels, never part of a person's name.
+  'REFUND', 'PURCHASE', 'PETROL', 'ONLINE', 'UPI',
 ];
 
 // Real finding, off a real Providus statement (direct comparison against the applicant's own manual
@@ -297,6 +305,9 @@ export const COMPANY_KEYWORDS = [
   'MICROFINANCE', 'SACCO', 'COOPERATIVE', 'CHAMBERS', 'CHAMBER', 'CLEANING', 'CLEANERS', 'CATERING', 'TRANSPORT',
   'TRANSPORTATION', 'HAULAGE', 'SECURITY', 'SUPPLIES', 'SUPPLY', 'TRADING', 'TRADERS', 'MERCHANDISE', 'FASHION',
   'DESIGNS', 'DESIGN', 'STUDIO', 'STUDIOS', 'MEDIA', 'PRODUCTIONS', 'PRODUCTION', 'ENT',
+  // Real statement (Providus): payroll via Remita, "...Entertainment", "...Dental Clinic" were all read as
+  // personal senders, so the suggestion box had nothing to go on.
+  'REMITA', 'ENTERTAINMENT', 'GAMES', 'GAMING', 'DENTAL', 'DENTIST',
 ];
 
 export function classifySourceType(narration: string): 'company' | 'personal' {
@@ -478,22 +489,47 @@ function wordRepeatsEarlierRunWord(word: string, current: string[]): boolean {
 export function extractNameCandidatesDetailed(narration: string): NameCandidate[] {
   const remitaField = REMITA_NARRATION_FIELD_RE.exec(narration || '');
   const narrationForNames = remitaField ? (narration || '').slice(0, remitaField.index) : narration;
-  const raw = (narrationForNames || '').toUpperCase().replace(/[^A-Z\s]/g, ' ').split(/\s+/);
+  // User-reported: a reference token like "09FG260518163147453KB8VIL" was being split on its digits
+  // into "FG", "KB" and "VIL", which then got glued onto the real name ("Ekim Hannah I Fg Kb Vil").
+  // A whole token that mixes digits then letters is a reference/session code, never a name part, so it
+  // is dropped as one unit BEFORE non-letters are stripped. (Tokens that only END in digits, like the
+  // glued FBN session blob, are unchanged so the existing repeat-detection still sees their letters.)
+  const withoutRefCodes = (narrationForNames || '')
+    .replace(/[\/|\\:;,()\[\]]/g, ' ')
+    .split(/\s+/)
+    .filter((tok) => !(tok.length >= 6 && /\d[A-Za-z]/.test(tok)))
+    .join(' ');
+  const raw = withoutRefCodes.toUpperCase().replace(/[^A-Z\s]/g, ' ').split(/\s+/);
   const runs: NameCandidate[] = [];
   let current: string[] = [];
   let lastStopword: string | null = null;
   let runMarker: string | null = null;
   let corrupted = false;
   function flush() {
-    if (current.length >= 2) {
-      runs.push({ name: trimTrailingNonNameWords(trimLeadingBoilerplate(current)).join(' '), precededBy: runMarker });
-    } else if (current.length === 1 && SENDER_MARKERS.indexOf(runMarker as string) !== -1) {
-      runs.push({ name: current[0], precededBy: runMarker });
-    }
+    const words = current;
     current = [];
+    if (words.length >= 2) {
+      // A trailing single letter after a full first+last name is an initial ("EKIM HANNAH I"), not part
+      // of the name to look up or display — stripped. Only done when 2+ real words remain: a two-word
+      // run like "CRISP N" is usually a truncated company name ("Crisp Nigeria"), so it is left alone.
+      let stripped = words;
+      while (stripped.length > 2 && stripped[stripped.length - 1].length === 1) stripped = stripped.slice(0, -1);
+      runs.push({ name: trimTrailingNonNameWords(trimLeadingBoilerplate(stripped)).join(' '), precededBy: runMarker });
+    } else if (words.length === 1 && SENDER_MARKERS.indexOf(runMarker as string) !== -1) {
+      runs.push({ name: words[0], precededBy: runMarker });
+    }
   }
-  raw.forEach((w) => {
+  raw.forEach((w, idx) => {
     if (corrupted || !w) return;
+    // "AMUSE GAMES AND ENTERTAINMENT", "DAVID AND ADENIKE POPOOLA": "AND" joins two name parts when it
+    // sits inside a started run and a real, non-stopword name word follows. Elsewhere it stays a stopword.
+    if (w === 'AND' && current.length > 0) {
+      const next = raw.slice(idx + 1).find((x) => x);
+      if (next && next.length >= 3 && looksNameShaped(next) && BANK_NARRATION_STOPWORDS.indexOf(next) === -1 && !LIMITED_SUFFIX_RE.test(next)) {
+        current.push(w);
+        return;
+      }
+    }
     if (current.length > 0 && w.length >= 3 && wordRepeatsEarlierRunWord(w, current)) {
       flush();
       corrupted = true;
@@ -588,7 +624,21 @@ export function isLikelyApplicantsOwnName(candidate: string, applicantName: stri
   // member who merely shares a surname (e.g. "Chika Obi Nnamdi", sharing the applicant's "Nnamdi")
   // only shares ONE of those words, so this stays narrowly scoped to "the applicant's own name
   // leaked into the sender list," not "anyone who happens to share a surname."
-  return namesLooselyMatch(applicantName, candidate) === 'ok';
+  if (namesLooselyMatch(applicantName, candidate) === 'ok') return true;
+  // User-reported: a statement PDF wrapped the applicant's own name mid-word ("OLUW ASEYI AFENI" for
+  // "Oluwaseyi ... Afeni"), so the word-by-word match above missed it and it showed up as a sender.
+  // Treated as the applicant's own name when every candidate word sits inside the applicant's name
+  // run together AND at least one candidate word is only a fragment of a real name word (the
+  // signature of wrapping). Whole-word subsets (e.g. a relative sharing two names) are NOT caught.
+  const candWords = (candidate || '').toLowerCase().split(/\s+/).filter(Boolean);
+  if (candWords.length >= 2) {
+    const holderWords = nameWords.map((w) => w.toLowerCase());
+    const joined = holderWords.join('');
+    const allInside = candWords.every((w) => w.length >= 3 && joined.indexOf(w) !== -1);
+    const hasFragment = candWords.some((w) => holderWords.indexOf(w) === -1);
+    if (allInside && hasFragment && candWords.join('').length >= 8) return true;
+  }
+  return false;
 }
 
 // Shared by every caller below that wants "who actually sent this money in" — combines the two

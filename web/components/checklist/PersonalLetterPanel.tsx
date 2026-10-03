@@ -71,7 +71,10 @@ export default function PersonalLetterPanel({ code }: PersonalLetterPanelProps) 
       totalInflow += txns.reduce((sum, t) => sum + (t.credit || 0), 0);
       totalOutflow += txns.reduce((sum, t) => sum + (t.debit || 0), 0);
       summaries.push(summarizeStatement(s.label || `Statement ${i + 1}`, txns));
-      const g = buildIncomeSourceBreakdown(txns, applicantName, s.maidenName, undefined);
+      const g = buildIncomeSourceBreakdown(txns, applicantName, s.maidenName, undefined, {
+        minInflow: 50000,
+        dropReversals: true,
+      });
       groups = groups.concat(g) as SourceGroups;
     });
 

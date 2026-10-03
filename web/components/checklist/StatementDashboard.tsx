@@ -24,6 +24,9 @@ import {
   nestFlaggedGroupsBySender,
   SenderInflowGroup,
   buildFlaggedTxnReasons,
+  suggestReasonForGroup,
+  reviewStatusFor,
+  REVIEW_STATUS_LABEL,
 } from '@/lib/statement';
 import { trackEvent } from '@/lib/analytics';
 // computeMonthlyCashFlow (cashFlow.ts) and computeFinancials (checklist/financial.ts) drive the
@@ -34,6 +37,9 @@ import { trackEvent } from '@/lib/analytics';
 // there instead of showing a meaningless ₦0 when no cost has been entered.
 import { computeFinancials, DEFAULT_FINANCIAL_INPUTS } from '@/lib/checklist/financial';
 import { NO_EXPLANATION_NOTE } from './statement-dashboard/shared';
+
+// The three selectable inflow floors; the first is the default and is also the hard minimum.
+const INFLOW_FLOOR_OPTIONS = [50000, 100000, 200000];
 import { AnalysisTab } from './statement-dashboard/AnalysisTab';
 import { ReportTab } from './statement-dashboard/ReportTab';
 
@@ -359,14 +365,29 @@ export default function StatementDashboard({
   // has more than 3 transactions (set lazily below, on first render of that group).
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
+  // User request: a selectable inflow floor (₦50,000 / ₦100,000 / ₦200,000) so the statement can be read
+  // at different levels of "significant", and everything below ₦50,000 is strictly ignored. Reversals
+  // are dropped from this report entirely ("not inflows needed by the consular"). The cash-flow table
+  // and financial summary below keep using every transaction on purpose: they describe the account's
+  // real money movement, not which individual senders to explain.
+  const [minInflow, setMinInflow] = useState<number>(INFLOW_FLOOR_OPTIONS[0]);
+  const qualifyingTxns = useMemo(
+    () => txns.filter((t) => !t.credit || t.credit >= minInflow),
+    [txns, minInflow]
+  );
+
   const groups: SourceGroups = useMemo(
-    () => buildIncomeSourceBreakdown(txns, applicantName || null, maidenName || null),
-    [txns, applicantName, maidenName]
+    () =>
+      buildIncomeSourceBreakdown(txns, applicantName || null, maidenName || null, undefined, {
+        minInflow,
+        dropReversals: true,
+      }),
+    [txns, applicantName, maidenName, minInflow]
   );
 
   const topSenders = useMemo(
-    () => getTopConsistentSenders(txns, 10, applicantName || null, senderDuplicateDecisions),
-    [txns, applicantName, senderDuplicateDecisions]
+    () => getTopConsistentSenders(qualifyingTxns, 10, applicantName || null, senderDuplicateDecisions),
+    [qualifyingTxns, applicantName, senderDuplicateDecisions]
   );
 
   // Task #430/#431 (found via a live audit against the original GitHub Pages site's "Advanced
@@ -431,7 +452,13 @@ export default function StatementDashboard({
     setSendingBreakdownEmail(true);
     try {
       const XLSX = await import('xlsx');
-      const aoa = buildIncomeBreakdownAoa(groups, displayName, explanations, flaggedTxnReasonsForExport);
+      const aoa = buildIncomeBreakdownAoa(groups, displayName, explanations, flaggedTxnReasonsForExport, (g) => {
+        const s = suggestReasonForGroup(g);
+        return {
+          suggested: s ? s.label : '',
+          status: REVIEW_STATUS_LABEL[reviewStatusFor(s, explanations[g.name] || '')],
+        };
+      });
       const ws = XLSX.utils.aoa_to_sheet(aoa);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Income Breakdown');
@@ -457,7 +484,7 @@ export default function StatementDashboard({
     }
   }
 
-  const unexplainedInflows = useMemo(() => findUnexplainedLargeInflows(txns), [txns]);
+  const unexplainedInflows = useMemo(() => findUnexplainedLargeInflows(txns, minInflow), [txns, minInflow]);
 
   // Same nesting ReportTab uses to render the "Inflows that need an explanation" cards, recomputed
   // here purely so the Download-spreadsheet flow (above) can build the per-transaction reason map
@@ -637,6 +664,29 @@ export default function StatementDashboard({
           ⚠️ {statementCurrencyWarning}
         </div>
       )}
+
+      <div className="rounded-xl border border-black/10 bg-white p-3">
+        <p className="text-xs font-semibold text-[#12232e]">Show inflows of</p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {INFLOW_FLOOR_OPTIONS.map((amt) => (
+            <button
+              key={amt}
+              type="button"
+              onClick={() => setMinInflow(amt)}
+              aria-pressed={minInflow === amt}
+              className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${
+                minInflow === amt ? 'border-accent bg-accent-wash text-accent' : 'border-black/10 text-[#566a76]'
+              }`}
+            >
+              ₦{amt.toLocaleString('en-NG')} and above
+            </button>
+          ))}
+        </div>
+        <p className="mt-2 text-xs text-[#566a76]">
+          Anything under ₦50,000 is always left out, and reversals (money returned to you) are ignored.
+          Switch between these to see how your statement looks at different levels.
+        </p>
+      </div>
 
       <div className="flex gap-1 border-b border-black/10">
         {(

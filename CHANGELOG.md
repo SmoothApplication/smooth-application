@@ -3,6 +3,25 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Business-name cleanup from a real Providus statement
+
+- "AND" now stays inside names (Amuse Games And Entertainment, David And Adenike Popoola); trailing notes (Event Funds, Happy Birthday Sis) and "Between Customers" are dropped, so the same sender no longer splits into several cards.
+- Remita payroll, entertainment and dental senders now read as companies (not personal), which gives the suggestion box something to work with.
+- Tests: `providus-business-names-and-connectors.test.ts`.
+
+## Suggested reasons + review status (consultant "true or false" workflow)
+
+- Each income-source card now shows "Our suggestion: <reason> (why)" with a one-tap "Yes, that's right"; the reason dropdown and a clearer "Edit sender name" stay as the way to change either. A "✓ Confirmed" tick shows once the answer matches the suggestion. Suggestions come only from on-screen narrations and the group type (`lib/statement/suggestReason.ts`); nothing is looked up online, so the privacy promise holds. No suggestion is made when there is no real signal.
+- The downloadable spreadsheet gains two optional columns, "Suggested reason" and "Review status" (Confirmed / Edited by you / Needs your review), so it can go back to a reviewer as a true/false record. The original 7-column shape is unchanged for callers that don't ask for them.
+- Tests: `suggest-reason-and-review-sheet.test.ts`.
+
+## Inflow floor selector, reversals ignored, cleaner sender names (real Providus statement feedback)
+
+- Statement dashboard: "Show inflows of ₦50,000 / ₦100,000 / ₦200,000 and above" selector. Anything under ₦50,000 is always ignored (sender cards, flagged inflows, top senders, letter). `buildIncomeSourceBreakdown` takes `{ minInflow, dropReversals }`; `findUnexplainedLargeInflows` takes an optional `minAmount`. Defaults are unchanged so existing callers/tests behave as before. Cash-flow table and financial summary still use every transaction on purpose.
+- Reversals are dropped from the report instead of shown as a group.
+- Name extraction: whole reference tokens that mix digits then letters (e.g. `09FG260518163147453KB8VIL`) are dropped instead of split into fake name words; trailing single-letter initials are stripped after a full two-word name; `Refund`, `Purchase`, `Petrol`, `Online`, `UPI` added as non-name words; a mid-word-wrapped copy of the applicant's own name ("Oluw Aseyi Afeni") is now recognised as the applicant, not a sender.
+- Tests: `inflow-floor-reversals-and-name-cleanup.test.ts`. Full suite 664/664, `tsc --noEmit` clean.
+
 ## Trust, support-load and distribution fixes (from the 6-month failure review)
 
 - `/verify-privacy`: a "check it yourself" page (browser Network-tab test, public source link, and an honest list of what does leave the device). Linked from the homepage hero and footer.

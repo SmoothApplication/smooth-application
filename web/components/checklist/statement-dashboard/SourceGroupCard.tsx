@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { SourceGroup, UNEXPLAINED_REASON_OPTIONS } from '@/lib/statement';
+import { SourceGroup, UNEXPLAINED_REASON_OPTIONS, suggestReasonForGroup } from '@/lib/statement';
 import { formatAmount, formatDate, sourceTypeBadge, NAME_EDITABLE_TYPES, NO_EXPLANATION_NOTE, NarrationDecoder } from './shared';
 
 export function SourceGroupCard({
@@ -68,6 +68,13 @@ export function SourceGroupCard({
     }
   }
 
+  // Consultant-style "true or false": a suggested reason the client only has to confirm. Shown only
+  // while the question is still unanswered; once answered, a small "Confirmed" tick appears if the
+  // answer matches the suggestion. No new persisted state — "confirmed" simply means the saved
+  // explanation equals the suggestion's label.
+  const suggestion = needsExplanation ? suggestReasonForGroup(group) : null;
+  const isConfirmed = !!suggestion && explanation === suggestion.label;
+
   return (
     <div className="rounded-xl border border-black/10 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -82,7 +89,7 @@ export function SourceGroupCard({
               onClick={() => startEditingName(group.name)}
               className="text-[10px] font-medium text-accent hover:underline"
             >
-              ✏️ Fix name
+              ✏️ Edit sender name
             </button>
           )}
         </div>
@@ -121,10 +128,30 @@ export function SourceGroupCard({
 
       {note && <p className="mt-2 text-xs text-[#566a76]">{note}</p>}
 
+      {suggestion && !explanation && (
+        <div className="mt-2 rounded-lg bg-accent-wash p-2.5 text-xs text-[#12232e]">
+          <p>
+            <span className="font-semibold">Our suggestion: {suggestion.label}</span>{' '}
+            <span className="text-[#566a76]">({suggestion.why}).</span> Is that right?
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => handleReasonChoiceChange(suggestion.value)}
+              className="rounded-lg bg-accent px-3 py-1 text-xs font-semibold text-white"
+            >
+              ✓ Yes, that&apos;s right
+            </button>
+            <span className="self-center text-[#566a76]">or pick a different reason below.</span>
+          </div>
+        </div>
+      )}
+
       {needsExplanation && (
         <div className="mt-2">
           <label className="mb-1 block text-xs font-medium text-[#566a76]">
             What was this for? <span className="font-normal">(optional, but a reviewer may ask)</span>
+            {isConfirmed && <span className="ml-2 font-semibold text-good">✓ Confirmed</span>}
           </label>
           <select
             value={reasonChoice}

@@ -20,3 +20,4 @@ export * from './supportContact';
 export * from './cashFlow';
 export * from './finalSummary';
 export * from './flaggedReasons';
+export * from './suggestReason';
