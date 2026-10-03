@@ -38,9 +38,14 @@ export default function VerifyPrivacyPage() {
           </li>
           <li>Upload your bank statement and press Analyze.</li>
           <li>
-            Look at the list. You will not see your file being sent anywhere. Uploads show as a
+            Look at the list. You will not see your file being sent anywhere. An upload shows as a
             <b> POST</b> request carrying your file&apos;s data. There is none, because the reading
             happens inside your own browser tab.
+          </li>
+          <li>
+            You may still see a few small requests. Those are normal: the anonymous page counter
+            (goatcounter), and, for scanned pages, downloads of reading tools. Only a request that
+            sends your file&apos;s data out would be a problem, and you shouldn&apos;t find one.
           </li>
         </ol>
         <p>
