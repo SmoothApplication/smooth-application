@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, ReactNode } from 'react';
+import { detectBankName } from '@/lib/statement/detectBank';
 import { getLinesFromFileWithMeta, StatementPasswordRequiredError } from '@/lib/statement/extractFile';
 import {
   parseStatementLinesWithFallback,
@@ -133,6 +134,7 @@ export default function StatementSlot({
   const [flaggedReasonChoice, setFlaggedReasonChoice] = useState<Record<string, string>>({});
   const [flaggedReasonOther, setFlaggedReasonOther] = useState<Record<string, string>>({});
   const [detectedHolderName, setDetectedHolderName] = useState<string | null>(null);
+  const [detectedBank, setDetectedBank] = useState<string | null>(null);
   const [ocrUsed, setOcrUsed] = useState(false);
   const [spouse, setSpouse] = useState<SpouseSponsorDeclaration>({
     married: false,
@@ -186,6 +188,7 @@ export default function StatementSlot({
       setFlaggedReasonChoice(saved.flaggedReasonChoice || {});
       setFlaggedReasonOther(saved.flaggedReasonOther || {});
       setDetectedHolderName(saved.detectedHolderName ?? null);
+      setDetectedBank(saved.bankName ?? null);
       setOcrUsed(!!saved.ocrUsed);
       setEmployerName(saved.employerName || '');
       setEmployerAltName(saved.employerAltName || '');
@@ -244,6 +247,7 @@ export default function StatementSlot({
         flaggedReasonChoice,
         flaggedReasonOther,
         detectedHolderName,
+        bankName: detectedBank,
         ocrUsed,
         employerName,
         employerAltName,
@@ -272,6 +276,7 @@ export default function StatementSlot({
     flaggedReasonChoice,
     flaggedReasonOther,
     detectedHolderName,
+    detectedBank,
     ocrUsed,
     employerName,
     employerAltName,
@@ -325,6 +330,7 @@ export default function StatementSlot({
     setExplanations({});
     setSenderDuplicateDecisions({});
     setDetectedHolderName(null);
+    setDetectedBank(null);
     setOcrUsed(false);
     setEmployerName('');
     setEmployerAltName('');
@@ -387,6 +393,7 @@ export default function StatementSlot({
       const fullStatementText = lines.map((l) => lineTextPreservingColumnGaps(l) || '').join(' ');
       const holderName = extractAccountHolderName(fullStatementText);
       setDetectedHolderName(holderName);
+      setDetectedBank(detectBankName(lines.map((l) => lineTextPreservingColumnGaps(l) || '')));
       setOcrUsed(usedOcr);
       // User request: auto-fill the applicant's name from the statement itself where possible,
       // rather than always waiting on manual entry. Never overwrites a name the applicant has

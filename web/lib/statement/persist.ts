@@ -36,6 +36,8 @@ export interface PersistedStatement {
    * holder name detected on this statement's own header at scan time, null if none was found.
    * Optional so a payload saved before this feature existed still loads fine. */
   detectedHolderName?: string | null;
+  /** The bank named at the top of the statement (see detectBank.ts); fills the letter's bank field. */
+  bankName?: string | null;
   /** Added for the narration-based employer/business name check (see workNameCheck.ts): the
    * applicant's declared employer/business name + optional "also known as" alt name. Optional for
    * the same backward-compat reason as detectedHolderName. */

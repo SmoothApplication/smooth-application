@@ -3,6 +3,9 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Unreleased - bank auto-filled
+- The bank name is read from the top of the uploaded statement and pre-fills "Which bank is your statement from?" (and the letter). It can still be edited.
+
 ## Unreleased - not-enough-funds warning
 - When the Report verdict is "needs work", a red notice tells the client before they fill in the UKVI form that income and funds are not enough yet, with a "Click here for help" link (WhatsApp). The letter tab help card now opens with the same "before you fill in the UKVI form" wording.
 

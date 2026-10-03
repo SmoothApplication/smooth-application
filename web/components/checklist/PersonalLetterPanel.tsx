@@ -86,6 +86,7 @@ export default function PersonalLetterPanel({ code, inline = false }: PersonalLe
   const [letterInput, setLetterInput] = useState<LetterInput | null>(null);
   const [allTxns, setAllTxns] = useState<ParsedTxn[]>([]);
   const [suggestions, setSuggestions] = useState<EmployerSuggestion[]>([]);
+  const [detectedBank, setDetectedBank] = useState('');
   const [showLetter, setShowLetter] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -164,7 +165,7 @@ export default function PersonalLetterPanel({ code, inline = false }: PersonalLe
       const txns = deserializeTxns(s.txns || []);
       totalInflow += txns.reduce((sum, t) => sum + (t.credit || 0), 0);
       totalOutflow += txns.reduce((sum, t) => sum + (t.debit || 0), 0);
-      summaries.push(summarizeStatement((i === 0 && details.bankName.trim()) || s.label || `Statement ${i + 1}`, txns));
+      summaries.push(summarizeStatement((i === 0 && (details.bankName.trim() || s.bankName || '')) || s.label || `Statement ${i + 1}`, txns));
       const g = buildIncomeSourceBreakdown(txns, applicantName, s.maidenName, undefined, {
         minInflow: 50000,
         dropReversals: true,
@@ -177,6 +178,7 @@ export default function PersonalLetterPanel({ code, inline = false }: PersonalLe
     setAllTxns(statements.flatMap((st) => deserializeTxns(st.txns || [])));
     const likeSalary = hasSalaryLikeIncome(groups);
     setSuggestions(suggestEmployerNames(groups));
+    setDetectedBank(s1?.bankName || '');
 
     setLetterInput({
       countryName,
@@ -407,7 +409,7 @@ export default function PersonalLetterPanel({ code, inline = false }: PersonalLe
       {letterInput.employed && (
         <>
           <label className="text-xs text-[#4c6270]">Which bank is your statement from?
-            <input className={inputCls} placeholder="e.g. Providus Bank" value={details.bankName} onChange={(e) => saveDetails({ ...details, bankName: e.target.value })} /></label>
+            <input className={inputCls} placeholder="e.g. Providus Bank" value={details.bankName || detectedBank} onChange={(e) => saveDetails({ ...details, bankName: e.target.value })} /></label>
           <label className="text-xs text-[#4c6270]">Job title
             <input className={inputCls} value={details.jobTitle} onChange={(e) => saveDetails({ ...details, jobTitle: e.target.value })} />
           </label>
