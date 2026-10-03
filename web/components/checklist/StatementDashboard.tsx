@@ -676,7 +676,7 @@ export default function StatementDashboard({
   // Workplace income tab having been opened.
   useEffect(() => {
     splitSalaryForSheet(groups)
-      .filter((g) => g.type === 'salary' && !explanations[g.name])
+      .filter((g) => g.type === 'salary' && !/^(Salary|Allowance) (or bonus )?from my employer$/.test(explanations[g.name] ?? ''))
       .forEach((g) => setExplanation(g.name, /^allowances/i.test(g.name) ? 'Allowance or bonus from my employer' : 'Salary from my employer'));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groups]);

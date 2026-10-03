@@ -83,7 +83,11 @@ export function SourceGroupCard({
 
   // The Salary group is, by definition, the applicant's salary: fill it in for them rather than asking.
   useEffect(() => {
-    if (group.type === 'salary' && !explanation) {
+    const canonical = UNEXPLAINED_REASON_OPTIONS.some(
+      (o) => (o.value === 'salary' || o.value === 'allowance') && o.label === explanation
+    );
+    // Also replaces an older auto-filled value (saved before the labels were standardised).
+    if (group.type === 'salary' && !canonical) {
       const allowances = /^allowances/i.test(group.name);
       setExplanation(allowances ? 'Allowance or bonus from my employer' : 'Salary from my employer');
       setReasonChoice(allowances ? 'allowance' : 'salary');
