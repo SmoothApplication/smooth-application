@@ -3,6 +3,10 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Unreleased - employer prompt + hooks guard
+- Analysis tab: once the Salary / Allowances cards are filled in, the "paid you in N of your last 6 months - who is this?" prompt no longer shows for the employer.
+- Test that fails if a React hook is placed after an early return in the letter panel or statement dashboard (the cause of the Final review crash).
+
 ## Unreleased - hotfix
 - Fixed Final review crash ("Application error", React #310): the letter panel's new effects ran after an early return. They now sit above it.
 

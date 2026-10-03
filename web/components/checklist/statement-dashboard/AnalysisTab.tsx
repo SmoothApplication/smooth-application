@@ -75,6 +75,11 @@ export function AnalysisTab({
   // do above 50% of your inflow, we'll take it as good to go." totalInflow6mo is recomputed from
   // cashFlowRows (the same 6-month window already driving the Report tab's own totals) rather than
   // passed down as an already-summed number, so this can never drift from that other total.
+  // Once the Salary / Allowances cards above are filled in, the employer needs no "who is this?" prompt:
+  // that sender's payments are exactly the ones those cards already explain.
+  const salaryGroupsExplained = splitSalaryForSheet(groups).filter((g) => g.type === 'salary' && !!explanations[g.name]);
+  const coveredBySalary = (senderName: string) =>
+    salaryGroupsExplained.some((g) => g.txns.some((t) => (t.narration || '').toUpperCase().includes(senderName.toUpperCase())));
   const topSendersTotal = topSenders.list.reduce((s, x) => s + x.total, 0);
   const totalInflow6mo = cashFlowRows.reduce((s, r) => s + r.inflow, 0);
   const topSendersRatio = totalInflow6mo > 0 ? topSendersTotal / totalInflow6mo : 0;
@@ -411,10 +416,10 @@ export function AnalysisTab({
             applicant... if somebody has sent you in six months back, there's six times and above, you
             need to ask the person: who is this, and what do you do with them... as a visa officer,
             when they see a repeated name of inflow and you cannot explain, it's a red flag." */}
-        {topSenders.list.filter((s) => s.monthCount >= 6).length > 0 && (
+        {topSenders.list.filter((s) => s.monthCount >= 6 && !coveredBySalary(s.name)).length > 0 && (
           <div className="mt-4 flex flex-col gap-3">
             {topSenders.list
-              .filter((s) => s.monthCount >= 6)
+              .filter((s) => s.monthCount >= 6 && !coveredBySalary(s.name))
               .map((s) => {
                 const key = `freq6mo__${s.name}`;
                 return (
