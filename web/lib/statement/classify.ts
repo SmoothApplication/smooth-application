@@ -884,6 +884,22 @@ export function buildIncomeSourceBreakdown(
 
   namedGroups = mergeNameVariants(namedGroups);
 
+  // User request: "group all salaries together". A payment whose narration says salary (including a
+  // Remita payroll purpose like STAFFSALARYFORMARCH2026) belongs in the one Salary group even when its
+  // amount differs from the recurring-amount bucket or its sender was grouped by name; allowances,
+  // bonuses and other employer payments stay in the sender's own group.
+  const isSalaryNarration = (t: ParsedTxn) =>
+    /\bsalar(y|ies)\b/i.test(t.narration || '') || /salar/i.test(extractRemitaPurpose(t.narration) || '');
+  Object.keys(namedGroups).forEach((name) => {
+    const keep: ParsedTxn[] = [];
+    namedGroups[name].forEach((t) => (isSalaryNarration(t) ? salaryTxns.push(t) : keep.push(t)));
+    if (keep.length) namedGroups[name] = keep;
+    else delete namedGroups[name];
+  });
+  for (let i = otherTxns.length - 1; i >= 0; i--) {
+    if (isSalaryNarration(otherTxns[i])) salaryTxns.push(otherTxns.splice(i, 1)[0]);
+  }
+
   const groups: SourceGroups = [] as SourceGroups;
   if (salaryTxns.length) groups.push(summarizeSourceGroup('Salary', salaryTxns, 'salary'));
   Object.keys(namedGroups).forEach((name) => {

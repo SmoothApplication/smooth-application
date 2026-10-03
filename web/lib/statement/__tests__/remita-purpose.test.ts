@@ -41,3 +41,21 @@ test('birthday shows as Gift (birthday); leftover wording is surfaced for review
   expect(describeGroupForSheet(g('personal', 'FROM GTBANK/ LADENIKA ADEBOWALE/HAPPY BIRTHDAY SIS'))).toBe('Gift (birthday)');
   expect(describeGroupForSheet(g('personal', 'NIP/LADENIKA ADEBOWALE/pls keep this for me'))).toMatch(/^Check: /);
 });
+
+import { buildIncomeSourceBreakdown } from '../classify';
+test('all salary payments land in one Salary group; allowances stay with the employer', () => {
+  const mk = (d: string, n: string, c: number) => ({ date: new Date(d), narration: n, credit: c, debit: 0, balance: 0 });
+  const txns = [
+    mk('2026-03-18', N.salary, 654071.67),
+    mk('2026-03-31', N.qtr, 3786435),
+    mk('2026-05-21', 'REMITA INFLOW R-1468069461/NIGERIAN U:MAY2026NUPRCSTAFFSALARY:CBN:14681127/90146806 94610', 648358.4),
+    mk('2026-06-24', 'REMITA INFLOW R-1477854687/NIGERIAN U:STAFFSALARYFORJUNE2026:CBN:147836786/9014778546', 648358.4),
+    mk('2026-08-29', N.bonus, 2155952.84),
+  ] as any;
+  const g = buildIncomeSourceBreakdown(txns, 'POPOOLA ADEPEJU ADETUTU', undefined, {}, { minInflow: 50000, dropReversals: true });
+  const sal = g.find((x) => x.type === 'salary')!;
+  expect(sal.count).toBe(3);
+  const emp = g.find((x) => x.name === 'Nigerian')!;
+  expect(emp.count).toBe(2);
+  expect(emp.txns.some((t) => /SALARY/i.test(t.narration))).toBe(false);
+});

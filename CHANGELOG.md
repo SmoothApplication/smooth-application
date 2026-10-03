@@ -3,6 +3,10 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## All salaries in one group
+
+- Any payment whose narration says salary (including Remita payroll purposes) is grouped into the single Salary group, even if the amount differs or it was grouped under the employer. Allowances and bonuses stay with the employer.
+
 ## Reason read straight from the statement (Remita payroll, birthdays, leftover wording)
 
 - Remita payroll narrations ("STAFFSALARYFORMARCH2026", "2NDQUARTERALLOWANCES2026TOSTAFF", "EMPLOYEEFAMILYBURIALASSISTANCE", ...) are split back into words and shown in the Reason column.
