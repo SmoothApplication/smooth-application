@@ -148,3 +148,19 @@ describe('buildLetterPayload', () => {
     expect(ghText).not.toMatch(/Entry Clearance Officer/);
   });
 });
+
+import { renderLetterHtml } from '../renderLetterText';
+
+describe('letter from statement (Remita payroll + letterhead)', () => {
+  it('names the employer on the salary line and prints letterhead lines', () => {
+    const p = buildLetterPayload(baseInput({ phone: '0706 000 0000', email: 'jane@example.com' }));
+    expect(p.incomeParagraphs[0]).toContain('from Acme Ltd');
+    expect(p.letterhead).toEqual(expect.arrayContaining(['jane@example.com', '0706 000 0000']));
+    const text = renderLetterText(p);
+    expect(text).toContain('jane@example.com');
+  });
+  it('word version has the five numbered sections and enclosures', () => {
+    const html = renderLetterHtml(buildLetterPayload(baseInput()));
+    ['1. Employment', '2. Income', '3. Savings and investments', '4. Purpose and plan of visit', '5. Ties to Nigeria', 'Enclosures'].forEach((h) => expect(html).toContain(h));
+  });
+});

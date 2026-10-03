@@ -10,7 +10,8 @@ import {
   StatementSummary,
   SourceGroups,
 } from '@/lib/statement';
-import { checkLetterSufficiency, buildLetterPayload, renderLetterText, LetterInput } from '@/lib/letter';
+import { checkLetterSufficiency, buildLetterPayload, renderLetterText, renderLetterHtml, LetterInput } from '@/lib/letter';
+import { NIGERIA_STATES, NIGERIA_STATES_LGA } from '@/lib/checklist/nigeriaLocations';
 import { useEditableChecklistState } from '@/lib/checklist/useEditableChecklistState';
 import { DEFAULT_FINANCIAL_INPUTS, FinancialInputs } from '@/lib/checklist/financial';
 import { COUNTRIES } from '@/lib/checklist/countries';
@@ -30,7 +31,23 @@ import * as secureStorage from '@/lib/security/secureStorage';
 // browser — same "processed entirely in your browser" privacy guarantee as the rest of this engine.
 export type PersonalLetterPanelProps = {
   code: string;
+  /** Statement-only mode: show a short fill-in form (employer, purpose, dates, address, contact) so a
+   * client who never opened the full checklist can still produce the letter. */
+  inline?: boolean;
 };
+
+type LetterDetails = { applicantName: string; employerName: string; businessName: string; phone: string; email: string };
+const EMPTY_DETAILS: LetterDetails = { applicantName: '', employerName: '', businessName: '', phone: '', email: '' };
+const PURPOSES: { value: string; label: string }[] = [
+  { value: 'tourism', label: 'Tourism / holiday' },
+  { value: 'family', label: 'Visiting family or friends' },
+  { value: 'business', label: 'Business' },
+  { value: 'conference', label: 'Conference' },
+  { value: 'wedding', label: 'Wedding' },
+  { value: 'medical', label: 'Medical' },
+  { value: 'academic', label: 'Academic' },
+  { value: 'training', label: 'Training' },
+];
 
 function readJson<T>(key: string): T | null {
   try {
@@ -41,9 +58,14 @@ function readJson<T>(key: string): T | null {
   }
 }
 
-export default function PersonalLetterPanel({ code }: PersonalLetterPanelProps) {
+export default function PersonalLetterPanel({ code, inline = false }: PersonalLetterPanelProps) {
   const lowerCode = code.toLowerCase();
-  const { answers, loaded: answersLoaded } = useEditableChecklistState(code);
+  const { answers, setAnswers, loaded: answersLoaded } = useEditableChecklistState(code);
+  const detailsKey = `sa_${lowerCode}_letter`;
+  const financialKey = `sa_${lowerCode}_financial`;
+  const [details, setDetails] = useState<LetterDetails>(EMPTY_DETAILS);
+  const [detailsLoaded, setDetailsLoaded] = useState(false);
+  const [dates, setDates] = useState({ travelDate: '', returnDate: '' });
   const countryInfo = COUNTRIES.find((c) => c.code === code.toUpperCase());
   const countryName = countryInfo?.name || code;
   const visaName = countryInfo?.visaName || 'visa';
@@ -53,13 +75,34 @@ export default function PersonalLetterPanel({ code }: PersonalLetterPanelProps) 
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    if (!answersLoaded) return;
+    const d = readJson<Partial<LetterDetails>>(detailsKey);
+    if (d) setDetails({ ...EMPTY_DETAILS, ...d });
+    const f = readJson<Partial<FinancialInputs>>(financialKey);
+    if (f) setDates({ travelDate: f.travelDate || '', returnDate: f.returnDate || '' });
+    setDetailsLoaded(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lowerCode]);
+
+  function saveDetails(next: LetterDetails) {
+    setDetails(next);
+    try { secureStorage.setItem(detailsKey, JSON.stringify(next)); } catch { /* ignore */ }
+  }
+  function saveDates(next: { travelDate: string; returnDate: string }) {
+    setDates(next);
+    try {
+      const cur = readJson<Partial<FinancialInputs>>(financialKey) || {};
+      secureStorage.setItem(financialKey, JSON.stringify({ ...cur, ...next }));
+    } catch { /* ignore */ }
+  }
+
+  useEffect(() => {
+    if (!answersLoaded || !detailsLoaded) return;
     const s1 = readJson<PersistedStatement>(`sa_${lowerCode}_statement`);
     const s2 = readJson<PersistedStatement>(`sa_${lowerCode}_statement_2`);
     const financialInputs = readJson<Partial<FinancialInputs>>(`sa_${lowerCode}_financial`);
 
     const statements = [s1, s2].filter((s): s is PersistedStatement => !!s);
-    const applicantName = (s1?.applicantName || s2?.applicantName || '').trim();
+    const applicantName = (s1?.applicantName || s2?.applicantName || details.applicantName || '').trim();
 
     let groups: SourceGroups = [] as SourceGroups;
     let totalInflow = 0;
@@ -87,8 +130,10 @@ export default function PersonalLetterPanel({ code }: PersonalLetterPanelProps) 
       answers,
       employed: answers.employed,
       selfEmployed: answers.selfEmployed,
-      employerName: s1?.employerName || s2?.employerName || '',
-      businessName: s1?.businessName || s2?.businessName || '',
+      employerName: s1?.employerName || s2?.employerName || details.employerName || '',
+      businessName: s1?.businessName || s2?.businessName || details.businessName || '',
+      phone: details.phone,
+      email: details.email,
       groups,
       statementSummaries: summaries,
       totalInflow,
@@ -98,7 +143,7 @@ export default function PersonalLetterPanel({ code }: PersonalLetterPanelProps) 
       financialInputs: financialInputs ? { ...DEFAULT_FINANCIAL_INPUTS, ...financialInputs } : null,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [answersLoaded, answers, lowerCode, countryName, visaName]);
+  }, [answersLoaded, detailsLoaded, answers, details, dates, lowerCode, countryName, visaName]);
 
   if (!letterInput) return null;
 
@@ -125,6 +170,84 @@ export default function PersonalLetterPanel({ code }: PersonalLetterPanelProps) 
     URL.revokeObjectURL(url);
   }
 
+  function handleWord() {
+    const html = renderLetterHtml(buildLetterPayload(letterInput as LetterInput));
+    const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${lowerCode}-personal-letter.doc`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  const inputCls = 'w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm text-[#12232e]';
+  const lgas = answers.livingState ? NIGERIA_STATES_LGA[answers.livingState] || [] : [];
+
+  const form = inline ? (
+    <div className="mb-4 grid grid-cols-1 gap-3 rounded-lg bg-[#faf9f6] p-3 sm:grid-cols-2">
+      <p className="text-xs font-semibold text-[#12232e] sm:col-span-2">Fill in what we could not read from your statement</p>
+      {!letterInput.applicantName && (
+        <label className="text-xs text-[#4c6270] sm:col-span-2">Full name
+          <input className={inputCls} value={details.applicantName} onChange={(e) => saveDetails({ ...details, applicantName: e.target.value })} />
+        </label>
+      )}
+      <label className="text-xs text-[#4c6270]">I am
+        <select className={inputCls} value={answers.selfEmployed ? 'self' : answers.employed ? 'employed' : ''}
+          onChange={(e) => setAnswers({ ...answers, employed: e.target.value === 'employed', selfEmployed: e.target.value === 'self' })}>
+          <option value="">Choose…</option>
+          <option value="employed">Employed</option>
+          <option value="self">Self-employed / business owner</option>
+        </select>
+      </label>
+      <label className="text-xs text-[#4c6270]">{answers.selfEmployed ? 'Business name' : 'Employer name'}
+        <input className={inputCls} value={answers.selfEmployed ? details.businessName : details.employerName}
+          onChange={(e) => saveDetails(answers.selfEmployed ? { ...details, businessName: e.target.value } : { ...details, employerName: e.target.value })} />
+      </label>
+      <label className="text-xs text-[#4c6270]">Purpose of visit
+        <select className={inputCls} value={answers.purpose} onChange={(e) => setAnswers({ ...answers, purpose: e.target.value as typeof answers.purpose })}>
+          <option value="">Choose…</option>
+          {PURPOSES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+      </label>
+      <div className="grid grid-cols-2 gap-2">
+        <label className="text-xs text-[#4c6270]">Travel date
+          <input type="date" className={inputCls} value={dates.travelDate} onChange={(e) => saveDates({ ...dates, travelDate: e.target.value })} />
+        </label>
+        <label className="text-xs text-[#4c6270]">Return date
+          <input type="date" className={inputCls} value={dates.returnDate} onChange={(e) => saveDates({ ...dates, returnDate: e.target.value })} />
+        </label>
+      </div>
+      <label className="text-xs text-[#4c6270]">Home address (number, street)
+        <input className={inputCls} value={answers.addressName} onChange={(e) => setAnswers({ ...answers, addressName: e.target.value })} />
+      </label>
+      <div className="grid grid-cols-2 gap-2">
+        <label className="text-xs text-[#4c6270]">State
+          <select className={inputCls} value={answers.livingState} onChange={(e) => setAnswers({ ...answers, livingState: e.target.value, livingLga: '' })}>
+            <option value="">Choose…</option>
+            {NIGERIA_STATES.map((st) => <option key={st} value={st}>{st}</option>)}
+          </select>
+        </label>
+        <label className="text-xs text-[#4c6270]">Area (LGA)
+          <select className={inputCls} value={answers.livingLga} onChange={(e) => setAnswers({ ...answers, livingLga: e.target.value })}>
+            <option value="">Choose…</option>
+            {lgas.map((l) => <option key={l} value={l}>{l}</option>)}
+          </select>
+        </label>
+      </div>
+      <label className="text-xs text-[#4c6270]">Email (optional, for the letterhead)
+        <input type="email" className={inputCls} value={details.email} onChange={(e) => saveDetails({ ...details, email: e.target.value })} />
+      </label>
+      <label className="text-xs text-[#4c6270]">Phone (optional)
+        <input type="tel" className={inputCls} value={details.phone} onChange={(e) => saveDetails({ ...details, phone: e.target.value })} />
+      </label>
+      <label className="flex items-center gap-2 text-xs text-[#4c6270] sm:col-span-2">
+        <input type="checkbox" checked={answers.agedParents} onChange={(e) => setAnswers({ ...answers, agedParents: e.target.checked })} />
+        I support aged parents in Nigeria (adds a line to “Ties to Nigeria”)
+      </label>
+    </div>
+  ) : null;
+
   return (
     <section className="rounded-lg border-l-4 border-l-[#4a5d8a] border border-black/10 bg-white p-4">
       <h2 className="mb-1 text-sm font-semibold text-[#12232e]">📝 Your personal supporting letter</h2>
@@ -132,6 +255,8 @@ export default function PersonalLetterPanel({ code }: PersonalLetterPanelProps) 
         A draft letter of introduction and supporting statement, built from the information and documents
         you&apos;ve already entered — not a template you fill in again. Processed entirely in your browser.
       </p>
+
+      {form}
 
       {!sufficiency.sufficient ? (
         <div>
@@ -165,6 +290,13 @@ export default function PersonalLetterPanel({ code }: PersonalLetterPanelProps) 
               className="rounded-lg border border-black/10 px-4 py-2.5 text-sm font-semibold text-[#12232e]"
             >
               ⬇️ Download (.txt)
+            </button>
+            <button
+              type="button"
+              onClick={handleWord}
+              className="rounded-lg border border-black/10 px-4 py-2.5 text-sm font-semibold text-[#12232e]"
+            >
+              📄 Download for Word
             </button>
           </div>
           <pre className="mt-3 max-h-[32rem] overflow-y-auto whitespace-pre-wrap rounded-lg border border-black/10 bg-[#faf9f6] p-4 text-xs leading-relaxed text-[#12232e]">

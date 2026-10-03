@@ -3,6 +3,11 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Statement to letter in one page
+- The personal letter (Employment, Income, Savings and investments, Purpose and plan of visit, Ties to Nigeria, Enclosures) now appears on the statement-only page, with a short fill-in form for what a statement can't tell us (employer, purpose, dates, address, contact).
+- Income section names the employer on the salary line, lists allowances/bonuses with their Remita purpose, and the letter gets a letterhead (address, email, phone).
+- New "Download for Word" button alongside copy and .txt.
+
 ## Simpler path: statement-only mode + plain-language plan
 
 - New homepage link "Just check my bank statement" opens `/checklist/uk/statement?focus=1`: no quiz, session bar or sidebar, only upload, review and download (a link to the full checklist stays at the top).

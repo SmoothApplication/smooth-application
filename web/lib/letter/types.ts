@@ -35,6 +35,9 @@ export interface LetterInput {
   openingBalance: number;
   closingBalance: number;
   financialInputs: FinancialInputs | null;
+  /** Optional letterhead contact details (typed once in the letter panel). */
+  phone?: string;
+  email?: string;
 }
 
 export interface LetterSufficiencyResult {
@@ -55,6 +58,8 @@ export interface LetterPayload {
   countryName: string;
   visaName: string;
   applicantName: string;
+  /** Address / email / phone lines printed under the name, like a real cover letter. */
+  letterhead: string[];
   employmentParagraph: string;
   incomeParagraphs: string[];
   incomeRows: LetterIncomeRow[];

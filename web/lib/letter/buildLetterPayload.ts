@@ -4,6 +4,7 @@
 // checkLetterSufficiency(input).sufficient is true — callers should not render a payload built from
 // insufficient data.
 import { LetterInput, LetterPayload, LetterIncomeRow } from './types';
+import { extractRemitaPurpose } from '@/lib/statement/remitaReason';
 
 const EXCLUDED_INCOME_TYPES = new Set(['self', 'reversal', 'interest', 'internal', 'other']);
 // Capped so an applicant with months of frequent small business inflows doesn't produce an
@@ -51,14 +52,14 @@ export function buildLetterPayload(input: LetterInput): LetterPayload {
   if (salaryGroup) {
     const avgMonthly = salaryGroup.count > 0 ? salaryGroup.total / salaryGroup.count : 0;
     incomeParagraphs.push(
-      `My bank statement shows a regular monthly salary, averaging ${fmt(avgMonthly)}, credited ${salaryGroup.count} time${
+      `My bank statement shows a regular monthly salary${input.employerName ? ` from ${input.employerName}` : ''}, averaging ${fmt(avgMonthly)}, credited ${salaryGroup.count} time${
         salaryGroup.count === 1 ? '' : 's'
-      } between ${fmtDate(salaryGroup.firstDate)} and ${fmtDate(salaryGroup.lastDate)}.`
+      } between ${fmtDate(salaryGroup.firstDate)} and ${fmtDate(salaryGroup.lastDate)} (total ${fmt(salaryGroup.total)}).`
     );
   }
   if (namedGroups.length) {
     incomeParagraphs.push(
-      'In addition to my regular income, the following payments have been credited to my account, as shown in my bank statement:'
+      'In addition to my salary, the following payments (allowances, bonuses and other income) have been credited to my account, as shown in my bank statement:'
     );
   } else if (!salaryGroup) {
     incomeParagraphs.push(
@@ -67,7 +68,7 @@ export function buildLetterPayload(input: LetterInput): LetterPayload {
   }
 
   const allNamedRows = namedGroups
-    .flatMap((g) => g.txns.filter((t) => t.credit > 0).map((t) => ({ label: g.name, dateLabel: fmtDate(t.date), amount: t.credit, date: t.date })))
+    .flatMap((g) => g.txns.filter((t) => t.credit > 0).map((t) => ({ label: extractRemitaPurpose(t.narration) ? `${g.name} - ${extractRemitaPurpose(t.narration)}` : g.name, dateLabel: fmtDate(t.date), amount: t.credit, date: t.date })))
     .sort((a, b) => a.date.getTime() - b.date.getTime());
   const incomeRows: LetterIncomeRow[] = allNamedRows
     .slice(-MAX_INCOME_ROWS)
@@ -129,7 +130,10 @@ export function buildLetterPayload(input: LetterInput): LetterPayload {
   enclosures.push('Valid international passport (bio-data page)');
   enclosures.push('Flight reservation / itinerary');
 
+  const letterhead = [addressBits, input.email, input.phone].filter((x): x is string => !!x && !!x.trim());
+
   return {
+    letterhead,
     generatedAtISO: new Date().toISOString(),
     countryName: input.countryName,
     visaName: input.visaName,

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import StatementSlot from '@/components/checklist/StatementSlot';
 import SessionShell from '@/components/checklist/SessionShell';
+import PersonalLetterPanel from '@/components/checklist/PersonalLetterPanel';
 import { COUNTRIES } from '@/lib/checklist/countries';
 import { combineStatementSummaries, StatementSummary } from '@/lib/statement';
 import * as secureStorage from '@/lib/security/secureStorage';
@@ -173,6 +174,13 @@ export default function StatementCheck({ countryCode }: StatementCheckProps) {
           </a>
         </div>
         {body}
+        {summary1 && (
+          <PersonalLetterPanel
+            key={`${summary1.txnCount}-${summary1.closingBalance}-${summary2?.txnCount ?? 0}-${summary2?.closingBalance ?? 0}`}
+            code={countryCode}
+            inline
+          />
+        )}
       </main>
     );
   }
