@@ -1,9 +1,8 @@
-// Reads the bank's own name off the top of a statement so the applicant never has to type it.
-// Only the header is searched (narrations name other banks: "TRF TO ZIB"), and the earliest mention wins.
+// Reads the bank's own name off a statement so the applicant never has to type it (see detectBankName below).
 const BANKS: Array<[string, RegExp]> = [
-  ['Providus Bank', /\bprovidus\b/i],
+  ['Providus Bank', /providus/i],
   ['GTBank', /\bguaranty\s+trust\b|\bgtbank\b|\bgtco\b|\bGTB\b/i],
-  ['Zenith Bank', /\bzenith\b/i],
+  ['Zenith Bank', /zenith/i],
   ['Access Bank', /\baccess\s+bank\b|\baccessbank\b/i],
   ['First Bank', /\bfirst\s*bank\b|\bfirstbank\b|\bfbn\b/i],
   ['UBA', /\bunited\s+bank\s+for\s+africa\b|\buba\b/i],
@@ -35,13 +34,27 @@ const BANKS: Array<[string, RegExp]> = [
   ['Optimus Bank', /\boptimus\b/i],
 ];
 
-/** `headerLines` = the first lines of the statement (about 40 is plenty). Returns null when no bank is named. */
-export function detectBankName(headerLines: string[]): string | null {
-  const text = headerLines.slice(0, 40).join(' \n ');
+function firstBank(text: string, selfIdentifiedOnly: boolean): string | null {
   let best: { name: string; at: number } | null = null;
   for (const [name, re] of BANKS) {
-    const m = re.exec(text);
+    // "ProvidusBank Plc", "Zenith Bank Plc", "Guaranty Trust Bank Limited": the bank naming itself as the issuer.
+    const probe = selfIdentifiedOnly ? new RegExp(`(?:${re.source})(?:\\s*bank)?\\s+(?:plc|limited|ltd)\\b`, 'i') : re;
+    const m = probe.exec(text);
     if (m && (best === null || m.index < best.at)) best = { name, at: m.index };
   }
   return best ? best.name : null;
+}
+
+/**
+ * `lines` = every line of the statement. Only the first few lines (the account header, before any transaction)
+ * are searched for a bare bank name. Many banks (Providus, for one) only name themselves in a footer
+ * disclaimer ("ProvidusBank Plc ..."), so the last lines are tried next, but only for a bank naming itself as
+ * issuer (… Plc / … Limited). Transaction narrations name other banks ("TO GLOBUS BANK") and are never used.
+ */
+export function detectBankName(lines: string[]): string | null {
+  return (
+    firstBank(lines.slice(0, 8).join(' \n '), false) ||
+    firstBank(lines.slice(0, 8).join(' \n '), true) ||
+    firstBank(lines.slice(-40).join(' \n '), true)
+  );
 }

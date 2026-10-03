@@ -3,6 +3,9 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Unreleased - bank detection fix
+- Found by simulating the Popoola statement: it matched "Globus Bank" from a transaction narration. Detection now reads only the account header, plus a footer line where the bank names itself as issuer ("ProvidusBank Plc ..."), so it returns Providus Bank.
+
 ## Unreleased - bank auto-filled
 - The bank name is read from the top of the uploaded statement and pre-fills "Which bank is your statement from?" (and the letter). It can still be edited.
 

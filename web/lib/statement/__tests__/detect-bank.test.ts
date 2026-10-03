@@ -7,8 +7,13 @@ describe('detectBankName', () => {
   });
   it('earliest header mention wins and narrations lower down are ignored', () => {
     const lines = ['Zenith Bank Plc', ...Array(45).fill('x'), 'TRF TO PROVIDUS'];
+    expect(detectBankName(['STATEMENT OF ACCOUNT', 'CUST. NAME  A B', ...Array(6).fill('h'), 'OUTWARD TRANSFER TO GLOBUS BANK|UNICAF', ...Array(60).fill('row'), "subject to ProvidusBank Plc's Terms"])).toBe('Providus Bank');
     expect(detectBankName(lines)).toBe('Zenith Bank');
-    expect(detectBankName(['Statement', 'Opening balance 1,000', 'Date narration', ...Array(45).fill('y'), 'FROM ACCESS BANK'])).toBeNull();
+    expect(detectBankName(['Statement', ...Array(45).fill('y'), 'FROM ACCESS BANK', ...Array(45).fill('z')])).toBeNull();
+  });
+  it('falls back to the footer disclaimer (Providus names itself only there)', () => {
+    const lines = ['STATEMENT OF ACCOUNT', 'CUST. NAME  POPOOLA', ...Array(60).fill('row'), "Note, all products and services are subject to ProvidusBank Plc's existing Terms"];
+    expect(detectBankName(lines)).toBe('Providus Bank');
   });
   it('returns null when no bank is named', () => {
     expect(detectBankName(['Account statement', 'Opening balance'])).toBeNull();
