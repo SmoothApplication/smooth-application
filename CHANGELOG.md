@@ -7,6 +7,7 @@ git history starts from the current state — see `docs/ip-ownership-notes.md` f
 - The personal letter (Employment, Income, Savings and investments, Purpose and plan of visit, Ties to Nigeria, Enclosures) now appears on the statement-only page, with a short fill-in form for what a statement can't tell us (employer, purpose, dates, address, contact).
 - Income section names the employer on the salary line, lists allowances/bonuses with their Remita purpose, and the letter gets a letterhead (address, email, phone).
 - New "Download for Word" button alongside copy and .txt.
+- Enclosures follow the UKVI document checklist; missing-item messages point to the form on this page.
 
 ## Simpler path: statement-only mode + plain-language plan
 

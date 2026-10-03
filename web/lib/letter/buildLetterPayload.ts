@@ -123,12 +123,18 @@ export function buildLetterPayload(input: LetterInput): LetterPayload {
   tiesBits.push('I have no intention of overstaying my visa and will return to Nigeria at the end of my visit.');
   const tiesParagraph = tiesBits.join(' ');
 
+  // Mirrors the document list on the UKVI/VFS "Document checklist" so the letter and the form agree.
   const enclosures: string[] = [];
-  statementsWithData.forEach((s) => enclosures.push(`Bank statement — ${s.label}`));
-  if (input.employed) enclosures.push('Recent payslip / employment letter');
-  if (input.selfEmployed) enclosures.push('Evidence of business ownership');
-  enclosures.push('Valid international passport (bio-data page)');
-  enclosures.push('Flight reservation / itinerary');
+  enclosures.push('Valid international passport (bio-data page) and previous passports, if any');
+  statementsWithData.forEach((s) => enclosures.push(`Bank statement (stamped by the bank) - ${s.label}`));
+  if (input.employed) {
+    enclosures.push('Employment letter and leave approval from my employer');
+    enclosures.push('Recent payslips');
+  }
+  if (input.selfEmployed) enclosures.push('Evidence of business ownership (registration certificate, tax records)');
+  enclosures.push('Flight reservation / travel itinerary');
+  enclosures.push('Accommodation details for the visit');
+  enclosures.push('Proof of ties to Nigeria (for example tenancy or property documents, family documents)');
 
   const letterhead = [addressBits, input.email, input.phone].filter((x): x is string => !!x && !!x.trim());
 

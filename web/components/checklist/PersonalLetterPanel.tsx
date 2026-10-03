@@ -266,7 +266,7 @@ export default function PersonalLetterPanel({ code, inline = false }: PersonalLe
           </p>
           <ul className="mt-2 flex flex-col gap-1 text-sm text-[#12232e]">
             {sufficiency.missing.map((m) => (
-              <li key={m}>• {m}</li>
+              <li key={m}>• {inline ? m.split(' — ')[0] + ' (fill it in above)' : m}</li>
             ))}
           </ul>
         </div>
