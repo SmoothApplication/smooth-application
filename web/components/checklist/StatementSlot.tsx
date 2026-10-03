@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, ReactNode } from 'react';
 import { getLinesFromFileWithMeta, StatementPasswordRequiredError } from '@/lib/statement/extractFile';
 import {
   parseStatementLinesWithFallback,
@@ -78,6 +78,8 @@ export type StatementSlotProps = {
    * section rather than only in the page-level combined-summary card at the bottom. Null/undefined
    * when the other slot has nothing uploaded yet. */
   otherStatementSummary?: StatementSummary | null;
+  /** Shown at the end of the Report tab (the personal supporting letter). */
+  reportExtras?: ReactNode;
 };
 
 function formatDate(d: Date): string {
@@ -106,6 +108,7 @@ export default function StatementSlot({
   onSummaryChange,
   onRemove,
   otherStatementSummary,
+  reportExtras,
 }: StatementSlotProps) {
   const [loaded, setLoaded] = useState(false);
   const [recalled, setRecalled] = useState(false);
@@ -650,6 +653,7 @@ export default function StatementSlot({
         onBusinessDeclaredMonthlyIncomeChange={setBusinessDeclaredMonthlyIncome}
         financialHref={financialHref}
         otherStatementSummary={otherStatementSummary}
+        reportExtras={reportExtras}
       />
 
       <ParseProblemReport />

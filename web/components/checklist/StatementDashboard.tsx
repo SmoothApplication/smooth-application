@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, ReactNode } from 'react';
 import {
   ParsedTxn,
   SourceGroup,
@@ -31,6 +31,7 @@ import {
   getResearchNote,
   reviewStatusFor,
   REVIEW_STATUS_LABEL,
+  splitSalaryForSheet,
 } from '@/lib/statement';
 import { trackEvent } from '@/lib/analytics';
 // computeMonthlyCashFlow (cashFlow.ts) and computeFinancials (checklist/financial.ts) drive the
@@ -67,11 +68,14 @@ import { ReportTab } from './statement-dashboard/ReportTab';
 // and persisted per employer/business (workNameCheck.ts's WorkCategoryMap) — two separate maps since
 // an applicant can be both employed and self-employed with different payments for each.
 
+import { formatAmount } from './statement-dashboard/shared';
 import * as secureStorage from '@/lib/security/secureStorage';
 
 interface StatementDashboardProps {
   /** Storage key of the generated personal letter text, if any (adds a 'Personal letter' sheet to the Excel). */
   letterTextKey?: string;
+  /** Rendered at the end of the Report tab (the personal supporting letter). */
+  reportExtras?: ReactNode;
   txns: ParsedTxn[];
   /** Initial values only (uncontrolled) - this component owns the live state internally and
    * reports changes back up via the on*Change callbacks below, so a parent page can persist them
@@ -204,6 +208,7 @@ export default function StatementDashboard({
   financialHref = '/checklist/uk/financial',
   otherStatementSummary = null,
   letterTextKey,
+  reportExtras,
 }: StatementDashboardProps) {
   const [applicantName, setApplicantName] = useState(initialApplicantName);
   const [maidenName, setMaidenName] = useState(initialMaidenName);
@@ -228,7 +233,7 @@ export default function StatementDashboard({
   // sees first after uploading, matching the original GitHub Pages app's own flow, not the
   // Analysis tab's raw per-sender breakdown. Still just a UI default - switching tabs afterward
   // works exactly the same either way.
-  const [tab, setTab] = useState<'analysis' | 'report'>('report');
+  const [tab, setTab] = useState<'statement' | 'income' | 'workplace' | 'report'>('statement');
 
   // Task follow-up: "it is not extracting name from bank statement" -- detectedHolderName was
   // already being computed (extractAccountHolderName in lib/statement/names.ts) but only ever fed
@@ -649,13 +654,82 @@ export default function StatementDashboard({
   // and internal wallet movements. Everything else - including "Other / one-off inflows" with no
   // clear sender - is still money that came in, so it still counts toward the total.
   const NON_INCOME_TYPES = new Set(['reversal', 'self', 'interest', 'internal']);
+  const statementFacts = (() => {
+    const sorted = [...txns].sort((a, b) => a.date.getTime() - b.date.getTime());
+    const fmtD = (d: Date) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    const first = sorted[0];
+    const last = sorted[sorted.length - 1];
+    return {
+      period: first && last ? `${fmtD(first.date)} to ${fmtD(last.date)}` : '-',
+      totalIn: txns.reduce((a, t) => a + (t.credit || 0), 0),
+      totalOut: txns.reduce((a, t) => a + (t.debit || 0), 0),
+      opening: first ? (first.balance || 0) - (first.credit || 0) + (first.debit || 0) : 0,
+      closing: last ? last.balance || 0 : 0,
+    };
+  })();
   const totalIncomeIdentified = groups
     .filter((g) => !NON_INCOME_TYPES.has(g.type))
     .reduce((sum, g) => sum + g.total, 0);
   const incomeSourceCount = groups.filter((g) => !NON_INCOME_TYPES.has(g.type) && g.type !== 'other').length;
 
+  // Employer pay is filled in for the applicant, so the Report and the spreadsheet never wait on the
+  // Workplace income tab having been opened.
+  useEffect(() => {
+    splitSalaryForSheet(groups)
+      .filter((g) => g.type === 'salary' && !explanations[g.name])
+      .forEach((g) => setExplanation(g.name, /^allowances/i.test(g.name) ? 'Allowances and bonuses from my employer' : 'Salary from my employer'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groups]);
+
   return (
     <div className="flex flex-col gap-5">
+      <div className="flex gap-1 border-b border-black/10">
+        {(
+          [
+            ['statement', 'Your statement'],
+            ['income', 'Income sources'],
+            ['workplace', 'Workplace income'],
+            ['report', 'Report'],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setTab(key)}
+            className={`-mb-px rounded-t-lg border-b-2 px-4 py-2 text-sm font-medium transition ${
+              tab === key
+                ? 'border-accent text-accent'
+                : 'border-transparent text-[#566a76] hover:text-[#12232e]'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'statement' && (
+        <>
+      <div className="rounded-2xl border border-black/10 bg-white p-4">
+        <h2 className="text-sm font-semibold text-[#12232e]">What your bank statement shows</h2>
+        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {[
+            ['Period', statementFacts.period],
+            ['Transactions', String(txns.length)],
+            ['Money in', formatAmount(statementFacts.totalIn)],
+            ['Money out', formatAmount(statementFacts.totalOut)],
+            ['Opening balance', formatAmount(statementFacts.opening)],
+            ['Closing balance', formatAmount(statementFacts.closing)],
+            ['Income identified', formatAmount(totalIncomeIdentified)],
+            ['Income sources', String(incomeSourceCount)],
+          ].map(([label, value]) => (
+            <div key={label} className="rounded-xl bg-[#faf9f6] p-3">
+              <p className="text-[11px] text-[#566a76]">{label}</p>
+              <p className="mt-0.5 text-sm font-semibold text-[#12232e]">{value}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 gap-3 rounded-2xl border border-black/10 bg-white p-4 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-xs font-medium text-[#566a76]" htmlFor="statement-applicant-name">
@@ -737,30 +811,11 @@ export default function StatementDashboard({
         </p>
       </div>
 
-      <div className="flex gap-1 border-b border-black/10">
-        {(
-          [
-            ['analysis', 'Analysis'],
-            ['report', 'Report'],
-          ] as const
-        ).map(([key, label]) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => setTab(key)}
-            className={`-mb-px rounded-t-lg border-b-2 px-4 py-2 text-sm font-medium transition ${
-              tab === key
-                ? 'border-accent text-accent'
-                : 'border-transparent text-[#566a76] hover:text-[#12232e]'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {tab === 'analysis' ? (
+        </>
+      )}
+      {tab === 'income' && (
         <AnalysisTab
+          view="income"
           groups={groups}
           topSenders={topSenders}
           topInflows={topInflows}
@@ -786,8 +841,11 @@ export default function StatementDashboard({
           setExplanation={setExplanation}
           resolveSenderDuplicate={resolveSenderDuplicate}
         />
-      ) : (
+      )}
+      {tab === 'workplace' && (
+        <div className="flex flex-col gap-5">
         <ReportTab
+          view="workplace"
           onActionPlan={setActionPlan}
           groups={groups}
           topSenders={topSenders}
@@ -831,6 +889,110 @@ export default function StatementDashboard({
           otherStatementSummary={otherStatementSummary}
           statementCurrencyIssues={statementCurrencyResult.issues}
         />
+        <AnalysisTab
+          view="workplace"
+          groups={groups}
+          topSenders={topSenders}
+          topInflows={topInflows}
+          cashFlowRows={cashFlowRows}
+          breakdownEmailOpen={breakdownEmailOpen}
+          onOpenBreakdownEmail={openBreakdownEmailPrompt}
+          breakdownEmail={breakdownEmail}
+          setBreakdownEmail={setBreakdownEmail}
+          onSendBreakdownEmail={handleSendBreakdownEmail}
+          sendingBreakdownEmail={sendingBreakdownEmail}
+          breakdownEmailError={breakdownEmailError}
+          breakdownEmailSent={breakdownEmailSent}
+          displayName={displayName}
+          editingName={editingName}
+          editValue={editValue}
+          setEditValue={setEditValue}
+          startEditingName={startEditingName}
+          saveNameCorrection={saveNameCorrection}
+          cancelEditingName={() => setEditingName(null)}
+          isExpanded={isExpanded}
+          toggleExpanded={toggleExpanded}
+          explanations={explanations}
+          setExplanation={setExplanation}
+          resolveSenderDuplicate={resolveSenderDuplicate}
+        />
+        </div>
+      )}
+      {tab === 'report' && (
+        <ReportTab
+          view="report"
+          onActionPlan={setActionPlan}
+          groups={groups}
+          topSenders={topSenders}
+          totalIncomeIdentified={totalIncomeIdentified}
+          incomeSourceCount={incomeSourceCount}
+          unexplainedInflows={unexplainedInflows}
+          flaggedReasonMode={flaggedReasonMode}
+          setFlaggedMode={setFlaggedMode}
+          flaggedReasonChoice={flaggedReasonChoice}
+          setFlaggedChoice={setFlaggedChoice}
+          flaggedReasonOther={flaggedReasonOther}
+          setFlaggedOther={setFlaggedOther}
+          cashFlowRows={cashFlowRows}
+          financialSummary={financialSummary}
+          financialHref={financialHref}
+          employed={employed}
+          selfEmployed={selfEmployed}
+          employerName={employerName}
+          setEmployerName={setEmployerName}
+          employerAltName={employerAltName}
+          setEmployerAltName={setEmployerAltName}
+          businessName={businessName}
+          setBusinessName={setBusinessName}
+          businessAltName={businessAltName}
+          setBusinessAltName={setBusinessAltName}
+          employerCheck={employerCheck}
+          businessCheck={businessCheck}
+          employerCategoryChoices={employerCategoryChoices}
+          setEmployerCategoryChoices={setEmployerCategoryChoices}
+          businessCategoryChoices={businessCategoryChoices}
+          setBusinessCategoryChoices={setBusinessCategoryChoices}
+          employerDeclaredMonthlyIncome={employerDeclaredMonthlyIncome}
+          setEmployerDeclaredMonthlyIncome={setEmployerDeclaredMonthlyIncome}
+          businessDeclaredMonthlyIncome={businessDeclaredMonthlyIncome}
+          setBusinessDeclaredMonthlyIncome={setBusinessDeclaredMonthlyIncome}
+          employerIncomeMatch={employerIncomeMatch}
+          businessIncomeMatch={businessIncomeMatch}
+          applicantName={applicantName}
+          explanations={explanations}
+          setExplanation={setExplanation}
+          otherStatementSummary={otherStatementSummary}
+          statementCurrencyIssues={statementCurrencyResult.issues}
+        >
+        <AnalysisTab
+          view="lists"
+          groups={groups}
+          topSenders={topSenders}
+          topInflows={topInflows}
+          cashFlowRows={cashFlowRows}
+          breakdownEmailOpen={breakdownEmailOpen}
+          onOpenBreakdownEmail={openBreakdownEmailPrompt}
+          breakdownEmail={breakdownEmail}
+          setBreakdownEmail={setBreakdownEmail}
+          onSendBreakdownEmail={handleSendBreakdownEmail}
+          sendingBreakdownEmail={sendingBreakdownEmail}
+          breakdownEmailError={breakdownEmailError}
+          breakdownEmailSent={breakdownEmailSent}
+          displayName={displayName}
+          editingName={editingName}
+          editValue={editValue}
+          setEditValue={setEditValue}
+          startEditingName={startEditingName}
+          saveNameCorrection={saveNameCorrection}
+          cancelEditingName={() => setEditingName(null)}
+          isExpanded={isExpanded}
+          toggleExpanded={toggleExpanded}
+          explanations={explanations}
+          setExplanation={setExplanation}
+          resolveSenderDuplicate={resolveSenderDuplicate}
+        />
+          {reportExtras}
+        </ReportTab>
       )}
     </div>
   );

@@ -111,6 +111,15 @@ export default function StatementCheck({ countryCode }: StatementCheckProps) {
         visaName={visaName}
         onSummaryChange={setSummary1}
         otherStatementSummary={summary2}
+        reportExtras={
+          summary1 ? (
+            <PersonalLetterPanel
+              key={`${summary1.txnCount}-${summary1.closingBalance}-${summary2?.txnCount ?? 0}-${summary2?.closingBalance ?? 0}`}
+              code={countryCode}
+              inline
+            />
+          ) : null
+        }
       />
 
       {showSecondSlot ? (
@@ -174,13 +183,6 @@ export default function StatementCheck({ countryCode }: StatementCheckProps) {
           </a>
         </div>
         {body}
-        {summary1 && (
-          <PersonalLetterPanel
-            key={`${summary1.txnCount}-${summary1.closingBalance}-${summary2?.txnCount ?? 0}-${summary2?.closingBalance ?? 0}`}
-            code={countryCode}
-            inline
-          />
-        )}
       </main>
     );
   }

@@ -28,6 +28,8 @@ import { SenderInflowCard } from './SenderInflowCard';
 import { WorkNameFields } from './WorkNameFields';
 
 export function ReportTab({
+  view,
+  children,
   groups,
   topSenders,
   totalIncomeIdentified,
@@ -71,6 +73,10 @@ export function ReportTab({
   otherStatementSummary,
   statementCurrencyIssues,
 }: {
+  /** 'workplace' = just the employer/business fields; 'report' = the flat readiness report. */
+  view: 'workplace' | 'report';
+  /** Extra blocks rendered at the end of the report (income summary, top lists, letter). */
+  children?: ReactNode;
   totalIncomeIdentified: number;
   incomeSourceCount: number;
   unexplainedInflows: ParsedTxn[];
@@ -251,6 +257,49 @@ export function ReportTab({
   const needsAttention =
     finalSummary.attentionFlags.length > 0 || unexplainedInflows.length > 0 || financialStatusOverall === 'bad';
 
+  if (view === 'workplace') {
+    return (
+      <div className="flex flex-col gap-5">
+        <ReportSection title="Workplace income">
+<p className="text-xs text-[#566a76]">
+          Type your employer and/or business name below to see whether it actually shows up as the
+          sender on real credits in this statement - stronger evidence than its name just appearing
+          somewhere on the page. (You don&apos;t need to have filled in &quot;Your responsibilities&quot;
+          yet - fill in whichever of these applies to you, right here.)
+        </p>
+        <div className="flex flex-col gap-4">
+          <WorkNameFields
+            label="Employer"
+            name={employerName}
+            setName={setEmployerName}
+            altName={employerAltName}
+            setAltName={setEmployerAltName}
+            check={employerCheck}
+            categoryChoices={employerCategoryChoices}
+            setCategoryChoices={setEmployerCategoryChoices}
+            declaredMonthlyIncome={employerDeclaredMonthlyIncome}
+            setDeclaredMonthlyIncome={setEmployerDeclaredMonthlyIncome}
+            incomeMatch={employerIncomeMatch}
+          />
+          <WorkNameFields
+            label="Business"
+            name={businessName}
+            setName={setBusinessName}
+            altName={businessAltName}
+            setAltName={setBusinessAltName}
+            check={businessCheck}
+            categoryChoices={businessCategoryChoices}
+            setCategoryChoices={setBusinessCategoryChoices}
+            declaredMonthlyIncome={businessDeclaredMonthlyIncome}
+            setDeclaredMonthlyIncome={setBusinessDeclaredMonthlyIncome}
+            incomeMatch={businessIncomeMatch}
+          />
+        </div>
+        </ReportSection>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-5">
       <ReportSection title="📋 Your result" defaultOpen>
@@ -324,46 +373,6 @@ export function ReportTab({
               <span className="text-sm font-normal text-[#566a76]">({formatAmount(unexplainedTotal)})</span>
             </p>
           </div>
-        </div>
-      </ReportSection>
-
-      <ReportSection
-        title="Income sources"
-        teaser={`${incomeSourceCount} source${incomeSourceCount === 1 ? '' : 's'} identified`}
-      >
-        <p className="text-xs text-[#566a76]">
-          Type your employer and/or business name below to see whether it actually shows up as the
-          sender on real credits in this statement - stronger evidence than its name just appearing
-          somewhere on the page. (You don&apos;t need to have filled in &quot;Your responsibilities&quot;
-          yet - fill in whichever of these applies to you, right here.)
-        </p>
-        <div className="flex flex-col gap-4">
-          <WorkNameFields
-            label="Employer"
-            name={employerName}
-            setName={setEmployerName}
-            altName={employerAltName}
-            setAltName={setEmployerAltName}
-            check={employerCheck}
-            categoryChoices={employerCategoryChoices}
-            setCategoryChoices={setEmployerCategoryChoices}
-            declaredMonthlyIncome={employerDeclaredMonthlyIncome}
-            setDeclaredMonthlyIncome={setEmployerDeclaredMonthlyIncome}
-            incomeMatch={employerIncomeMatch}
-          />
-          <WorkNameFields
-            label="Business"
-            name={businessName}
-            setName={setBusinessName}
-            altName={businessAltName}
-            setAltName={setBusinessAltName}
-            check={businessCheck}
-            categoryChoices={businessCategoryChoices}
-            setCategoryChoices={setBusinessCategoryChoices}
-            declaredMonthlyIncome={businessDeclaredMonthlyIncome}
-            setDeclaredMonthlyIncome={setBusinessDeclaredMonthlyIncome}
-            incomeMatch={businessIncomeMatch}
-          />
         </div>
       </ReportSection>
 
@@ -617,6 +626,7 @@ export function ReportTab({
           </div>
         )}
       </ReportSection>
+      {children}
     </div>
   );
 }
@@ -627,8 +637,6 @@ export function ReportTab({
 // something useful at a glance.
 function ReportSection({
   title,
-  teaser,
-  defaultOpen,
   children,
 }: {
   title: string;
@@ -637,12 +645,9 @@ function ReportSection({
   children: ReactNode;
 }) {
   return (
-    <details className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm" open={defaultOpen}>
-      <summary className="flex cursor-pointer items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-[#12232e]">{title}</h2>
-        {teaser && <span className="text-xs font-normal text-[#566a76]">{teaser}</span>}
-      </summary>
+    <section className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
+      <h2 className="text-sm font-semibold text-[#12232e]">{title}</h2>
       <div className="mt-4 flex flex-col gap-4">{children}</div>
-    </details>
+    </section>
   );
 }

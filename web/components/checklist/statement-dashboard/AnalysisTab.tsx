@@ -17,6 +17,7 @@ import { formatAmount, formatDate } from './shared';
 import { SourceGroupCard } from './SourceGroupCard';
 
 export function AnalysisTab({
+  view,
   groups,
   topSenders,
   topInflows,
@@ -42,6 +43,9 @@ export function AnalysisTab({
   setExplanation,
   resolveSenderDuplicate,
 }: {
+  /** Which part to show: 'income' (non-workplace source cards), 'workplace' (salary/allowance cards),
+   * 'lists' (income summary, Top 10 inflows, Top 10 senders - the flat Report lists). */
+  view: 'income' | 'workplace' | 'lists';
   groups: SourceGroups;
   topSenders: {
     list: TopConsistentSender[];
@@ -127,17 +131,53 @@ export function AnalysisTab({
 
   return (
     <div className="flex flex-col gap-5">
-      {groups.missingSalaryMonths && groups.missingSalaryMonths.length > 0 && (
+      {view === 'workplace' && groups.missingSalaryMonths && groups.missingSalaryMonths.length > 0 && (
         <div className="rounded-lg bg-warn-wash p-3 text-sm text-warn-text">
           Salary looks recurring, but no payment was found for: <b>{groups.missingSalaryMonths.join(', ')}</b>.
           Worth double-checking those months, or explaining the gap.
         </div>
       )}
 
+      {view === 'lists' && (
+        <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
+          <h2 className="mb-1 text-sm font-semibold text-[#12232e]">Income sources</h2>
+          <p className="mb-3 text-xs text-[#566a76]">Who paid you, and how much, over this statement.</p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-black/10 text-xs uppercase tracking-wide text-[#566a76]">
+                  <th className="py-2 pr-2">Source</th>
+                  <th className="py-2 pr-2">Type</th>
+                  <th className="py-2 pr-2 text-right">Payments</th>
+                  <th className="py-2 text-right">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {splitSalaryForSheet(groups)
+                  .filter((g) => !['self', 'reversal', 'interest', 'internal'].includes(g.type))
+                  .map((g) => (
+                    <tr key={g.name} className="border-b border-black/5">
+                      <td className="py-2 pr-2 text-[#12232e]">{displayName(g.name)}</td>
+                      <td className="py-2 pr-2 text-[#566a76]">{g.type === 'salary' ? 'Employer' : g.type}</td>
+                      <td className="py-2 pr-2 text-right text-[#12232e]">{g.count}</td>
+                      <td className="py-2 text-right font-medium text-[#12232e]">{formatAmount(g.total)}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {view !== 'lists' && (
       <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
-        <h2 className="mb-1 text-sm font-semibold text-[#12232e]">Income sources</h2>
+        <h2 className="mb-1 text-sm font-semibold text-[#12232e]">
+          {view === 'workplace' ? 'Salary and allowances from your employer' : 'Income sources'}
+        </h2>
         <p className="mb-4 text-xs text-[#566a76]">
-          Every credit on this statement, grouped by who (or what) it came from.
+          {view === 'workplace'
+            ? 'Your employer pays are filled in for you. Check them, and add a note if a payment needs explaining.'
+            : 'Every other credit on this statement, grouped by who (or what) it came from. Employer pay is under Workplace income.'}
         </p>
         {groups.filter((g) => g.type === 'self').length > 0 && (
           <p className="mb-2 text-xs text-[#566a76]">
@@ -148,7 +188,7 @@ export function AnalysisTab({
           <p className="text-sm text-[#566a76]">No credits were found on this statement.</p>
         ) : (
           <div className="flex flex-col gap-3">
-            {splitSalaryForSheet(groups).filter((g) => g.type !== 'self').map((g) => (
+            {splitSalaryForSheet(groups).filter((g) => g.type !== 'self' && (view === 'workplace' ? g.type === 'salary' : g.type !== 'salary')).map((g) => (
               <SourceGroupCard
                 key={g.name}
                 group={g}
@@ -169,7 +209,7 @@ export function AnalysisTab({
             ))}
           </div>
         )}
-        {groups.length > 0 && !breakdownEmailOpen && (
+        {view === 'income' && groups.length > 0 && !breakdownEmailOpen && (
           <button
             type="button"
             onClick={onOpenBreakdownEmail}
@@ -178,7 +218,7 @@ export function AnalysisTab({
             ⬇️ Download breakdown as spreadsheet
           </button>
         )}
-        {breakdownEmailOpen && (
+        {view === 'income' && breakdownEmailOpen && (
           <div className="mt-4 rounded-lg border border-black/10 bg-black/[0.02] p-4">
             {breakdownEmailSent ? (
               <p className="text-sm text-good">
@@ -215,13 +255,14 @@ export function AnalysisTab({
           </div>
         )}
       </div>
+      )}
 
-      {topInflows.length > 0 && (
+      {view === 'lists' && topInflows.length > 0 && (
         <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
-          <details>
-            <summary className="cursor-pointer text-sm font-semibold text-[#12232e]">
+          <div>
+            <h2 className="text-sm font-semibold text-[#12232e]">
               Top {topInflows.length} inflow{topInflows.length === 1 ? '' : 's'}
-            </summary>
+            </h2>
             <p className="mb-4 mt-1 text-xs text-[#566a76]">
               The single biggest payments in, ranked by amount - not the same as Top 10 senders
               below, which ranks by how consistently someone pays you, not by size.
@@ -264,10 +305,11 @@ export function AnalysisTab({
                 </tbody>
               </table>
             </div>
-          </details>
+          </div>
         </div>
       )}
 
+      {view === 'lists' && (
       <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
         <h2 className="mb-1 text-sm font-semibold text-[#12232e]">Top 10 senders</h2>
         <p className="mb-4 text-xs text-[#566a76]">
@@ -465,6 +507,7 @@ export function AnalysisTab({
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }
