@@ -1,11 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Answers } from '@/lib/checklist/uk';
 import { DEFAULT_FINANCIAL_INPUTS, FinancialInputs } from '@/lib/checklist/financial';
 import { COUNTRIES } from '@/lib/checklist/countries';
 import { trackEvent } from '@/lib/analytics';
 import * as secureStorage from '@/lib/security/secureStorage';
+import { useChecklistState } from '@/lib/checklist/useChecklistState';
+import { missingRequiredItems } from '@/lib/checklist/types';
 
 // Task #421 (save/report-by-email redesign, direct request): "this save file, I want it to be a
 // link or a tab beneath the page where you have your responsibility... when you save, it shows you
@@ -20,13 +23,18 @@ import * as secureStorage from '@/lib/security/secureStorage';
 // pass values they already have in scope with no new plumbing.
 export type SaveProgressPanelProps = {
   code: string;
-  answers: Answers;
-  checked: Record<string, boolean>;
+  /** Optional: read from the checklist state itself when omitted (the statement Report tab has no props to pass). */
+  answers?: Answers;
+  checked?: Record<string, boolean>;
 };
 
-type EmailStep = 'idle' | 'form' | 'sending' | 'sent' | 'error';
+type EmailStep = 'idle' | 'missing' | 'form' | 'sending' | 'sent' | 'error';
 
-export default function SaveProgressPanel({ code, answers, checked }: SaveProgressPanelProps) {
+export default function SaveProgressPanel({ code, answers: answersProp, checked: checkedProp }: SaveProgressPanelProps) {
+  const state = useChecklistState(code);
+  const answers = answersProp ?? state.answers;
+  const checked = checkedProp ?? state.checked;
+  const missing = missingRequiredItems(state.checklist, answers, checked);
   const lowerCode = code.toLowerCase();
   const financialKey = `sa_${lowerCode}_financial`;
   const statement1Key = `sa_${lowerCode}_statement`;
@@ -132,11 +140,33 @@ export default function SaveProgressPanel({ code, answers, checked }: SaveProgre
         </button>
 
         {emailStep === 'idle' && (
-          <button type="button" onClick={() => setEmailStep('form')} className="btn-primary text-sm">
+          <button type="button" onClick={() => setEmailStep(missing.length ? 'missing' : 'form')} className="btn-primary text-sm">
             📧 Email me my full report (PDF)
           </button>
         )}
       </div>
+
+      {emailStep === 'missing' && (
+        <div className="mt-3 rounded-lg border border-warn-text/30 bg-[#fff8e8] p-3">
+          <p className="text-sm font-semibold text-[#12232e]">
+            Before you download: {missing.length} required item{missing.length === 1 ? ' is' : 's are'} still missing.
+          </p>
+          <ul className="mt-1 list-disc pl-5 text-xs text-[#4c6270]">
+            {missing.slice(0, 5).map((it) => (
+              <li key={it.id}>{it.label}</li>
+            ))}
+            {missing.length > 5 && <li>…and {missing.length - 5} more</li>}
+          </ul>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <Link href={`/checklist/${lowerCode}/final-review`} className="btn-primary text-sm">
+              Fill the missing places
+            </Link>
+            <button type="button" onClick={() => setEmailStep('form')} className="rounded-lg border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-[#12232e]">
+              Download anyway
+            </button>
+          </div>
+        </div>
+      )}
 
       {(emailStep === 'form' || emailStep === 'sending' || emailStep === 'error') && (
         <div className="mt-3 rounded-lg border border-black/10 bg-cream-soft p-3">

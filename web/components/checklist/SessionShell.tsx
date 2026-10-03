@@ -128,7 +128,9 @@ export default function SessionShell({ code, name, session, children }: SessionS
         {/* Task #421 (save/report-by-email redesign): moved out of ChecklistSidebar's <aside> and
             into the page content itself, per the confirmed "apply to all pages" placement — this
             renders beneath every session's own content, not in the sidebar. */}
-        <SaveProgressPanel code={code} answers={answers} checked={checked} />
+        {/* Direct request: saving/downloading the report only makes sense once the applicant has been
+            through the sessions, so it now shows on the last session and inside the statement Report tab. */}
+        {isLastSession && <SaveProgressPanel code={code} answers={answers} checked={checked} />}
 
         {/* Task #537/#538 (direct request, following the UX audit): replaces the "share with 50
             people" one-off poll idea with an ongoing on-site mechanism — real applicants leave honest

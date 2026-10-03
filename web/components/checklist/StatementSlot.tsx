@@ -627,6 +627,7 @@ export default function StatementSlot({
         onMaidenNameChange={setMaidenName}
         onNameCorrectionsChange={setNameCorrections}
         letterTextKey={storageKey.replace(/_statement(_2)?$/, '_letter_text')}
+        saveCode={storageKey.match(/^sa_([a-z]+)_statement/i)?.[1]}
         explanations={explanations}
         onExplanationsChange={setExplanations}
         senderDuplicateDecisions={senderDuplicateDecisions}

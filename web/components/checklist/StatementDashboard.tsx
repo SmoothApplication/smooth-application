@@ -46,6 +46,7 @@ import { NO_EXPLANATION_NOTE } from './statement-dashboard/shared';
 // The three selectable inflow floors; the first is the default and is also the hard minimum.
 const INFLOW_FLOOR_OPTIONS = [50000, 100000, 200000];
 import { AnalysisTab } from './statement-dashboard/AnalysisTab';
+import SaveProgressPanel from '@/components/checklist/SaveProgressPanel';
 import { ReportTab } from './statement-dashboard/ReportTab';
 
 // Two-tab bank-statement dashboard sitting on top of the parse/classify pipeline (lib/statement):
@@ -76,6 +77,8 @@ interface StatementDashboardProps {
   letterTextKey?: string;
   /** Rendered at the end of the Report tab (the personal supporting letter). */
   reportExtras?: ReactNode;
+  /** Country code, so the Report tab can show the save/download panel. */
+  saveCode?: string;
   txns: ParsedTxn[];
   /** Initial values only (uncontrolled) - this component owns the live state internally and
    * reports changes back up via the on*Change callbacks below, so a parent page can persist them
@@ -209,6 +212,7 @@ export default function StatementDashboard({
   otherStatementSummary = null,
   letterTextKey,
   reportExtras,
+  saveCode,
 }: StatementDashboardProps) {
   const [applicantName, setApplicantName] = useState(initialApplicantName);
   const [maidenName, setMaidenName] = useState(initialMaidenName);
@@ -233,7 +237,15 @@ export default function StatementDashboard({
   // sees first after uploading, matching the original GitHub Pages app's own flow, not the
   // Analysis tab's raw per-sender breakdown. Still just a UI default - switching tabs afterward
   // works exactly the same either way.
-  const [tab, setTab] = useState<'statement' | 'income' | 'workplace' | 'report' | 'letter'>('statement');
+  type DashTab = 'statement' | 'income' | 'workplace' | 'report' | 'letter';
+  const [tab, setTabRaw] = useState<DashTab>('statement');
+  // Save/download unlocks only after the applicant has looked at the three tabs before Report.
+  const [visitedTabs, setVisitedTabs] = useState<DashTab[]>(['statement']);
+  const setTab = (t: DashTab) => {
+    setTabRaw(t);
+    setVisitedTabs((v) => (v.includes(t) ? v : [...v, t]));
+  };
+  const reviewedAll = (['statement', 'income', 'workplace'] as DashTab[]).every((t) => visitedTabs.includes(t));
 
   // Task follow-up: "it is not extracting name from bank statement" -- detectedHolderName was
   // already being computed (extractAccountHolderName in lib/statement/names.ts) but only ever fed
@@ -993,6 +1005,23 @@ export default function StatementDashboard({
           resolveSenderDuplicate={resolveSenderDuplicate}
         />
         </ReportTab>
+      )}
+      {tab === 'report' && saveCode && (
+        reviewedAll ? (
+          <SaveProgressPanel code={saveCode} />
+        ) : (
+          <div className="rounded-xl border border-black/10 bg-white p-4 text-sm text-[#4c6270]">
+            <p className="font-semibold text-[#12232e]">💾 Save and download unlock after you have been through:</p>
+            <ul className="mt-1 text-xs">
+              {([['statement', 'Your statement'], ['income', 'Income sources'], ['workplace', 'Workplace income']] as const).map(([k, l]) => (
+                <li key={k}>
+                  {visitedTabs.includes(k) ? '✅' : '⬜'}{' '}
+                  {visitedTabs.includes(k) ? l : <button type="button" className="text-accent underline" onClick={() => setTab(k)}>{l}</button>}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )
       )}
       {/* Kept mounted (just hidden) so the letter text stays saved for the spreadsheet. */}
       <div className={tab === 'letter' ? '' : 'hidden'}>{reportExtras}</div>

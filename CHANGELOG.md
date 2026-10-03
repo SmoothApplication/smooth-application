@@ -3,6 +3,10 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Unreleased - save/download moved to the end
+- "Save your progress" no longer appears on every page. It now shows on the last session and inside the statement Report tab, and only after the applicant has opened Your statement, Income sources and Workplace income.
+- Clicking "Email me my full report" with required checklist items still missing lists them and offers "Fill the missing places" (goes to Final review) or "Download anyway".
+
 ## Unreleased - clearer employer, salary details, linked form answers
 - A payroll employer name cut short by the bank (e.g. "NIGERIAN U") now shows "Employer (via Remita) - your bank cuts the full name short" on its card.
 - New optional "Salary details" box (grade, pay rise, allowance schedule). It goes into the letter's employment paragraph and the form answers.
