@@ -677,7 +677,7 @@ export default function StatementDashboard({
   useEffect(() => {
     splitSalaryForSheet(groups)
       .filter((g) => g.type === 'salary' && !explanations[g.name])
-      .forEach((g) => setExplanation(g.name, /^allowances/i.test(g.name) ? 'Allowances and bonuses from my employer' : 'Salary from my employer'));
+      .forEach((g) => setExplanation(g.name, /^allowances/i.test(g.name) ? 'Allowance or bonus from my employer' : 'Salary from my employer'));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groups]);
 

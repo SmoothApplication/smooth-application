@@ -85,8 +85,8 @@ export function SourceGroupCard({
   useEffect(() => {
     if (group.type === 'salary' && !explanation) {
       const allowances = /^allowances/i.test(group.name);
-      setExplanation(allowances ? 'Allowances and bonuses from my employer' : 'Salary from my employer');
-      setReasonChoice('salary');
+      setExplanation(allowances ? 'Allowance or bonus from my employer' : 'Salary from my employer');
+      setReasonChoice(allowances ? 'allowance' : 'salary');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [group.type, explanation]);

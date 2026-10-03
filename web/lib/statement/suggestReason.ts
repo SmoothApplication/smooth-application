@@ -53,7 +53,8 @@ const KEYWORD_RULES: { value: string; re: RegExp; word: string }[] = [
 // too generic to guess.
 const NO_SUGGESTION_TYPES = new Set(['self', 'reversal', 'interest', 'internal', 'other']);
 
-export function suggestReasonForGroup(group: Pick<SourceGroup, 'type' | 'txns'>): ReasonSuggestion | null {
+export function suggestReasonForGroup(group: Pick<SourceGroup, 'type' | 'txns'> & { name?: string }): ReasonSuggestion | null {
+  if (group.type === 'salary' && /^allowances/i.test(group.name || '')) return { value: 'allowance', label: LABELS.allowance, why: 'these are allowances and bonuses paid by your employer' };
   if (group.type === 'salary') return { value: 'salary', label: LABELS.salary, why: 'these are your regular employer payments' };
   if (NO_SUGGESTION_TYPES.has(group.type)) return null;
   const text = (group.txns || []).map((t) => t.narration || '').join(' | ');

@@ -3,6 +3,9 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Unreleased - allowances card
+- Workplace income: the Allowances card now pre-selects "Allowance or bonus from my employer" and shows Confirmed (the label did not match the dropdown option before).
+
 ## Unreleased - four-tab statement dashboard
 - Statement page now has four tabs: Your statement (facts, name, inflow filter), Income sources (non-employer sources + spreadsheet), Workplace income (employer/business fields and Salary/Allowances cards), Report (one flat list: readiness result, cash flow and financial summary, flagged inflows, income sources, Top 10 inflows, Top 10 senders, personal supporting letter).
 - Report sections no longer fold. Employer pay is pre-filled as soon as the statement loads, whichever tab is open.
