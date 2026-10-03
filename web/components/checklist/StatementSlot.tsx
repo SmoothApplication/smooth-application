@@ -21,7 +21,6 @@ import {
 } from '@/lib/statement';
 import StatementDashboard from '@/components/checklist/StatementDashboard';
 import ParseProblemReport from '@/components/checklist/ParseProblemReport';
-import ResumeReminderLinks from '@/components/checklist/ResumeReminderLinks';
 import { trackEvent } from '@/lib/analytics';
 import { syncFinancialInputsFromStatement } from '@/lib/checklist/financeStatementSync';
 import { dispatchChecklistUpdated } from '@/lib/checklist/liveUpdateEvents';
@@ -449,12 +448,6 @@ export default function StatementSlot({
           Upload a bank statement (PDF, Excel export, or a clear photo/scan) to see who&apos;s
           paying you, and whether a reviewer would find any gaps.
         </p>
-
-        <ResumeReminderLinks
-          visaName={visaName}
-          whatToBring="my last 3–6 months of bank statements"
-          prompt="Haven't downloaded your bank statements yet? Send yourself a reminder with the link back to this page:"
-        />
 
         <div>
           <label className="mb-2 block text-sm font-medium text-[#12232e]" htmlFor={`${storageKey}-file`}>
