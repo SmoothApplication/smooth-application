@@ -208,14 +208,19 @@ export default function PersonalLetterPanel({ code, inline = false }: PersonalLe
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [answersLoaded, detailsLoaded, answers, details, dates, lowerCode, countryName, visaName]);
 
+  // Hooks must run on every render, so they sit above the early return below.
+  const letterTextForEffects = letterInput && checkLetterSufficiency(letterInput).sufficient ? renderLetterText(buildLetterPayload(letterInput)) : '';
+  useEffect(() => {
+    try { if (letterTextForEffects) secureStorage.setItem(`sa_${lowerCode}_letter_text`, letterTextForEffects); } catch { /* ignore */ }
+  }, [letterTextForEffects, lowerCode]);
+  useEffect(() => { if (letterTextForEffects) trackEvent('letter_generated'); }, [!!letterTextForEffects]); // eslint-disable-line react-hooks/exhaustive-deps
+  const needsHelpNow = !!letterInput && needsHelpWithBalance((letterInput.closingBalance || 0) + details.otherSavings.reduce((a, r) => a + (r.balance || 0), 0));
+  useEffect(() => { if (needsHelpNow) trackEvent('help_offer:shown'); }, [needsHelpNow]);
+
   if (!letterInput) return null;
 
   const sufficiency = checkLetterSufficiency(letterInput);
-  const letterText = sufficiency.sufficient ? renderLetterText(buildLetterPayload(letterInput)) : '';
-  useEffect(() => {
-    try { if (letterText) secureStorage.setItem(`sa_${lowerCode}_letter_text`, letterText); } catch { /* ignore */ }
-  }, [letterText, lowerCode]);
-  useEffect(() => { if (letterText) trackEvent('letter_generated'); }, [!!letterText]); // eslint-disable-line react-hooks/exhaustive-deps
+  const letterText = letterTextForEffects;
 
   function handleCopy() {
     navigator.clipboard?.writeText(letterText).then(
@@ -314,7 +319,6 @@ export default function PersonalLetterPanel({ code, inline = false }: PersonalLe
       </div>
     </div>
   ) : null;
-  useEffect(() => { if (needsHelpWithBalance(totalBalance)) trackEvent('help_offer:shown'); }, [needsHelpWithBalance(totalBalance)]); // eslint-disable-line react-hooks/exhaustive-deps
   const formBox = inline && formAnswers.length ? (
     <div className="mt-4 rounded-lg border border-black/10 bg-white p-3">
       <h3 className="text-sm font-semibold text-[#12232e]">📋 Answers for the visa application form</h3>

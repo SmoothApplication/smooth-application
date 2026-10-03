@@ -3,6 +3,9 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Unreleased - hotfix
+- Fixed Final review crash ("Application error", React #310): the letter panel's new effects ran after an early return. They now sit above it.
+
 ## Unreleased - payslip and flight upload
 - Letter panel: upload a payslip (reads net/gross pay and month) and a flight reservation (fills travel and return dates). Read on-device with OCR fallback; nothing is uploaded.
 - Letter income paragraph cites the payslip and says when net pay matches the statement salary credits.
