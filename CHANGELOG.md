@@ -4,6 +4,7 @@ Development milestones to date, grouped by feature batch rather than exact dates
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
 ## Letter and form built from the statement (modelled on a consultant's hand-made pack)
+- Fix: the employer typed in the letter box ("Who pays your salary?") now reaches the statement cards, so employer payments regroup under Salary at once; the match check also counts Remita payments whose remitter is a cut-off start of the employer name. Removed the reminder prompt from the statement upload card.
 - Excel: employer pay is shown as two sections, "Salary" and "Allowances and bonuses from employer", each with its own subtotal (totals unchanged).
 - Letter: optional job title, start date, job description, previous job, trip plans and other savings/investment accounts, listed with a savings total.
 - New "Answers for the visa application form" box: monthly net salary, savings, monthly spend and trip budget worked out from the statement, converted to pounds at a rate the person types, each with a Copy button.

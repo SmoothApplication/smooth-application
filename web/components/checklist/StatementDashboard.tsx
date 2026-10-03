@@ -330,6 +330,15 @@ export default function StatementDashboard({
       return next;
     });
   }
+  // The letter box ("Who pays your salary?") sits below the cards; typing there updates this value too.
+  useEffect(() => {
+    function onLetterEmployer(e: Event) {
+      const d = (e as CustomEvent<{ name?: string }>).detail;
+      if (d && typeof d.name === 'string') setEmployerName(d.name);
+    }
+    window.addEventListener('sa:employer-name', onLetterEmployer);
+    return () => window.removeEventListener('sa:employer-name', onLetterEmployer);
+  }, []);
   useEffect(() => {
     onEmployerNameChange?.(employerName);
     // eslint-disable-next-line react-hooks/exhaustive-deps

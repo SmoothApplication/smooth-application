@@ -97,6 +97,11 @@ export default function PersonalLetterPanel({ code, inline = false }: PersonalLe
   }, [lowerCode]);
 
   function saveDetails(next: LetterDetails) {
+    // The statement dashboard groups employer pay under Salary using its own employer field; tell it when
+    // the name typed here changes so the cards above regroup straight away.
+    if (next.employerName !== details.employerName && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('sa:employer-name', { detail: { code: lowerCode, name: next.employerName } }));
+    }
     setDetails(next);
     try { secureStorage.setItem(detailsKey, JSON.stringify(next)); } catch { /* ignore */ }
   }

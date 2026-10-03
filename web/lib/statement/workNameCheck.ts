@@ -21,6 +21,7 @@
 // targeted than the original.
 import type { ParsedTxn } from './types';
 import { nameAppearsInStatementText, toTitleCase } from './names';
+import { extractRemitaRemitter } from './remitaReason';
 import {
   findInflowsMatchingName,
   extractNarrationReason,
@@ -78,7 +79,19 @@ export type WorkCategoryMap = Record<string, WorkCategoryChoice>;
  * but the applicant's own typed `name` is still what every message shows. */
 export function computeWorkNameCheck(input: WorkNameCheckInput, txns: ParsedTxn[]): WorkNameCheckResult {
   const matchName = input.altName ? `${input.name} ${input.altName}` : input.name;
-  const { words, matches: inflowMatches } = findInflowsMatchingName(matchName, txns);
+  const found0 = findInflowsMatchingName(matchName, txns);
+  const words = found0.words;
+  // The bank cuts Remita remitter names short ("NIGERIAN" for "Nigerian Upstream Petroleum ..."): a credit
+  // whose remitter is the start of the typed employer name is that employer's payment too.
+  const lowerEmployer = (input.name || '').trim().toLowerCase();
+  const inflowMatches = found0.matches.slice();
+  if (lowerEmployer) {
+    txns.forEach((t) => {
+      if (!(t.credit > 0) || inflowMatches.indexOf(t) >= 0) return;
+      const r = extractRemitaRemitter(t.narration);
+      if (r && r.length >= 4 && lowerEmployer.indexOf(r.toLowerCase()) === 0) inflowMatches.push(t);
+    });
+  }
   const inflowTotal = inflowMatches.reduce((s, t) => s + t.credit, 0);
 
   const reasonCounts: Record<string, { display: string; count: number }> = {};
