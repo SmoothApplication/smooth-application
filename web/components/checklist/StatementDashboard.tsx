@@ -25,6 +25,7 @@ import {
   SenderInflowGroup,
   buildFlaggedTxnReasons,
   suggestReasonForGroup,
+  describeGroupForSheet,
   reviewStatusFor,
   REVIEW_STATUS_LABEL,
 } from '@/lib/statement';
@@ -455,7 +456,7 @@ export default function StatementDashboard({
       const aoa = buildIncomeBreakdownAoa(groups, displayName, explanations, flaggedTxnReasonsForExport, (g) => {
         const s = suggestReasonForGroup(g);
         return {
-          suggested: s ? s.label : '',
+          suggested: describeGroupForSheet(g),
           status: REVIEW_STATUS_LABEL[reviewStatusFor(s, explanations[g.name] || '')],
         };
       });

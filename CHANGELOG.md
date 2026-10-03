@@ -3,6 +3,12 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Reason read straight from the statement (Remita payroll, birthdays, leftover wording)
+
+- Remita payroll narrations ("STAFFSALARYFORMARCH2026", "2NDQUARTERALLOWANCES2026TOSTAFF", "EMPLOYEEFAMILYBURIALASSISTANCE", ...) are split back into words and shown in the Reason column.
+- Sheet "Suggested reason": Salary first, then Allowances, then others (Bonus, Burial assistance...); birthday shows as "Gift (birthday)"; any other non-name wording shows as "Check: ..." for review. Status stays "Needs your review".
+- Tests: `remita-purpose.test.ts`.
+
 ## Suggestion wording fixes
 
 - The suggestion now quotes the word actually found in the narration (e.g. "birthday", not always "gift"), and Remita payroll is explained as likely employer pay.

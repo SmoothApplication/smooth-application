@@ -8,6 +8,8 @@
 // the privacy promise rules out). When there isn't a real signal it returns null and the dropdown
 // stays blank rather than guessing.
 import type { SourceGroup } from './types';
+import { extractRemitaPurpose, remitaCategory } from './remitaReason';
+import { extractNarrationReason } from './classify';
 
 export interface ReasonSuggestion {
   /** One of UNEXPLAINED_REASON_OPTIONS' values. */
@@ -85,3 +87,39 @@ export const REVIEW_STATUS_LABEL: Record<ReviewStatus, string> = {
   edited: 'Edited by you',
   needs_review: 'Needs your review',
 };
+
+// Sheet column "Suggested reason" - kept deliberately simple: whatever the statement itself says.
+// Order: Salary first, then Allowances, then everything else in the order found.
+const CATEGORY_ORDER = ['Salary', 'Allowances'];
+const TEXT_CATEGORIES: { re: RegExp; label: (m: RegExpExecArray) => string }[] = [
+  { re: /\bsalar(y|ies)\b/i, label: () => 'Salary' },
+  { re: /\ballowances?\b/i, label: () => 'Allowances' },
+  { re: /\bbonus\b/i, label: () => 'Bonus' },
+  { re: /\b(birthday|b'?day|hbd)\b/i, label: (m) => 'Gift (' + (m[0].toLowerCase() === 'hbd' ? 'birthday' : m[0].toLowerCase()) + ')' },
+];
+
+export function describeGroupForSheet(group: Pick<SourceGroup, 'type' | 'txns'> & { name?: string }): string {
+  const cats: string[] = [];
+  const add = (c: string) => { if (cats.indexOf(c) === -1) cats.push(c); };
+  (group.txns || []).forEach((t) => {
+    const purpose = extractRemitaPurpose(t.narration);
+    if (purpose) add(remitaCategory(purpose));
+    TEXT_CATEGORIES.forEach((tc) => {
+      const m = tc.re.exec(t.narration || '');
+      if (m) add(tc.label(m));
+    });
+  });
+  if (cats.length) {
+    const rank = (c: string) => { const i = CATEGORY_ORDER.indexOf(c); return i === -1 ? CATEGORY_ORDER.length : i; };
+    return cats.map((c, i) => ({ c, i })).sort((a, b) => rank(a.c) - rank(b.c) || a.i - b.i).map((x) => x.c).join(', ');
+  }
+  const sug = suggestReasonForGroup(group);
+  if (sug) return sug.label;
+  // Anything left that is wording but not a name: surface it for the reviewer instead of dropping it.
+  const nameWords = group.name ? group.name.toUpperCase().split(/\s+/) : [];
+  for (const t of group.txns || []) {
+    const leftover = extractNarrationReason(t.narration, nameWords);
+    if (leftover) return 'Check: ' + leftover;
+  }
+  return '';
+}

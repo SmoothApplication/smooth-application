@@ -1,0 +1,43 @@
+// Real Providus Remita narrations (Adepeju Popoola): the purpose is glued into one token.
+import { extractRemitaPurpose } from '../remitaReason';
+import { extractNarrationReason } from '../classify';
+import { describeGroupForSheet } from '../suggestReason';
+import type { SourceGroup } from '../types';
+
+const N = {
+  salary: 'REMITA INFLOW R-1445788162/NIGERIAN U:STAFFSALARYFORMARCH2026:CBN:14457955/90144578 81620',
+  qtr: 'REMITA INFLOW R-1450507303/NIGERIAN U:2NDQUARTERALLOWANCES2026TOSTAFF:CBN:/901450 5073030',
+  annual: 'REMITA INFLOW R-1463090335/NIGERIAN U:ANNUALINTERVENTIONALLOWANCETONUPRCST/901 4630903350',
+  burial: 'REMITA INFLOW R-1464021004/NIGERIAN U:EMPLOYEEFAMILYBURIALASSISTANCE:CBN:1/9014640 210040',
+  bonus: 'REMITA INFLOW R-1506814400/NIGERIAN U:ENDOFNEGOTIATIONBONUS2026:CBN:150685/90150681 44000',
+  oneoff: 'REMITA INFLOW R-1510509599/NIGERIAN U:2026ONEOFFPRODUCTIVITYRECOGNITIONALL/9015105 095990',
+};
+
+test('glued Remita purposes are split into words', () => {
+  expect(extractRemitaPurpose(N.salary)).toBe('Staff salary for March 2026');
+  expect(extractRemitaPurpose(N.qtr)).toBe('2nd quarter allowances 2026 to staff');
+  expect(extractRemitaPurpose(N.annual)).toBe('Annual intervention allowance to NUPRC');
+  expect(extractRemitaPurpose(N.burial)).toBe('Employee family burial assistance');
+  expect(extractRemitaPurpose(N.bonus)).toBe('End of negotiation bonus 2026');
+  expect(extractRemitaPurpose(N.oneoff)).toBe('2026 one off productivity recognition');
+});
+test('non-Remita narrations are untouched', () => {
+  expect(extractRemitaPurpose('NIP/TUNDE BAKARE/rent')).toBeNull();
+});
+test('feeds the Reason column', () => {
+  expect(extractNarrationReason(N.bonus, ['NIGERIAN'])).toBe('End of negotiation bonus 2026');
+});
+test('sheet summary puts Salary first, then Allowances, then the rest', () => {
+  const t = (n: string) => ({ date: new Date(2026, 0, 1), narration: n, credit: 1, debit: 0, balance: 0 });
+  const grp = { type: 'company', txns: [N.bonus, N.burial, N.qtr, N.salary].map(t) } as unknown as SourceGroup;
+  expect(describeGroupForSheet(grp)).toBe('Salary, Allowances, Bonus, Burial assistance');
+  const sal = { type: 'salary', txns: [t(N.salary)] } as unknown as SourceGroup;
+  expect(describeGroupForSheet(sal)).toBe('Salary');
+});
+
+test('birthday shows as Gift (birthday); leftover wording is surfaced for review', () => {
+  const t = (n: string) => ({ date: new Date(2026, 0, 1), narration: n, credit: 1, debit: 0, balance: 0 });
+  const g = (type: string, n: string) => ({ type, name: 'Ladenika Adebowale', txns: [t(n)] } as unknown as SourceGroup);
+  expect(describeGroupForSheet(g('personal', 'FROM GTBANK/ LADENIKA ADEBOWALE/HAPPY BIRTHDAY SIS'))).toBe('Gift (birthday)');
+  expect(describeGroupForSheet(g('personal', 'NIP/LADENIKA ADEBOWALE/pls keep this for me'))).toMatch(/^Check: /);
+});

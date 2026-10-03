@@ -1,3 +1,4 @@
+import { extractRemitaPurpose } from './remitaReason';
 // Classification, ported from index.html (~lines 11741-12106, 11858-11957, 12431-12469, 12938-13026,
 // 13768-14125).
 
@@ -192,6 +193,8 @@ export const NARRATION_CHANNEL_WORDS = [
 
 export function extractNarrationReason(narration: string | null | undefined, nameWords?: string[] | null): string | null {
   if (!narration) return null;
+  const remita = extractRemitaPurpose(narration);
+  if (remita) return remita;
   const parts = narration.split('/').map((p) => p.trim()).filter(Boolean);
   const upperNameWords = nameWords || [];
   const candidates = parts.filter((p) => {
