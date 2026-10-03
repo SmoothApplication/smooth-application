@@ -477,10 +477,17 @@ export default function StatementDashboard({
         return {
           suggested: describeGroupForSheet(g),
           note: getResearchNote(explanations, g.name),
-          status: REVIEW_STATUS_LABEL[reviewStatusFor(s, explanations[g.name] || '')],
+          status: REVIEW_STATUS_LABEL[g.type === 'salary' ? 'confirmed' : reviewStatusFor(s, explanations[g.name] || '')],
         };
       });
-      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      const ws = XLSX.utils.aoa_to_sheet(aoa, { cellDates: true });
+      Object.keys(ws).forEach((addr) => {
+        const c = ws[addr];
+        if (!c || addr[0] === '!') return;
+        if (c.t === 'd') c.z = 'dd mmm yyyy';
+        else if (c.t === 'n') c.z = '#,##0.00';
+      });
+      ws['!cols'] = [{ wch: 34 }, { wch: 10 }, { wch: 13 }, { wch: 16 }, { wch: 38 }, { wch: 60 }, { wch: 40 }, { wch: 24 }, { wch: 18 }];
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Income Breakdown');
       if (actionPlan) {

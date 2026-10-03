@@ -7,6 +7,8 @@ import type { FinalSummaryInput } from './finalSummary';
 export interface ActionPlanInput extends FinalSummaryInput {
   /** More than one income account in play (a second statement uploaded). */
   hasSecondStatement?: boolean;
+  /** Employer allowances/bonuses are larger than regular salary (a reviewer will ask about them). */
+  largeEmployerAllowances?: boolean;
 }
 
 export interface ActionPlan {
@@ -44,6 +46,9 @@ export function buildActionPlan(i: ActionPlanInput): ActionPlan {
     doList.push('Add proof of where your money comes from: employment letter, payslips or business records.');
   } else if (i.hasSalaryIncome) {
     doList.push('Make sure your employment letter and payslips show the same salary as the credits on this statement.');
+  }
+  if (i.largeEmployerAllowances) {
+    doList.push('Ask your employer for a short letter confirming your allowances and bonuses (what they are and how often they are paid). They make up a large part of your income, so a reviewer will want proof.');
   }
   if (i.totalOutflow > i.totalInflow) {
     doList.push('Spend less for a while. You spent more than came in, which makes your savings look thin.');

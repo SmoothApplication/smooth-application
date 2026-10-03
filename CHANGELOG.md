@@ -3,6 +3,10 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Unreleased - spreadsheet polish
+- Excel: real sortable dates and 2-decimal amounts, column widths, stray spaces removed from narration references, junk reasons like "TO <name>" left blank, employer groups always "Confirmed".
+- What to do: tip to get an employer letter when allowances exceed regular salary.
+
 ## Unreleased - fix-all batch
 - Letter: new "Which bank is your statement from?" box names the bank instead of "Statement 1".
 - Analysis tab: Salary and "Allowances and bonuses from employer" shown as two cards (allowances pre-filled).

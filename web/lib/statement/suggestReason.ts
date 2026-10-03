@@ -124,7 +124,7 @@ export function describeGroupForSheet(group: Pick<SourceGroup, 'type' | 'txns'> 
   const nameWords = group.name ? group.name.toUpperCase().split(/\s+/) : [];
   for (const t of group.txns || []) {
     const leftover = extractNarrationReason(t.narration, nameWords);
-    if (leftover) return 'Check: ' + leftover;
+    if (leftover && !/^(to|from)\b/i.test(leftover)) return 'Check: ' + leftover;
   }
   return '';
 }

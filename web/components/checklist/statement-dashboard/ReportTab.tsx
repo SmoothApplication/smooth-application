@@ -3,6 +3,7 @@
 import { ReactNode, useEffect, useMemo } from 'react';
 import {
   ParsedTxn,
+  splitSalaryForSheet,
   SourceGroups,
   TopConsistentSender,
   findUnexplainedLargeInflows,
@@ -208,6 +209,12 @@ export function ReportTab({
     statementCurrencyIssues,
     unexplainedGroupCount: flaggedGroups.length,
   });
+  const largeEmployerAllowances = (() => {
+    const split = splitSalaryForSheet(groups);
+    const al = split.find((g) => /^allowances/i.test(g.name));
+    const sal = split.find((g) => g.type === 'salary' && !/^allowances/i.test(g.name));
+    return !!al && !!sal && al.total > sal.total;
+  })();
   const actionPlan = useMemo(
     () =>
       buildActionPlan({
@@ -220,9 +227,10 @@ export function ReportTab({
         hasOtherRecurringIncome,
         statementCurrencyIssues,
         unexplainedGroupCount: flaggedGroups.length,
+        largeEmployerAllowances,
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [openingBalance, closingBalance, totalInflow, totalOutflow, hasSalaryIncome, hasOtherRecurringIncome, statementCurrencyIssues.join(','), flaggedGroups.length]
+    [openingBalance, closingBalance, totalInflow, totalOutflow, hasSalaryIncome, hasOtherRecurringIncome, statementCurrencyIssues.join(','), flaggedGroups.length, largeEmployerAllowances]
   );
   useEffect(() => {
     onActionPlan?.(actionPlan);

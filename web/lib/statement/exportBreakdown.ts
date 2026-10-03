@@ -41,7 +41,7 @@ import type { SourceGroups } from './types';
 import { extractNarrationReason, isSalaryNarrationText } from './classify';
 import { txnSignature } from './flaggedReasons';
 
-export type SpreadsheetRow = (string | number)[];
+export type SpreadsheetRow = (string | number | Date)[];
 
 // Same set StatementDashboard.tsx's totalIncomeIdentified excludes from "real" income — kept in
 // sync deliberately (see this file's header comment) so the on-screen total and the downloaded
@@ -81,6 +81,19 @@ export function splitSalaryForSheet(groups: SourceGroups): SourceGroups {
   });
   out.missingSalaryMonths = groups.missingSalaryMonths;
   return out;
+}
+
+/** Bank PDFs wrap long references, leaving a stray space inside a number ("90144578 81620"). */
+export function tidyNarration(n: string | null | undefined): string {
+  return (n || '').replace(/(\d) (?=\d)/g, '$1');
+}
+
+/** The Reason column is for a purpose ("Staff salary", "Birthday"). Fragments like "TO POPOOLA" (the
+ * recipient's own name) are not a reason, so leave those blank rather than show junk. */
+export function cleanReason(r: string | null | undefined): string {
+  const t = (r || '').trim();
+  if (!t || /^(to|from)\b/i.test(t)) return '';
+  return t;
 }
 
 export function buildIncomeBreakdownAoa(
@@ -155,10 +168,10 @@ export function buildIncomeBreakdownAoa(
       aoa.push([
         i === 0 ? displayName(g.name) : '',
         i === 0 ? g.type : '',
-        t.date.toDateString(),
-        Math.round(t.credit),
-        reason || '',
-        t.narration || '(none)',
+        t.date,
+        Math.round(t.credit * 100) / 100,
+        cleanReason(reason),
+        tidyNarration(t.narration) || '(none)',
         // A flagged-inflow answer (specific to this exact transaction) takes precedence and shows
         // on its own row; otherwise the group-level explanation is shown once on the group's first
         // row, same "shown once" convention as Source/Type above.
