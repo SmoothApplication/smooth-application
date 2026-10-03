@@ -85,10 +85,11 @@ export function AnalysisTab({
   const coveredBySalary = (senderName: string) =>
     salaryGroupsExplained.some((g) => g.txns.some((t) => (t.narration || '').toUpperCase().includes(senderName.toUpperCase())));
   // The employer is already shown (and explained) in the Salary / Allowances cards, so it is left out of the
-  // Top 10 table and its total. The concentration check further down still counts every sender.
+  // Top 10 table, its total and the concentration check below (employer pay is taken out of both sides).
   const shownSenders = topSenders.list.filter((s) => !coveredBySalary(s.name));
-  const topSendersTotal = topSenders.list.reduce((s, x) => s + x.total, 0);
-  const totalInflow6mo = cashFlowRows.reduce((s, r) => s + r.inflow, 0);
+  const employerPay = salaryGroupsExplained.reduce((s, g) => s + g.total, 0);
+  const topSendersTotal = shownSenders.reduce((s, x) => s + x.total, 0);
+  const totalInflow6mo = cashFlowRows.reduce((s, r) => s + r.inflow, 0) - employerPay;
   const topSendersRatio = totalInflow6mo > 0 ? topSendersTotal / totalInflow6mo : 0;
   const topSendersGood = topSendersRatio >= 0.5;
 
@@ -490,16 +491,16 @@ export function AnalysisTab({
               })}
           </div>
         )}
-        {topSenders.list.length > 0 && totalInflow6mo > 0 && (
+        {shownSenders.length > 0 && totalInflow6mo > 0 && (
           <div
             className={`mt-3 rounded-lg p-3 text-sm ${
               topSendersGood ? 'bg-good-wash text-good' : 'bg-warn-wash text-warn-text'
             }`}
           >
-            {topSendersGood ? '✅' : '⚠️'} These {topSenders.list.length} sender
-            {topSenders.list.length === 1 ? '' : 's'} account for{' '}
+            {topSendersGood ? '✅' : '⚠️'} These {shownSenders.length} sender
+            {shownSenders.length === 1 ? '' : 's'} account for{' '}
             <b>{Math.round(topSendersRatio * 100)}%</b> ({formatAmount(topSendersTotal)} of{' '}
-            {formatAmount(totalInflow6mo)}) of your total inflow over the last{' '}
+            {formatAmount(totalInflow6mo)}) of your {employerPay > 0 ? 'non-employer ' : 'total '}inflow over the last{' '}
             {cashFlowRows.length} month{cashFlowRows.length === 1 ? '' : 's'}.
             {topSendersGood
               ? ' Above 50% — good to go: a reviewer can trace most of your money to a short, identifiable list of payers.'
