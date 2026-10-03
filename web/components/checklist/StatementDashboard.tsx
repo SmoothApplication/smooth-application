@@ -67,7 +67,11 @@ import { ReportTab } from './statement-dashboard/ReportTab';
 // and persisted per employer/business (workNameCheck.ts's WorkCategoryMap) — two separate maps since
 // an applicant can be both employed and self-employed with different payments for each.
 
+import * as secureStorage from '@/lib/security/secureStorage';
+
 interface StatementDashboardProps {
+  /** Storage key of the generated personal letter text, if any (adds a 'Personal letter' sheet to the Excel). */
+  letterTextKey?: string;
   txns: ParsedTxn[];
   /** Initial values only (uncontrolled) - this component owns the live state internally and
    * reports changes back up via the on*Change callbacks below, so a parent page can persist them
@@ -199,6 +203,7 @@ export default function StatementDashboard({
   onBusinessDeclaredMonthlyIncomeChange,
   financialHref = '/checklist/uk/financial',
   otherStatementSummary = null,
+  letterTextKey,
 }: StatementDashboardProps) {
   const [applicantName, setApplicantName] = useState(initialApplicantName);
   const [maidenName, setMaidenName] = useState(initialMaidenName);
@@ -487,6 +492,14 @@ export default function StatementDashboard({
         ps['!cols'] = [{ wch: 110 }];
         XLSX.utils.book_append_sheet(wb, ps, 'What to do');
       }
+      try {
+        const lt = letterTextKey ? secureStorage.getItem(letterTextKey) : null;
+        if (lt) {
+          const ls = XLSX.utils.aoa_to_sheet(lt.split('\n').map((l) => [l]));
+          ls['!cols'] = [{ wch: 110 }];
+          XLSX.utils.book_append_sheet(wb, ls, 'Personal letter');
+        }
+      } catch { /* letter is optional */ }
       const base64 = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
       const res = await fetch('/api/email-income-breakdown', {
         method: 'POST',

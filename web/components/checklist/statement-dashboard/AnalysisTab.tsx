@@ -11,6 +11,7 @@ import {
   senderPairKey,
   MonthlyCashFlowRow,
   researchNoteKey,
+  splitSalaryForSheet,
 } from '@/lib/statement';
 import { formatAmount, formatDate } from './shared';
 import { SourceGroupCard } from './SourceGroupCard';
@@ -139,7 +140,7 @@ export function AnalysisTab({
           <p className="text-sm text-[#566a76]">No credits were found on this statement.</p>
         ) : (
           <div className="flex flex-col gap-3">
-            {groups.filter((g) => g.type !== 'self').map((g) => (
+            {splitSalaryForSheet(groups).filter((g) => g.type !== 'self').map((g) => (
               <SourceGroupCard
                 key={g.name}
                 group={g}

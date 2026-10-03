@@ -3,6 +3,12 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Unreleased - fix-all batch
+- Letter: new "Which bank is your statement from?" box names the bank instead of "Statement 1".
+- Analysis tab: Salary and "Allowances and bonuses from employer" shown as two cards (allowances pre-filled).
+- Word download is now a real .docx (built on-device); the emailed Excel gains a "Personal letter" sheet.
+- GoatCounter events: employer_filled, letter_generated, letter_download:word, help_offer:shown/ask/pay.
+
 ## Letter and form built from the statement (modelled on a consultant's hand-made pack)
 - Form answers now use the average salary credit on the statement (same figure as the letter). Balances under ₦3,000,000 get an "Ask for help" card with a fees link: set NEXT_PUBLIC_FEES_PAYMENT_URL to a real payment page; until then it opens WhatsApp with the details filled in.
 - Fix: the employer typed in the letter box ("Who pays your salary?") now reaches the statement cards, so employer payments regroup under Salary at once; the match check also counts Remita payments whose remitter is a cut-off start of the employer name. Removed the reminder prompt from the statement upload card.

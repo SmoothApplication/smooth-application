@@ -10,8 +10,9 @@ import {
   StatementSummary,
   SourceGroups,
 } from '@/lib/statement';
+import { trackEvent } from '@/lib/analytics';
 import SavedIndicator from '@/components/checklist/SavedIndicator';
-import { buildFormAnswers, OtherSavingsRow, suggestEmployerNames, hasSalaryLikeIncome, EmployerSuggestion, checkLetterSufficiency, buildLetterPayload, renderLetterText, renderLetterHtml, LetterInput, needsHelpWithBalance, shortfall, helpWhatsAppHref, feesPaymentHref, hasFeesPaymentLink } from '@/lib/letter';
+import { buildFormAnswers, OtherSavingsRow, suggestEmployerNames, hasSalaryLikeIncome, EmployerSuggestion, checkLetterSufficiency, buildLetterPayload, renderLetterText, LetterInput, buildLetterDocxBlob, needsHelpWithBalance, shortfall, helpWhatsAppHref, feesPaymentHref, hasFeesPaymentLink } from '@/lib/letter';
 import { computeWorkNameCheck } from '@/lib/statement/workNameCheck';
 import type { ParsedTxn } from '@/lib/statement/types';
 import { NIGERIA_STATES, NIGERIA_STATES_LGA } from '@/lib/checklist/nigeriaLocations';
@@ -40,14 +41,14 @@ export type PersonalLetterPanelProps = {
 };
 
 type LetterDetails = {
-  applicantName: string; employerName: string; businessName: string; phone: string; email: string;
+  bankName: string; applicantName: string; employerName: string; businessName: string; phone: string; email: string;
   jobTitle: string; startedWhen: string; jobDescription: string; previousEmployment: string; plans: string;
   otherSavings: OtherSavingsRow[]; ratePerGbp: string; plannedSpend: string;
 };
 const EMPTY_DETAILS: LetterDetails = {
   applicantName: '', employerName: '', businessName: '', phone: '', email: '',
   jobTitle: '', startedWhen: '', jobDescription: '', previousEmployment: '', plans: '',
-  otherSavings: [], ratePerGbp: '', plannedSpend: '',
+  otherSavings: [], ratePerGbp: '', plannedSpend: '', bankName: '',
 };
 const PURPOSES: { value: string; label: string }[] = [
   { value: 'tourism', label: 'Tourism / holiday' },
@@ -107,6 +108,7 @@ export default function PersonalLetterPanel({ code, inline = false }: PersonalLe
     // The statement dashboard groups employer pay under Salary using its own employer field; tell it when
     // the name typed here changes so the cards above regroup straight away.
     if (next.employerName !== details.employerName && typeof window !== 'undefined') {
+      if (next.employerName.trim().length > 3) trackEvent('employer_filled');
       window.dispatchEvent(new CustomEvent('sa:employer-name', { detail: { code: lowerCode, name: next.employerName } }));
     }
     setDetails(next);
@@ -138,7 +140,7 @@ export default function PersonalLetterPanel({ code, inline = false }: PersonalLe
       const txns = deserializeTxns(s.txns || []);
       totalInflow += txns.reduce((sum, t) => sum + (t.credit || 0), 0);
       totalOutflow += txns.reduce((sum, t) => sum + (t.debit || 0), 0);
-      summaries.push(summarizeStatement(s.label || `Statement ${i + 1}`, txns));
+      summaries.push(summarizeStatement((i === 0 && details.bankName.trim()) || s.label || `Statement ${i + 1}`, txns));
       const g = buildIncomeSourceBreakdown(txns, applicantName, s.maidenName, undefined, {
         minInflow: 50000,
         dropReversals: true,
@@ -185,6 +187,10 @@ export default function PersonalLetterPanel({ code, inline = false }: PersonalLe
 
   const sufficiency = checkLetterSufficiency(letterInput);
   const letterText = sufficiency.sufficient ? renderLetterText(buildLetterPayload(letterInput)) : '';
+  useEffect(() => {
+    try { if (letterText) secureStorage.setItem(`sa_${lowerCode}_letter_text`, letterText); } catch { /* ignore */ }
+  }, [letterText, lowerCode]);
+  useEffect(() => { if (letterText) trackEvent('letter_generated'); }, [!!letterText]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleCopy() {
     navigator.clipboard?.writeText(letterText).then(
@@ -206,13 +212,13 @@ export default function PersonalLetterPanel({ code, inline = false }: PersonalLe
     URL.revokeObjectURL(url);
   }
 
-  function handleWord() {
-    const html = renderLetterHtml(buildLetterPayload(letterInput as LetterInput));
-    const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
+  async function handleWord() {
+    trackEvent('letter_download:word');
+    const blob = await buildLetterDocxBlob(buildLetterPayload(letterInput as LetterInput));
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${lowerCode}-personal-letter.doc`;
+    a.download = `${lowerCode}-personal-letter.docx`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -274,15 +280,16 @@ export default function PersonalLetterPanel({ code, inline = false }: PersonalLe
         You are ₦{Math.round(shortfall(totalBalance)).toLocaleString('en-NG')} short. Don&apos;t borrow a lump sum to cover it - that can look worse. Ask us for help: we will go through your statement with you and tell you the safest way to strengthen your application.
       </p>
       <div className="mt-2 flex flex-wrap gap-2">
-        <a href={helpWhatsAppHref(totalBalance, visaName)} target="_blank" rel="noopener noreferrer" className="rounded-lg border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-[#12232e]">
+        <a onClick={() => trackEvent('help_offer:ask')} href={helpWhatsAppHref(totalBalance, visaName)} target="_blank" rel="noopener noreferrer" className="rounded-lg border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-[#12232e]">
           💬 Ask for help
         </a>
-        <a href={feesPaymentHref(totalBalance, visaName)} target="_blank" rel="noopener noreferrer" className="btn-primary text-sm">
+        <a onClick={() => trackEvent('help_offer:pay')} href={feesPaymentHref(totalBalance, visaName)} target="_blank" rel="noopener noreferrer" className="btn-primary text-sm">
           {hasFeesPaymentLink() ? '💳 Pay our fees' : '💳 Get help with our fees'}
         </a>
       </div>
     </div>
   ) : null;
+  useEffect(() => { if (needsHelpWithBalance(totalBalance)) trackEvent('help_offer:shown'); }, [needsHelpWithBalance(totalBalance)]); // eslint-disable-line react-hooks/exhaustive-deps
   const formBox = inline && formAnswers.length ? (
     <div className="mt-4 rounded-lg border border-black/10 bg-white p-3">
       <h3 className="text-sm font-semibold text-[#12232e]">📋 Answers for the visa application form</h3>
@@ -362,6 +369,8 @@ export default function PersonalLetterPanel({ code, inline = false }: PersonalLe
       <p className="text-xs font-semibold text-[#12232e] sm:col-span-2 mt-2">About you (fills your letter and the visa form)</p>
       {letterInput.employed && (
         <>
+          <label className="text-xs text-[#4c6270]">Which bank is your statement from?
+            <input className={inputCls} placeholder="e.g. Providus Bank" value={details.bankName} onChange={(e) => saveDetails({ ...details, bankName: e.target.value })} /></label>
           <label className="text-xs text-[#4c6270]">Job title
             <input className={inputCls} value={details.jobTitle} onChange={(e) => saveDetails({ ...details, jobTitle: e.target.value })} />
           </label>

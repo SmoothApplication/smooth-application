@@ -84,7 +84,8 @@ export function SourceGroupCard({
   // The Salary group is, by definition, the applicant's salary: fill it in for them rather than asking.
   useEffect(() => {
     if (group.type === 'salary' && !explanation) {
-      setExplanation('Salary from my employer');
+      const allowances = /^allowances/i.test(group.name);
+      setExplanation(allowances ? 'Allowances and bonuses from my employer' : 'Salary from my employer');
       setReasonChoice('salary');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
