@@ -2,7 +2,7 @@
 // appears on the statement (a visa officer weighs steady, sustainable monthly income heavily). To make
 // that easy to fill, we offer the payer names already visible in the statement as one-tap choices.
 import type { SourceGroups, ParsedTxn } from '@/lib/statement/types';
-import { extractRemitaPurpose } from '@/lib/statement/remitaReason';
+import { extractRemitaPurpose, extractRemitaRemitter } from '@/lib/statement/remitaReason';
 
 export interface EmployerSuggestion {
   name: string;
@@ -14,9 +14,6 @@ function titleCase(s: string): string {
   return s.toLowerCase().replace(/\b[a-z]/g, (c) => c.toUpperCase());
 }
 
-// Remita payroll narrations look like "INFLOW R-123/NIGERIAN U:STAFFSALARY..." - the remitter is the text
-// just before "U:".
-const REMITTER_RE = /(?:INFLOW\s+)?(?:R-\d+\/)?([A-Za-z][A-Za-z &.'-]{2,40}?)\s+U\s*:/i;
 
 export function suggestEmployerNames(groups: SourceGroups): EmployerSuggestion[] {
   const found = new Map<string, EmployerSuggestion>();
@@ -31,16 +28,16 @@ export function suggestEmployerNames(groups: SourceGroups): EmployerSuggestion[]
   groups.forEach((g) => {
     if (g.type === 'salary') {
       g.txns.forEach((t) => {
-        const m = REMITTER_RE.exec(t.narration || '');
-        if (m) add(m[1], t);
+        const r = extractRemitaRemitter(t.narration);
+        if (r) add(r, t);
       });
     } else if (g.type === 'company') {
       add(g.name, null, g.total, g.count);
       // A company paying through Remita is almost certainly the employer.
       if (g.txns.some((t) => extractRemitaPurpose(t.narration))) {
         g.txns.forEach((t) => {
-          const m = REMITTER_RE.exec(t.narration || '');
-          if (m && m[1].toLowerCase() !== g.name.toLowerCase()) add(m[1], t);
+          const r = extractRemitaRemitter(t.narration);
+          if (r && r.toLowerCase() !== g.name.toLowerCase()) add(r, t);
         });
       }
     }

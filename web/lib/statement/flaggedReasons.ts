@@ -69,6 +69,8 @@ export interface FlaggedReasonOption {
 // answer as unreviewed free text. "Other" still opens a one-line free-text field for anything that
 // doesn't fit one of these.
 export const UNEXPLAINED_REASON_OPTIONS: FlaggedReasonOption[] = [
+  { value: 'salary', label: 'Salary from my employer' },
+  { value: 'allowance', label: 'Allowance or bonus from my employer' },
   { value: 'family', label: 'Family support' },
   { value: 'gift', label: 'Gift' },
   { value: 'loan', label: 'Loan or loan repayment' },

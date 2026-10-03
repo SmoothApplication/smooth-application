@@ -122,6 +122,7 @@ export default function PersonalLetterPanel({ code, inline = false }: PersonalLe
       const g = buildIncomeSourceBreakdown(txns, applicantName, s.maidenName, undefined, {
         minInflow: 50000,
         dropReversals: true,
+        employerName: s1?.employerName || s2?.employerName || details.employerName || '',
       });
       groups = groups.concat(g) as SourceGroups;
     });

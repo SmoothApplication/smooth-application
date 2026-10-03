@@ -23,6 +23,8 @@ export interface ReasonSuggestion {
 // Same labels as UNEXPLAINED_REASON_OPTIONS in flaggedReasons.ts. Duplicated as a lookup (not
 // imported) only to keep this module dependency-free; a test asserts they stay in sync.
 const LABELS: Record<string, string> = {
+  salary: 'Salary from my employer',
+  allowance: 'Allowance or bonus from my employer',
   family: 'Family support',
   gift: 'Gift',
   loan: 'Loan or loan repayment',
@@ -49,9 +51,10 @@ const KEYWORD_RULES: { value: string; re: RegExp; word: string }[] = [
 
 // Types that never need a reason (the applicant's own money or an automatic movement) or that are
 // too generic to guess.
-const NO_SUGGESTION_TYPES = new Set(['salary', 'self', 'reversal', 'interest', 'internal', 'other']);
+const NO_SUGGESTION_TYPES = new Set(['self', 'reversal', 'interest', 'internal', 'other']);
 
 export function suggestReasonForGroup(group: Pick<SourceGroup, 'type' | 'txns'>): ReasonSuggestion | null {
+  if (group.type === 'salary') return { value: 'salary', label: LABELS.salary, why: 'these are your regular employer payments' };
   if (NO_SUGGESTION_TYPES.has(group.type)) return null;
   const text = (group.txns || []).map((t) => t.narration || '').join(' | ');
   for (const rule of KEYWORD_RULES) {

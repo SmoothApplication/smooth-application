@@ -3,6 +3,12 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Employer pay all counts as Salary, Salary in the dropdown, no self-transfer cards
+- Once the employer name is filled in, every payment from that employer (salary, allowances, bonuses) is grouped under Salary. Matches the typed name in the narration or a Remita remitter that begins the typed name (the bank cuts it off).
+- "Salary from my employer" and "Allowance or bonus from my employer" are now dropdown choices; the Salary card fills itself in as Salary.
+- The letter uses the salary-worded payments for the monthly figure and lists allowances/bonuses separately.
+- Self-transfers are no longer shown as sender cards or listed in the review sheet; a one-line note says how much was left out.
+
 ## Employer prompt, errands, and "Saved" confirmations
 - Letter box: "Who pays your salary? (required)" with one-tap suggestions from the statement's payers (e.g. the Remita remitter), a live match check against real payments, and an explanation that a matching employer lets us write the steady-monthly-income story. Salary-like income now makes the employer name required.
 - Letter Income section adds a "steady and sustainable monthly income" line (months received).

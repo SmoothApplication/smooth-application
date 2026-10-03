@@ -385,8 +385,9 @@ export default function StatementDashboard({
       buildIncomeSourceBreakdown(txns, applicantName || null, maidenName || null, undefined, {
         minInflow,
         dropReversals: true,
+        employerName,
       }),
-    [txns, applicantName, maidenName, minInflow]
+    [txns, applicantName, maidenName, minInflow, employerName]
   );
 
   const topSenders = useMemo(

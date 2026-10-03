@@ -27,9 +27,11 @@ describe('suggestReasonForGroup', () => {
     expect(suggestReasonForGroup(g('personal', ['NIP/TUNDE BAKARE/transfer']))).toBeNull();
   });
   test('never suggests for the applicant\'s own money or automatic movements', () => {
-    ['salary', 'self', 'reversal', 'interest', 'internal', 'other'].forEach((ty) =>
+    ['self', 'reversal', 'interest', 'internal', 'other'].forEach((ty) =>
       expect(suggestReasonForGroup(g(ty, ['rent gift loan']))).toBeNull()
     );
+    // The Salary group is the one exception: it is suggested as salary.
+    expect(suggestReasonForGroup(g('salary', ['rent gift loan']))?.value).toBe('salary');
   });
   test('suggestion labels stay in sync with the dropdown options', () => {
     ['rent', 'loan', 'gift', 'refund', 'sale', 'savings_group', 'business', 'family'].forEach((v) => {

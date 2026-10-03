@@ -98,6 +98,9 @@ export function buildIncomeBreakdownAoa(
 
   let grandTotal = 0;
   groups.forEach((g) => {
+    // Money moved between the applicant's own accounts is not income and not something a reviewer needs
+    // itemised - left out of the sheet entirely.
+    if (g.type === 'self') return;
     // Direct user report: GRAND TOTAL used to sum every group's subtotal unconditionally, including
     // reversal/self/interest/internal groups - the applicant's own money bouncing back or moving
     // between their own accounts, never new income. That silently overstated income relative to the

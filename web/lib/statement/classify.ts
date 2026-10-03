@@ -1,4 +1,4 @@
-import { extractRemitaPurpose } from './remitaReason';
+import { extractRemitaPurpose, extractRemitaRemitter } from './remitaReason';
 // Classification, ported from index.html (~lines 11741-12106, 11858-11957, 12431-12469, 12938-13026,
 // 13768-14125).
 
@@ -751,11 +751,21 @@ export function looksLikeSelfInflow(candidateName: string, applicantName: string
   return false;
 }
 
+/** True when a narration (or its Remita payroll purpose) says salary. */
+export function isSalaryNarrationText(narration: string | undefined | null): boolean {
+  return /\bsalar(y|ies)\b/i.test(narration || '') || /salar/i.test(extractRemitaPurpose(narration) || '');
+}
+
 export interface IncomeBreakdownOptions {
   /** Inflows below this amount are ignored entirely (never shown, never counted). Default 0 = keep all. */
   minInflow?: number;
   /** When true, reversals are dropped from the breakdown instead of shown as their own group. */
   dropReversals?: boolean;
+  /** The applicant's declared employer. Every payment from that employer (salary, allowances, bonuses)
+   * is grouped under Salary. Matches the employer's words in the narration, or a Remita remitter that is
+   * the start of the typed name (the bank cuts the name off, e.g. "NIGERIAN" for "Nigerian Upstream
+   * Petroleum"). */
+  employerName?: string;
 }
 
 export function buildIncomeSourceBreakdown(
@@ -889,7 +899,15 @@ export function buildIncomeSourceBreakdown(
   // amount differs from the recurring-amount bucket or its sender was grouped by name; allowances,
   // bonuses and other employer payments stay in the sender's own group.
   const isSalaryNarration = (t: ParsedTxn) =>
-    /\bsalar(y|ies)\b/i.test(t.narration || '') || /salar/i.test(extractRemitaPurpose(t.narration) || '');
+    isSalaryNarrationText(t.narration) || isEmployerPayment(t);
+  const employer = (options.employerName || '').trim();
+  const employerLower = employer.toLowerCase();
+  const isEmployerPayment = (t: ParsedTxn) => {
+    if (!employer) return false;
+    if (findInflowsMatchingName(employer, [t]).matches.length) return true;
+    const remitter = extractRemitaRemitter(t.narration);
+    return !!remitter && remitter.length >= 4 && employerLower.indexOf(remitter.toLowerCase()) === 0;
+  };
   Object.keys(namedGroups).forEach((name) => {
     const keep: ParsedTxn[] = [];
     namedGroups[name].forEach((t) => (isSalaryNarration(t) ? salaryTxns.push(t) : keep.push(t)));

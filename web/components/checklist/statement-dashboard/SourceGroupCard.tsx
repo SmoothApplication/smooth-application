@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import SavedIndicator from '@/components/checklist/SavedIndicator';
 import { SourceGroup, UNEXPLAINED_REASON_OPTIONS, suggestReasonForGroup } from '@/lib/statement';
 import { formatAmount, formatDate, sourceTypeBadge, NAME_EDITABLE_TYPES, NO_EXPLANATION_NOTE, NarrationDecoder } from './shared';
@@ -80,6 +80,15 @@ export function SourceGroupCard({
   const suggestion = needsExplanation ? suggestReasonForGroup(group) : null;
   const isConfirmed = !!suggestion && explanation === suggestion.label;
   const [noteOpen, setNoteOpen] = useState(false);
+
+  // The Salary group is, by definition, the applicant's salary: fill it in for them rather than asking.
+  useEffect(() => {
+    if (group.type === 'salary' && !explanation) {
+      setExplanation('Salary from my employer');
+      setReasonChoice('salary');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [group.type, explanation]);
 
   return (
     <div className="rounded-xl border border-black/10 p-4">

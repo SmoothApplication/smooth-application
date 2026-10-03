@@ -130,11 +130,16 @@ export function AnalysisTab({
         <p className="mb-4 text-xs text-[#566a76]">
           Every credit on this statement, grouped by who (or what) it came from.
         </p>
+        {groups.filter((g) => g.type === 'self').length > 0 && (
+          <p className="mb-2 text-xs text-[#566a76]">
+            {formatAmount(groups.filter((g) => g.type === 'self').reduce((a, g) => a + g.total, 0))} moved between your own accounts is left out below - it is not income.
+          </p>
+        )}
         {groups.length === 0 ? (
           <p className="text-sm text-[#566a76]">No credits were found on this statement.</p>
         ) : (
           <div className="flex flex-col gap-3">
-            {groups.map((g) => (
+            {groups.filter((g) => g.type !== 'self').map((g) => (
               <SourceGroupCard
                 key={g.name}
                 group={g}

@@ -5,6 +5,7 @@
 // insufficient data.
 import { LetterInput, LetterPayload, LetterIncomeRow } from './types';
 import { extractRemitaPurpose } from '@/lib/statement/remitaReason';
+import { isSalaryNarrationText } from '@/lib/statement/classify';
 
 const EXCLUDED_INCOME_TYPES = new Set(['self', 'reversal', 'interest', 'internal', 'other']);
 // Capped so an applicant with months of frequent small business inflows doesn't produce an
@@ -49,19 +50,31 @@ export function buildLetterPayload(input: LetterInput): LetterPayload {
   const namedGroups = input.groups.filter((g) => !EXCLUDED_INCOME_TYPES.has(g.type) && g.type !== 'salary');
 
   const incomeParagraphs: string[] = [];
-  if (salaryGroup) {
-    const avgMonthly = salaryGroup.count > 0 ? salaryGroup.total / salaryGroup.count : 0;
+  // The Salary group holds everything the employer paid. Regular salary drives the monthly-income story;
+  // allowances and bonuses are listed separately so they do not distort the monthly average.
+  const salaryOnly = salaryGroup ? salaryGroup.txns.filter((t) => t.credit > 0 && isSalaryNarrationText(t.narration)) : [];
+  const employerExtras = salaryGroup && salaryOnly.length ? salaryGroup.txns.filter((t) => t.credit > 0 && !isSalaryNarrationText(t.narration)) : [];
+  const salaryBase = salaryOnly.length ? salaryOnly : salaryGroup ? salaryGroup.txns.filter((t) => t.credit > 0) : [];
+  if (salaryGroup && salaryBase.length) {
+    const baseTotal = salaryBase.reduce((a, t) => a + t.credit, 0);
+    const dates = salaryBase.map((t) => t.date.getTime());
+    const avgMonthly = baseTotal / salaryBase.length;
     incomeParagraphs.push(
-      `My bank statement shows a regular monthly salary${input.employerName ? ` from ${input.employerName}` : ''}, averaging ${fmt(avgMonthly)}, credited ${salaryGroup.count} time${
-        salaryGroup.count === 1 ? '' : 's'
-      } between ${fmtDate(salaryGroup.firstDate)} and ${fmtDate(salaryGroup.lastDate)} (total ${fmt(salaryGroup.total)}).`
+      `My bank statement shows a regular monthly salary${input.employerName ? ` from ${input.employerName}` : ''}, averaging ${fmt(avgMonthly)}, credited ${salaryBase.length} time${
+        salaryBase.length === 1 ? '' : 's'
+      } between ${fmtDate(new Date(Math.min(...dates)))} and ${fmtDate(new Date(Math.max(...dates)))} (total ${fmt(baseTotal)}).`
     );
-  }
-  if (salaryGroup) {
-    const months = new Set(salaryGroup.txns.map((t) => `${t.date.getFullYear()}-${t.date.getMonth()}`)).size;
+    const months = new Set(salaryBase.map((t) => `${t.date.getFullYear()}-${t.date.getMonth()}`)).size;
     if (months >= 2) {
       incomeParagraphs.push(
         `This salary has been received in ${months} separate months without a break, which shows a steady and sustainable monthly income that I can rely on to fund this trip.`
+      );
+    }
+    if (employerExtras.length) {
+      incomeParagraphs.push(
+        `My employer${input.employerName ? `, ${input.employerName},` : ''} also paid me allowances and bonuses totalling ${fmt(
+          employerExtras.reduce((a, t) => a + t.credit, 0)
+        )} over the same period, as itemised below.`
       );
     }
   }
@@ -75,8 +88,15 @@ export function buildLetterPayload(input: LetterInput): LetterPayload {
     );
   }
 
+  const extraRows = employerExtras.map((t) => ({
+    label: extractRemitaPurpose(t.narration) ? `${input.employerName || 'Employer'} - ${extractRemitaPurpose(t.narration)}` : input.employerName || 'Employer',
+    dateLabel: fmtDate(t.date),
+    amount: t.credit,
+    date: t.date,
+  }));
   const allNamedRows = namedGroups
     .flatMap((g) => g.txns.filter((t) => t.credit > 0).map((t) => ({ label: extractRemitaPurpose(t.narration) ? `${g.name} - ${extractRemitaPurpose(t.narration)}` : g.name, dateLabel: fmtDate(t.date), amount: t.credit, date: t.date })))
+    .concat(extraRows)
     .sort((a, b) => a.date.getTime() - b.date.getTime());
   const incomeRows: LetterIncomeRow[] = allNamedRows
     .slice(-MAX_INCOME_ROWS)

@@ -69,3 +69,11 @@ export function remitaCategory(purpose: string): string {
   if (/allowance/.test(p)) return 'Allowances';
   return purpose;
 }
+
+// "INFLOW R-123/NIGERIAN U:STAFFSALARY..." -> "NIGERIAN" (the bank keeps only the start of the employer's
+// name, cut off before the "U:" purpose marker).
+const REMITTER_RE = /(?:INFLOW\s+)?(?:R-\d+\/)?([A-Za-z][A-Za-z &.'-]{2,40}?)\s+U\s*:/i;
+export function extractRemitaRemitter(narration: string | undefined | null): string | null {
+  const m = REMITTER_RE.exec(narration || '');
+  return m ? m[1].trim() : null;
+}
