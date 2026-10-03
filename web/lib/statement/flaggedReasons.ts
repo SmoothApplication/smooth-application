@@ -77,6 +77,7 @@ export const UNEXPLAINED_REASON_OPTIONS: FlaggedReasonOption[] = [
   { value: 'rent', label: 'Rent I collect from a tenant' },
   { value: 'refund', label: 'Refund' },
   { value: 'sale', label: 'Sale of a personal item or property' },
+  { value: 'errand', label: 'Errand (money sent to run an errand or buy something for someone)' },
   { value: 'other', label: 'Other (describe below)' },
 ];
 

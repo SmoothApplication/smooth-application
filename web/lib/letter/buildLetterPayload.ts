@@ -57,6 +57,14 @@ export function buildLetterPayload(input: LetterInput): LetterPayload {
       } between ${fmtDate(salaryGroup.firstDate)} and ${fmtDate(salaryGroup.lastDate)} (total ${fmt(salaryGroup.total)}).`
     );
   }
+  if (salaryGroup) {
+    const months = new Set(salaryGroup.txns.map((t) => `${t.date.getFullYear()}-${t.date.getMonth()}`)).size;
+    if (months >= 2) {
+      incomeParagraphs.push(
+        `This salary has been received in ${months} separate months without a break, which shows a steady and sustainable monthly income that I can rely on to fund this trip.`
+      );
+    }
+  }
   if (namedGroups.length) {
     incomeParagraphs.push(
       'In addition to my salary, the following payments (allowances, bonuses and other income) have been credited to my account, as shown in my bank statement:'

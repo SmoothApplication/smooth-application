@@ -95,3 +95,11 @@ describe('research notes', () => {
     expect(first.slice(-3)).toEqual(['Gift', 'Needs your review', 'Real business, Lagos']);
   });
 });
+
+describe('errand reason', () => {
+  it('is in the dropdown and suggested from an "errand" narration', () => {
+    expect(UNEXPLAINED_REASON_OPTIONS.some((o) => o.value === 'errand')).toBe(true);
+    const sug = suggestReasonForGroup({ type: 'personal', txns: [{ date: new Date('2026-04-05'), credit: 250000, debit: 0, balance: 0, narration: 'TRANSFER FROM JOHN DOE-ERRAND MONEY' }] } as never);
+    expect(sug?.value).toBe('errand');
+  });
+});

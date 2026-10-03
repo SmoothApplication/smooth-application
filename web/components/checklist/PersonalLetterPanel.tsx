@@ -10,7 +10,10 @@ import {
   StatementSummary,
   SourceGroups,
 } from '@/lib/statement';
-import { checkLetterSufficiency, buildLetterPayload, renderLetterText, renderLetterHtml, LetterInput } from '@/lib/letter';
+import SavedIndicator from '@/components/checklist/SavedIndicator';
+import { suggestEmployerNames, hasSalaryLikeIncome, EmployerSuggestion, checkLetterSufficiency, buildLetterPayload, renderLetterText, renderLetterHtml, LetterInput } from '@/lib/letter';
+import { computeWorkNameCheck } from '@/lib/statement/workNameCheck';
+import type { ParsedTxn } from '@/lib/statement/types';
 import { NIGERIA_STATES, NIGERIA_STATES_LGA } from '@/lib/checklist/nigeriaLocations';
 import { useEditableChecklistState } from '@/lib/checklist/useEditableChecklistState';
 import { DEFAULT_FINANCIAL_INPUTS, FinancialInputs } from '@/lib/checklist/financial';
@@ -71,6 +74,8 @@ export default function PersonalLetterPanel({ code, inline = false }: PersonalLe
   const visaName = countryInfo?.visaName || 'visa';
 
   const [letterInput, setLetterInput] = useState<LetterInput | null>(null);
+  const [allTxns, setAllTxns] = useState<ParsedTxn[]>([]);
+  const [suggestions, setSuggestions] = useState<EmployerSuggestion[]>([]);
   const [showLetter, setShowLetter] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -122,13 +127,17 @@ export default function PersonalLetterPanel({ code, inline = false }: PersonalLe
     });
 
     const combined = combineStatementSummaries(summaries);
+    setAllTxns(statements.flatMap((st) => deserializeTxns(st.txns || [])));
+    const likeSalary = hasSalaryLikeIncome(groups);
+    setSuggestions(suggestEmployerNames(groups));
 
     setLetterInput({
       countryName,
       visaName,
       applicantName,
       answers,
-      employed: answers.employed,
+      // Salary-like income means we treat the applicant as employed (so the employer name is required) unless they said self-employed.
+      employed: answers.employed || (likeSalary && !answers.selfEmployed),
       selfEmployed: answers.selfEmployed,
       employerName: s1?.employerName || s2?.employerName || details.employerName || '',
       businessName: s1?.businessName || s2?.businessName || details.businessName || '',
@@ -184,6 +193,41 @@ export default function PersonalLetterPanel({ code, inline = false }: PersonalLe
   const inputCls = 'w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm text-[#12232e]';
   const lgas = answers.livingState ? NIGERIA_STATES_LGA[answers.livingState] || [] : [];
 
+  const employerValue = letterInput.employerName;
+  const showEmployerBox = inline && letterInput.employed;
+  const match = showEmployerBox && employerValue.trim() ? computeWorkNameCheck({ label: 'employer', name: employerValue }, allTxns) : null;
+  const employerBox = showEmployerBox ? (
+    <div className={`mb-4 rounded-lg border p-3 ${employerValue.trim() ? 'border-green-300 bg-green-50' : 'border-amber-400 bg-amber-50'}`}>
+      <p className="text-sm font-semibold text-[#12232e]">Who pays your salary? (required)</p>
+      <p className="mt-1 text-xs text-[#4c6270]">
+        Type the employer exactly as it appears on a payment in your statement. A visa officer gives great weight to steady,
+        sustainable monthly income, and when the name matches your payments we can write your letter around that story,
+        with the months and amounts filled in for you.
+      </p>
+      {suggestions.length > 0 && !employerValue.trim() && (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <span className="text-xs text-[#4c6270]">Tap if this is your employer:</span>
+          {suggestions.map((sg) => (
+            <button key={sg.name} type="button" onClick={() => saveDetails({ ...details, employerName: sg.name })}
+              className="rounded-full border border-black/15 bg-white px-3 py-1 text-xs font-medium text-[#12232e]">
+              {sg.name}
+            </button>
+          ))}
+        </div>
+      )}
+      <input className={inputCls + ' mt-2'} placeholder="e.g. as on your payslip" value={details.employerName}
+        onChange={(e) => saveDetails({ ...details, employerName: e.target.value })} />
+      <SavedIndicator value={details.employerName} className="mt-1 block" />
+      {employerValue.trim() && match && (
+        <p className="mt-2 text-xs text-[#12232e]">
+          {match.found
+            ? `✓ Matches ${match.inflowMatches.length} payment${match.inflowMatches.length === 1 ? '' : 's'} on your statement (₦${Math.round(match.inflowTotal).toLocaleString('en-NG')}) across ${match.distinctMonthsCount} month${match.distinctMonthsCount === 1 ? '' : 's'}. Your letter will use this.`
+            : 'We could not find this name on your payments. Check the spelling against a payment, or tap a suggestion.'}
+        </p>
+      )}
+    </div>
+  ) : null;
+
   const form = inline ? (
     <div className="mb-4 grid grid-cols-1 gap-3 rounded-lg bg-[#faf9f6] p-3 sm:grid-cols-2">
       <p className="text-xs font-semibold text-[#12232e] sm:col-span-2">Fill in what we could not read from your statement</p>
@@ -200,7 +244,7 @@ export default function PersonalLetterPanel({ code, inline = false }: PersonalLe
           <option value="self">Self-employed / business owner</option>
         </select>
       </label>
-      <label className="text-xs text-[#4c6270]">{answers.selfEmployed ? 'Business name' : 'Employer name'}
+      <label className={`text-xs text-[#4c6270] ${showEmployerBox ? 'hidden' : ''}`}>{answers.selfEmployed ? 'Business name' : 'Employer name'}
         <input className={inputCls} value={answers.selfEmployed ? details.businessName : details.employerName}
           onChange={(e) => saveDetails(answers.selfEmployed ? { ...details, businessName: e.target.value } : { ...details, employerName: e.target.value })} />
       </label>
@@ -245,6 +289,7 @@ export default function PersonalLetterPanel({ code, inline = false }: PersonalLe
         <input type="checkbox" checked={answers.agedParents} onChange={(e) => setAnswers({ ...answers, agedParents: e.target.checked })} />
         I support aged parents in Nigeria (adds a line to “Ties to Nigeria”)
       </label>
+      <p className="text-xs sm:col-span-2"><SavedIndicator value={JSON.stringify([details, dates, answers.purpose, answers.addressName, answers.livingState, answers.livingLga, answers.employed, answers.selfEmployed, answers.agedParents])} /></p>
     </div>
   ) : null;
 
@@ -256,6 +301,7 @@ export default function PersonalLetterPanel({ code, inline = false }: PersonalLe
         you&apos;ve already entered — not a template you fill in again. Processed entirely in your browser.
       </p>
 
+      {employerBox}
       {form}
 
       {!sufficiency.sufficient ? (

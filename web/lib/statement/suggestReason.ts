@@ -31,6 +31,7 @@ const LABELS: Record<string, string> = {
   rent: 'Rent I collect from a tenant',
   refund: 'Refund',
   sale: 'Sale of a personal item or property',
+  errand: 'Errand (money sent to run an errand or buy something for someone)',
 };
 
 // Checked in order; first hit wins. Whole-word-ish patterns so "rental" is not caught by "rent"
@@ -41,6 +42,7 @@ const KEYWORD_RULES: { value: string; re: RegExp; word: string }[] = [
   { value: 'savings_group', re: /\b(ajo|esusu|thrift|coop(erative)?|contribution)\b/i, word: 'savings group' },
   { value: 'refund', re: /\brefund\b/i, word: 'refund' },
   { value: 'sale', re: /\b(sale|sold|proceeds)\b/i, word: 'sale' },
+  { value: 'errand', re: /\b(errand|errands)\b/i, word: 'errand' },
   { value: 'gift', re: /\b(birthday|b'?day|hbd|gift|christmas|wedding|anniversary)\b/i, word: 'gift' },
   { value: 'business', re: /\b(invoice|contract|consult(ing|ancy)?|supply|supplies|service(s)?|commission|business)\b/i, word: 'business' },
 ];

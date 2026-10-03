@@ -3,6 +3,12 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Employer prompt, errands, and "Saved" confirmations
+- Letter box: "Who pays your salary? (required)" with one-tap suggestions from the statement's payers (e.g. the Remita remitter), a live match check against real payments, and an explanation that a matching employer lets us write the steady-monthly-income story. Salary-like income now makes the employer name required.
+- Letter Income section adds a "steady and sustainable monthly income" line (months received).
+- New reason "Errand" in the dropdown (and suggested from "errand" narrations).
+- Visible "Saved on this device" confirmation on the reason picker, research note, employer name and letter details.
+
 ## Statement to letter in one page
 - The personal letter (Employment, Income, Savings and investments, Purpose and plan of visit, Ties to Nigeria, Enclosures) now appears on the statement-only page, with a short fill-in form for what a statement can't tell us (employer, purpose, dates, address, contact).
 - Income section names the employer on the salary line, lists allowances/bonuses with their Remita purpose, and the letter gets a letterhead (address, email, phone).

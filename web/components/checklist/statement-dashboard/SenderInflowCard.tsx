@@ -48,6 +48,9 @@ export function SenderInflowCard({
             className="mt-1.5 w-full rounded-lg border border-black/10 px-2 py-1.5 text-xs text-[#12232e]"
           />
         )}
+        {selected && (selected !== 'other' || (otherText[forKey] || '').trim()) && (
+          <p role="status" className="mt-1 text-xs font-medium text-green-700">✓ Saved on this device</p>
+        )}
       </div>
     );
   }

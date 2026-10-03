@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import SavedIndicator from '@/components/checklist/SavedIndicator';
 import { SourceGroup, UNEXPLAINED_REASON_OPTIONS, suggestReasonForGroup } from '@/lib/statement';
 import { formatAmount, formatDate, sourceTypeBadge, NAME_EDITABLE_TYPES, NO_EXPLANATION_NOTE, NarrationDecoder } from './shared';
 
@@ -179,6 +180,7 @@ export function SourceGroupCard({
               className="mt-1.5 w-full rounded-lg border border-black/10 px-2 py-1.5 text-xs text-[#12232e]"
             />
           )}
+          <SavedIndicator value={explanation} className="mt-1 block" />
         </div>
       )}
 
@@ -201,6 +203,7 @@ export function SourceGroupCard({
                 placeholder="e.g. Dental clinic in Lagos - real business, owner is a family friend"
                 className="w-full rounded-lg border border-black/10 px-2 py-1.5 text-xs text-[#12232e]"
               />
+              <SavedIndicator value={researchNote} className="mt-1 block" />
             </>
           )}
         </div>
