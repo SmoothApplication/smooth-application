@@ -17,7 +17,7 @@ import * as secureStorage from '@/lib/security/secureStorage';
 // the same gap FINANCIAL_UPDATED_EVENT was added for on the Finances side (task #502). Listening
 // for CHECKLIST_UPDATED_EVENT here closes the same gap for the Documents score.
 export function useChecklistState(code: string) {
-  const { checklist } = ALL_CHECKLISTS[code] ?? { catOrder: [], checklist: [] };
+  const { checklist } = ALL_CHECKLISTS[code.toUpperCase()] ?? { catOrder: [], checklist: [] };
   const [answers, setAnswers] = useState<Answers>(DEFAULT_ANSWERS);
   const [checked, setChecked] = useState<Record<string, boolean>>({});
 
