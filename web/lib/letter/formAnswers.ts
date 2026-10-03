@@ -42,10 +42,9 @@ export function monthlyNetSalary(groups: SourceGroups): number {
   const base = sal.txns.filter((t) => t.credit > 0 && isSalaryNarrationText(t.narration));
   const use = base.length ? base : sal.txns.filter((t) => t.credit > 0);
   if (!use.length) return 0;
-  // Median, so one back-pay or arrears month does not distort the "monthly" figure.
-  const v = use.map((t) => t.credit).sort((a, b) => a - b);
-  const mid = Math.floor(v.length / 2);
-  return v.length % 2 ? v[mid] : (v[mid - 1] + v[mid]) / 2;
+  // The average of the salary credits on the statement - the same figure the personal letter quotes, so the
+  // form and the letter never disagree.
+  return use.reduce((a, t) => a + t.credit, 0) / use.length;
 }
 
 export function averageMonthlySpend(txns: ParsedTxn[]): number {
@@ -68,7 +67,7 @@ export function buildFormAnswers(i: FormAnswersInput): FormAnswer[] {
   out.push({
     question: 'How much do you earn each month - after tax?',
     answer: net ? both(net, i.ratePerGbp) : '',
-    note: net ? 'The usual salary credit on your statement (the middle value, so a one-off does not skew it).' : 'No salary found on the statement yet.',
+    note: net ? 'The average salary credit on your statement - the same figure as in your letter.' : 'No salary found on the statement yet.',
   });
   const savings = i.closingBalance + i.otherSavingsTotal;
   out.push({

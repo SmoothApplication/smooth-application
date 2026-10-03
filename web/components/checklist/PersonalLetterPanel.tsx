@@ -11,7 +11,7 @@ import {
   SourceGroups,
 } from '@/lib/statement';
 import SavedIndicator from '@/components/checklist/SavedIndicator';
-import { buildFormAnswers, OtherSavingsRow, suggestEmployerNames, hasSalaryLikeIncome, EmployerSuggestion, checkLetterSufficiency, buildLetterPayload, renderLetterText, renderLetterHtml, LetterInput } from '@/lib/letter';
+import { buildFormAnswers, OtherSavingsRow, suggestEmployerNames, hasSalaryLikeIncome, EmployerSuggestion, checkLetterSufficiency, buildLetterPayload, renderLetterText, renderLetterHtml, LetterInput, needsHelpWithBalance, shortfall, helpWhatsAppHref, feesPaymentHref, hasFeesPaymentLink } from '@/lib/letter';
 import { computeWorkNameCheck } from '@/lib/statement/workNameCheck';
 import type { ParsedTxn } from '@/lib/statement/types';
 import { NIGERIA_STATES, NIGERIA_STATES_LGA } from '@/lib/checklist/nigeriaLocations';
@@ -266,6 +266,23 @@ export default function PersonalLetterPanel({ code, inline = false }: PersonalLe
         travelDate: fmtLong(dates.travelDate), returnDate: fmtLong(dates.returnDate),
       }).filter((a) => a.answer)
     : [];
+  const totalBalance = (letterInput.closingBalance || 0) + otherTotal;
+  const helpCard = needsHelpWithBalance(totalBalance) ? (
+    <div className="mb-4 rounded-lg border border-warn-text/30 bg-[#fff8e8] p-3 text-sm text-[#12232e]">
+      <p className="font-semibold">Your balance is ₦{Math.round(totalBalance).toLocaleString('en-NG')}, which is under the ₦3,000,000 a reviewer typically expects.</p>
+      <p className="mt-1 text-xs text-[#4c6270]">
+        You are ₦{Math.round(shortfall(totalBalance)).toLocaleString('en-NG')} short. Don&apos;t borrow a lump sum to cover it - that can look worse. Ask us for help: we will go through your statement with you and tell you the safest way to strengthen your application.
+      </p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        <a href={helpWhatsAppHref(totalBalance, visaName)} target="_blank" rel="noopener noreferrer" className="rounded-lg border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-[#12232e]">
+          💬 Ask for help
+        </a>
+        <a href={feesPaymentHref(totalBalance, visaName)} target="_blank" rel="noopener noreferrer" className="btn-primary text-sm">
+          {hasFeesPaymentLink() ? '💳 Pay our fees' : '💳 Get help with our fees'}
+        </a>
+      </div>
+    </div>
+  ) : null;
   const formBox = inline && formAnswers.length ? (
     <div className="mt-4 rounded-lg border border-black/10 bg-white p-3">
       <h3 className="text-sm font-semibold text-[#12232e]">📋 Answers for the visa application form</h3>
@@ -402,6 +419,8 @@ export default function PersonalLetterPanel({ code, inline = false }: PersonalLe
 
       {employerBox}
       {form}
+
+      {helpCard}
 
       {!sufficiency.sufficient ? (
         <div>

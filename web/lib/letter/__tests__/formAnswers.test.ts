@@ -16,8 +16,8 @@ const groups = [{ name: 'Salary', type: 'salary', count: 5, total: 3253218.54, f
 const txns = [...salaryTxns, t('2026-03-20', 0, 300000, 'POS'), t('2026-04-20', 0, 100000, 'POS')];
 
 describe('form answers', () => {
-  it('median net salary and average monthly spend', () => {
-    expect(Math.round(monthlyNetSalary(groups))).toBe(648358);
+  it('average salary credit and average monthly spend', () => {
+    expect(Math.round(monthlyNetSalary(groups))).toBe(Math.round((654071.67*2 + 648358.4*3) / 5));
     expect(Math.round(averageMonthlySpend(txns))).toBe(Math.round(400000 / 5));
   });
   it('converts to pounds at the typed rate', () => {
@@ -27,7 +27,8 @@ describe('form answers', () => {
       travelDate: '30 October 2026', returnDate: '8 November 2026',
     });
     const earn = a.find((x) => x.question.startsWith('How much do you earn'))!;
-    expect(earn.answer).toBe('1085.30 GBP (₦648,358)');
+    const avg = (654071.67 * 2 + 648358.4 * 3) / 5;
+    expect(earn.answer).toBe(`${(avg / 597.4).toFixed(2)} GBP (₦${Math.round(avg).toLocaleString('en-NG')})`);
     expect(a.find((x) => x.question === 'Your job title')!.answer).toBe('Senior Regulatory Officer');
   });
   it('naira only when no rate is given', () => {
