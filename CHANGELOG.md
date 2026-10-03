@@ -3,6 +3,10 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Suggestion wording fixes
+
+- The suggestion now quotes the word actually found in the narration (e.g. "birthday", not always "gift"), and Remita payroll is explained as likely employer pay.
+
 ## Business-name cleanup from a real Providus statement
 
 - "AND" now stays inside names (Amuse Games And Entertainment, David And Adenike Popoola); trailing notes (Event Funds, Happy Birthday Sis) and "Between Customers" are dropped, so the same sender no longer splits into several cards.

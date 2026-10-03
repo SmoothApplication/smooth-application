@@ -51,14 +51,18 @@ export function suggestReasonForGroup(group: Pick<SourceGroup, 'type' | 'txns'>)
   if (NO_SUGGESTION_TYPES.has(group.type)) return null;
   const text = (group.txns || []).map((t) => t.narration || '').join(' | ');
   for (const rule of KEYWORD_RULES) {
-    if (rule.re.test(text)) {
-      return { value: rule.value, label: LABELS[rule.value], why: `the bank narration mentions "${rule.word}"` };
+    const m = rule.re.exec(text);
+    if (m) {
+      return { value: rule.value, label: LABELS[rule.value], why: `the bank narration mentions "${m[0].toLowerCase()}"` };
     }
   }
   if (group.type === 'family') {
     return { value: 'family', label: LABELS.family, why: 'this sender shares your surname' };
   }
   if (group.type === 'company') {
+    if (/\bREMITA\b/i.test(text)) {
+      return { value: 'business', label: LABELS.business, why: 'paid through Remita, which is how employers and government bodies pay staff - likely your employer, so say which allowance or bonus it was' };
+    }
     return { value: 'business', label: LABELS.business, why: 'this sender looks like a company' };
   }
   return null;

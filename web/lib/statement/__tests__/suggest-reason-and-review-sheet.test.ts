@@ -69,3 +69,11 @@ describe('review columns in the spreadsheet', () => {
     expect(first.slice(-2)).toEqual(['Gift', 'Confirmed']);
   });
 });
+
+describe('Remita payroll', () => {
+  test('explains it as employer pay, not a generic company', () => {
+    const s = suggestReasonForGroup(g('company', ['REMITA INFLOW R-1/NIGERIAN U:STAFFSALARY']));
+    expect(s?.why).toMatch(/Remita/);
+    expect(s?.why).toMatch(/employer/);
+  });
+});
