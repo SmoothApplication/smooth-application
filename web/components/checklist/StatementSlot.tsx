@@ -20,6 +20,7 @@ import {
   isStatementStale,
 } from '@/lib/statement';
 import StatementDashboard from '@/components/checklist/StatementDashboard';
+import ParseProblemReport from '@/components/checklist/ParseProblemReport';
 import ResumeReminderLinks from '@/components/checklist/ResumeReminderLinks';
 import { trackEvent } from '@/lib/analytics';
 import { syncFinancialInputsFromStatement } from '@/lib/checklist/financeStatementSync';
@@ -656,6 +657,8 @@ export default function StatementSlot({
         financialHref={financialHref}
         otherStatementSummary={otherStatementSummary}
       />
+
+      <ParseProblemReport />
     </div>
   );
 }

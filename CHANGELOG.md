@@ -3,6 +3,15 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Trust, support-load and distribution fixes (from the 6-month failure review)
+
+- `/verify-privacy`: a "check it yourself" page (browser Network-tab test, public source link, and an honest list of what does leave the device). Linked from the homepage hero and footer.
+- `/faq`: full FAQ with FAQPage structured data (privacy, statement reading, free vs paid, scope).
+- `components/checklist/ParseProblemReport.tsx`: one-tap "does something look wrongly read?" report under statement results. Reuses `/api/site-feedback` (tagged `[Statement reading problem]`, bank name + issue only, never statement contents), so no migration.
+- Quiz result: generic WhatsApp share link (no personal result included), tracked as `share_clicked:quiz_result`.
+- `/guides` + 6 evidence-based guides (`lib/guides/guides.ts`), no fee amounts or numeric thresholds that go stale; added to the sitemap and footer.
+- No logic, parsing or scoring code changed. `tsc --noEmit` clean, jest 654/654.
+
 ## Redesign: 4 gates collapsed to 2, Report tab split into accordion sections
 
 Direct go-ahead on the UX audit's redesign proposal (option A + option B — see the "On-site

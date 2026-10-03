@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next';
 import { COUNTRIES } from '@/lib/checklist/countries';
+import { GUIDES } from '@/lib/guides/guides';
 
 // Direct request: "create SEO for this website." No sitemap existed before this - search engines
 // had to discover every route by crawling links alone, and a checklist as deep as this one (18
@@ -21,6 +22,15 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${base}/quiz`, lastModified: now, changeFrequency: 'monthly', priority: 0.8 },
     { url: `${base}/checklist/start`, lastModified: now, changeFrequency: 'monthly', priority: 0.9 },
     { url: `${base}/opportunities`, lastModified: now, changeFrequency: 'weekly', priority: 0.6 },
+    { url: `${base}/faq`, lastModified: now, changeFrequency: 'monthly', priority: 0.7 },
+    { url: `${base}/verify-privacy`, lastModified: now, changeFrequency: 'yearly', priority: 0.6 },
+    { url: `${base}/guides`, lastModified: now, changeFrequency: 'weekly', priority: 0.7 },
+    ...GUIDES.map((g) => ({
+      url: `${base}/guides/${g.slug}`,
+      lastModified: now,
+      changeFrequency: 'monthly' as const,
+      priority: 0.7,
+    })),
     { url: `${base}/privacy`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
     { url: `${base}/terms`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
   ];

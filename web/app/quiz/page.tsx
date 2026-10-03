@@ -287,6 +287,21 @@ export default function ConfidenceQuizPage() {
             Continue to pick your country →
           </button>
 
+          {/* Distribution (6-month failure review): the result screen is the moment of highest
+              goodwill, so it carries a one-tap WhatsApp share. The shared text is generic — it never
+              includes this applicant's score or answers. */}
+          <a
+            href={`https://wa.me/?text=${encodeURIComponent(
+              'Planning a visa application? This free checklist checks your documents and bank statement before you pay the fee, and nothing is uploaded: https://www.smoothapplication.com'
+            )}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => trackEvent('share_clicked:quiz_result')}
+            className="mt-3 block rounded-lg border border-black/10 px-4 py-2.5 text-center text-sm font-semibold text-[#12232e] hover:bg-black/5"
+          >
+            📲 Know someone applying? Share this free check on WhatsApp
+          </a>
+
           {/* Task #402: small "Reasons" tab holding the "not a prediction" caveat, in the
               bottom-right corner AS REQUESTED — but in normal document flow, not `fixed`. A `fixed`
               bottom-right pill sits over whatever content is currently in that screen corner at the

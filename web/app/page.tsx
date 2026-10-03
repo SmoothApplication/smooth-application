@@ -163,7 +163,12 @@ export default function HomePage() {
                   before document upload) — never visible to someone who lands on the homepage and
                   doesn't click further. Matches this same row's existing ✓-prefixed, one-line style;
                   no new section, no layout change. */}
-              <span>🔒 Docs stay on your device — never uploaded</span>
+              <span>
+                🔒 Docs stay on your device — never uploaded{' '}
+                <Link href="/verify-privacy" className="text-accent underline">
+                  (check it yourself)
+                </Link>
+              </span>
             </div>
           </div>
 
@@ -464,6 +469,21 @@ export default function HomePage() {
                 <a href={WHATSAPP_HREF} target="_blank" rel="noopener" className="hover:text-accent">
                   Contact
                 </a>
+              </li>
+              <li>
+                <Link href="/verify-privacy" className="hover:text-accent">
+                  Verify our privacy claim
+                </Link>
+              </li>
+              <li>
+                <Link href="/guides" className="hover:text-accent">
+                  Guides
+                </Link>
+              </li>
+              <li>
+                <Link href="/faq" className="hover:text-accent">
+                  FAQ
+                </Link>
               </li>
               <li>
                 <Link href="/privacy" className="hover:text-accent">
