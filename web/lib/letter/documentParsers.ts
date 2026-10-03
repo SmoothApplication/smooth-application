@@ -1,7 +1,7 @@
 // Reads the few numbers and dates a visa pack needs from a payslip and a flight reservation. Pure text
 // parsing (the file is read on the device by readDocumentText); nothing is sent anywhere.
 export interface PayslipData { month: string; gross: number; net: number; }
-export interface FlightData { outboundISO: string; returnISO: string; bookingRef: string; }
+export interface FlightData { outboundISO: string; returnISO: string; }
 
 const MONTHS = ['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
 const num = (s: string) => parseFloat(s.replace(/,/g, ''));
@@ -28,19 +28,24 @@ export function parsePayslipText(text: string): PayslipData | null {
 }
 
 export function parseFlightText(text: string): FlightData | null {
-  const found: Date[] = [];
   const re = /\b(\d{1,2})\s*(JAN(?:UARY)?|FEB(?:RUARY)?|MAR(?:CH)?|APR(?:IL)?|MAY|JUN(?:E)?|JUL(?:Y)?|AUG(?:UST)?|SEP(?:TEMBER)?|OCT(?:OBER)?|NOV(?:EMBER)?|DEC(?:EMBER)?)\s+(20\d{2})\b/gi;
-  let m: RegExpExecArray | null;
-  const issue = /ISSUE\s*DATE[\s\S]{0,40}?(\d{1,2}\s*[A-Za-z]{3,9}\s+20\d{2})/i.exec(text);
-  const issueKey = issue ? issue[1].replace(/\s+/g, '').toUpperCase() : '';
-  while ((m = re.exec(text))) {
-    if (m[0].replace(/\s+/g, '').toUpperCase() === issueKey) continue;
-    const mi = MONTHS.findIndex((x) => x.startsWith(m![2].toUpperCase().slice(0, 3)));
-    found.push(new Date(Date.UTC(+m[3], mi, +m[1])));
-  }
-  const uniq = Array.from(new Set(found.map((d) => d.getTime()))).sort((a, b) => a - b);
+  const collect = (src: string) => {
+    const out: number[] = [];
+    let m: RegExpExecArray | null;
+    re.lastIndex = 0;
+    while ((m = re.exec(src))) {
+      const mi = MONTHS.findIndex((x) => x.startsWith(m![2].toUpperCase().slice(0, 3)));
+      out.push(Date.UTC(+m[3], mi, +m[1]));
+    }
+    return out;
+  };
+  // Journey headers carry a weekday ("FRIDAY, 30 OCTOBER 2026"); the issue date and ticket dates do not.
+  // Prefer the weekday-labelled dates so the booking's issue date is never read as a travel date.
+  const weekdayLines = text.split('\n').filter((l) => /\b(MON|TUE|WED|THU|FRI|SAT|SUN)[A-Z]*DAY\b/i.test(l));
+  let dates = collect(weekdayLines.join('\n'));
+  if (new Set(dates).size < 2) dates = collect(text);
+  const uniq = Array.from(new Set(dates)).sort((a, b) => a - b);
   if (uniq.length < 2) return null;
   const iso = (ms: number) => new Date(ms).toISOString().slice(0, 10);
-  const ref = /(?:BOOKING\s*REFERENCE[\s\S]{0,40}?|PNR[:\s]+)\b([A-Z0-9]{6})\b/.exec(text) || /\b([A-Z0-9]{6})\b\s*(?:\n|$)/.exec('');
-  return { outboundISO: iso(uniq[0]), returnISO: iso(uniq[uniq.length - 1]), bookingRef: ref ? ref[1] : '' };
+  return { outboundISO: iso(uniq[0]), returnISO: iso(uniq[uniq.length - 1]) };
 }
