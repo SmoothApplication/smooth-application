@@ -23,6 +23,7 @@ import {
 } from '@/lib/statement';
 import { computeFinancials, DEFAULT_FINANCIAL_INPUTS } from '@/lib/checklist/financial';
 import { INCOME_VARIANCE_THRESHOLD } from '@/lib/checklist/nextSteps';
+import { helpWhatsAppHref } from '@/lib/letter/helpOffer';
 import { formatAmount, statusPill } from './shared';
 import { SenderInflowCard } from './SenderInflowCard';
 import { WorkNameFields } from './WorkNameFields';
@@ -561,6 +562,22 @@ export function ReportTab({
                 </div>
               )}
             </div>
+            {financialStatusOverall === 'bad' && (
+              <div className="mt-3 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-900">
+                <p className="font-semibold">Tell the client before they fill in the UKVI form: the income and funds on this statement are not enough yet.</p>
+                <p className="mt-1 text-xs">
+                  Submitting now risks a refusal. We can go through the statement with you and show the safest way to strengthen it.
+                </p>
+                <a
+                  href={helpWhatsAppHref(closingBalance + (otherStatementSummary?.closingBalance || 0), 'UK visa')}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-primary mt-2 inline-block text-sm"
+                >
+                  💬 Click here for help
+                </a>
+              </div>
+            )}
           </div>
         </ReportSection>
       )}

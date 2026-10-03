@@ -305,7 +305,7 @@ export default function PersonalLetterPanel({ code, inline = false }: PersonalLe
   const totalBalance = (letterInput.closingBalance || 0) + otherTotal;
   const helpCard = needsHelpWithBalance(totalBalance) ? (
     <div className="mb-4 rounded-lg border border-warn-text/30 bg-[#fff8e8] p-3 text-sm text-[#12232e]">
-      <p className="font-semibold">Your balance is ₦{Math.round(totalBalance).toLocaleString('en-NG')}, which is under the ₦3,000,000 a reviewer typically expects.</p>
+      <p className="font-semibold">Before you fill in the UKVI form: your balance is ₦{Math.round(totalBalance).toLocaleString('en-NG')}, which is under the ₦3,000,000 a reviewer typically expects.</p>
       <p className="mt-1 text-xs text-[#4c6270]">
         You are ₦{Math.round(shortfall(totalBalance)).toLocaleString('en-NG')} short. Don&apos;t borrow a lump sum to cover it - that can look worse. Ask us for help: we will go through your statement with you and tell you the safest way to strengthen your application.
       </p>

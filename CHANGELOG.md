@@ -3,6 +3,9 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Unreleased - not-enough-funds warning
+- When the Report verdict is "needs work", a red notice tells the client before they fill in the UKVI form that income and funds are not enough yet, with a "Click here for help" link (WhatsApp). The letter tab help card now opens with the same "before you fill in the UKVI form" wording.
+
 ## Unreleased - concentration line
 - Fixed share over 100%: it now compares the senders with all inflow groups on the statement (minus employer pay) instead of the month-table total.
 - Top 10 senders concentration check now leaves the employer out of both the senders and the inflow total, so it matches the table.
