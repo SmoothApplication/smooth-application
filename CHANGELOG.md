@@ -3,6 +3,12 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Unreleased - clearer employer, salary details, linked form answers
+- A payroll employer name cut short by the bank (e.g. "NIGERIAN U") now shows "Employer (via Remita) - your bank cuts the full name short" on its card.
+- New optional "Salary details" box (grade, pay rise, allowance schedule). It goes into the letter's employment paragraph and the form answers.
+- The form answers box now reuses checklist answers: marital status, who you support (parents, children), where you will stay, and prior refusals.
+- `review/` added to `.gitignore`.
+
 ## Unreleased - bank detection fix 2
 - Live test with a short synthetic Providus statement still read "Globus Bank" because the first transfer sat inside the header window. The header now ends at the column titles or first dated row.
 

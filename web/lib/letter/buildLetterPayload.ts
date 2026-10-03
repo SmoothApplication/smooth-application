@@ -46,6 +46,7 @@ export function buildLetterPayload(input: LetterInput): LetterPayload {
     );
     if (input.startedWhen && input.startedWhen.trim()) employmentBits.push(`I joined ${input.employerName || 'my employer'} in ${input.startedWhen.trim()}.`);
     if (input.jobDescription && input.jobDescription.trim()) employmentBits.push(input.jobDescription.trim().replace(/\s*$/, '').replace(/([^.!?])$/, '$1.'));
+    if (input.salaryNote && input.salaryNote.trim()) employmentBits.push(input.salaryNote.trim().replace(/([^.!?])$/, '$1.'));
     if (input.previousEmployment && input.previousEmployment.trim()) employmentBits.push(`Before that, ${input.previousEmployment.trim().replace(/^([A-Z])(?![ ']|$)/, (c) => c.toLowerCase()).replace(/([^.!?])$/, '$1.')}`);
   }
   if (input.selfEmployed) {

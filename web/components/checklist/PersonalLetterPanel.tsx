@@ -43,12 +43,12 @@ export type PersonalLetterPanelProps = {
 
 type LetterDetails = {
   payslipMonth: string; payslipGross: number; payslipNet: number; bankName: string; applicantName: string; employerName: string; businessName: string; phone: string; email: string;
-  jobTitle: string; startedWhen: string; jobDescription: string; previousEmployment: string; plans: string;
+  jobTitle: string; startedWhen: string; jobDescription: string; previousEmployment: string; plans: string; salaryNote: string;
   otherSavings: OtherSavingsRow[]; ratePerGbp: string; plannedSpend: string;
 };
 const EMPTY_DETAILS: LetterDetails = {
   applicantName: '', employerName: '', businessName: '', phone: '', email: '',
-  jobTitle: '', startedWhen: '', jobDescription: '', previousEmployment: '', plans: '',
+  jobTitle: '', startedWhen: '', jobDescription: '', previousEmployment: '', plans: '', salaryNote: '',
   otherSavings: [], ratePerGbp: '', plannedSpend: '', bankName: '', payslipMonth: '', payslipGross: 0, payslipNet: 0,
 };
 const PURPOSES: { value: string; label: string }[] = [
@@ -197,6 +197,7 @@ export default function PersonalLetterPanel({ code, inline = false }: PersonalLe
       startedWhen: details.startedWhen,
       jobDescription: details.jobDescription,
       previousEmployment: details.previousEmployment,
+      salaryNote: details.salaryNote,
       plans: details.plans,
       otherSavings: details.otherSavings,
       groups,
@@ -302,6 +303,8 @@ export default function PersonalLetterPanel({ code, inline = false }: PersonalLe
         jobTitle: details.jobTitle, startedWhen: details.startedWhen, jobDescription: details.jobDescription,
         ratePerGbp: Number(details.ratePerGbp) || 0, plannedSpendNgn: Number(details.plannedSpend) || 0,
         travelDate: fmtLong(dates.travelDate), returnDate: fmtLong(dates.returnDate),
+        salaryNote: details.salaryNote, maritalStatus: answers.maritalStatus, numKids: answers.numKids,
+        agedParents: answers.agedParents, hasRefusal: answers.hasRefusal, hasHost: answers.hasHost,
       }).filter((a) => a.answer)
     : [];
   const totalBalance = (letterInput.closingBalance || 0) + otherTotal;
@@ -418,6 +421,9 @@ export default function PersonalLetterPanel({ code, inline = false }: PersonalLe
           </label>
           <label className="text-xs text-[#4c6270] sm:col-span-2">What do you do in your job?
             <textarea rows={2} className={inputCls} value={details.jobDescription} onChange={(e) => saveDetails({ ...details, jobDescription: e.target.value })} />
+          </label>
+          <label className="text-xs text-[#4c6270] sm:col-span-2">Salary details (optional)
+            <textarea rows={2} className={inputCls} placeholder="e.g. Grade level 12; yearly pay rise each January; allowances paid quarterly" value={details.salaryNote} onChange={(e) => saveDetails({ ...details, salaryNote: e.target.value })} />
           </label>
           <label className="text-xs text-[#4c6270] sm:col-span-2">Previous job (optional)
             <textarea rows={2} className={inputCls} placeholder="e.g. I worked at a bank for 10 years before moving here" value={details.previousEmployment} onChange={(e) => saveDetails({ ...details, previousEmployment: e.target.value })} />

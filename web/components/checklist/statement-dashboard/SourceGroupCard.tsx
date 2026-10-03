@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import SavedIndicator from '@/components/checklist/SavedIndicator';
+import { employerLabelNote } from '@/lib/statement/employerLabel';
 import { SourceGroup, UNEXPLAINED_REASON_OPTIONS, suggestReasonForGroup } from '@/lib/statement';
 import { formatAmount, formatDate, sourceTypeBadge, NAME_EDITABLE_TYPES, NO_EXPLANATION_NOTE, NarrationDecoder } from './shared';
 
@@ -111,6 +112,9 @@ export function SourceGroupCard({
             >
               ✏️ Edit sender name
             </button>
+          )}
+          {group.type === 'salary' && employerLabelNote(displayName(group.name)) && (
+            <span className="text-[10px] text-[#566a76]">{employerLabelNote(displayName(group.name))}</span>
           )}
         </div>
         <span className="text-xs text-[#566a76]">

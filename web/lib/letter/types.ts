@@ -43,6 +43,8 @@ export interface LetterInput {
   startedWhen?: string;
   jobDescription?: string;
   previousEmployment?: string;
+  /** Free-text pay details the statement cannot show (grade, bonus schedule, pay rise) - added to the letter. */
+  salaryNote?: string;
   plans?: string;
   otherSavings?: OtherSavingsRow[];
   /** Read from an uploaded payslip (optional). */

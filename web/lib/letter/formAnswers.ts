@@ -28,6 +28,14 @@ export interface FormAnswersInput {
   plannedSpendNgn: number;
   travelDate: string;
   returnDate: string;
+  /** Extra pay details typed by the applicant (grade, bonus schedule...). */
+  salaryNote?: string;
+  /** Answers already given elsewhere in the checklist, reused so the form box agrees with them. */
+  maritalStatus?: '' | 'single' | 'married' | 'divorced';
+  numKids?: string;
+  agedParents?: boolean;
+  hasRefusal?: boolean;
+  hasHost?: boolean;
 }
 
 const ngn = (n: number) => '₦' + Math.round(n).toLocaleString('en-NG');
@@ -97,6 +105,9 @@ export function buildFormAnswers(i: FormAnswersInput): FormAnswer[] {
       note: 'Salary plus allowances added together - use this total on the form.',
     });
   }
+  if (i.salaryNote && i.salaryNote.trim()) {
+    out.push({ question: 'Anything else about your pay', answer: i.salaryNote.trim(), note: 'Your own note - also added to your letter.' });
+  }
   const savings = i.closingBalance + i.otherSavingsTotal;
   out.push({
     question: 'How much money do you have in savings?',
@@ -117,5 +128,23 @@ export function buildFormAnswers(i: FormAnswersInput): FormAnswer[] {
   out.push({ question: 'Date you plan to arrive in the UK', answer: i.travelDate });
   out.push({ question: 'Date you plan to leave the UK', answer: i.returnDate });
   out.push({ question: 'Will anyone be paying towards the cost of your visit?', answer: 'No', note: 'Matches the letter: you fund the trip yourself.' });
+  // Answers the applicant already gave in the checklist - reused here so the form box never disagrees with them.
+  const ms = i.maritalStatus;
+  if (ms) out.push({ question: 'What is your marital status?', answer: ms[0].toUpperCase() + ms.slice(1), note: 'From your checklist answers.' });
+  const kids = Number(i.numKids);
+  const supports = [i.agedParents ? 'your parents' : '', kids > 0 ? `${kids} child${kids === 1 ? '' : 'ren'}` : ''].filter(Boolean);
+  if (i.agedParents !== undefined || i.numKids !== undefined) {
+    out.push({
+      question: 'Do you financially support anyone at home?',
+      answer: supports.length ? `Yes - ${supports.join(' and ')}` : 'No',
+      note: 'From your checklist answers (parents and children).',
+    });
+  }
+  if (i.hasHost !== undefined) {
+    out.push({ question: 'Where will you stay?', answer: i.hasHost ? 'With a host in the UK (their invitation and address proof go with your application)' : 'Paid accommodation (hotel or rental) - keep the booking', note: 'From your checklist answers.' });
+  }
+  if (i.hasRefusal !== undefined) {
+    out.push({ question: 'Have you ever been refused a visa?', answer: i.hasRefusal ? 'Yes - answer truthfully and attach the refusal explanation' : 'No', note: 'From your checklist answers. Always answer this truthfully.' });
+  }
   return out;
 }

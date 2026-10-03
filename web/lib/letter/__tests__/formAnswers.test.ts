@@ -41,6 +41,26 @@ describe('form answers', () => {
     expect(a.find((x) => x.question.startsWith('Monthly allowances'))!.answer).toBe('₦6,000,000');
     expect(a.find((x) => x.question.includes('salary + allowances'))!.answer).toBe(`₦${Math.round(sal + 6000000).toLocaleString('en-NG')}`);
   });
+  it('reuses checklist answers and the salary note', () => {
+    const a = buildFormAnswers({
+      groups, txns, closingBalance: 1000000, otherSavingsTotal: 0, employed: true, selfEmployed: false, employerName: '', jobTitle: '', startedWhen: '', jobDescription: '',
+      ratePerGbp: 0, plannedSpendNgn: 0, travelDate: '', returnDate: '', salaryNote: 'Grade level 12', maritalStatus: 'married', numKids: '2', agedParents: true, hasRefusal: false, hasHost: true,
+    });
+    const get = (q: string) => a.find((x) => x.question === q)?.answer;
+    expect(get('Anything else about your pay')).toBe('Grade level 12');
+    expect(get('What is your marital status?')).toBe('Married');
+    expect(get('Do you financially support anyone at home?')).toBe('Yes - your parents and 2 children');
+    expect(get('Have you ever been refused a visa?')).toBe('No');
+    expect(get('Where will you stay?')).toContain('host');
+  });
+  it('puts the salary note into the letter', () => {
+    const p = buildLetterPayload({
+      countryName: 'United Kingdom', visaName: 'v', applicantName: 'A P', answers: { ...DEFAULT_ANSWERS, purpose: 'tourism' as const }, employed: true, selfEmployed: false,
+      employerName: 'NUPRC', businessName: '', groups, statementSummaries: [], totalInflow: 0, totalOutflow: 0, openingBalance: 0, closingBalance: 0, financialInputs: null,
+      salaryNote: 'I am on grade level 12',
+    } as never);
+    expect(JSON.stringify(p)).toContain('I am on grade level 12.');
+  });
   it('naira only when no rate is given', () => {
     const a = buildFormAnswers({ groups, txns, closingBalance: 1000000, otherSavingsTotal: 0, employed: true, selfEmployed: false, employerName: '', jobTitle: '', startedWhen: '', jobDescription: '', ratePerGbp: 0, plannedSpendNgn: 0, travelDate: '', returnDate: '' });
     expect(a.find((x) => x.question.startsWith('How much money do you have'))!.answer).toBe('₦1,000,000');
