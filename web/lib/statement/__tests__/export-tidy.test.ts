@@ -8,5 +8,5 @@ it('tidies narration digits and junk reasons', () => {
 });
 it('adds employer-letter tip when allowances dominate', () => {
   const base = { openingBalance: 0, closingBalance: 1, totalInflow: 1, totalOutflow: 0, recommendedFundsFloor: 1, hasSalaryIncome: true, hasOtherRecurringIncome: false, statementCurrencyIssues: [], unexplainedGroupCount: 0 } as const;
-  expect(buildActionPlan({ ...base, largeEmployerAllowances: true, statementCurrencyIssues: [] }).doList.join(' ')).toMatch(/letter confirming your allowances/);
+  expect(buildActionPlan({ ...base, largeEmployerAllowances: true, statementCurrencyIssues: [] }).doList.join(' ')).toMatch(/larger than your basic salary, which is normal/);
 });

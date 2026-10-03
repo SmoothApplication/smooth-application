@@ -48,7 +48,7 @@ export function buildActionPlan(i: ActionPlanInput): ActionPlan {
     doList.push('Make sure your employment letter and payslips show the same salary as the credits on this statement.');
   }
   if (i.largeEmployerAllowances) {
-    doList.push('Ask your employer for a short letter confirming your allowances and bonuses (what they are and how often they are paid). They make up a large part of your income, so a reviewer will want proof.');
+    doList.push('Your allowances are larger than your basic salary, which is normal in Nigeria. Ask your employer for a letter or payslip that lists basic salary and each allowance, so the total matches your statement.');
   }
   if (i.totalOutflow > i.totalInflow) {
     doList.push('Spend less for a while. You spent more than came in, which makes your savings look thin.');
