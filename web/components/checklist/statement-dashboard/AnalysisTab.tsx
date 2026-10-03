@@ -89,7 +89,9 @@ export function AnalysisTab({
   const shownSenders = topSenders.list.filter((s) => !coveredBySalary(s.name));
   const employerPay = salaryGroupsExplained.reduce((s, g) => s + g.total, 0);
   const topSendersTotal = shownSenders.reduce((s, x) => s + x.total, 0);
-  const totalInflow6mo = cashFlowRows.reduce((s, r) => s + r.inflow, 0) - employerPay;
+  // Same population as the senders (every inflow group on the statement), so the share can never pass 100%
+  // the way it did when compared against the month-table total.
+  const totalInflow6mo = groups.reduce((s, g) => s + g.total, 0) - employerPay;
   const topSendersRatio = totalInflow6mo > 0 ? topSendersTotal / totalInflow6mo : 0;
   const topSendersGood = topSendersRatio >= 0.5;
 
@@ -500,8 +502,7 @@ export function AnalysisTab({
             {topSendersGood ? '✅' : '⚠️'} These {shownSenders.length} sender
             {shownSenders.length === 1 ? '' : 's'} account for{' '}
             <b>{Math.round(topSendersRatio * 100)}%</b> ({formatAmount(topSendersTotal)} of{' '}
-            {formatAmount(totalInflow6mo)}) of your {employerPay > 0 ? 'non-employer ' : 'total '}inflow over the last{' '}
-            {cashFlowRows.length} month{cashFlowRows.length === 1 ? '' : 's'}.
+            {formatAmount(totalInflow6mo)}) of your {employerPay > 0 ? 'non-employer ' : 'total '}inflow on this statement.
             {topSendersGood
               ? ' Above 50% — good to go: a reviewer can trace most of your money to a short, identifiable list of payers.'
               : ' Below 50% — your income looks spread across many smaller, less consistent payers, which can be harder for a reviewer to trace back to a clear source.'}

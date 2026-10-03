@@ -4,6 +4,7 @@ Development milestones to date, grouped by feature batch rather than exact dates
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
 ## Unreleased - concentration line
+- Fixed share over 100%: it now compares the senders with all inflow groups on the statement (minus employer pay) instead of the month-table total.
 - Top 10 senders concentration check now leaves the employer out of both the senders and the inflow total, so it matches the table.
 
 ## Unreleased - separate letter tab, clearer earnings lines
