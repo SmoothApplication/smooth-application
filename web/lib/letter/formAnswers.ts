@@ -70,6 +70,19 @@ export function monthlyAllowances(groups: SourceGroups): number {
   return extras.reduce((a, t) => a + t.credit, 0) / byMonth.size;
 }
 
+/** Allowance credits far bigger than a normal month's pay (more than 5x the monthly salary): arrears, bonuses or
+ * one-offs. When they dominate, an "average allowance" overstates what the person earns each month. */
+export function largeAllowancePayments(groups: SourceGroups): { count: number; total: number } {
+  const sal = groups.find((g) => g.type === 'salary');
+  const net = monthlyNetSalary(groups);
+  if (!sal || !net) return { count: 0, total: 0 };
+  const extras = sal.txns.filter((t) => t.credit > 0 && !isSalaryNarrationText(t.narration));
+  const big = extras.filter((t) => t.credit > net * 5);
+  const allTotal = extras.reduce((a, t) => a + t.credit, 0);
+  const bigTotal = big.reduce((a, t) => a + t.credit, 0);
+  return allTotal > 0 && bigTotal / allTotal > 0.5 ? { count: big.length, total: bigTotal } : { count: 0, total: 0 };
+}
+
 export function averageMonthlySpend(txns: ParsedTxn[]): number {
   const debits = txns.filter((t) => t.debit > 0);
   if (!debits.length) return 0;
@@ -102,7 +115,12 @@ export function buildFormAnswers(i: FormAnswersInput): FormAnswer[] {
     out.push({
       question: 'How much do you earn each month - after tax? (salary + allowances)',
       answer: both(net + allow, i.ratePerGbp),
-      note: 'Salary plus allowances added together - use this total on the form.',
+      note: (() => {
+        const lump = largeAllowancePayments(i.groups);
+        return lump.count
+          ? `Salary plus allowances added together. Warning: ${ngn(lump.total)} of the allowances came from ${lump.count} large payment${lump.count === 1 ? '' : 's'} (arrears or one-offs), so this total is well above a normal month. A reviewer may question it - consider entering your salary figure instead, and explain the large payments in your letter.`
+          : 'Salary plus allowances added together - use this total on the form.';
+      })(),
     });
   }
   if (i.salaryNote && i.salaryNote.trim()) {

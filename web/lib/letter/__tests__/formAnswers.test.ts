@@ -41,6 +41,16 @@ describe('form answers', () => {
     expect(a.find((x) => x.question.startsWith('Monthly allowances'))!.answer).toBe('₦6,000,000');
     expect(a.find((x) => x.question.includes('salary + allowances'))!.answer).toBe(`₦${Math.round(sal + 6000000).toLocaleString('en-NG')}`);
   });
+  it('warns when a few large payments dominate the allowances', () => {
+    const sTx = salaryTxns.map((x) => ({ ...x, narration: 'NIGERIAN U: STAFF SALARY' }));
+    const big = [t('2026-05-04', 9500000, 0, 'NIGERIAN U:ARREARS'), t('2026-09-07', 10500000, 0, 'NIGERIAN U:ARREARS 2'), t('2026-06-25', 700000, 0, 'NIGERIAN U:TRANSPORT')];
+    const g = [{ ...groups[0], txns: [...sTx, ...big] }] as unknown as SourceGroups;
+    const a = buildFormAnswers({ groups: g, txns, closingBalance: 0, otherSavingsTotal: 0, employed: true, selfEmployed: false, employerName: '', jobTitle: '', startedWhen: '', jobDescription: '', ratePerGbp: 0, plannedSpendNgn: 0, travelDate: '', returnDate: '' });
+    expect(a.find((x) => x.question.includes('salary + allowances'))!.note).toContain('Warning');
+    const calm = [{ ...groups[0], txns: [...sTx, t('2026-05-04', 100000, 0, 'NIGERIAN U:TRANSPORT')] }] as unknown as SourceGroups;
+    const b = buildFormAnswers({ groups: calm, txns, closingBalance: 0, otherSavingsTotal: 0, employed: true, selfEmployed: false, employerName: '', jobTitle: '', startedWhen: '', jobDescription: '', ratePerGbp: 0, plannedSpendNgn: 0, travelDate: '', returnDate: '' });
+    expect(b.find((x) => x.question.includes('salary + allowances'))!.note).not.toContain('Warning');
+  });
   it('reuses checklist answers and the salary note', () => {
     const a = buildFormAnswers({
       groups, txns, closingBalance: 1000000, otherSavingsTotal: 0, employed: true, selfEmployed: false, employerName: '', jobTitle: '', startedWhen: '', jobDescription: '',

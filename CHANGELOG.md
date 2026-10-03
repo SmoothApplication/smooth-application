@@ -3,6 +3,10 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Unreleased - warning when a few large allowance payments dominate
+
+- Form answers: if more than half of the employer allowances come from payments over 5x the monthly salary (arrears, one-offs), the "salary + allowances" line now carries a warning to consider entering the salary figure and explaining the large payments in the letter.
+
 ## Unreleased - save/download moved to the end
 - "Save your progress" no longer appears on every page. It now shows on the last session and inside the statement Report tab, and only after the applicant has opened Your statement, Income sources and Workplace income.
 - Clicking "Email me my full report" with required checklist items still missing lists them and offers "Fill the missing places" (goes to Final review) or "Download anyway".
