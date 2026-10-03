@@ -38,6 +38,19 @@ export interface LetterInput {
   /** Optional letterhead contact details (typed once in the letter panel). */
   phone?: string;
   email?: string;
+  /** Optional personal detail typed once in the letter panel. */
+  jobTitle?: string;
+  startedWhen?: string;
+  jobDescription?: string;
+  previousEmployment?: string;
+  plans?: string;
+  otherSavings?: OtherSavingsRow[];
+}
+
+export interface OtherSavingsRow {
+  bank: string;
+  type: string;
+  balance: number;
 }
 
 export interface LetterSufficiencyResult {
@@ -64,6 +77,9 @@ export interface LetterPayload {
   incomeParagraphs: string[];
   incomeRows: LetterIncomeRow[];
   savingsParagraph: string;
+  /** Account-by-account list (statement accounts plus any others typed in). Empty when only one account. */
+  savingsRows: { label: string; type: string; balance: number }[];
+  savingsTotal: number;
   purposeParagraph: string;
   tiesParagraph: string;
   enclosures: string[];

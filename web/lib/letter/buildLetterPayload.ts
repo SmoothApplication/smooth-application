@@ -37,8 +37,16 @@ export function buildLetterPayload(input: LetterInput): LetterPayload {
 
   // --- Employment ---
   const employmentBits: string[] = [];
+  const who = input.employerName ? ` with ${input.employerName}` : '';
   if (input.employed) {
-    employmentBits.push(`I am currently employed${input.employerName ? ` with ${input.employerName}` : ''}.`);
+    employmentBits.push(
+      input.jobTitle && input.jobTitle.trim()
+        ? `I am a ${input.jobTitle.trim()}${who}.`
+        : `I am currently employed${who}.`
+    );
+    if (input.startedWhen && input.startedWhen.trim()) employmentBits.push(`I joined ${input.employerName || 'my employer'} in ${input.startedWhen.trim()}.`);
+    if (input.jobDescription && input.jobDescription.trim()) employmentBits.push(input.jobDescription.trim().replace(/\s*$/, '').replace(/([^.!?])$/, '$1.'));
+    if (input.previousEmployment && input.previousEmployment.trim()) employmentBits.push(`Before that, ${input.previousEmployment.trim().replace(/^([A-Z])(?![ ']|$)/, (c) => c.toLowerCase()).replace(/([^.!?])$/, '$1.')}`);
   }
   if (input.selfEmployed) {
     employmentBits.push(`I am self-employed${input.businessName ? `, operating ${input.businessName}` : ''}.`);
@@ -124,6 +132,12 @@ export function buildLetterPayload(input: LetterInput): LetterPayload {
     'This demonstrates both my regular income and my capacity to fund my planned visit without recourse to public funds or third-party sponsorship.'
   );
   const savingsParagraphFinal = savingsParts.join(' ');
+  const others = (input.otherSavings || []).filter((r) => r.bank.trim() && r.balance > 0);
+  const savingsRows = [
+    ...statementsWithData.map((sm) => ({ label: sm.label, type: 'Bank statement', balance: sm.closingBalance })),
+    ...others.map((r) => ({ label: r.bank.trim(), type: r.type.trim() || 'Savings', balance: r.balance })),
+  ];
+  const savingsTotal = savingsRows.reduce((a, r) => a + r.balance, 0);
 
   // --- Purpose and plan of visit ---
   const purposeLabel = answers.purpose ? cap(answers.purpose) : 'tourism';
@@ -133,6 +147,8 @@ export function buildLetterPayload(input: LetterInput): LetterPayload {
     travelDate && returnDate
       ? `I intend to travel to ${input.countryName} for ${purposeLabel}, from ${travelDate} to ${returnDate}. I will meet the full cost of this trip from my own income and savings as set out above, and no one else will be paying towards the cost of this visit.`
       : `I intend to travel to ${input.countryName} for ${purposeLabel}. I will meet the full cost of this trip from my own income and savings as set out above, and no one else will be paying towards the cost of this visit.`;
+
+  const purposeWithPlans = input.plans && input.plans.trim() ? `${purposeParagraph} ${input.plans.trim().replace(/([^.!?])$/, '$1.')}` : purposeParagraph;
 
   // --- Ties to Nigeria ---
   const addressBits = [answers.addressNumber, answers.addressName, answers.livingLga, answers.livingState].filter(Boolean).join(', ');
@@ -176,7 +192,9 @@ export function buildLetterPayload(input: LetterInput): LetterPayload {
     incomeParagraphs,
     incomeRows,
     savingsParagraph: savingsParagraphFinal,
-    purposeParagraph,
+    savingsRows: savingsRows.length > 1 ? savingsRows : [],
+    savingsTotal,
+    purposeParagraph: purposeWithPlans,
     tiesParagraph,
     enclosures,
   };

@@ -3,3 +3,4 @@ export * from './sufficiency';
 export * from './buildLetterPayload';
 export * from './renderLetterText';
 export * from './employerSuggest';
+export * from './formAnswers';

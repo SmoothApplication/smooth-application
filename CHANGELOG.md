@@ -3,6 +3,11 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Letter and form built from the statement (modelled on a consultant's hand-made pack)
+- Excel: employer pay is shown as two sections, "Salary" and "Allowances and bonuses from employer", each with its own subtotal (totals unchanged).
+- Letter: optional job title, start date, job description, previous job, trip plans and other savings/investment accounts, listed with a savings total.
+- New "Answers for the visa application form" box: monthly net salary, savings, monthly spend and trip budget worked out from the statement, converted to pounds at a rate the person types, each with a Copy button.
+
 ## Employer pay all counts as Salary, Salary in the dropdown, no self-transfer cards
 - Once the employer name is filled in, every payment from that employer (salary, allowances, bonuses) is grouped under Salary. Matches the typed name in the narration or a Remita remitter that begins the typed name (the bank cuts it off).
 - "Salary from my employer" and "Allowance or bonus from my employer" are now dropdown choices; the Salary card fills itself in as Salary.

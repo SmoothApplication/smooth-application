@@ -11,7 +11,7 @@ import {
   SourceGroups,
 } from '@/lib/statement';
 import SavedIndicator from '@/components/checklist/SavedIndicator';
-import { suggestEmployerNames, hasSalaryLikeIncome, EmployerSuggestion, checkLetterSufficiency, buildLetterPayload, renderLetterText, renderLetterHtml, LetterInput } from '@/lib/letter';
+import { buildFormAnswers, OtherSavingsRow, suggestEmployerNames, hasSalaryLikeIncome, EmployerSuggestion, checkLetterSufficiency, buildLetterPayload, renderLetterText, renderLetterHtml, LetterInput } from '@/lib/letter';
 import { computeWorkNameCheck } from '@/lib/statement/workNameCheck';
 import type { ParsedTxn } from '@/lib/statement/types';
 import { NIGERIA_STATES, NIGERIA_STATES_LGA } from '@/lib/checklist/nigeriaLocations';
@@ -39,8 +39,16 @@ export type PersonalLetterPanelProps = {
   inline?: boolean;
 };
 
-type LetterDetails = { applicantName: string; employerName: string; businessName: string; phone: string; email: string };
-const EMPTY_DETAILS: LetterDetails = { applicantName: '', employerName: '', businessName: '', phone: '', email: '' };
+type LetterDetails = {
+  applicantName: string; employerName: string; businessName: string; phone: string; email: string;
+  jobTitle: string; startedWhen: string; jobDescription: string; previousEmployment: string; plans: string;
+  otherSavings: OtherSavingsRow[]; ratePerGbp: string; plannedSpend: string;
+};
+const EMPTY_DETAILS: LetterDetails = {
+  applicantName: '', employerName: '', businessName: '', phone: '', email: '',
+  jobTitle: '', startedWhen: '', jobDescription: '', previousEmployment: '', plans: '',
+  otherSavings: [], ratePerGbp: '', plannedSpend: '',
+};
 const PURPOSES: { value: string; label: string }[] = [
   { value: 'tourism', label: 'Tourism / holiday' },
   { value: 'family', label: 'Visiting family or friends' },
@@ -144,6 +152,12 @@ export default function PersonalLetterPanel({ code, inline = false }: PersonalLe
       businessName: s1?.businessName || s2?.businessName || details.businessName || '',
       phone: details.phone,
       email: details.email,
+      jobTitle: details.jobTitle,
+      startedWhen: details.startedWhen,
+      jobDescription: details.jobDescription,
+      previousEmployment: details.previousEmployment,
+      plans: details.plans,
+      otherSavings: details.otherSavings,
       groups,
       statementSummaries: summaries,
       totalInflow,
@@ -229,6 +243,36 @@ export default function PersonalLetterPanel({ code, inline = false }: PersonalLe
     </div>
   ) : null;
 
+  const otherTotal = details.otherSavings.reduce((a, r) => a + (r.balance || 0), 0);
+  const fmtLong = (iso: string) => (iso ? new Date(`${iso}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '');
+  const formAnswers = inline
+    ? buildFormAnswers({
+        groups: letterInput.groups, txns: allTxns, closingBalance: letterInput.closingBalance, otherSavingsTotal: otherTotal,
+        employed: letterInput.employed, selfEmployed: letterInput.selfEmployed, employerName: letterInput.employerName,
+        jobTitle: details.jobTitle, startedWhen: details.startedWhen, jobDescription: details.jobDescription,
+        ratePerGbp: Number(details.ratePerGbp) || 0, plannedSpendNgn: Number(details.plannedSpend) || 0,
+        travelDate: fmtLong(dates.travelDate), returnDate: fmtLong(dates.returnDate),
+      }).filter((a) => a.answer)
+    : [];
+  const formBox = inline && formAnswers.length ? (
+    <div className="mt-4 rounded-lg border border-black/10 bg-white p-3">
+      <h3 className="text-sm font-semibold text-[#12232e]">📋 Answers for the visa application form</h3>
+      <p className="mb-2 text-xs text-[#4c6270]">Worked out from your statement and the details above. Tap Copy and paste into the form. Check each one before you submit.</p>
+      <ul className="flex flex-col gap-2">
+        {formAnswers.map((a) => (
+          <li key={a.question} className="rounded-lg bg-[#faf9f6] p-2 text-xs">
+            <p className="text-[#566a76]">{a.question}</p>
+            <div className="mt-0.5 flex items-start justify-between gap-2">
+              <p className="whitespace-pre-wrap font-medium text-[#12232e]">{a.answer}</p>
+              <button type="button" className="shrink-0 text-accent hover:underline" onClick={() => navigator.clipboard?.writeText(a.answer)}>Copy</button>
+            </div>
+            {a.note && <p className="mt-0.5 text-[10px] text-[#566a76]">{a.note}</p>}
+          </li>
+        ))}
+      </ul>
+    </div>
+  ) : null;
+
   const form = inline ? (
     <div className="mb-4 grid grid-cols-1 gap-3 rounded-lg bg-[#faf9f6] p-3 sm:grid-cols-2">
       <p className="text-xs font-semibold text-[#12232e] sm:col-span-2">Fill in what we could not read from your statement</p>
@@ -285,6 +329,48 @@ export default function PersonalLetterPanel({ code, inline = false }: PersonalLe
       </label>
       <label className="text-xs text-[#4c6270]">Phone (optional)
         <input type="tel" className={inputCls} value={details.phone} onChange={(e) => saveDetails({ ...details, phone: e.target.value })} />
+      </label>
+      <p className="text-xs font-semibold text-[#12232e] sm:col-span-2 mt-2">About you (fills your letter and the visa form)</p>
+      {letterInput.employed && (
+        <>
+          <label className="text-xs text-[#4c6270]">Job title
+            <input className={inputCls} value={details.jobTitle} onChange={(e) => saveDetails({ ...details, jobTitle: e.target.value })} />
+          </label>
+          <label className="text-xs text-[#4c6270]">When did you start with this employer?
+            <input className={inputCls} placeholder="e.g. August 2025" value={details.startedWhen} onChange={(e) => saveDetails({ ...details, startedWhen: e.target.value })} />
+          </label>
+          <label className="text-xs text-[#4c6270] sm:col-span-2">What do you do in your job?
+            <textarea rows={2} className={inputCls} value={details.jobDescription} onChange={(e) => saveDetails({ ...details, jobDescription: e.target.value })} />
+          </label>
+          <label className="text-xs text-[#4c6270] sm:col-span-2">Previous job (optional)
+            <textarea rows={2} className={inputCls} placeholder="e.g. I worked at a bank for 10 years before moving here" value={details.previousEmployment} onChange={(e) => saveDetails({ ...details, previousEmployment: e.target.value })} />
+          </label>
+        </>
+      )}
+      <label className="text-xs text-[#4c6270] sm:col-span-2">What do you plan to do on the trip?
+        <textarea rows={2} className={inputCls} placeholder="e.g. See the London Eye and Trafalgar Square, take a bus tour" value={details.plans} onChange={(e) => saveDetails({ ...details, plans: e.target.value })} />
+      </label>
+      <div className="sm:col-span-2">
+        <p className="text-xs text-[#4c6270]">Other savings and investments (accounts not on this statement)</p>
+        {details.otherSavings.map((r, idx) => (
+          <div key={idx} className="mt-1 grid grid-cols-[1fr_1fr_1fr_auto] gap-2">
+            <input className={inputCls} placeholder="Bank / platform" value={r.bank} onChange={(e) => saveDetails({ ...details, otherSavings: details.otherSavings.map((x, k) => (k === idx ? { ...x, bank: e.target.value } : x)) })} />
+            <input className={inputCls} placeholder="Type (Savings, Investment…)" value={r.type} onChange={(e) => saveDetails({ ...details, otherSavings: details.otherSavings.map((x, k) => (k === idx ? { ...x, type: e.target.value } : x)) })} />
+            <input type="number" className={inputCls} placeholder="Balance (₦)" value={r.balance || ''} onChange={(e) => saveDetails({ ...details, otherSavings: details.otherSavings.map((x, k) => (k === idx ? { ...x, balance: Number(e.target.value) || 0 } : x)) })} />
+            <button type="button" aria-label="Remove" className="px-2 text-sm text-[#566a76]" onClick={() => saveDetails({ ...details, otherSavings: details.otherSavings.filter((_, k) => k !== idx) })}>✕</button>
+          </div>
+        ))}
+        {details.otherSavings.length < 8 && (
+          <button type="button" className="mt-1 text-xs font-medium text-accent hover:underline" onClick={() => saveDetails({ ...details, otherSavings: [...details.otherSavings, { bank: '', type: '', balance: 0 }] })}>
+            + Add an account
+          </button>
+        )}
+      </div>
+      <label className="text-xs text-[#4c6270]">Naira per £1 (for the visa form amounts)
+        <input type="number" className={inputCls} placeholder="e.g. 1980" value={details.ratePerGbp} onChange={(e) => saveDetails({ ...details, ratePerGbp: e.target.value })} />
+      </label>
+      <label className="text-xs text-[#4c6270]">Trip budget you plan to spend (₦)
+        <input type="number" className={inputCls} value={details.plannedSpend} onChange={(e) => saveDetails({ ...details, plannedSpend: e.target.value })} />
       </label>
       <label className="flex items-center gap-2 text-xs text-[#4c6270] sm:col-span-2">
         <input type="checkbox" checked={answers.agedParents} onChange={(e) => setAnswers({ ...answers, agedParents: e.target.checked })} />
@@ -355,6 +441,7 @@ export default function PersonalLetterPanel({ code, inline = false }: PersonalLe
           </p>
         </div>
       )}
+      {formBox}
     </section>
   );
 }

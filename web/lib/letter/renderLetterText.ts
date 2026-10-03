@@ -54,6 +54,11 @@ export function renderLetterText(payload: LetterPayload): string {
 
   lines.push('3. Savings and investments');
   lines.push(payload.savingsParagraph);
+  if (payload.savingsRows.length) {
+    lines.push('');
+    payload.savingsRows.forEach((r, i) => lines.push(`  ${i + 1}. ${r.label} (${r.type}): ${fmt(r.balance)}`));
+    lines.push(`  Total savings and investments: ${fmt(payload.savingsTotal)}`);
+  }
   lines.push('');
 
   lines.push('4. Purpose and plan of visit');
@@ -101,6 +106,10 @@ export function renderLetterHtml(payload: LetterPayload): string {
     out.push('<ul>' + payload.incomeRows.map((r) => `<li>${esc(`${r.label}, ${r.dateLabel}: ${fmt(r.amount)}`)}</li>`).join('') + '</ul>');
   }
   out.push(h('3. Savings and investments'), p(payload.savingsParagraph));
+  if (payload.savingsRows.length) {
+    out.push('<ol>' + payload.savingsRows.map((r) => `<li>${esc(`${r.label} (${r.type}): ${fmt(r.balance)}`)}</li>`).join('') + '</ol>');
+    out.push(p(`Total savings and investments: ${fmt(payload.savingsTotal)}`));
+  }
   out.push(h('4. Purpose and plan of visit'), p(payload.purposeParagraph));
   out.push(h('5. Ties to Nigeria'), p(payload.tiesParagraph));
   out.push(p('Thank you for your kind consideration of my application. I am happy to provide any further information or documentation that may be required, and I look forward to a favourable decision.'));

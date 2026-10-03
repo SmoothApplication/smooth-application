@@ -38,7 +38,7 @@
 //      after the header rather than reworded into the header itself, so the note doesn't compete
 //      for space with the column widths a spreadsheet reader actually uses.
 import type { SourceGroups } from './types';
-import { extractNarrationReason } from './classify';
+import { extractNarrationReason, isSalaryNarrationText } from './classify';
 import { txnSignature } from './flaggedReasons';
 
 export type SpreadsheetRow = (string | number)[];
@@ -52,8 +52,39 @@ const NON_INCOME_TYPES = new Set(['reversal', 'self', 'interest', 'internal']);
  * construction exactly: one header row, an optional "possibly missing" warning row, then each
  * source group's transactions (source name/type shown once on the group's first row only),
  * a per-group subtotal, a blank spacer row, and a final grand-total row. */
+/** The Salary group holds everything the employer paid. On the sheet, regular salary and
+ * allowances/bonuses are shown as two sections, each with its own subtotal, the way a consultant lays
+ * them out by hand. Totals are unchanged. Only splits when the group really contains both. */
+export function splitSalaryForSheet(groups: SourceGroups): SourceGroups {
+  const out: SourceGroups = [] as SourceGroups;
+  groups.forEach((g) => {
+    if (g.type !== 'salary') {
+      out.push(g);
+      return;
+    }
+    const salary = g.txns.filter((t) => isSalaryNarrationText(t.narration));
+    const extras = g.txns.filter((t) => !isSalaryNarrationText(t.narration));
+    if (!salary.length || !extras.length) {
+      out.push(g);
+      return;
+    }
+    const mk = (name: string, txns: typeof g.txns) => ({
+      ...g,
+      name,
+      txns,
+      count: txns.length,
+      total: txns.reduce((a, t) => a + t.credit, 0),
+      firstDate: new Date(Math.min(...txns.map((t) => t.date.getTime()))),
+      lastDate: new Date(Math.max(...txns.map((t) => t.date.getTime()))),
+    });
+    out.push(mk('Salary', salary), mk('Allowances and bonuses from employer', extras));
+  });
+  out.missingSalaryMonths = groups.missingSalaryMonths;
+  return out;
+}
+
 export function buildIncomeBreakdownAoa(
-  groups: SourceGroups,
+  inputGroups: SourceGroups,
   displayName: (rawName: string) => string,
   explanations: Record<string, string> = {},
   // Direct instruction: "if you click for the same purposes it fills it straight into the excel
@@ -69,6 +100,7 @@ export function buildIncomeBreakdownAoa(
   // "true or false" record.
   review?: (g: SourceGroups[number]) => { suggested: string; status: string; note?: string }
 ): SpreadsheetRow[] {
+  const groups = splitSalaryForSheet(inputGroups);
   // A 'Research note' column is added only when at least one sender actually has a note, so sheets
   // without notes keep the exact column set they had before.
   const withNotes = !!review && groups.some((g) => !NON_INCOME_TYPES.has(g.type) && !!review(g).note);

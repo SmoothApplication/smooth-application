@@ -48,3 +48,17 @@ describe('salary is a choice in the reason dropdown', () => {
     expect(suggestReasonForGroup(g.find((x) => x.type === 'salary')!)?.value).toBe('salary');
   });
 });
+
+import { buildIncomeBreakdownAoa } from '../exportBreakdown';
+describe('sheet shows employer pay as Salary + Allowances sections', () => {
+  it('splits into two subtotals that add up to the same total', () => {
+    const groups = buildIncomeSourceBreakdown(remita, 'JANE DOE', null, undefined, { minInflow: 50000, dropReversals: true, employerName: 'Nigerian Upstream Petroleum' });
+    const aoa = buildIncomeBreakdownAoa(groups, (n) => n);
+    const subs = aoa.filter((r) => String(r[4] || '').startsWith('Subtotal for'));
+    expect(subs.map((r) => r[4])).toEqual(['Subtotal for Salary:', 'Subtotal for Allowances and bonuses from employer:']);
+    const sum = Number(subs[0][5]) + Number(subs[1][5]);
+    const grand = aoa.find((r) => String(r[4] || '').toUpperCase().includes('GRAND TOTAL'));
+    expect(Math.round(sum)).toBe(Math.round(remita.reduce((a, x) => a + x.credit, 0)));
+    expect(grand).toBeTruthy();
+  });
+});
