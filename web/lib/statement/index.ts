@@ -21,3 +21,4 @@ export * from './cashFlow';
 export * from './finalSummary';
 export * from './flaggedReasons';
 export * from './suggestReason';
+export * from './researchNotes';

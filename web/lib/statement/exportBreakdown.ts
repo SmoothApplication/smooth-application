@@ -67,13 +67,16 @@ export function buildIncomeBreakdownAoa(
   // when given, two extra columns are appended — our suggested reason and whether the applicant
   // confirmed it, edited it, or hasn't answered yet — so the sheet can go back to a reviewer as a
   // "true or false" record.
-  review?: (g: SourceGroups[number]) => { suggested: string; status: string }
+  review?: (g: SourceGroups[number]) => { suggested: string; status: string; note?: string }
 ): SpreadsheetRow[] {
-  const extra = (a: string, b: string): SpreadsheetRow => (review ? [a, b] : []);
+  // A 'Research note' column is added only when at least one sender actually has a note, so sheets
+  // without notes keep the exact column set they had before.
+  const withNotes = !!review && groups.some((g) => !NON_INCOME_TYPES.has(g.type) && !!review(g).note);
+  const extra = (a: string, b: string, c = ''): SpreadsheetRow => (review ? (withNotes ? [a, b, c] : [a, b]) : []);
   const aoa: SpreadsheetRow[] = [
     [
       'Source', 'Type', 'Date', 'Amount (NGN)', 'Reason (from narration)', 'Narration', 'Your explanation',
-      ...extra('Suggested reason', 'Review status'),
+      ...extra('Suggested reason', 'Review status', 'Research note'),
     ],
     [
       "Note: \"Reason\" is auto-extracted from the raw \"Narration\" text in the next column - always double-check it against the original wording, especially if it looks off.",
@@ -110,7 +113,7 @@ export function buildIncomeBreakdownAoa(
         ? g.name.toUpperCase().split(/\s+/)
         : [];
     const explanation = explanations[g.name] || '';
-    const rv = review && !NON_INCOME_TYPES.has(g.type) ? review(g) : { suggested: '', status: '' };
+    const rv = review && !NON_INCOME_TYPES.has(g.type) ? review(g) : { suggested: '', status: '', note: '' };
     g.txns.forEach((t, i) => {
       const reason = extractNarrationReason(t.narration, nameWords);
       const flaggedNote = flaggedReasons[txnSignature(t)];
@@ -125,7 +128,7 @@ export function buildIncomeBreakdownAoa(
         // on its own row; otherwise the group-level explanation is shown once on the group's first
         // row, same "shown once" convention as Source/Type above.
         flaggedNote || (i === 0 ? explanation : ''),
-        ...extra(i === 0 ? rv.suggested : '', i === 0 ? rv.status : ''),
+        ...extra(i === 0 ? rv.suggested : '', i === 0 ? rv.status : '', i === 0 ? rv.note || '' : ''),
       ]);
     });
     aoa.push(['', '', '', '', 'Subtotal for ' + displayName(g.name) + ':', g.total, '', ...extra('', '')]);

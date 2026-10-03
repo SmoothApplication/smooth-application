@@ -77,3 +77,21 @@ describe('Remita payroll', () => {
     expect(s?.why).toMatch(/employer/);
   });
 });
+
+import { researchNoteKey, getResearchNote } from '../researchNotes';
+describe('research notes', () => {
+  test('stored under a prefixed key, read back trimmed', () => {
+    const e = { [researchNoteKey('Dentist')]: '  Dental clinic in Lagos - real  ', Dentist: 'Business or trade payment' };
+    expect(getResearchNote(e, 'Dentist')).toBe('Dental clinic in Lagos - real');
+    expect(getResearchNote(e, 'Nobody')).toBe('');
+  });
+  test('sheet gets a Research note column only when a note exists', () => {
+    const groups = [g('personal', ['TRF FROM SOLA ADE birthday'])] as SourceGroups;
+    const mk = (note: string) => buildIncomeBreakdownAoa(groups, (n) => n, {}, {}, () => ({ suggested: 'Gift', status: 'Needs your review', note }));
+    expect(mk('')[0].slice(-2)).toEqual(['Suggested reason', 'Review status']);
+    const withNote = mk('Real business, Lagos');
+    expect(withNote[0].slice(-3)).toEqual(['Suggested reason', 'Review status', 'Research note']);
+    const first = withNote.find((r) => r[0] === 'Sender') as (string | number)[];
+    expect(first.slice(-3)).toEqual(['Gift', 'Needs your review', 'Real business, Lagos']);
+  });
+});

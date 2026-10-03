@@ -17,6 +17,8 @@ export function SourceGroupCard({
   onToggle,
   explanation,
   setExplanation,
+  researchNote = '',
+  setResearchNote,
 }: {
   group: SourceGroup;
   displayName: (rawName: string) => string;
@@ -30,6 +32,8 @@ export function SourceGroupCard({
   onToggle: () => void;
   explanation: string;
   setExplanation: (v: string) => void;
+  researchNote?: string;
+  setResearchNote?: (v: string) => void;
 }) {
   const badge = sourceTypeBadge(group.type);
   const nameEditable = NAME_EDITABLE_TYPES.has(group.type);
@@ -74,6 +78,7 @@ export function SourceGroupCard({
   // explanation equals the suggestion's label.
   const suggestion = needsExplanation ? suggestReasonForGroup(group) : null;
   const isConfirmed = !!suggestion && explanation === suggestion.label;
+  const [noteOpen, setNoteOpen] = useState(false);
 
   return (
     <div className="rounded-xl border border-black/10 p-4">
@@ -173,6 +178,30 @@ export function SourceGroupCard({
               placeholder="e.g. Rent I collect from my tenant, a loan repayment, a gift for my birthday…"
               className="mt-1.5 w-full rounded-lg border border-black/10 px-2 py-1.5 text-xs text-[#12232e]"
             />
+          )}
+        </div>
+      )}
+
+
+      {needsExplanation && setResearchNote && (
+        <div className="mt-2">
+          {!noteOpen && !researchNote ? (
+            <button type="button" onClick={() => setNoteOpen(true)} className="text-xs font-medium text-accent hover:underline">
+              📝 Add a research note (what you found about this sender)
+            </button>
+          ) : (
+            <>
+              <label className="mb-1 block text-xs font-medium text-[#566a76]">
+                Research note <span className="font-normal">(shown here and in the downloaded sheet)</span>
+              </label>
+              <textarea
+                value={researchNote}
+                onChange={(e) => setResearchNote(e.target.value)}
+                rows={2}
+                placeholder="e.g. Dental clinic in Lagos - real business, owner is a family friend"
+                className="w-full rounded-lg border border-black/10 px-2 py-1.5 text-xs text-[#12232e]"
+              />
+            </>
           )}
         </div>
       )}

@@ -3,6 +3,12 @@
 Development milestones to date, grouped by feature batch rather than exact dates (this repo's
 git history starts from the current state — see `docs/ip-ownership-notes.md` for why).
 
+## Research notes per sender (consultant due-diligence)
+
+- Each income-source card has "📝 Add a research note": free text for what you found about the sender (e.g. "Dental clinic in Lagos - real"). It stays on the card and is saved/restored with the other answers (stored under a `note::` key in the existing explanations record, so no new storage).
+- The downloaded sheet gets a "Research note" column, only when at least one note exists; sheets without notes keep their previous columns.
+- Nothing is looked up online by the app; the notes are typed by the person using it. Tests in `suggest-reason-and-review-sheet.test.ts`.
+
 ## All salaries in one group
 
 - Any payment whose narration says salary (including Remita payroll purposes) is grouped into the single Salary group, even if the amount differs or it was grouped under the employer. Allowances and bonuses stay with the employer.

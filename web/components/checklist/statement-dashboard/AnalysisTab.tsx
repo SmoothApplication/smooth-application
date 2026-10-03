@@ -10,6 +10,7 @@ import {
   classifySourceType,
   senderPairKey,
   MonthlyCashFlowRow,
+  researchNoteKey,
 } from '@/lib/statement';
 import { formatAmount, formatDate } from './shared';
 import { SourceGroupCard } from './SourceGroupCard';
@@ -148,6 +149,8 @@ export function AnalysisTab({
                 onToggle={() => toggleExpanded(g)}
                 explanation={explanations[g.name] || ''}
                 setExplanation={(v) => setExplanation(g.name, v)}
+                researchNote={explanations[researchNoteKey(g.name)] || ''}
+                setResearchNote={(v) => setExplanation(researchNoteKey(g.name), v)}
               />
             ))}
           </div>

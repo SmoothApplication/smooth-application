@@ -26,6 +26,7 @@ import {
   buildFlaggedTxnReasons,
   suggestReasonForGroup,
   describeGroupForSheet,
+  getResearchNote,
   reviewStatusFor,
   REVIEW_STATUS_LABEL,
 } from '@/lib/statement';
@@ -457,6 +458,7 @@ export default function StatementDashboard({
         const s = suggestReasonForGroup(g);
         return {
           suggested: describeGroupForSheet(g),
+          note: getResearchNote(explanations, g.name),
           status: REVIEW_STATUS_LABEL[reviewStatusFor(s, explanations[g.name] || '')],
         };
       });
